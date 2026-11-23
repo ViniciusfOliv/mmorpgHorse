@@ -1,0 +1,39 @@
+{
+  "assinatura": "9bc8dc4bf247",
+  "api": "retrodiffusion",
+  "pedido": {
+    "prompt": "foreground strip of tall dry golden grass tufts with a few small purple and white wildflowers, seen from the side at ground level, one long continuous horizontal band across the whole width, empty above, 2D side-scrolling game parallax background layer, side view, Brazilian cerrado savanna, late afternoon sunlight from the upper left, no text",
+    "prompt_style": "rd_core__platformer",
+    "width": 384,
+    "height": 64,
+    "num_images": 2,
+    "seed": 7201,
+    "remove_bg": true,
+    "input_palette": "iVBORw0KGgoAAAANSUhEUgAAACAAAAABCAYAAAC/iqxnAAAAjElEQVR4nAGBAH7/AE1ltP9Nm+b/j9P//8fc0P//////f3CK/5ursv+WbGz/q5R6/2lPYv8WWkz/I5Bj/x68c/+R22n/VH5k/5KphP9nZjP/oqlH/zdOSv/3lhf/+cIr//u5VP9uJyf/nkU5/81oPf/mkE7/szgx/0w+JP8uIi//PjVG//3LsP/oOzv/+KpPWuCLmaQAAAAASUVORK5CYII="
+  },
+  "resposta": {
+    "created_at": 1795137165,
+    "credit_cost": 2,
+    "balance_cost": 0.2,
+    "base64_images": [
+      "<21132 chars>",
+      "<25112 chars>"
+    ],
+    "output_urls": [],
+    "model": "rd_core",
+    "remaining_credits": 0,
+    "remaining_balance": 4.04,
+    "request_id": "c0a93e51-3093-422f-83b9-ba311fc5e76d",
+    "outputs_retained_until": 1795223511,
+    "billing": {
+      "reason": "no_plan",
+      "source": "balance",
+      "balance_left": 4.04,
+      "balance_charged": 0.2
+    }
+  },
+  "arquivos": [
+    "frente-rd-core-s7201-0.png",
+    "frente-rd-core-s7201-1.png"
+  ]
+}

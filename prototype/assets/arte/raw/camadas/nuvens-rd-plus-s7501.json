@@ -1,0 +1,40 @@
+{
+  "assinatura": "e0dec187226f",
+  "api": "retrodiffusion",
+  "pedido": {
+    "prompt": "a few soft fluffy white cumulus clouds with light blue-grey shading, scattered across a wide strip, nothing else, 2D side-scrolling game parallax background layer, side view, Brazilian cerrado savanna, late afternoon sunlight from the upper left, no text",
+    "prompt_style": "rd_plus__default",
+    "width": 384,
+    "height": 96,
+    "num_images": 2,
+    "seed": 7501,
+    "input_palette": "iVBORw0KGgoAAAANSUhEUgAAACAAAAABCAYAAAC/iqxnAAAAjElEQVR4nAGBAH7/AE1ltP9Nm+b/j9P//8fc0P//////f3CK/5ursv+WbGz/q5R6/2lPYv8WWkz/I5Bj/x68c/+R22n/VH5k/5KphP9nZjP/oqlH/zdOSv/3lhf/+cIr//u5VP9uJyf/nkU5/81oPf/mkE7/szgx/0w+JP8uIi//PjVG//3LsP/oOzv/+KpPWuCLmaQAAAAASUVORK5CYII=",
+    "remove_bg": true,
+    "tile_x": true
+  },
+  "resposta": {
+    "created_at": 1795137367,
+    "credit_cost": 4,
+    "balance_cost": 0.12,
+    "base64_images": [
+      "<3704 chars>",
+      "<4636 chars>"
+    ],
+    "output_urls": [],
+    "model": "rd_plus",
+    "remaining_credits": 0,
+    "remaining_balance": 3.8,
+    "request_id": "fdbb07c6-c3c1-4fd4-8575-48e15ed7519a",
+    "outputs_retained_until": 1795223756,
+    "billing": {
+      "reason": "no_plan",
+      "source": "balance",
+      "balance_left": 3.8,
+      "balance_charged": 0.12
+    }
+  },
+  "arquivos": [
+    "nuvens-rd-plus-s7501-0.png",
+    "nuvens-rd-plus-s7501-1.png"
+  ]
+}

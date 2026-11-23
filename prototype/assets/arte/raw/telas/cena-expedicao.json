@@ -1,0 +1,18 @@
+{
+  "assinatura": "95a750ae3548",
+  "pedido": {
+    "prompt": "<348 chars>",
+    "prompt_style": "rd_plus__default",
+    "width": 256,
+    "height": 160,
+    "num_images": 4,
+    "seed": 9831,
+    "input_palette": "<436 chars>"
+  },
+  "arquivos": [
+    "cena-expedicao-0.png",
+    "cena-expedicao-1.png",
+    "cena-expedicao-2.png",
+    "cena-expedicao-3.png"
+  ]
+}

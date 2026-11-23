@@ -1,0 +1,13 @@
+{
+  "assinatura": "1c896d377d07",
+  "api": "rd-edit",
+  "pedido": {
+    "input_image": "<23144 chars>",
+    "tile_x": true,
+    "tile_y": false,
+    "seed": 8243
+  },
+  "arquivos": [
+    "frente-rd-core-s8221-0-emenda-s8243-0.png"
+  ]
+}

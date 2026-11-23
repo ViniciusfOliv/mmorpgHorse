@@ -1,0 +1,17 @@
+{
+  "assinatura": "33a9c49e5020",
+  "pedido": {
+    "description": "top-down view of a savanna woodland: green grass, clusters of twisted trees and shrubs, a few rocks, small clearings, game world map terrain seen from directly above, no roads, no paths, no buildings, no text, no characters, evenly filled to all edges",
+    "image_size": {
+      "width": 256,
+      "height": 384
+    },
+    "view": "high top-down",
+    "outline": "lineless",
+    "detail": "highly detailed",
+    "seed": 9862
+  },
+  "arquivos": [
+    "mapa-grama-s9862-0.png"
+  ]
+}

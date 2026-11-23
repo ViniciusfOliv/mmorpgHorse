@@ -1,0 +1,40 @@
+{
+  "assinatura": "56eae6262b05",
+  "api": "retrodiffusion",
+  "pedido": {
+    "prompt": "a continuous row of Brazilian cerrado vegetation seen from the side: short twisted trees with thick corky bark and rounded canopies, two yellow flowering ipe trees, one buriti palm, dry golden grass along the bottom, one long continuous horizontal band across the whole width, empty sky above, 2D side-scrolling game parallax background layer, side view, Brazilian cerrado savanna, late afternoon sunlight from the upper left, no text",
+    "prompt_style": "rd_plus__default",
+    "width": 384,
+    "height": 112,
+    "num_images": 2,
+    "seed": 7101,
+    "remove_bg": true,
+    "input_palette": "iVBORw0KGgoAAAANSUhEUgAAACAAAAABCAYAAAC/iqxnAAAAjElEQVR4nAGBAH7/AE1ltP9Nm+b/j9P//8fc0P//////f3CK/5ursv+WbGz/q5R6/2lPYv8WWkz/I5Bj/x68c/+R22n/VH5k/5KphP9nZjP/oqlH/zdOSv/3lhf/+cIr//u5VP9uJyf/nkU5/81oPf/mkE7/szgx/0w+JP8uIi//PjVG//3LsP/oOzv/+KpPWuCLmaQAAAAASUVORK5CYII=",
+    "tile_x": true
+  },
+  "resposta": {
+    "created_at": 1795136969,
+    "credit_cost": 6,
+    "balance_cost": 0.12,
+    "base64_images": [
+      "<15684 chars>",
+      "<17768 chars>"
+    ],
+    "output_urls": [],
+    "model": "rd_plus",
+    "remaining_credits": 0,
+    "remaining_balance": 4.56,
+    "request_id": "bd69a334-2b02-400e-8da3-1ab123c2fbea",
+    "outputs_retained_until": 1795223358,
+    "billing": {
+      "reason": "no_plan",
+      "source": "balance",
+      "balance_left": 4.56,
+      "balance_charged": 0.12
+    }
+  },
+  "arquivos": [
+    "cerrado-rd-plus-s7101-0.png",
+    "cerrado-rd-plus-s7101-1.png"
+  ]
+}

@@ -1,15 +1,26 @@
 // Arte embutida (data:) compartilhada entre o build do jogo (build.mjs) e o gerador do wiki (tools/wiki.mjs).
 //   lerMoldes(root, avisos, dir) -> { estilos }   (a tabela window.__MOLDES; dir = 'assets/pixellab', o único que o
 //                           build lê; a folha dos portes, tools/folha-portes.mjs, passa a pasta de espera 'assets/pixellab/novos')
-//   lerIcones(root)         -> { nome: dataUrl }  (window.__ICONES; a pasta raw/ fica de fora)
-//   lerMarca(root)          -> { logo, w, h } ou { logo: null }  (window.__MARCA)
-//   lerTreinadores(root)    -> { id: dataUrl }  (window.__TREINADORES: a candidata escolhida de cada oponente dos ginásios)
+//   lerIcones(root)         -> { nome: dataUrl }  (window.__ICONES: os finais da direção de arte, assets/arte/icones/,
+//                              16×16 ou 24×24; etapa 4)
+//   lerIconesTam(root)      -> { nome: 16|24 }  (window.__ICONES_TAM: o lado nativo de cada um, lido do PNG)
+//   lerMarca(root)          -> { logo, w, h, mini, miniW, miniH } ou { logo: null }  (window.__MARCA; etapa 7)
+//   lerTreinadores(root)    -> { id: { corpo, busto } }  (window.__TREINADORES: os finais da etapa 5 da direção de arte)
+//   lerArenas(root)         -> { fogo, agua, grama }  (window.__ARENAS: o fundo da cena do desafio, 256×160)
+//   lerTelas(root)          -> { cenas: { estabulo, haras, loja, expedicao }, mapas: { fogo, agua, grama } }  (window.__TELAS:
+//                              as cenas das abas, 256×160, com as 24 linhas de baixo sumindo em pontilhado; os mapas das
+//                              trilhas, 256×384, só o terreno; etapa 6)
+//   lerRegioes(root)        -> { regiao: { nome, pistas, posicao, camadas: { nuvens, horizonte, meio, arquibancada,
+//                              frente } } }  (window.__REGIOES: as camadas da corrida, etapa 2.3; o horizonte já com a
+//                              névoa da distância, como na amostra)
 //   jsonJs(v)               -> JSON seguro dentro de <script> (nada de "<" literal)
 // root = a pasta prototype/. Arquivo de arte ausente nunca falha: a parte correspondente fica vazia
 // (o molde inválido vira um aviso em `avisos`) e quem usa cai no desenho por código / no texto.
 import { readFile, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { decodePng, encodePng } from './png.mjs'
+import { REGIOES as PALETAS, quantizar, rgbDe } from './arte-paleta.mjs'
 
 export const dataUrl = async (root, rel) => 'data:image/png;base64,' + (await readFile(join(root, rel))).toString('base64')
 const listar = async (root, rel) => (existsSync(join(root, rel)) ? (await readdir(join(root, rel))).sort() : [])
@@ -55,35 +66,115 @@ export async function lerMoldes(root, avisos = [], dir = 'assets/pixellab') {
   return { estilos }
 }
 
-// Ícones: assets/icons/<nome>.png (a pasta raw/ fica de fora).
-export async function lerIcones(root) {
+// os ícones finais (etapa 4 da direção de arte): 16×16 desenhados em código e 24×24 do PixelLab Pro, mostrados 1:1 na
+// grade (o tamanho nativo vem de lerIconesTam); a pasta antiga assets/icons/ (32×32) saiu na etapa 8 (fica no histórico do git)
+export const DIR_ICONES = 'assets/arte/icones'
+export async function lerIcones(root, dir = DIR_ICONES) {
   const out = {}
-  for (const nome of await listar(root, 'assets/icons')) {
+  for (const nome of await listar(root, dir)) {
     const mm = nome.match(/^([a-z0-9-]+)\.png$/)
-    if (mm) out[mm[1]] = await dataUrl(root, join('assets/icons', nome))
+    if (mm) out[mm[1]] = await dataUrl(root, join(dir, nome))
+  }
+  return out
+}
+export async function lerIconesTam(root, dir = DIR_ICONES) {
+  const out = {}
+  for (const nome of await listar(root, dir)) {
+    const mm = nome.match(/^([a-z0-9-]+)\.png$/)
+    if (!mm) continue
+    const buf = await readFile(join(root, dir, nome))
+    if (buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR') out[mm[1]] = buf.readUInt32BE(16)
   }
   return out
 }
 
-// Oponentes dos ginásios (a tela de desafio): assets/pixellab/treinadores/escolhas.json = { id: seed } diz qual
-// candidata de cada um vai para o jogo (<id>-s<seed>.png, da pixellab-treinadores.mjs). O id é o nome do oponente sem
-// acento, em minúsculas e com hífen. Sem o JSON ou sem o PNG, o oponente fica de fora (a tela mostra só o cavalo dele).
+// Oponentes dos ginásios (etapa 5 da direção de arte): assets/arte/treinadores/finais/<id>-corpo.png (32×48, corpo de
+// ~40 px, a escala dos cavalos) e <id>-busto.png (64×64, para os cartões), escolhidos e copiados por
+// tools/arte-treinadores.mjs finais. Um id só entra com as duas imagens.
 export async function lerTreinadores(root) {
-  const dir = 'assets/pixellab/treinadores', arq = join(root, dir, 'escolhas.json'), out = {}
-  if (!existsSync(arq)) return out
-  const escolhas = JSON.parse(await readFile(arq, 'utf8'))
-  for (const id of Object.keys(escolhas).sort()) {
-    const png = join(dir, `${id}-s${escolhas[id]}.png`)
-    if (/^[a-z0-9-]+$/.test(id) && Number.isInteger(escolhas[id]) && existsSync(join(root, png))) out[id] = await dataUrl(root, png)
+  const dir = 'assets/arte/treinadores/finais', out = {}
+  const ids = new Set((await listar(root, dir)).map((n) => (n.match(/^([a-z0-9-]+)-(corpo|busto)\.png$/) || [])[1]).filter(Boolean))
+  for (const id of [...ids].sort()) {
+    const corpo = join(dir, id + '-corpo.png'), busto = join(dir, id + '-busto.png')
+    if (existsSync(join(root, corpo)) && existsSync(join(root, busto))) out[id] = { corpo: await dataUrl(root, corpo), busto: await dataUrl(root, busto) }
+  }
+  return out
+}
+// As arenas dos ginásios (etapa 5): assets/arte/ginasios/finais/<fogo|agua|grama>.png, 256×160 ao ar livre
+export async function lerArenas(root) {
+  const out = {}
+  for (const id of ['fogo', 'agua', 'grama']) {
+    const png = join('assets/arte/ginasios/finais', id + '.png')
+    if (existsSync(join(root, png))) out[id] = await dataUrl(root, png)
   }
   return out
 }
 
 // Logotipo: data: URL e o tamanho em px (lido do cabeçalho IHDR do PNG), para o <img> reservar o espaço.
+// A marca (etapa 7 da direção de arte): assets/arte/marca/logo.png (o emblema e o letreiro em duas linhas, desenhados na
+// grade) para a tela inicial e letreiro-mini.png (só o letreiro, letras de 8 px, 67×22) para o cabeçalho; o tamanho de cada um
+// vem do PNG. O logo antigo do Canva (assets/marca/) saiu na etapa 8.
+const tamPng = (buf) => (buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR' ? [buf.readUInt32BE(16), buf.readUInt32BE(20)] : [0, 0])
 export async function lerMarca(root) {
-  const logo = 'assets/marca/logo.png'
+  const logo = 'assets/arte/marca/logo.png', mini = 'assets/arte/marca/letreiro-mini.png'
   if (!existsSync(join(root, logo))) return { logo: null }
-  const buf = await readFile(join(root, logo))
-  const png = buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR'
-  return { logo: 'data:image/png;base64,' + buf.toString('base64'), w: png ? buf.readUInt32BE(16) : 0, h: png ? buf.readUInt32BE(20) : 0 }
+  const b = await readFile(join(root, logo)), [w, h] = tamPng(b), out = { logo: 'data:image/png;base64,' + b.toString('base64'), w, h }
+  if (existsSync(join(root, mini))) {
+    const m = await readFile(join(root, mini)), [mw, mh] = tamPng(m)
+    Object.assign(out, { mini: 'data:image/png;base64,' + m.toString('base64'), miniW: mw, miniH: mh })
+  }
+  return out
+}
+
+// Camadas das regiões: assets/arte/<regiao>/<camada>.png (as finais de arte-regioes.mjs --finalizar, escolhidas em
+// assets/arte/regioes.json). O horizonte vai com a névoa da distância assada (cada cor misturada 45% com 9babb2 e de
+// volta para a paleta da região: a mesma conta da amostra, prototype/arte/amostra.js, lutNevoaDe). Região sem alguma
+// das 5 camadas fica de fora (a pista cai no cenário por código).
+export const CAMADAS_REGIAO = ['nuvens', 'horizonte', 'meio', 'arquibancada', 'frente']
+export function comNevoa(img, paleta, cor = '9babb2', k = 0.45) {
+  const n = rgbDe(cor), out = new Uint8Array(img.rgba)
+  for (let i = 0; i < out.length; i += 4) for (let c = 0; c < 3; c++) out[i + c] = Math.round(out[i + c] + (n[c] - out[i + c]) * k)
+  return quantizar({ width: img.width, height: img.height, rgba: out }, paleta)
+}
+export async function lerRegioes(root) {
+  const man = join(root, 'assets/arte/regioes.json')
+  if (!existsSync(man)) return {}
+  const manifesto = JSON.parse(await readFile(man, 'utf8')), out = {}
+  for (const [r, reg] of Object.entries(manifesto)) {
+    if (r.startsWith('_')) continue
+    const arqs = CAMADAS_REGIAO.map((k) => join(root, 'assets/arte', r, k + '.png'))
+    if (!arqs.every((a) => existsSync(a))) continue
+    const camadas = {}
+    for (const [i, k] of CAMADAS_REGIAO.entries()) {
+      let buf = await readFile(arqs[i])
+      if (k === 'horizonte' && PALETAS[r]) buf = encodePng(comNevoa(decodePng(buf), PALETAS[r]))
+      camadas[k] = 'data:image/png;base64,' + buf.toString('base64')
+    }
+    out[r] = { nome: reg.nome, pistas: reg.pistas || [], posicao: reg.posicao || {}, camadas }
+  }
+  return out
+}
+
+// Cenas das abas e mapas das trilhas (etapa 6 da direção de arte): assets/arte/telas/finais/cena-<aba>.png (256×160) e
+// mapa-<ginásio>.png (256×384). Nas cenas, as últimas 24 linhas somem em pontilhado ordenado (Bayer 4×4, alfa binário),
+// deixando ver o fundo da interface embaixo da placa do título — o mesmo da prévia aprovada (arte-telas-previa.mjs).
+const BAYER4 = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
+export function cenaComPontilhado(img, linhas = 24) {
+  const out = new Uint8Array(img.rgba), W = img.width, H = img.height
+  for (let y = H - linhas; y < H; y++) for (let x = 0; x < W; x++) {
+    if (BAYER4[y % 4][x % 4] < (y - (H - linhas)) / linhas * 16) out[(y * W + x) * 4 + 3] = 0
+  }
+  return { width: W, height: H, rgba: out }
+}
+export async function lerTelas(root) {
+  const dir = 'assets/arte/telas/finais', out = { cenas: {}, mapas: {} }
+  for (const aba of ['estabulo', 'haras', 'loja', 'expedicao']) {
+    const arq = join(root, dir, `cena-${aba}.png`)
+    if (existsSync(arq)) out.cenas[aba] = 'data:image/png;base64,' + encodePng(cenaComPontilhado(decodePng(await readFile(arq)))).toString('base64')
+  }
+  for (const g of ['fogo', 'agua', 'grama']) {
+    const png = join(dir, `mapa-${g}.png`)
+    if (existsSync(join(root, png))) out.mapas[g] = await dataUrl(root, png)
+  }
+  return out
 }

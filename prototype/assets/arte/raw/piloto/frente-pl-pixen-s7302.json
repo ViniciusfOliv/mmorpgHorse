@@ -1,0 +1,33 @@
+{
+  "assinatura": "d10bfaa01ed4",
+  "api": "pixellab",
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "foreground strip of tall dry golden grass tufts with a few small purple and white wildflowers, seen from the side at ground level, one long continuous horizontal band across the whole width, empty above, 2D side-scrolling game parallax background layer, side view, Brazilian cerrado savanna, late afternoon sunlight from the upper left, no text",
+    "image_size": {
+      "width": 384,
+      "height": 64
+    },
+    "no_background": true,
+    "view": "side",
+    "outline": "lineless",
+    "detail": "highly detailed",
+    "seed": 7302
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<32840 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  },
+  "arquivos": [
+    "frente-pl-pixen-s7302-0.png"
+  ]
+}

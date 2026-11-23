@@ -5,6 +5,7 @@ var G = require('../src/data.js');
 var S = require('../src/sim.js');
 var B = require('../src/breed.js');
 var GR = require('../src/gear.js');
+var crypto = require('crypto');
 var fails = 0, count = 0;
 function section(t) { console.log('\n## ' + t); }
 function test(name, fn) {
@@ -23,7 +24,7 @@ test('5 raridades com fator de pontos/vagas/chance (sem teto por raridade)', fun
   assert.deepStrictEqual(Object.keys(G.RARITIES), ['comum','magico','raro','lendario','mitico']);
   assert.strictEqual(G.RARITIES.mitico.ptsMult, 1.2); assert.strictEqual(G.RARITIES.comum.skillSlots, 1);
   Object.keys(G.RARITIES).forEach(function (r) { assert.strictEqual(G.RARITIES[r].statCap, undefined, r + ' sem statCap'); });
-  assert.strictEqual(G.RARITIES.raro.skillChance, 0.55); assert.strictEqual(G.RARITIES.lendario.bornSkills, 2);
+  Object.keys(G.RARITIES).forEach(function (r) { assert.strictEqual(G.RARITIES[r].skillChance, undefined, r + ': a skill não é mais sorteada'); }); assert.strictEqual(G.RARITIES.lendario.bornSkills, 2);
 });
 test('climas e donos', function () {
   assert.deepStrictEqual(Object.keys(G.WEATHERS), ['sol','chuva','nevoa','nublado']);
@@ -52,6 +53,117 @@ test('catálogo de skills', function () {
   Object.keys(G.ITEMS || {}).forEach(function (id) { assert.ok(!('mods' in G.ITEMS[id]) && !('rarity' in G.ITEMS[id]), 'catálogo antigo de itens removido: ' + id + ' sem mods/raridade'); });
 });
 
+section('ranks');
+test('rankScale: 1,00 1,15 1,30 1,45 1,60; 0, 6, "3" e NaN viram 1, 5, 1 e 1', function () {
+  [1, 1.15, 1.30, 1.45, 1.60].forEach(function (v, i) { assert.ok(Math.abs(S.rankScale(i + 1) - v) < 1e-12, 'rank ' + (i + 1)); });
+  assert.strictEqual(S.rankScale(0), S.rankScale(1)); assert.strictEqual(S.rankScale(6), S.rankScale(5));
+  assert.strictEqual(S.rankScale('3'), 1); assert.strictEqual(S.rankScale(NaN), 1); assert.strictEqual(S.rankScale(), 1);
+});
+test('SKILL_RANKS: 5 ranks, passo 0,15, custo 150+1 · 400+2 · 900+4 · 2.000+7 e teto do dado extra 60 a 100', function () {
+  assert.deepStrictEqual(G.SKILL_RANKS, { max: 5, step: 0.15, custo: { 1: { ouro: 150, perg: 1 }, 2: { ouro: 400, perg: 2 }, 3: { ouro: 900, perg: 4 }, 4: { ouro: 2000, perg: 7 } }, diceTeto: [60, 70, 80, 90, 100] });
+});
+test('skillEffect escala só a parte de bônus, por formato; duração e distância não crescem', function () {
+  var near = function (a, b, m) { assert.ok(Math.abs(a - b) < 1e-12, m + ': ' + a + ' ≠ ' + b); };
+  var ba = G.SKILLS.arranque.effect;
+  near(S.skillEffect('arranque', 3).accelMult, 1 + (ba.accelMult - 1) * 1.30, 'multiplicador que ajuda');
+  assert.strictEqual(S.skillEffect('arranque', 3).distanceM, ba.distanceM);
+  assert.strictEqual(S.skillEffect('arranque', 4).speedMult, undefined, 'o marco só entra no rank 5');
+  var bc = G.SKILLS['canto-da-iara'].effect;
+  near(S.skillEffect('canto-da-iara', 4).drainMult, 1 - (1 - bc.drainMult) * 1.45, 'multiplicador de gasto');
+  near(S.skillEffect('drift', 2).curveBonus, G.SKILLS.drift.effect.curveBonus * 1.15, 'bônus somado');
+  near(S.skillEffect('nascente', 4).staminaRestore, G.SKILLS.nascente.effect.staminaRestore * 1.45, 'recuperação');
+  near(S.skillEffect('sol-a-pino', 3).weatherBonus, G.SKILLS['sol-a-pino'].effect.weatherBonus * 1.30, 'reforço do clima');
+  near(S.skillEffect('sprint', 1).speedMult, G.SKILLS.sprint.effect.speedMult, 'rank 1 é a base');
+  near(S.skillEffect('sprint', 2, 1.05).speedMult, 1 + (G.SKILLS.sprint.effect.speedMult - 1) * 1.15 * 1.05, 'extraScale multiplica o fator');
+  near(S.skillEffect('sprint', 2, 3).speedMult, S.skillEffect('sprint', 2).speedMult, 'extraScale fora de 1–1,1 vale 1');
+  assert.strictEqual(S.skillEffect('drift', 5).blockScoped, true);
+});
+test('marcos do rank 5: substituem duração e gatilho, multiplicam multiplicadores, somam recuperação', function () {
+  var near = function (a, b, m) { assert.ok(Math.abs(a - b) < 1e-12, m + ': ' + a + ' ≠ ' + b); };
+  var bf = G.SKILLS['folego-de-montanha'].effect.hillDrainMult, f5 = S.skillEffect('folego-de-montanha', 5);
+  assert.ok(f5.hillDrainMult >= 0.05); near(f5.hillDrainMult, Math.max(0.05, 1 - (1 - bf) * 1.6), 'Fôlego'); assert.strictEqual(f5.exitRestore, 0.03);
+  var c5 = S.skillEffect('casco-firme', 5); assert.strictEqual(c5.hillDrainMult, 0.7); near(c5.hillBonus, G.SKILLS['casco-firme'].effect.hillBonus * 1.6, 'Casco Firme');
+  assert.strictEqual(S.skillEffect('saida-rapida', 5).durationS, 7); assert.strictEqual(S.skillEffect('saida-rapida', 4).durationS, G.SKILLS['saida-rapida'].effect.durationS);
+  assert.strictEqual(S.skillEffect('chama-final', 5).durationS, 11);
+  var a5 = S.skillEffect('arranque', 5); assert.strictEqual(a5.speedMult, 1.03); near(a5.accelMult, 1 + (G.SKILLS.arranque.effect.accelMult - 1) * 1.6, 'Arranque');
+  assert.strictEqual(S.skillEffect('sprint', 5).minStraightM, 100); assert.strictEqual(S.skillEffect('sprint', 4).minStraightM, undefined);
+  var d5 = S.skillEffect('drift', 5); assert.strictEqual(d5.drainMult, 0.85);
+  assert.strictEqual(S.skillEffect('segundo-ar', 5).lowStaminaAt, 0.35);
+  var af = S.skillEffect('arrancada-final', 5); assert.strictEqual(af.speedMult, 1.01); assert.strictEqual(af.untilFinish, true); assert.strictEqual(af.durationS, undefined);
+  ['sol-a-pino', 'pe-na-chuva', 'nevoa-amiga'].forEach(function (id) { assert.strictEqual(S.skillEffect(id, 5).weatherLingerS, 15, id); assert.strictEqual(S.skillEffect(id, 4).weatherLingerS, undefined, id); });
+  var ci = S.skillEffect('canto-da-iara', 5); assert.strictEqual(ci.staminaRestore, 0.05);
+  var na = S.skillEffect('nascente', 5); assert.strictEqual(na.speedMult, 1.03); assert.strictEqual(na.durationS, 4); near(na.staminaRestore, G.SKILLS.nascente.effect.staminaRestore * 1.6, 'Nascente');
+  var s5 = S.skillEffect('segundo-ar', 5); near(s5.staminaRestore, G.SKILLS['segundo-ar'].effect.staminaRestore * 1.6, 'Segundo Ar: a recuperação da base escala e o marco não soma nela');
+});
+test('Dado Viciado: 1 dado extra com teto pelo rank; no rank 5, 2 dados de 1 a 100', function () {
+  assert.deepStrictEqual(S.skillEffect('dado-viciado', 2), { extraDice: 1, diceTeto: 70 });
+  assert.deepStrictEqual(S.skillEffect('dado-viciado', 5), { extraDice: 2, diceTeto: 100 });
+  assert.deepStrictEqual(S.skillEffect('dado-viciado', 1, 1.05), { extraDice: 1, diceTeto: 60 });
+});
+test('skillEffect não muta GameData.SKILLS; todo id tem marco; skill desconhecida dá {}', function () {
+  var antes = JSON.stringify(G.SKILLS);
+  Object.keys(G.SKILLS).forEach(function (id) { for (var r = 0; r <= 6; r++) { var e = S.skillEffect(id, r, 1.05); e.speedMult = 99; e.novo = 1; } assert.ok(G.SKILLS[id].rank5 && Object.keys(G.SKILLS[id].rank5).length, id + ' sem rank5'); });
+  assert.strictEqual(JSON.stringify(G.SKILLS), antes);
+  assert.deepStrictEqual(S.skillEffect('nao-existe', 3), {});
+});
+test('rankOf lê horse.skillRanks; ausente ou inválido vale 1', function () {
+  assert.strictEqual(S.rankOf({ skillRanks: { sprint: 4 } }, 'sprint'), 4); assert.strictEqual(S.rankOf({}, 'sprint'), 1);
+  [9, 0, '3', NaN, 2.5, null, -1].forEach(function (v) { assert.strictEqual(S.rankOf({ skillRanks: { sprint: v } }, 'sprint'), 1, String(v)); });
+  assert.strictEqual(S.rankOf(null, 'sprint'), 1); assert.strictEqual(S.rankOf({ skillRanks: { sprint: 5 } }, 'drift'), 1);
+});
+test('a desc de cada skill é o texto do rank 1 (skillDesc), e o do rank 5 cita o marco', function () {
+  Object.keys(G.SKILLS).forEach(function (id) {
+    assert.strictEqual(G.SKILLS[id].desc, S.skillDesc(id, 1), id);
+    assert.notStrictEqual(S.skillDesc(id, 5), S.skillDesc(id, 4), id + ': o rank 5 tem de dizer o marco');
+    assert.notStrictEqual(S.skillDesc(id, 2), S.skillDesc(id, 1), id + ': o rank muda o texto');
+  });
+  // o texto usa os números do rank: no rank 5 do Sprint, a reta de 100 m (o marco) e a velocidade × 1,6
+  var pct5 = String(Math.round((G.SKILLS.sprint.effect.speedMult - 1) * 1.6 * 1000) / 10).replace('.', ',');
+  assert.strictEqual(S.skillDesc('sprint', 5), 'Numa reta de 100 m ou mais (fora a da largada): +' + pct5 + '% de velocidade por 150 m.');
+});
+test('Poder sobe com o rank: cada skill soma 14 × peso do gatilho × fator do rank', function () {
+  var h = cl(G.WILD_HORSES.filter(function (x) { return x.rarity === 'raro'; })[0]); h.skills = ['sprint']; h.skillRanks = { sprint: 1 };
+  var p1 = S.powerRating(h); h.skillRanks.sprint = 5; var p5 = S.powerRating(h);
+  assert.ok(p5 - p1 === 8 || p5 - p1 === 9, 'Sprint 1 → 5: +14 × 1 × 0,6 = 8,4, arredondado: ' + (p5 - p1));
+  h.skillRanks = { sprint: 1 }; var semSkill = cl(h); semSkill.skills = [];
+  assert.strictEqual(S.powerRating(h) - S.powerRating(semSkill), 14, 'no rank 1 a skill vale o de sempre');
+  h.skillRanks = { sprint: 9 }; assert.strictEqual(S.powerRating(h), p1, 'rank inválido vale 1');
+  h.skills = ['folego-de-montanha']; h.skillRanks = { 'folego-de-montanha': 3 }; var b3 = S.powerRating(h); h.skillRanks = {};
+  assert.ok(Math.abs((b3 - S.powerRating(h)) - 14 * 0.6 * 0.3) <= 1, 'peso do gatilho × 0,30');
+});
+test('botRank: média arredondada dos ranks das skills de vaga do cavalo; 1 sem skill', function () {
+  assert.strictEqual(S.botRank({ skills: ['sprint', 'drift'], skillRanks: { sprint: 4, drift: 1 } }), 3, '2,5 arredonda para 3');
+  assert.strictEqual(S.botRank({ skills: [] }), 1); assert.strictEqual(S.botRank({}), 1); assert.strictEqual(S.botRank(null), 1);
+  assert.strictEqual(S.botRank({ skills: ['sprint', 'drift', 'arranque'], skillRanks: { sprint: 5, drift: 5, arranque: 5 } }), 5);
+  assert.strictEqual(S.botRank({ skills: ['sprint', 'nao-existe'], skillRanks: { sprint: 4, 'nao-existe': 5 } }), 4, 'skill fora do catálogo não conta');
+  assert.strictEqual(S.botRank({ skills: ['sprint', 'drift'], skillRanks: { sprint: 9, drift: 2 } }), 2, 'rank inválido vale 1: (1 + 2) / 2 = 1,5 → 2');
+});
+test('withRanks: cópia com todas as skills de vaga no rank dado, sem mexer no original', function () {
+  var h = { id: 'x', skills: ['sprint', 'drift'], skillRanks: { sprint: 2 } }, c = S.withRanks(h, 4);
+  assert.deepStrictEqual(c.skillRanks, { sprint: 4, drift: 4 }); assert.deepStrictEqual(h.skillRanks, { sprint: 2 });
+  assert.deepStrictEqual(S.withRanks(h, 9).skillRanks, { sprint: 5, drift: 5 }); assert.deepStrictEqual(S.withRanks(h, 'x').skillRanks, { sprint: 1, drift: 1 });
+  assert.deepStrictEqual(S.withRanks({ skills: [] }, 3).skillRanks, {});
+});
+test('os oponentes do ginásio saem com as skills no rank da etapa: soldados 1 a 3 no rank 1, soldado 4 e líder no 2', function () {
+  var GN = require('../src/ginasio.js');
+  G.GYM_ORDER.forEach(function (gid) {
+    assert.deepStrictEqual(G.GYMS[gid].etapas.map(function (e) { return e.cavalos[0].rank; }), [1, 1, 1, 2, 2], gid);
+    G.GYMS[gid].etapas.forEach(function (et, i) {
+      et.cavalos.forEach(function (def) {
+        var h = GN.cavalo(def), esperado = i >= 3 ? 2 : 1;
+        h.skills.forEach(function (id) { assert.strictEqual(h.skillRanks[id], esperado, gid + ' ' + et.id + ' ' + id); });
+        assert.strictEqual(Object.keys(h.skillRanks).length, h.skills.length);
+      });
+    });
+  });
+  // os cavalos-base dos ginásios (os iniciais) não têm skill de vaga hoje: o rank fica pronto para quando tiverem.
+  // Com uma base que tem skills, o rank da etapa vale para todas; ausente ou inválido vale 1.
+  var comSkill = G.WILD_HORSES.filter(function (x) { return x.skills.length >= 2; })[0];
+  var h2 = GN.cavalo({ base: comSkill.id, level: 16, grau: 2, rank: 2 }), h1 = GN.cavalo({ base: comSkill.id, level: 16, grau: 2 });
+  comSkill.skills.forEach(function (id) { assert.strictEqual(h2.skillRanks[id], 2, id); assert.strictEqual(h1.skillRanks[id], 1, id); });
+  assert.ok(S.powerRating(h2) > S.powerRating(h1), 'o rank entra no Poder do oponente');
+});
+
 section('status');
 test('computeStats devolve 7 chaves: base + pontos comprados, sem teto por raridade', function () {
   var h = JSON.parse(JSON.stringify(G.STARTERS[0])); h.level = 50; h.alloc = { vel: 20, acel: 20 };
@@ -60,11 +172,9 @@ test('computeStats devolve 7 chaves: base + pontos comprados, sem teto por rarid
   // Brasa: genética 24 em Velocidade e Aceleração, base 40 + 16 × 24 / 31 = 52,39 (o nível não soma nada); + 20 pontos = 72
   assert.strictEqual(s.vel, 72); assert.strictEqual(s.acel, 72, 'sem bônus fixo de elemento');
 });
-test('skillChance: comum lv1 sorte 0 = 0.35; mítico lv50 sorte 100 = 0.95 (teto); raro lv10 sorte 50 ≈ 0.645', function () {
-  var mk = function (r, lv) { return { rarity: r, level: lv }; };
-  assert.strictEqual(S.skillChance(mk('comum', 1), { sorte: 0 }), 0.35);
-  assert.strictEqual(S.skillChance(mk('mitico', 50), { sorte: 100 }), 0.95);
-  assert.ok(Math.abs(S.skillChance(mk('raro', 10), { sorte: 50 }) - 0.645) < 1e-9);
+test('a chance de skill saiu da regra: sem skillChance no RaceSim nem no TUNING', function () {
+  assert.strictEqual(S.skillChance, undefined);
+  ['skillPerLevel', 'skillPerSorte', 'skillChanceMax'].forEach(function (k) { assert.strictEqual(S.TUNING[k], undefined, k); });
 });
 test('powerRating usa os 7 pesos, 14 por skill e os termos de nível e raridade (spec §7)', function () {
   var h = JSON.parse(JSON.stringify(G.STARTERS[0])); var s = S.computeStats(h), w = S.TUNING.ratingW, sum = 0;
@@ -407,11 +517,9 @@ test('skill de tipo: fora do terço, os valores normais', function () {
 });
 test('física linear até 150: com todos os status em 50/80/110/140, +10 em VEL, ACE, MAN, FOR, EST e GAR melhora o tempo médio', function () {
   // corrida solo (elemento desconhecido: sem clima e sem skill de tipo), pareada por seed e mapa. A Garra dispara
-  // sempre (chance presa em 1 só neste teste): numa corrida solo o cara ou coroa da Garra domina o ruído do
-  // tempo (±2 s em 24 seeds); sem ele, cada ganho fica com intervalo de ±0,1 s. Medido: 0,36 a 0,73 s.
-  var SEIS = ['vel', 'acel', 'man', 'forca', 'est', 'garra'], N = 24, ganhos = {}, T = S.TUNING, gc = [T.garraChanceBase, T.garraChanceMax];
-  T.garraChanceBase = 1; T.garraChanceMax = 1;
-  try {
+  // sempre (desde 2026-11-19 é a regra: sem sorteio), então cada ganho fica com intervalo de ±0,1 s.
+  var SEIS = ['vel', 'acel', 'man', 'forca', 'est', 'garra'], N = 24, ganhos = {};
+  {
     [50, 80, 110, 140].forEach(function (X) {
       var base = [], i;
       for (i = 0; i < N; i++) base.push(solo(S.hash2(41, i), S.randomConditions(S.hash2(41, i)), plano('neutro', X)).finishTimes[0]);
@@ -421,11 +529,11 @@ test('física linear até 150: com todos os status em 50/80/110/140, +10 em VEL,
         ganhos[X + ' ' + k] = d / N;
       });
     });
-  } finally { T.garraChanceBase = gc[0]; T.garraChanceMax = gc[1]; }
+  }
   Object.keys(ganhos).forEach(function (q) { assert.ok(ganhos[q] > 0.15, '+10 em ' + q + ': ganho médio ' + ganhos[q].toFixed(3) + ' s'); });
 });
-test('determinismo: mesma seed e configuração, mesmo resultado; VERSION do bloco 1b', function () {
-  assert.strictEqual(S.VERSION, '3.1.0'); assert.notStrictEqual(S.VERSION, '3.0.0', 'subiu do bloco 1');
+test('determinismo: mesma seed e configuração, mesmo resultado; VERSION das skills com rank', function () {
+  assert.strictEqual(S.VERSION, '4.1.0');
   var cfg = function () { return { seed: 77, recordFrames: true, racers: G.STARTERS.map(function (h, i) { var c = clone(h); c.level = 20; c.alloc = S.botAlloc(c); return { horse: c, name: 'r' + i }; }) }; };
   assert.strictEqual(JSON.stringify(S.simulate(cfg())), JSON.stringify(S.simulate(cfg())));
   assert.notStrictEqual(JSON.stringify(S.simulate(cfg()).finishTimes), JSON.stringify(S.simulate(Object.assign(cfg(), { seed: 78 })).finishTimes));
@@ -513,10 +621,10 @@ test('weatherMult: dono T.weatherMult (1,03–1,07), dobrado T.weatherMultDouble
   assert.strictEqual(S.weatherMult('fogo', 'sol', false), wm); assert.strictEqual(S.weatherMult('fogo', 'sol', true), S.TUNING.weatherMultDouble); assert.strictEqual(S.TUNING.weatherMultDouble, 1.08);
   assert.ok(Math.abs(S.weatherMult('grama', 'sol', false) - (2 - wm)) < 1e-9); assert.strictEqual(S.weatherMult('agua', 'sol', false), 1); assert.strictEqual(S.weatherMult('neutro', 'chuva', false), 1);
 });
-test('skills disparam pela chance: mítico lv50 sorte 100 ativa Arranque ≥ 85% das vezes; comum lv1 sorte 0 ≤ 50%', function () {
+test('skill sem sorteio: Arranque ativa em 200 seeds de 200, no mítico nível 50 e no Comum nível 1 de Sorte 0', function () {
   var hi = mk({ sorte: 100 }); hi.level = 50; hi.skills = ['arranque']; var lo = mk({ sorte: 0 }); lo.rarity = 'comum'; lo.skills = ['arranque'];
   var a = 0, b = 0; for (var s = 0; s < 200; s++) { if (race(s, RETA, [hi, mk({})]).events.some(function (e) { return e.type === 'skill' && e.racer === 0; })) a++; if (race(s, RETA, [lo, mk({})]).events.some(function (e) { return e.type === 'skill' && e.racer === 0; })) b++; }
-  assert.ok(a >= 170 && b <= 100, 'alto ' + a + ', baixo ' + b);
+  assert.strictEqual(a, 200); assert.strictEqual(b, 200);
 });
 test('sim: mapa com bloco de 10 m não duplica gatilhos', function () {
   var cond = { distance: 1000, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 310 }, { type: 'reta', from: 310, to: 1000 }] };
@@ -580,7 +688,7 @@ function campoTipos() {
   return TIPOS.map(function (e) { var h = mk({ sorte: 40 }); h.element = e; h.level = 20; h.rarity = 'raro'; h.skills = ['arranque', 'dado-viciado', 'arrancada-final']; return h; });
 }
 function raceTipos(seed, cond, hs, semTipo) {
-  return S.simulate({ seed: seed, conditions: cond, recordFrames: true, dev: { skillsAlways: true }, racers: hs.map(function (h, i) {
+  return S.simulate({ seed: seed, conditions: cond, recordFrames: true, racers: hs.map(function (h, i) {
     var r = { horse: h, statAdd: soma(h), name: 'r' + i }; if (semTipo) r.noTypeSkill = true; return r;
   }) });
 }
@@ -651,16 +759,15 @@ test('v3: elemento desconhecido corre sem skill de tipo', function () {
     assert.ok(!res.events.some(function (ev) { return ev.typeSkill; }), String(e) + ': sem evento de tipo');
   });
 });
-test('raridade herdada do Object.prototype vale Comum (sem NaN em status, Poder e chance de skill)', function () {
+test('raridade herdada do Object.prototype vale Comum (sem NaN em status e Poder)', function () {
   var base = cl(G.STARTERS[0]); base.rarity = 'comum';
-  var ref = { stats: S.computeStats(base, null), pr: S.powerRating(base, null), sc: S.skillChance(base, S.computeStats(base, null)) };
+  var ref = { stats: S.computeStats(base, null), pr: S.powerRating(base, null) };
   ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf'].forEach(function (r) {
     var h = cl(base); h.rarity = r;
     var st = S.computeStats(h, null);
     G.STAT_KEYS.forEach(function (k) { assert.ok(isFinite(st[k]), r + ': ' + k + ' = ' + st[k]); });
     assert.deepStrictEqual(st, ref.stats, r + ': status');
     assert.strictEqual(S.powerRating(h, null), ref.pr, r + ': Poder');
-    assert.strictEqual(S.skillChance(h, st), ref.sc, r + ': chance de skill');
     assert.ok(isFinite(S.allocInfo(h).room.vel), r + ': allocInfo');
     var ba = S.botAlloc(h);
     assert.ok(G.STAT_KEYS.every(function (k) { return isFinite(ba[k]); }), r + ': botAlloc');
@@ -736,8 +843,15 @@ test('rollDice: sorte 0 = 1 dado em 1..100; sorte 100 = 2 dados; média do melho
   for (i = 0; i < 5000; i++) { var b = S.rollDice(rng, 100, 0); assert.strictEqual(b.dice.length, 2); sum100 += b.best; }
   assert.ok(sum0 / 5000 > 48 && sum0 / 5000 < 53); assert.ok(sum100 / 5000 > 64 && sum100 / 5000 < 70);
 });
-test('rollDice limita: sorte 250 → 2 dados; extraDice 5 → no máximo 3 dados', function () {
-  var r = S.rollDice(S.mulberry32(1), 250, 5); assert.ok(r.dice.length <= 3 && r.dice.length >= 2);
+test('rollDice limita: sorte 250 → 2 dados; extraDice 5 → no máximo 2 extras (4 dados); o dado extra respeita o teto', function () {
+  var r = S.rollDice(S.mulberry32(1), 250, 5); assert.strictEqual(r.dice.length, 4);
+  assert.strictEqual(S.rollDice(S.mulberry32(1), 0, 1).dice.length, 2);
+  var rng = S.mulberry32(9), max = 0;
+  for (var i = 0; i < 4000; i++) { var d = S.rollDice(rng, 0, 1, 70).dice; assert.ok(d[1] >= 1 && d[1] <= 70, 'extra ' + d[1]); max = Math.max(max, d[1]); }
+  assert.strictEqual(max, 70, 'o teto é alcançado');
+  // teto ausente ou inválido vale 100; o 1º dado nunca muda com o teto
+  [undefined, 0, 101, NaN, '60'].forEach(function (t) { assert.deepStrictEqual(S.rollDice(S.mulberry32(5), 0, 1, t), S.rollDice(S.mulberry32(5), 0, 1, 100), String(t)); });
+  assert.strictEqual(S.rollDice(S.mulberry32(5), 0, 1, 60).dice[0], S.rollDice(S.mulberry32(5), 0, 1, 100).dice[0]);
 });
 test('corrida tem 2 eventos dado (1/3 e 2/3) e o clima vira para o elemento do vencedor', function () {
   var hs = [mk({}), mk({}), mk({})]; hs[0].element = 'fogo'; hs[1].element = 'agua'; hs[2].element = 'grama';
@@ -912,6 +1026,8 @@ test('snapshot dourado dos potros de exemplos.md', function () {
     assert.ok(B.marcasValidas(x.marcas), 'marcas do potro ' + i); delete x.marcas;
     // `porte` também tem fluxo próprio (spec 2b §3), conferido na seção "Portes"
     assert.ok(B.porteValido(x.porte), 'porte do potro ' + i); delete x.porte;
+    // rank das skills (2026-11-19): os pais do exemplo não têm rank, então todas nascem no rank 1 (sem chamada de rng)
+    var rk1 = {}; x.skills.forEach(function (id) { rk1[id] = 1; }); assert.deepStrictEqual(x.skillRanks, rk1, 'ranks do potro ' + i); delete x.skillRanks;
     assert.deepStrictEqual(x, {
       uid: 'm2', templateId: null, name: c.name, especie: 'cavalo', element: c.element, rarity: c.rarity, grau: c.grau, sex: c.sex,
       level: 1, xp: 0, skills: c.skills, potential: st(c.potential), palette: c.palette, breedLeft: c.breedLeft,
@@ -920,6 +1036,39 @@ test('snapshot dourado dos potros de exemplos.md', function () {
     }, 'potro ' + i);
     assert.deepStrictEqual(S.computeStats(x, null), st(c.stats), 'status do potro ' + i + ' no nível 1');
   });
+});
+test('potro herda o rank do pai menos 1 (mínimo 1; o maior, se os dois têm); a skill sorteada nasce no rank 1', function () {
+  var viu = { herdou3: 0, herdou4: 0, sorteada: 0, piso: 0 };
+  for (var s = 0; s < 400; s++) {
+    var f = mk2({ sex: 'f', skills: ['sprint', 'drift'] }), m = mk2({ skills: ['sprint', 'arranque'] });
+    f.skillRanks = { sprint: 2, drift: 1 }; m.skillRanks = { sprint: 5, arranque: 4 };
+    var c = B.foal({ f: f, m: m, seedBase: 31, breedCounter: s, nextUid: 1 });
+    assert.deepStrictEqual(Object.keys(c.skillRanks).sort(), c.skills.slice().sort(), 'um rank por skill do potro');
+    c.skills.forEach(function (id) {
+      // herdada: Sprint 2 e 5 → 4; Arranque 4 → 3; Drift 1 → 1. Sorteada para completar o mínimo (até uma que um
+      // dos pais tem, mas o potro não herdou): 1
+      var herdada = id === 'sprint' ? 4 : id === 'arranque' ? 3 : 1, rk = c.skillRanks[id];
+      assert.ok(rk === herdada || rk === 1, 'seed ' + s + ' ' + id + ': ' + rk);
+      if (rk === 4) viu.herdou4++; else if (rk === 3) viu.herdou3++; else if (id === 'drift') viu.piso++; else viu.sorteada++;
+    });
+  }
+  assert.ok(viu.herdou4 > 20 && viu.herdou3 > 20 && viu.piso > 20 && viu.sorteada > 20, JSON.stringify(viu));
+  // pai sem skillRanks (save antigo) ou com rank inválido: vale 1, e o potro nasce no 1
+  var c2 = B.foal({ f: mk2({ sex: 'f', skills: ['sprint'] }), m: Object.assign(mk2({ skills: ['sprint'] }), { skillRanks: { sprint: 9 } }), seedBase: 31, breedCounter: 2, nextUid: 1 });
+  c2.skills.forEach(function (id) { assert.strictEqual(c2.skillRanks[id], 1); });
+});
+test('o rank herdado não consome a RNG: 400 potros saem iguais aos de antes da mudança (tirando o skillRanks)', function () {
+  var els = ['fogo', 'agua', 'grama'], rars = ['comum', 'magico', 'raro', 'lendario'], ids = Object.keys(G.SKILLS), acc = [];
+  for (var s = 0; s < 400; s++) {
+    var mk = function (sex, q) { return { uid: sex + s, name: sex, element: els[(s + q) % 3], rarity: rars[(s >> q) % 4], grau: 1 + (s + q) % 3, sex: sex, level: 5 + (s * 7 + q) % 45,
+      skills: ids.filter(function (id, i) { return (i + s + q * 3) % 5 === 0; }).slice(0, 3), skillRanks: { sprint: 4, drift: 5, arranque: 2 },
+      potential: { vel: s % 32, acel: 10, man: 10, forca: 10, est: 10, garra: 10, sorte: 10 }, palette: { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' } }; };
+    var c = B.foal({ f: mk('f', 0), m: mk('m', 1), seedBase: 777 + s, breedCounter: s % 9, nextUid: 5 });
+    assert.ok(c.skillRanks && typeof c.skillRanks === 'object');
+    delete c.skillRanks; acc.push(c);
+  }
+  // impressão digital gravada com o breed.js de antes das skills com rank (commit 92a58fb), pelos mesmos pais e seeds
+  assert.strictEqual(crypto.createHash('sha1').update(JSON.stringify(acc)).digest('hex'), 'e5a1fa4e3b614f3c5a37f0739d7c71ba4c48cc3e');
 });
 
 section('Marcas');
@@ -1025,7 +1174,7 @@ test('portes: sorteios antigos intactos', function () {
     var f = JSON.parse(JSON.stringify(cat[i % cat.length])), m = JSON.parse(JSON.stringify(cat[(i * 7 + 3) % cat.length]));
     f.sex = 'f'; m.sex = 'm'; f.level = 30; m.level = 30; f.uid = 'f' + i; m.uid = null;
     var x = B.foal({ f: f, m: m, seedBase: i, breedCounter: i % 7, nextUid: i });
-    assert.ok(B.porteValido(x.porte)); delete x.porte; lista.push(x);
+    assert.ok(B.porteValido(x.porte)); delete x.porte; delete x.skillRanks; lista.push(x);
   }
   assert.strictEqual(B.hashChave(JSON.stringify(lista)), IMPRESSAO_FOAL_2A);
 });
@@ -1111,7 +1260,7 @@ test('ECONOMY.gear', function () {
   assert.deepStrictEqual(g.enhanceChance, [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25]);
   assert.deepStrictEqual(g.enhanceCost, [1, 1, 1, 1, 1, 1, 2, 2, 2, 2]);
   assert.strictEqual(g.enhanceDropFrom, 6);
-  assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [3, 15, 20] });
+  assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillEffect: 0.05, sorte: 5, ratingPts: [3, 15, 20] });
   assert.deepStrictEqual(g.podiumStone, [0.6, 0.4, 0.25]);
   assert.deepStrictEqual(g.startGear, ['sela-comum', 'ferraduras-comum']);
 });
@@ -1125,7 +1274,7 @@ test('resolve soma principal + plus × 0,5 e secundário; sem equip zera', funct
   var g = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2' }), items);
   assert.deepStrictEqual(g.mods, { vel: 2, acel: 0, man: 0, forca: 0, est: 4.5, garra: 2, sorte: 0 });
   assert.deepStrictEqual(g.set, { id: 'sol', count: 1 });
-  assert.deepStrictEqual(g.special, { skillChanceBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
+  assert.deepStrictEqual(g.special, { skillEffectBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
   assert.deepStrictEqual(g.pieces.map(function (p) { return p.uid; }), ['i2', 'i1']);
   var z = GR.resolve({}, {});
   assert.deepStrictEqual(z.mods, { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 });
@@ -1140,14 +1289,14 @@ test('conjunto: 3/4/5 peças com raridades misturadas; 2+2+1 não ativa', functi
   var items = byUid([gi('i1', 'sela-chuva-raro'), gi('i2', 'ferraduras-chuva-lendario', 2), gi('i3', 'estribos-chuva-raro'), gi('i4', 'testeira-chuva-raro'), gi('i5', 'armadura-chuva-lendario'), gi('i6', 'testeira-sol-raro'), gi('i7', 'armadura-nevoa-raro')]);
   var g3 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3' }), items);
   assert.deepStrictEqual(g3.set, { id: 'chuva', count: 3 }); assert.strictEqual(g3.mods.sorte, 7); // 2 (sub do estribo Raro) + 5 (conjunto)
-  assert.deepStrictEqual(g3.special, { skillChanceBonus: 0.05, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
+  assert.deepStrictEqual(g3.special, { skillEffectBonus: 0.05, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
   var g4 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3', testeira: 'i4' }), items);
   assert.strictEqual(g4.special.weatherDoubleClimate, 'chuva'); assert.strictEqual(g4.special.ignoreWeatherPenalty, false);
   var g5 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3', testeira: 'i4', armadura: 'i5' }), items);
   assert.deepStrictEqual(g5.set, { id: 'chuva', count: 5 }); assert.strictEqual(g5.special.ignoreWeatherPenalty, true);
   assert.strictEqual(g5.mods.vel, 5); // lendário 4 + 2 × 0,5
   var gx = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', testeira: 'i6', armadura: 'i7' }), items);
-  assert.strictEqual(gx.set.count, 2); assert.strictEqual(gx.mods.sorte, 0); assert.strictEqual(gx.special.skillChanceBonus, 0);
+  assert.strictEqual(gx.set.count, 2); assert.strictEqual(gx.mods.sorte, 0); assert.strictEqual(gx.special.skillEffectBonus, 0);
 });
 test('enhanceOdds segue a tabela', function () {
   assert.deepStrictEqual(GR.enhanceOdds(0), { chance: 1, cost: 1, dropTo: 0 });
@@ -1208,12 +1357,6 @@ test('computeStats ignora o equipamento (gear, string de save antigo ou mods eno
   var big = { mods: { vel: 200, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }, special: {}, set: { id: null, count: 0 }, pieces: [] };
   assert.deepStrictEqual(S.computeStats(h, big), base);
 });
-test('skillChance com bônus respeita o teto 0,95', function () {
-  var h = cl(G.STARTERS[0]); var st = S.computeStats(h);
-  assert.ok(Math.abs(S.skillChance(h, st, 0.05) - (S.skillChance(h, st) + 0.05)) < 1e-9);
-  h.rarity = 'mitico'; h.level = 50; st.sorte = 100;
-  assert.strictEqual(S.skillChance(h, st, 0.5), 0.95);
-});
 test('powerRating ignora mods e pontos de conjunto (trava do páreo: peça nunca sobe o Poder)', function () {
   var SL = ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'];
   function gearIds(ids, plus) { var items = {}, equip = {}; ids.forEach(function (id, i) { if (id) { items['i' + i] = { uid: 'i' + i, id: id, plus: plus }; equip[SL[i]] = 'i' + i; } }); return GR.resolve({ equip: equip }, items); }
@@ -1243,10 +1386,10 @@ test('a corrida ignora o equipamento: com e sem peças (inclusive 5 Chuva na chu
 });
 
 section('dev');
-// Referência regravada no bloco 1b (crescimento livre: física até 150, skill de tipo com statMul, Dado
+// Referência regravada nas skills com rank (2026-11-19: a ativação deixou de ser sorteada e o efeito é o do rank 1;
+// conferido: o sim antigo sem o sorteio dá o mesmo que o novo com os valores antigos). Antes: bloco 1b (Dado
 // (Sorte − 40)/40; seeds 1001…1020; os 3 iniciais + 5 aluguéis do Haras, com o equipamento de bot de cada liga,
 // que a corrida agora ignora). Mudou a simulação de propósito? Regrave a tabela.
-var crypto = require('crypto');
 var ALUGUEIS = G.WILD_HORSES.filter(function (h) { return h.rarity !== 'mitico' && B.rentalPrice(h) != null; }).slice(0, 5);
 var CAMPO_REF = G.STARTERS.concat(ALUGUEIS);
 function refRace(seed, dev) {
@@ -1259,22 +1402,22 @@ function refRace(seed, dev) {
 function refHash(res) {
   return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
 }
-var REF_HASHES = ['9dd501e55d7bc83a45e9683a45ec82a01738ffee', 'fb80220d718a9ed103f3f85b608007a8b9c2a04e', '32838948c70521bc4bb26da7421108f0f3ce2d9d',
-  '644487e444fbd536f1d6eea979aaf5e29ce3ee8e', 'dbd97fa663398bef8e786b5924ebb8492cc7bf8e', 'f7bfb3bd9edfc882a304c487f9f6644571b9fd8e',
-  '6295742d06dacf97ccafce329a32f6e393f812a8', 'a8ec95046dc46c5e6f958cf87a23f7991981f710', '02aa2a7427726c28597f9a3cbc7f6c9aede2513d',
-  'bb36d56153deacc66c9c57c0b43358f7fa5b19e7', '4b97fd406ec7c55951dce895ae5d7baeab9fadfb', 'fc4aa36ee9c32202af0916e146513008b40cc851',
-  'b33f5fe923fe63336cba9a20281833ae6e965b12', '7729f5b9818551b01f5dd278fa913462fceac52a', '76e9075ff88d32eb485eb008b858c15146d4571e',
-  '809912b968637bf10dd06ddeec2b79caf0039fea', 'bea973f423a74fce738be0b9d530cd99e6e9ad36', 'b5365ac0103ff278a1dd03d07bca86e1234cfa39',
-  '1541246f097b5911734d884cbdc4aa11f44d9866', 'f2a44ad7be971f2ec22fef70ac5455528297e392'];
+var REF_HASHES = ['c7bd6ec725da9baff215edf02069668324a1a6c8', '23d02cf83f681a0d22b6217366262f98d8b7eada', 'f2137c6b3b8f4bf06c6a27721143aa38e429ca2b',
+  'e7e7f917fbf2e7a67406eace2731d80f5fc61ec3', '97ad7443d3cd8465853456bf136318ca198881fb', '080fa83bf03cfbe7bb2aa72c8415865506214985',
+  '15466d6dd1d8e755d918f9a1d10daa8cd7162bfa', '62b409f8d2e249ffcd2770b1e53f7d39f1ede336', '91c2a4d5cada464cfcb04cfed8000a32ea2d091e',
+  '8470f28a998603c542ad34208997e9dba2714661', '8b05ee00141e9b971999c0b86049997cdc812288', '2aa51f18630ab92e3653983e3ebdccaf0ecab42d',
+  '6ac9744a199e5cfd5bd54df9cd998ab791fa685d', 'a91629dd18f87e649ad17a4ecc07d99bc4f94cbe', '0c60b25797c99b64ab629eb731578ed8dd7f8252',
+  'bebc16b01d1c21dda95b89b074fa4a5ee8380d74', 'ce56cbc0157175952e640e09ad53dd1e7ab08c6c', '7fa375c80622dabd0edb293bc8c73430fc2b48f2',
+  'bb54a73db517efae350dc34e50af2d9853179573', '781866ea36a643e90280671ba57fad3143b8d351'];
 test('sem config.dev o resultado é o de antes', function () {
   assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao', 'w-garoa']);
   var diff = [];
   for (var k = 0; k < 20; k++) { var h = refHash(refRace(1001 + k)); if (h !== REF_HASHES[k]) diff.push((1001 + k) + ': ' + h); }
   assert.deepStrictEqual(diff, [], 'hashes diferentes da referência');
 });
-test('config.dev vazio ou com skillsAlways false devolve exatamente o mesmo objeto', function () {
-  var a = JSON.stringify(refRace(1003)), b = JSON.stringify(refRace(1003, {})), c = JSON.stringify(refRace(1003, { skillsAlways: false }));
-  assert.strictEqual(b, a); assert.strictEqual(c, a);
+test('config.dev não muda a corrida: o antigo skillsAlways é ignorado (a skill já ativa sempre)', function () {
+  var a = JSON.stringify(refRace(1003)), b = JSON.stringify(refRace(1003, {})), c = JSON.stringify(refRace(1003, { skillsAlways: false })), d = JSON.stringify(refRace(1003, { skillsAlways: true }));
+  assert.strictEqual(b, a); assert.strictEqual(c, a); assert.strictEqual(d, a);
 });
 // mapa com gatilho garantido para start (largada), straight (reta final de 600 m) e final (80%)
 var GATILHOS = { distance: 1200, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 600 }, { type: 'reta', from: 600, to: 1200 }] };
@@ -1288,25 +1431,12 @@ function skillsPorCorredor(res, n) {
   res.events.forEach(function (e) { if (e.type === 'skill') c[e.racer]++; });
   return c;
 }
-test('com skillsAlways toda tentativa de skill ativa', function () {
+test('toda skill ativa quando o gatilho acontece: 3 de 3 em todos os corredores, em qualquer seed, sem parâmetro nenhum', function () {
   function fraco() { var h = mk({ sorte: 0 }); h.rarity = 'comum'; h.skills = ['arranque', 'sprint', 'arrancada-final']; return h; }
-  var semDev = 0;
-  for (var s = 1; s <= 10; s++) {
+  for (var s = 1; s <= 30; s++) {
     var hs = [fraco(), fraco(), fraco(), fraco()];
-    assert.deepStrictEqual(skillsPorCorredor(devRace(s, hs, { skillsAlways: true }), 4), [3, 3, 3, 3], 'seed ' + s);
-    semDev += skillsPorCorredor(devRace(s, hs), 4).reduce(function (a, x) { return a + x; }, 0);
+    assert.deepStrictEqual(skillsPorCorredor(devRace(s, hs), 4), [3, 3, 3, 3], 'seed ' + s);
   }
-  assert.ok(semDev < 120, 'sem o parâmetro, a chance (0,35) falha às vezes: ' + semDev + '/120');
-  // r.rng() continua sendo chamado na tentativa: quando todas já ativariam, o resultado é idêntico
-  function forte() { var h = mk({ sorte: 100 }); h.level = 50; h.skills = ['arranque', 'sprint', 'arrancada-final']; return h; }
-  var iguais = 0;
-  for (s = 1; s <= 40; s++) {
-    var hf = [forte(), forte()], base = devRace(s, hf);
-    if (skillsPorCorredor(base, 2).join() !== '3,3') continue;
-    assert.strictEqual(JSON.stringify(devRace(s, hf, { skillsAlways: true })), JSON.stringify(base), 'seed ' + s + ': fluxo do rng deslocado');
-    iguais++;
-  }
-  assert.ok(iguais >= 5, 'poucas seeds com todas as skills ativas sem o parâmetro: ' + iguais);
 });
 
 var Dev = null;
@@ -1451,7 +1581,7 @@ test('simulate com distância malformada corre na distância da seed, com tempos
     assert.ok(semNaN(res), String(d) + ': ' + res.finishTimes.join());
   });
 });
-test('level e potencial malformados: status finitos, corrida termina, skillChance limita o level como computeStats', function () {
+test('level e potencial malformados: status finitos, corrida termina', function () {
   var h = mk({}); h.level = 'x'; h.potential = { vel: 'abc', acel: NaN, man: -5, forca: 99, est: null, garra: undefined, sorte: '7' };
   var st = S.computeStats(h, null);
   G.STAT_KEYS.forEach(function (k) { assert.ok(typeof st[k] === 'number' && isFinite(st[k]), k + ' = ' + st[k]); });
@@ -1462,15 +1592,11 @@ test('level e potencial malformados: status finitos, corrida termina, skillChanc
   var res = race(3, RETA, campo2(h));
   assert.ok(semNaN(res), res.finishTimes.join());
   assert.ok(!res.events.some(function (e) { return e.type === 'chegada' && /900/.test(e.text); }), 'ninguém "chega" em 900 s');
-  var c1 = S.skillChance({ rarity: 'raro', level: 1 }, { sorte: 0 }), c50 = S.skillChance({ rarity: 'raro', level: 50 }, { sorte: 0 });
-  assert.strictEqual(S.skillChance({ rarity: 'raro', level: -200 }, { sorte: 0 }), c1);
-  assert.strictEqual(S.skillChance({ rarity: 'raro', level: 'x' }, { sorte: 0 }), c1);
-  assert.strictEqual(S.skillChance({ rarity: 'raro', level: 1e9 }, { sorte: 0 }), c50);
   assert.strictEqual(S.sanitizeLevel(10.7), 10); assert.strictEqual(S.sanitizeLevel(undefined), 1); assert.strictEqual(S.sanitizePotential('x'), 0); assert.strictEqual(S.sanitizePotential(40), 31);
 });
 test('simulate não muta a config recebida', function () {
   var cfg = { seed: 99, conditions: { distance: 1600, blocks: [{ type: 'reta', from: 0, to: 400 }, { type: 'curva', from: 400, to: 1200 }, { type: 'reta', from: 1200, to: 1600 }] },
-    racers: [{ horse: cl(G.STARTERS[0]), gear: GR.botGear(5, 'fogo', 0.5), name: 'a' }, { horse: cl(G.STARTERS[1]), gear: null, name: 'b' }], dev: { skillsAlways: true } };
+    racers: [{ horse: cl(G.STARTERS[0]), gear: GR.botGear(5, 'fogo', 0.5), name: 'a' }, { horse: cl(G.STARTERS[1]), gear: null, name: 'b' }] };
   var antes = JSON.stringify(cfg);
   S.simulate(cfg); assert.strictEqual(JSON.stringify(cfg), antes);
 });
@@ -1572,8 +1698,10 @@ var IT; try { IT = require('../src/itens.js'); } catch (e) { IT = {}; console.lo
 function congela(x) { if (x && typeof x === 'object') { Object.keys(x).forEach(function (k) { congela(x[k]); }); Object.freeze(x); } return x; }
 function cavIt(o) {
   o = o || {};
-  return { uid: 'c1', name: 'Brasa', element: o.element || 'fogo', rarity: o.rarity || 'raro', grau: o.grau == null ? 2 : o.grau, level: o.level == null ? 20 : o.level,
+  var h = { uid: 'c1', name: 'Brasa', element: o.element || 'fogo', rarity: o.rarity || 'raro', grau: o.grau == null ? 2 : o.grau, level: o.level == null ? 20 : o.level,
     skills: o.skills || ['arranque'], torroes: o.torroes == null ? 0 : o.torroes };
+  if (o.skillRanks) h.skillRanks = o.skillRanks;
+  return h;
 }
 var CTX = { tem: 1, ativaComSala: false };
 // cópia da learnSkill de antes desta frente (o teste confere que a nova consome o rng igual e devolve o mesmo)
@@ -1595,10 +1723,10 @@ function learnSkillAntiga(mount, rng) {
 function contaRng(seed) { var r = S.mulberry32(seed), f = function () { f.n++; return r(); }; f.n = 0; return f; }
 function todasCandidatas(el) { return Object.keys(G.SKILLS).filter(function (id) { return G.SKILLS[id].element === 'geral' || G.SKILLS[id].element === el; }); }
 
-test('catálogo: 5 itens na ordem, preços, limites, chance, mochila e diária', function () {
+test('catálogo: 6 itens na ordem, preços, limites, chance, mochila e diária', function () {
   var I = G.ITEMS;
-  assert.deepStrictEqual(Object.keys(I), ['torrao', 'estrela', 'redea', 'cupom', 'manual']);
-  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].name; }), ['Torrão de açúcar', 'Estrela de treino', 'Rédea nova', 'Cupom de troca de skill', 'Manual de doma']);
+  assert.deepStrictEqual(Object.keys(I), ['torrao', 'estrela', 'redea', 'cupom', 'manual', 'pergaminho']);
+  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].name; }), ['Torrão de açúcar', 'Estrela de treino', 'Rédea nova', 'Cupom de troca de skill', 'Manual de doma', 'Pergaminho de técnica']);
   Object.keys(I).forEach(function (k) {
     assert.strictEqual(I[k].id, k);
     assert.ok(typeof I[k].desc === 'string' && I[k].desc.length > 10 && I[k].desc.indexOf('\n') < 0, k + ' desc');
@@ -1607,12 +1735,12 @@ test('catálogo: 5 itens na ordem, preços, limites, chance, mochila e diária',
     assert.ok(typeof I[k].name === 'string' && I[k].name.length > 3, k + ' name');
     assert.ok(typeof I[k].plural === 'string' && I[k].plural.length > 3 && I[k].plural !== I[k].name, k + ' plural');
   });
-  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].plural; }), ['Torrões de açúcar', 'Estrelas de treino', 'Rédeas novas', 'Cupons de troca de skill', 'Manuais de doma']);
+  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].plural; }), ['Torrões de açúcar', 'Estrelas de treino', 'Rédeas novas', 'Cupons de troca de skill', 'Manuais de doma', 'Pergaminhos de técnica']);
   // a ordem da loja é fixa no catálogo (Ruling 11, spec §6), não a do preço: só itens à venda, cada um uma vez
   assert.deepStrictEqual(G.SHOP_ORDER, ['torrao', 'manual', 'cupom', 'estrela']);
   G.SHOP_ORDER.forEach(function (k) { assert.ok(Object.prototype.hasOwnProperty.call(I, k) && I[k].price > 0, 'SHOP_ORDER: ' + k + ' sem preço'); });
   assert.deepStrictEqual(Object.keys(I).filter(function (k) { return I[k].price != null; }).sort(), G.SHOP_ORDER.slice().sort(), 'SHOP_ORDER tem todos os itens à venda');
-  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].price; }), [120, 2000, null, 250, 200]);
+  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].price; }), [120, 2000, null, 250, 200, undefined]);   // Rédea nova e Pergaminho de técnica: não se vendem
   assert.strictEqual(I.torrao.perDay, 2); assert.strictEqual(I.cupom.perDay, 1); assert.strictEqual(I.manual.perDay, 1);
   assert.strictEqual(I.torrao.cap, 10); assert.strictEqual(I.estrela.everyDays, 7); assert.strictEqual(I.manual.chance, 0.35);
   assert.strictEqual(G.BAG_MAX, 99);
@@ -2005,7 +2133,7 @@ test('Estrela de treino diz de onde vem, com os números do catálogo', function
 test('a origem de cada item cita os ginásios só quando algum ginásio dá o item (Ruling 28 dos ginásios)', function () {
   // a verdade sai do catálogo: o prêmio de alguma etapa de algum ginásio ou o rodízio da revanche do líder
   Object.keys(G.ITEMS).forEach(function (id) {
-    var daGin = G.GYM_ORDER.some(function (g) { return G.GYMS[g].etapas.some(function (e) { return e.premio.itens.indexOf(id) >= 0; }); }) ||
+    var daGin = G.GYM_ORDER.some(function (g) { return G.GYMS[g].etapas.some(function (e) { return e.premio.itens.indexOf(id) >= 0 || (id === 'pergaminho' && e.premio.pergaminhos > 0); }); }) ||
       G.GYM.revanche.ciclo.some(function (c) { return c.item === id; });
     assert.strictEqual(/ginásio/.test(G.ITEMS[id].origem), daGin, id + ': ' + G.ITEMS[id].origem);
   });
@@ -2013,6 +2141,146 @@ test('a origem de cada item cita os ginásios só quando algum ginásio dá o it
   G.DAILY.dias.forEach(function (d, i) {
     if (d.item) assert.ok(G.ITEMS[d.item].origem.indexOf((i + 1) + 'º dia') >= 0, d.item + ': ' + G.ITEMS[d.item].origem);
   });
+});
+
+test('sanearRanks: 0, 7, "3", NaN e ausente valem 1; inteiro de 1 a 5 fica; rank de skill que o cavalo não tem some', function () {
+  var sk = ['sprint', 'drift', 'arranque', 'nascente', 'casco-firme', 'chama-final'];
+  assert.deepStrictEqual(IT.sanearRanks(sk, congela({ sprint: 0, drift: 7, arranque: '3', nascente: NaN, 'chama-final': 4, 'segundo-ar': 5, 'nao-existe': 2 })),
+    { sprint: 1, drift: 1, arranque: 1, nascente: 1, 'casco-firme': 1, 'chama-final': 4 });
+  [1, 2, 3, 4, 5].forEach(function (r) { assert.deepStrictEqual(IT.sanearRanks(['sprint'], { sprint: r }), { sprint: r }); });
+  [2.5, -1, null, undefined, Infinity, true, [], {}].forEach(function (v) { assert.deepStrictEqual(IT.sanearRanks(['sprint'], { sprint: v }), { sprint: 1 }, String(v)); });
+  // save de antes da v9 (sem skillRanks) ou campo que não é objeto: todas no rank 1, nenhuma perdida
+  [undefined, null, 'x', 7, []].forEach(function (rk) { assert.deepStrictEqual(IT.sanearRanks(['sprint', 'drift'], rk), { sprint: 1, drift: 1 }, String(rk)); });
+  assert.deepStrictEqual(IT.sanearRanks([], { sprint: 3 }), {}); assert.deepStrictEqual(IT.sanearRanks(null, { sprint: 3 }), {});
+  assert.deepStrictEqual(IT.sanearRanks(['sprint', 'nao-existe', 7], { sprint: 2 }), { sprint: 2 }, 'skill fora do catálogo não ganha rank');
+  // herdado do Object.prototype não conta como rank
+  assert.deepStrictEqual(IT.sanearRanks(['sprint'], Object.create({ sprint: 5 })), { sprint: 1 });
+});
+test('trocarSkill num rank 4 devolve rankPerdido 4, apaga o rank da que sai e põe a nova no rank 1; as outras ficam', function () {
+  var m = congela(cavIt({ skills: ['sprint', 'drift'], skillRanks: { sprint: 4, drift: 3 } }));
+  for (var c = 0; c < 30; c++) {
+    var r = IT.trocarSkill(m, 'sprint', 99, c);
+    assert.strictEqual(r.rankPerdido, 4); assert.strictEqual(r.sai, 'sprint');
+    var esp = { drift: 3 }; esp[r.entra] = 1;
+    assert.deepStrictEqual(r.skillRanks, esp, 'contador ' + c);
+    assert.deepStrictEqual(Object.keys(r.skillRanks).sort(), r.skills.slice().sort());
+  }
+  // sem skillRanks (save antigo): rankPerdido 1
+  assert.strictEqual(IT.trocarSkill(congela(cavIt({ skills: ['sprint'] })), 'sprint', 99, 0).rankPerdido, 1);
+  // a troca não sorteia nada a mais: a skill que entra é a mesma de antes dos ranks, para a mesma seed e contador
+  var semRank = IT.trocarSkill(congela(cavIt({ skills: ['sprint', 'drift'] })), 'sprint', 99, 7);
+  assert.strictEqual(IT.trocarSkill(m, 'sprint', 99, 7).entra, semRank.entra);
+});
+test('tentarDoma devolve skillRanks: a aprendida no rank 1, as outras como estavam; sem aprender, nada muda', function () {
+  var m = congela(cavIt({ skills: ['sprint'], skillRanks: { sprint: 5 } })), viu = { sim: 0, nao: 0 };
+  for (var c = 0; c < 60; c++) {
+    var r = IT.tentarDoma(m, 5, c);
+    if (r.aprendeu) { viu.sim++; var esp = { sprint: 5 }; esp[r.aprendeu] = 1; assert.deepStrictEqual(r.skillRanks, esp); }
+    else { viu.nao++; assert.deepStrictEqual(r.skillRanks, { sprint: 5 }); }
+  }
+  assert.ok(viu.sim > 5 && viu.nao > 5, JSON.stringify(viu));
+});
+test('podeSubirRank: custo do rank, e cada motivo na ordem (máximo, sala aberta, Ouro, Ouro reservado, Pergaminhos)', function () {
+  var m = congela(cavIt({ skills: ['sprint', 'drift'], skillRanks: { sprint: 1, drift: 5 } }));
+  var rico = { ouroLivre: 99999, ouro: 99999, pergaminhos: 99, salaAbertaAtivo: false };
+  assert.deepStrictEqual(IT.podeSubirRank(m, 'sprint', congela(rico)), { ok: true, custo: { ouro: 150, perg: 1 }, rank: 1 });
+  [[1, 150, 1], [2, 400, 2], [3, 900, 4], [4, 2000, 7]].forEach(function (c) {
+    var h = cavIt({ skills: ['sprint'], skillRanks: { sprint: c[0] } });
+    assert.deepStrictEqual(IT.podeSubirRank(h, 'sprint', rico).custo, { ouro: c[1], perg: c[2] }, 'rank ' + c[0]);
+    // Ouro e Pergaminhos exatos passam; um a menos não
+    assert.strictEqual(IT.podeSubirRank(h, 'sprint', { ouroLivre: c[1], ouro: c[1], pergaminhos: c[2] }).ok, true);
+    assert.strictEqual(IT.podeSubirRank(h, 'sprint', { ouroLivre: c[1] - 1, ouro: c[1] - 1, pergaminhos: c[2] }).motivo, 'Falta Ouro (precisa de ' + (c[1] === 2000 ? '2.000' : c[1]) + ')');
+    assert.strictEqual(IT.podeSubirRank(h, 'sprint', { ouroLivre: c[1], ouro: c[1], pergaminhos: c[2] - 1 }).motivo, 'Faltam Pergaminhos (precisa de ' + c[2] + ')');
+  });
+  assert.deepStrictEqual(IT.podeSubirRank(m, 'drift', rico), { ok: false, motivo: 'Rank máximo', rank: 5 });
+  assert.strictEqual(IT.podeSubirRank(m, 'sprint', Object.assign({}, rico, { salaAbertaAtivo: true })).motivo, 'Com o páreo aberto, o cavalo ativo não sobe rank');
+  // Foco 3: Ouro exato para o custo, mas parte dele reservada para a entrada da sala aberta (de outro cavalo)
+  var res = IT.podeSubirRank(m, 'sprint', { ouroLivre: 50, ouro: 150, pergaminhos: 5, salaAbertaAtivo: false });
+  assert.strictEqual(res.ok, false); assert.ok(/guardado para a entrada/.test(res.motivo) && /150/.test(res.motivo), res.motivo);
+  // sem contexto, skill que o cavalo não tem, skill de fora do catálogo: recusa com frase
+  assert.strictEqual(IT.podeSubirRank(m, 'sprint').ok, false);
+  ['arranque', 'nao-existe', 'labareda', undefined].forEach(function (id) { var r = IT.podeSubirRank(m, id, rico); assert.strictEqual(r.ok, false); assert.ok(r.motivo.length > 8); });
+  assert.strictEqual(IT.podeSubirRank(null, 'sprint', rico).ok, false);
+});
+test('subirRank: +1 no rank e o custo a descontar, sem sortear; do 1 ao 5 custa 3.450 de Ouro e 14 Pergaminhos', function () {
+  var h = cavIt({ skills: ['sprint', 'drift'], skillRanks: { sprint: 1, drift: 2 } }), ouro = 0, perg = 0;
+  var mr = Math.random, usou = false; Math.random = function () { usou = true; return 0.5; };
+  try {
+    for (var k = 0; k < 4; k++) {
+      var antes = JSON.stringify(h), r = IT.subirRank(congela(cl(h)), 'sprint');
+      assert.strictEqual(JSON.stringify(h), antes, 'não muta a montaria');
+      assert.deepStrictEqual(r.skillRanks, { sprint: k + 2, drift: 2 });
+      ouro += r.ouro; perg += r.perg; h.skillRanks = r.skillRanks;
+      assert.deepStrictEqual(IT.subirRank(congela(cl(h)), 'sprint'), IT.subirRank(congela(cl(h)), 'sprint'), 'mesma entrada, mesma saída');
+    }
+  } finally { Math.random = mr; }
+  assert.ok(!usou, 'sem Math.random'); assert.strictEqual(ouro, 3450); assert.strictEqual(perg, 14);
+  assert.strictEqual(IT.subirRank(h, 'sprint'), null, 'rank máximo'); assert.strictEqual(IT.subirRank(h, 'arranque'), null); assert.strictEqual(IT.subirRank(null, 'sprint'), null);
+  // subir rank sobe o Poder (por isso o cavalo ativo fica bloqueado com o páreo aberto)
+  var a = cavIt({ skills: ['sprint'], skillRanks: { sprint: 1 } }), b = cavIt({ skills: ['sprint'], skillRanks: IT.subirRank(a, 'sprint').skillRanks });
+  assert.ok(S.powerRating(b) > S.powerRating(a));
+});
+test('Pergaminho de técnica: no catálogo sem preço nem limite de compra; a loja não lista nem vende', function () {
+  var P = G.ITEMS.pergaminho;
+  assert.deepStrictEqual({ id: P.id, name: P.name, plural: P.plural, cap: P.cap, podio: P.podio }, { id: 'pergaminho', name: 'Pergaminho de técnica', plural: 'Pergaminhos de técnica', cap: 99, podio: [0.5, 0.3, 0.15] });
+  assert.strictEqual(P.price, undefined); assert.strictEqual(P.perDay, undefined); assert.strictEqual(P.everyDays, undefined);
+  assert.ok(G.SHOP_ORDER.indexOf('pergaminho') < 0, 'fora da ordem da loja');
+  var loja = { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null };
+  assert.deepStrictEqual(IT.podeComprar('pergaminho', loja, 10, 999999, 999999, 0), { ok: false, motivo: 'nao-vende' });
+  assert.deepStrictEqual(IT.lojaDoDia(loja, 10).comprados, { torrao: 0, manual: 0, cupom: 0 }, 'não entra nos limites do dia');
+  assert.ok(/não está à venda/.test(P.origem) && /pódio/.test(P.origem) && !/Gema/i.test(P.desc + P.origem));
+});
+test('podeUsar(pergaminho) nunca usa pela mochila: diz que ele é gasto na aba Skills', function () {
+  [cavIt(), null].forEach(function (m) {
+    var r = IT.podeUsar('pergaminho', m, { tem: 5, ativaComSala: false });
+    assert.strictEqual(r.ok, false); assert.ok(/aba Skills/.test(r.motivo) && /rank/.test(r.motivo), r.motivo);
+  });
+});
+test('pergaminhoPodio é determinístico e dá ~50/30/15% em 20.000 seeds (±1,5 p.p.); 4º lugar em diante nunca ganha', function () {
+  var N = 20000, c = [0, 0, 0];
+  for (var s = 0; s < N; s++) {
+    var seed = S.hash2(4242, s);
+    for (var pl = 1; pl <= 3; pl++) {
+      var x = IT.pergaminhoPodio(seed, pl);
+      assert.ok(x === 0 || x === 1); assert.strictEqual(IT.pergaminhoPodio(seed, pl), x, 'mesma seed e lugar, mesmo resultado');
+      c[pl - 1] += x;
+    }
+    [0, 4, 5, 8, -1, 1.5, '1', null, undefined, NaN].forEach(function (pl2) { assert.strictEqual(IT.pergaminhoPodio(seed, pl2), 0, 'lugar ' + pl2); });
+  }
+  [0.5, 0.3, 0.15].forEach(function (p, i) { assert.ok(Math.abs(c[i] / N - p) < 0.015, (i + 1) + 'º: ' + (100 * c[i] / N).toFixed(1) + '%'); });
+  // um sorteio por lugar, independentes: há seeds em que o 3º ganha e o 1º não
+  var so3 = 0; for (s = 0; s < 2000; s++) if (IT.pergaminhoPodio(s, 3) && !IT.pergaminhoPodio(s, 1)) so3++;
+  assert.ok(so3 > 50, 'independentes: ' + so3);
+  // o sal não bate com os outros usos da seed da sala
+  assert.strictEqual(IT.SAL_PERGAMINHO, 0x50450000);
+  assert.notStrictEqual(IT.pergaminhoPodio(77, 1) + ':' + IT.pergaminhoPodio(78, 1) + ':' + IT.pergaminhoPodio(79, 1) + ':' + IT.pergaminhoPodio(80, 1) + ':' + IT.pergaminhoPodio(81, 1) + ':' + IT.pergaminhoPodio(82, 1), '');
+});
+test('ginásios dão Pergaminho: 1 nos soldados 2 e 4, 3 no líder, só na 1ª vitória; a revanche não dá e o rodízio não mudou', function () {
+  var GN = require('../src/ginasio.js');
+  G.GYM_ORDER.forEach(function (gid) {
+    assert.deepStrictEqual(G.GYMS[gid].etapas.map(function (e) { return e.premio.pergaminhos; }), [0, 1, 0, 1, 3], gid);
+  });
+  assert.deepStrictEqual(G.GYM.revanche.ciclo, [{ ouro: 100 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 100 }, { item: 'cupom' }]);
+  function prog(etapa) { var p = GN.sanear(null, 10); p.fogo.etapa = etapa; return p; }
+  function venceu(n) { return { venceu: true, duelos: [{ a: 0, b: n - 1, vencedor: 'jogador' }] }; }
+  function perdeu() { return { venceu: false, duelos: [{ a: 0, b: 0, vencedor: 'adversario' }] }; }
+  var pg = [0, 1, 0, 1, 3];
+  for (var e = 0; e < 5; e++) {
+    var nAdv = G.GYMS.fogo.etapas[e].cavalos.length;
+    var ac = GN.acerto({ gymId: 'fogo', etapa: e, revanche: false, progresso: prog(e), resultado: venceu(nAdv), hoje: 10, timeLen: 1 });
+    assert.strictEqual(ac.pergaminhos, pg[e], 'etapa ' + e);
+    assert.strictEqual(GN.acerto({ gymId: 'fogo', etapa: e, revanche: false, progresso: prog(e), resultado: perdeu(), hoje: 10, timeLen: 1 }).pergaminhos, 0, 'derrota ' + e);
+  }
+  // líder já vencido: a revanche (vencida ou perdida) não dá Pergaminho
+  var rev = GN.acerto({ gymId: 'fogo', etapa: 4, revanche: true, progresso: prog(5), resultado: venceu(3), hoje: 10, timeLen: 1 });
+  assert.strictEqual(rev.pergaminhos, 0); assert.strictEqual(rev.ouro, 100);
+  // mochila sem espaço para os Pergaminhos do prêmio: o desafio não abre (como os outros itens)
+  var base = { gymId: 'fogo', etapa: 4, progresso: prog(4), hoje: 10, ouroLivre: 9999, timeLen: 1 };
+  assert.deepStrictEqual(GN.podeDesafiar(Object.assign({ cabe: function () { return true; } }, base)), { ok: true, revanche: false });
+  var pedidos = [];
+  assert.deepStrictEqual(GN.podeDesafiar(Object.assign({ cabe: function (id, n) { pedidos.push(id + ':' + n); return id !== 'pergaminho'; } }, base)), { ok: false, motivo: 'cheia' });
+  assert.ok(pedidos.indexOf('pergaminho:3') >= 0, pedidos.join());
+  assert.deepStrictEqual(GN.podeDesafiar(Object.assign({ cabe: function (id) { return id !== 'pergaminho'; } }, base, { etapa: 0, progresso: prog(0) })), { ok: true, revanche: false }, 'etapa sem Pergaminho não pergunta');
 });
 
 // =============================================================================================================
@@ -2126,7 +2394,7 @@ test('ginásio: catálogo (três ginásios, cinco etapas, times, elementos, base
     assert.deepStrictEqual(g.etapas.map(function (e) { return e.lider; }), [false, false, false, false, true]);
     assert.deepStrictEqual(g.etapas.map(function (e) { return e.entrada; }), [20, 30, 40, 50, 100]);
     assert.deepStrictEqual(g.etapas.map(function (e) { return e.premio; }), [
-      { ouro: 80, itens: [] }, { ouro: 120, itens: ['torrao'] }, { ouro: 160, itens: [] }, { ouro: 200, itens: ['manual'] }, { ouro: 400, itens: ['redea', 'cupom'] }]);
+      { ouro: 80, itens: [], pergaminhos: 0 }, { ouro: 120, itens: ['torrao'], pergaminhos: 1 }, { ouro: 160, itens: [], pergaminhos: 0 }, { ouro: 200, itens: ['manual'], pergaminhos: 1 }, { ouro: 400, itens: ['redea', 'cupom'], pergaminhos: 3 }]);
     g.etapas.forEach(function (e, i) {
       assert.ok(typeof e.id === 'string' && e.id.length, id + ' etapa ' + i + ' id');
       if (i < 4) assert.ok(e.nome.indexOf(patentes[i]) === 0, id + ' etapa ' + i + ': ' + e.nome);
@@ -2142,7 +2410,7 @@ test('ginásio: catálogo (três ginásios, cinco etapas, times, elementos, base
     });
     assert.strictEqual(new Set(g.etapas.map(function (e) { return e.id; })).size, 5, 'ids das etapas únicos');
     assert.strictEqual(g.insignia.icone, 'ins-' + id);
-    assert.ok(require('fs').existsSync(require('path').join(__dirname, '../assets/icons/ins-' + id + '.png')), 'ícone da insígnia existe');
+    assert.ok(require('fs').existsSync(require('path').join(__dirname, '../assets/arte/icones/ins-' + id + '.png')), 'ícone da insígnia existe');
     assert.ok(typeof g.insignia.name === 'string' && g.insignia.name.length > 3);
   });
   var Y = G.GYM;
@@ -2200,7 +2468,7 @@ test('ginásio: faixa (limites meio abertos, Ruling 5) e metros (com chegada emp
 test('ginásio: cavalo (a base do catálogo no nível e nas estrelas, com a build dos bots)', function () {
   var antes = JSON.stringify(CATALOGO);
   var h = GY.cavalo({ base: 'brasa', level: 12, grau: 3 });
-  var esp = cl(catDe('brasa')); esp.level = 12; esp.grau = 3; esp.alloc = S.botAlloc(esp);
+  var esp = cl(catDe('brasa')); esp.level = 12; esp.grau = 3; esp.alloc = S.botAlloc(esp); esp.skillRanks = {};
   assert.deepStrictEqual(h, esp);
   assert.strictEqual(JSON.stringify(CATALOGO), antes, 'não altera o catálogo');
   h.skills.push('x'); assert.deepStrictEqual(catDe('brasa').skills, [], 'devolve uma cópia');
@@ -2308,15 +2576,15 @@ test('ginásio: acerto — prêmio só na 1ª vitória, derrota só XP, XP por d
   var X = G.GYM.xp, P = G.GYMS.fogo.etapas;
   var p0 = congela(progNovo());
   var v = GY.acerto({ gymId: 'fogo', etapa: 0, revanche: false, progresso: p0, resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
-  assert.deepStrictEqual(v, { ouro: P[0].premio.ouro, itens: [], xp: [X.vence], progresso: progCom('fogo', { etapa: 1 }), insignia: false });
+  assert.deepStrictEqual(v, { ouro: P[0].premio.ouro, itens: [], pergaminhos: 0, xp: [X.vence], progresso: progCom('fogo', { etapa: 1 }), insignia: false });
   var de2 = GY.acerto({ gymId: 'fogo', etapa: 0, revanche: false, progresso: congela(progCom('fogo', { etapa: 1 })), resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
   assert.strictEqual(de2, null, 'etapa já vencida: nada (nem XP) — Ruling 7');
   var it = GY.acerto({ gymId: 'agua', etapa: 1, revanche: false, progresso: progCom('agua', { etapa: 1 }), resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
   assert.deepStrictEqual([it.ouro, it.itens, it.progresso.agua.etapa], [P[1].premio.ouro, ['torrao'], 2]);
   var perde = GY.acerto({ gymId: 'fogo', etapa: 2, revanche: false, progresso: progCom('fogo', { etapa: 2 }), resultado: resMao([[0, 0, 1], [0, 1, 0], [1, 1, 0]], false), hoje: HOJE, timeLen: 2 });
-  assert.deepStrictEqual(perde, { ouro: 0, itens: [], xp: [X.vence + X.perde, X.perde], progresso: progCom('fogo', { etapa: 2 }), insignia: false });
+  assert.deepStrictEqual(perde, { ouro: 0, itens: [], pergaminhos: 0, xp: [X.vence + X.perde, X.perde], progresso: progCom('fogo', { etapa: 2 }), insignia: false });
   var lider = GY.acerto({ gymId: 'grama', etapa: 4, revanche: false, progresso: progCom('grama', { etapa: 4 }), resultado: resMao([[0, 0, 1], [0, 1, 0], [1, 1, 1], [1, 2, 1]], true), hoje: HOJE, timeLen: 3 });
-  assert.deepStrictEqual(lider, { ouro: G.GYMS.grama.etapas[4].premio.ouro, itens: ['redea', 'cupom'], xp: [X.vence + X.perde, 2 * X.vence, 0], progresso: progCom('grama', { etapa: 5 }), insignia: true });
+  assert.deepStrictEqual(lider, { ouro: G.GYMS.grama.etapas[4].premio.ouro, itens: ['redea', 'cupom'], pergaminhos: 3, xp: [X.vence + X.perde, 2 * X.vence, 0], progresso: progCom('grama', { etapa: 5 }), insignia: true });
   var fechada = GY.acerto({ gymId: 'fogo', etapa: 3, revanche: false, progresso: progNovo(), resultado: resMao([[0, 0, 1], [0, 1, 1]], true), hoje: HOJE, timeLen: 2 });
   assert.strictEqual(fechada, null, 'etapa fechada: nada (nem XP) — Ruling 7');
   // hoje é obrigatório sempre (Ruling 7)
@@ -2492,40 +2760,41 @@ test('ginásio: bonus e sanear (lixo em cada campo)', function () {
   assert.strictEqual(GY.sanear({ fogo: { etapa: 5, revDia: 'a', revVitorias: 0 } }, NaN).fogo.revDia, IT.DIA_MAX);
   assert.strictEqual(GY.DIA_MAX, IT.DIA_MAX);
 });
-test('garraInfo (a tela) dá os números da Garra que a corrida usa: onde começa, a chance e o terço da Maré Alta', function () {
+test('garraInfo (a tela) dá os números da Garra que a corrida usa: onde começa, a força e o terço da Maré Alta; a arrancada acontece sempre', function () {
   var T = S.TUNING;
   function cav(i, nivel, garra) { var h = clone(G.STARTERS[i]); h.level = nivel; h.skills = []; h.alloc = { garra: garra }; return h; }
   // a conta, com os números do TUNING (Fogo: sem skill de tipo na Garra)
   var f = cav(0, 30, 20), nf = S.computeStats(f).garra / 100, gf = S.garraInfo(f);
   assert.strictEqual(gf.from, Math.min(0.95, Math.max(0.5, T.garraZone - T.garraZoneK * (nf - 0.5))));
-  assert.strictEqual(gf.chance, Math.min(T.garraChanceMax, T.garraChanceBase + T.garraChanceRange * nf));
+  assert.strictEqual(gf.chance, undefined, 'a Garra não tem mais chance'); ['garraChanceBase', 'garraChanceRange', 'garraChanceMax'].forEach(function (k) { assert.strictEqual(T[k], undefined, k); });
   assert.strictEqual(gf.boost, 1 + T.garraBoostBase + T.garraBoostRange * nf);
+  assert.strictEqual(T.garraSpread, 1); assert.ok(Math.abs(gf.boostMin - 1) < 1e-12 && Math.abs(gf.boostMax - (1 + 2 * (gf.boost - 1))) < 1e-12, 'a força de cada corrida vai de 0 a 2× a média');
   assert.strictEqual(gf.tipo, false);
-  // o bônus de uma skill (Arrancada Final) soma como na corrida; a chance para no teto
-  var af = G.SKILLS['arrancada-final'].effect, gb = S.garraInfo(f, { chance: af.garraChanceBonus, boost: af.garraBoostBonus });
-  assert.ok(Math.abs(gb.chance - Math.min(T.garraChanceMax, gf.chance + af.garraChanceBonus)) < 1e-12 && Math.abs(gb.boost - (gf.boost + af.garraBoostBonus)) < 1e-12);
-  assert.strictEqual(S.garraInfo(f, { chance: 5 }).chance, T.garraChanceMax);
+  // o bônus de uma skill (Arrancada Final) soma na força, como na corrida
+  var af = G.SKILLS['arrancada-final'].effect, gb = S.garraInfo(f, { boost: af.garraBoostBonus });
+  assert.strictEqual(af.garraChanceBonus, undefined); assert.ok(Math.abs(gb.boost - (gf.boost + af.garraBoostBonus)) < 1e-12);
   // Água: a arrancada dentro do último terço usa a Garra da Maré Alta; começando antes dele, não
   var a = cav(1, 30, 20), ga = S.garraInfo(a), ts = S.typeSkill(a);
   assert.ok(ga.from >= ts.zone[0] && ga.tipo === true, 'Maré com Garra média: começa no terço da Maré Alta');
   var na = S.computeStats(a).garra / 100 * (1 + ts.effect.statMul * ts.power);
-  assert.ok(Math.abs(ga.chance - (T.garraChanceBase + T.garraChanceRange * na)) < 1e-12);
+  assert.ok(Math.abs(ga.boost - (1 + T.garraBoostBase + T.garraBoostRange * na)) < 1e-12);
   var a2 = clone(a); a2.rarity = 'mitico'; a2.grau = 3; a2.level = 50; a2.potential = Object.assign({}, a2.potential, { garra: 31 }); a2.alloc = { garra: 70 };
   var ga2 = S.garraInfo(a2);
   assert.ok(ga2.from < ts.zone[0] && ga2.tipo === false, 'Garra alta começa antes do terço: sem a Maré Alta (' + ga2.from + ')');
   // na corrida, com Nublado e sem skills de vaga: a Garra sai na fração prevista e começa no ponto previsto
   [f, a].forEach(function (h) {
-    var info = S.garraInfo(h), vezes = 0, corridas = 2400, longe = 0;
+    var info = S.garraInfo(h), vezes = 0, corridas = 600, longe = 0, somaF = 0, fracas = 0, fortes = 0;
     for (var sd = 1; sd <= corridas; sd++) {
       var res = S.simulate({ seed: sd * 7919, conditions: { weather: 'nublado' }, recordFrames: true, racers: [{ horse: h, name: 'A' }, { horse: clone(G.STARTERS[2]), name: 'B' }] });
       var ev = res.events.filter(function (e) { return e.type === 'garra' && e.racer === 0; })[0];
       if (!ev) continue;
       vezes++;
+      assert.ok(ev.forca >= 0 && ev.forca <= 2, 'força ' + ev.forca); somaF += ev.forca; if (ev.forca < 0.5) fracas++; if (ev.forca > 1.5) fortes++;
       var k = Math.round(ev.t * 10), D = res.conditions.distance;
       if (!(res.frames[k + 1].pos[0] / D >= info.from - 1e-9 && res.frames[k].pos[0] / D < info.from + 0.02)) longe++;
     }
-    var frac = vezes / corridas;
-    assert.ok(Math.abs(frac - info.chance) < 0.03, h.element + ': Garra em ' + (frac * 100).toFixed(1) + '% das corridas; a tela diz ' + (info.chance * 100).toFixed(1) + '%');
+    assert.strictEqual(vezes, corridas, h.element + ': a Garra tem de sair em toda corrida (saiu em ' + vezes + ' de ' + corridas + ')');
+    assert.ok(Math.abs(somaF / corridas - 1) < 0.06 && fracas > 100 && fortes > 100, h.element + ': a força varia em torno da média (média ' + (somaF / corridas).toFixed(2) + ', ' + fracas + ' fracas, ' + fortes + ' fortes)');
     assert.strictEqual(longe, 0, h.element + ': a Garra começou fora do ponto previsto em ' + longe + ' corridas');
   });
 });

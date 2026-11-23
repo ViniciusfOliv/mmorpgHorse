@@ -31,6 +31,11 @@
  *     nos postes e placas "CURVA" presas à cerca a cada 40 m. O chamador soma o mesmo deslocamento no y dos
  *     cavalos. Sem fx.js, a pista fica reta. curveScale (0..1) encolhe o arco quando falta espaço acima da
  *     pista (o y dos cavalos usa o mesmo fator).
+ *     regiao: id de window.__REGIOES já passado ao setRegioes (cerrado, varzea, planalto, sertao, litoral): o fundo vira
+ *     as camadas da região (céu em faixas, nuvens, horizonte, meio, arquibancada, faixa de grama) e o chão de dentro
+ *     fica para o primeiro plano; sem ela, o cenário por código.
+ *   Sprites.setRegioes({ id: { posicao, camadas: { nuvens, horizonte, meio, arquibancada, frente } (Image) } }),
+ *   Sprites.regiaoPronta(id), Sprites.drawTrackFront(ctx) — primeiro plano da região (paralaxe 1,25), depois dos cavalos
  *   Sprites.cloudCanvas(seed, P, tom) — nuvem de pixels em cache (usada pelo nublado do fx.js)
  *   Sprites.drawTrail(ctx, x, y, element, t, intensity, scale)
  *   Sprites.drawElementIcon(ctx, x, y, element, scale)
@@ -1098,6 +1103,55 @@
     return o.idle ? 'parado' : 'galope';
   }
 
+  // Paleta-mestra (guia de arte §3, etapa 1b): toda cor de cavalo pintada sai da Resurrect 64. O dado do cavalo (o hex do
+  // save, a mistura do potro) não muda: a cor é trocada pela mais próxima da mestra (CIELAB) na hora de recolorir. A
+  // sombra de um papel não pode cair na mesma cor da base (a sombra sumiria): aí vale a mais próxima entre as mais escuras.
+  var MESTRA = ('2e222f 3e3546 625565 966c6c ab947a 694f62 7f708a 9babb2 c7dcd0 ffffff 6e2727 b33831 ea4f36 f57d4a ae2334 ' +
+    'e83b3b fb6b1d f79617 f9c22b 7a3045 9e4539 cd683d e6904e fbb954 4c3e24 676633 a2a947 d5e04b fbff86 165a4c 239063 1ebc73 ' +
+    '91db69 cddf6c 313638 374e4a 547e64 92a984 b2ba90 0b5e65 0b8a8f 0eaf9b 30e1b9 8ff8e2 323353 484a77 4d65b4 4d9be6 8fd3ff ' +
+    '45293f 6b3e75 905ea9 a884f3 eaaded 753c54 a24b6f cf657f ed8099 831c5d c32454 f04f78 f68181 fca790 fdcbb0').split(' ');
+  function labDe(hex) {
+    var v = hexToRgb(hex).map(function (c) { c /= 255; return c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92; });
+    var f = function (t) { return t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116; };
+    var x = f((v[0] * 0.4124 + v[1] * 0.3576 + v[2] * 0.1805) / 0.95047), y = f(v[0] * 0.2126 + v[1] * 0.7152 + v[2] * 0.0722);
+    var z = f((v[0] * 0.0193 + v[1] * 0.1192 + v[2] * 0.9505) / 1.08883);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+  }
+  var MESTRA_LAB = null, mestraCache = {};
+  // a cor da mestra mais perto de hex; com evitar, uma diferente dela e mais escura (para as sombras), ou mais clara
+  // com claro = true
+  function naMestra(hex, evitar, claro) {
+    if (!hex) return hex;
+    var chave = hex + '|' + (evitar || '') + (claro ? '+' : '');
+    if (mestraCache[chave]) return mestraCache[chave];
+    if (!MESTRA_LAB) MESTRA_LAB = MESTRA.map(labDe);
+    var a = labDe(hex), lEvitar = evitar ? labDe(evitar)[0] : 0, melhor = null, md = Infinity;
+    for (var i = 0; i < MESTRA.length; i++) {
+      var b = MESTRA_LAB[i], h = '#' + MESTRA[i];
+      if (evitar && (h === evitar || (claro ? b[0] <= lEvitar : b[0] >= lEvitar))) continue;
+      var d = (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]);
+      if (d < md) { md = d; melhor = h; }
+    }
+    return (mestraCache[chave] = melhor || naMestra(hex));
+  }
+  // as cores por papel (coresMolde ou coresComCamadas) levadas à mestra; cada tom derivado diferente da sua base e do lado
+  // certo dela: as sombras (pelagem, crina, branco das marcas, a manta sob o capacete) mais escuras; o tom 2 da seda mais
+  // escuro numa seda clara e mais claro numa escura (como o coresComCamadas o deriva)
+  var SOMBRA_DE = { 3: 2, 5: 4, 11: 10, 15: 14 };
+  function coresNaMestra(cores) {
+    var out = cores.map(function (c) { return c ? naMestra(c.toLowerCase()) : c; });
+    var escuro = function (a, b) { return lum(a) < lum(b); };
+    Object.keys(SOMBRA_DE).forEach(function (k) {
+      var b = SOMBRA_DE[k];
+      if (out[k] && out[b] && !escuro(out[k], out[b])) out[k] = naMestra(cores[k].toLowerCase(), out[b]);
+    });
+    if (out[13] && out[7]) {
+      var claro = lum(cores[7]) < 0.5;
+      if (claro ? !escuro(out[7], out[13]) : !escuro(out[13], out[7])) out[13] = naMestra(cores[13].toLowerCase(), out[7], claro);
+    }
+    return out;
+  }
+
   // Cores por papel (índice 0–9) para as opções do drawHorse.
   function coresMolde(o) {
     var pal = o.palette || PALETTES.neutro;
@@ -1176,12 +1230,12 @@
   // chave e os pixels de antes da parte 2a.
   // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresMolde(o), v = visuaisMolde(o);
+    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o);
     var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
     var c = moldCache.get(key);
     if (!c) {
       var M = moldes[nome], idx = indicesMolde(M, estado, quadro);
-      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v), M.w, M.h, coresComCamadas(cores, v))
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v), M.w, M.h, coresNaMestra(coresComCamadas(cores, v)))
         : pintaIndices(idx, M.w, M.h, cores);
       moldCache.set(key, c);
     }
@@ -1225,8 +1279,15 @@
   // descer de S 3 para S 2 em k = 4 (dpr 1,25 a 1,4, o zoom de 125 % do Windows) e ficar menor que o padrão. O corte de
   // cada molde fica no máximo o do mais alto (com os moldes dos portes, até 6,9 % no retrato do robusto-ondas em k = 3,
   // 6 e 9). A outra saída, tolerar mais corte, cortaria a cabeça do robusto (14 % em k = 4).
+  // quadro.grade (etapa 1b da direção de arte, guia §2 e §7): o molde 1:1 na grade de pixel — 1 pixel do molde = 1 pixel
+  // de arte = quadro.grade pixels do canvas —, com os cascos em quadro.base e o corpo centrado em quadro.centro (pixels do
+  // canvas); nada de escala variável nem de "meia escala"
   function layoutMolde(nome, estado, x, y, k, quadro) {
     var M = moldes[nome], ref = M.estados[estado];
+    if (quadro && quadro.grade) {
+      var G = quadro.grade, peG = quadro.base, oxG = Math.round((quadro.centro != null ? quadro.centro : x) - ref.centro * G);
+      return { S: G, ox: oxG, oy: peG - (ref.footY + 1) * G, pe: peG, topo: peG - ref.altura * G, cx: Math.round(oxG + ref.centro * G), grade: true };
+    }
     var S = moldScale(k), pe = y + (FOOT_Y + 1) * k, ox;
     if (quadro && isFinite(quadro.topo) && isFinite(quadro.base) && quadro.base > quadro.topo) {
       var livre = quadro.base - quadro.topo, alta = Math.max(ref.altura, alturaMaxEstado[estado] || 0);
@@ -1249,9 +1310,15 @@
     crisp(ctx);
     if (o.shadow !== false) {   // a mesma sombra do sprite por código, sob os cascos e centrada no corpo do molde
       ctx.fillStyle = 'rgba(20,10,20,0.28)';
-      var sy = L.pe - 2 * k;
-      ctx.fillRect(L.cx - 11 * k, sy, 22 * k, k);
-      ctx.fillRect(L.cx - 9 * k, sy + k, 18 * k, k);
+      if (L.grade) {   // na grade: a sombra em pixels do molde (opaca seria mancha; o véu fica até a etapa 2 trocar a pista)
+        var u = L.S, syG = L.pe - 3 * u;
+        ctx.fillRect(L.cx - 16 * u, syG, 32 * u, u);
+        ctx.fillRect(L.cx - 13 * u, syG + u, 26 * u, u);
+      } else {
+        var sy = L.pe - 2 * k;
+        ctx.fillRect(L.cx - 11 * k, sy, 22 * k, k);
+        ctx.fillRect(L.cx - 9 * k, sy + k, 18 * k, k);
+      }
     }
     ctx.drawImage(moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
   }
@@ -1649,8 +1716,10 @@
     }
     return out;
   }
-  function measureText(text, scale) {
+  function measureText(text, scale, fonte) {
     scale = scale || 1;
+    var Fm = fonte ? fontePixel(fonte) : null;
+    if (Fm) return larguraFonte(text, Fm) * scale;
     var gl = textGlyphs(text), w = 0;
     for (var i = 0; i < gl.length; i++) w += (gl[i].g[0].length + 1);
     return Math.max(0, w - 1) * scale;
@@ -1691,8 +1760,66 @@
     textoCache.set(k, c);
     return c;
   }
+  // Galmuri no canvas (etapa 2.2 da direção de arte, guia §6): os glifos rasterizados uma vez, com alfa binário, em
+  // prototype/assets/fontes/galmuri-glifos.json (tools/fonte-glifos.mjs); o build os embute em window.__GLIFOS e o Node
+  // lê o arquivo, então a largura e os pixels são os mesmos no jogo e nos testes. o.fonte: 'g7' (Galmuri7, 8 px), 'g9'
+  // (Galmuri9, 10 px) ou 'g11' (Galmuri11 Bold, 12 px); o.scale é o tamanho do pixel da fonte (1 no buffer de arte).
+  // O y é o topo da maiúscula (como na fonte 3×5); o acento sobe acima dele e a descendente desce abaixo.
+  var glifosNode = null;
+  function glifosApi() {
+    if (typeof window !== 'undefined' && window.__GLIFOS) return window.__GLIFOS;
+    if (glifosNode === null) {
+      glifosNode = false;
+      if (typeof require === 'function') { try { glifosNode = require('../assets/fontes/galmuri-glifos.json'); } catch (e) { glifosNode = false; } }
+    }
+    return glifosNode || null;
+  }
+  function fontePixel(id) {
+    var G = glifosApi(), F = G && G.fontes && G.fontes[id];
+    if (!F) return null;
+    if (F.capTop == null) {   // a primeira linha acesa do "H": o topo da maiúscula
+      var h = F.glifos.H || [0, 0, 0], r = 0;
+      while (r < h.length - 3 && !h[3 + r]) r++;
+      F.capTop = r;
+    }
+    return F;
+  }
+  function glifoDe(F, ch) { return F.glifos[ch] || F.glifos['?']; }
+  function larguraFonte(text, F) {
+    var w = 0, t = String(text).normalize ? String(text).normalize('NFC') : String(text);
+    for (var i = 0; i < t.length; i++) w += glifoDe(F, t[i])[0];
+    return w;
+  }
+  function pintaFonte(ctx, text, F, x, y, s, col) {
+    ctx.fillStyle = col;
+    var cx = x, t = String(text).normalize ? String(text).normalize('NFC') : String(text), y0 = y - F.capTop * s;
+    for (var i = 0; i < t.length; i++) {
+      var g = glifoDe(F, t[i]), gw = g[2], ox = cx + g[1] * s;
+      for (var r = 3; r < g.length; r++) {
+        var v = g[r]; if (!v) continue;
+        for (var c = 0; c < gw; c++) {
+          if (!((v >> (gw - 1 - c)) & 1)) continue;
+          var c2 = c; while (c2 + 1 < gw && ((v >> (gw - 2 - c2)) & 1)) c2++;
+          ctx.fillRect(ox + c * s, y0 + (r - 3) * s, (c2 - c + 1) * s, s);
+          c = c2;
+        }
+      }
+      cx += g[0] * s;
+    }
+  }
+  function textoFonteCanvas(text, F, id, w, s, col) {
+    var k = id + '|' + s + '|' + col + '|' + text, c = textoCache.get(k);
+    if (c) return c;
+    c = makeCanvas(Math.max(1, w), F.altura * s);
+    c.acima = F.capTop * s;
+    pintaFonte(c.getContext('2d'), text, F, 0, F.capTop * s, s, col);
+    textoCache.set(k, c);
+    return c;
+  }
   function drawText(ctx, text, x, y, o) {
     o = o || {};
+    var Fp = o.fonte ? fontePixel(o.fonte) : null;
+    if (Fp) return drawTextFonte(ctx, text, x, y, o, Fp);
     var s = o.scale || 1, color = o.color || '#ffffff';
     var w = measureText(text, s);
     if (o.align === 'center') x -= Math.round(w / 2);
@@ -1712,6 +1839,30 @@
     c = textoCanvas(text, gl, w, s, color);
     ctx.drawImage(c, x, y - c.acima);
     return w;
+  }
+  function drawTextFonte(ctx, text, x, y, o, F) {
+    var s = o.scale || 1, color = o.color || '#ffffff', w = larguraFonte(text, F) * s;
+    if (o.align === 'center') x -= Math.round(w / 2);
+    else if (o.align === 'right') x -= w;
+    x = Math.round(x); y = Math.round(y);
+    // a sombra de 1 pixel embaixo e à direita (guia §6: nunca contorno de 4 lados)
+    if (o.volatil || !podeCanvas || w <= 0 || !ctx.drawImage || ctx.globalAlpha !== 1 || !opaca(color) || (o.shadow && !opaca(o.shadow))) {
+      if (o.shadow) pintaFonte(ctx, text, F, x + s, y + s, s, o.shadow);
+      pintaFonte(ctx, text, F, x, y, s, color);
+      return w;
+    }
+    var c;
+    if (o.shadow) { c = textoFonteCanvas(text, F, o.fonte, w, s, o.shadow); ctx.drawImage(c, x + s, y + s - c.acima); }
+    c = textoFonteCanvas(text, F, o.fonte, w, s, color);
+    ctx.drawImage(c, x, y - c.acima);
+    return w;
+  }
+  // a altura da maiúscula de uma fonte (7, 9 ou 11; a fonte 3×5 tem 5), em pixels da fonte
+  function alturaFonte(fonte) {
+    var F = fonte ? fontePixel(fonte) : null;
+    if (!F) return 5;
+    var h = F.glifos.H, r = h.length - 1; while (r > 3 && !h[r]) r--;
+    return r - 3 - F.capTop + 1;
   }
 
   // ===================================================================
@@ -1868,10 +2019,11 @@
     nublado: { far: '#8e9fb0', mid: '#69906a', near: '#557d55', tree: '#436a45', treeL: '#5b875a' },
     chuva: { far: '#5d6a78', mid: '#4b6655', near: '#3f5a48', tree: '#33493b', treeL: '#46604c' }
   };
+  // os pisos na paleta-mestra (etapa 2.3; a terra é a da amostra aprovada); cada pixel do tile sai por naMestra
   var SURF = {
-    grama: { a: '#5cb44a', b: '#4ea640', dark: '#3f8f36', lite: '#7ccc5c', edge: '#8a7a4c' },
-    terra: { a: '#a46c3e', b: '#9a6337', dark: '#6e4324', lite: '#c08a58', edge: '#7a5030' },
-    areia: { a: '#e2c98f', b: '#d9be82', dark: '#bf9f62', lite: '#f4e4b8', edge: '#c8aa70' }
+    grama: { a: '#239063', b: '#239063', dark: '#165a4c', lite: '#1ebc73', edge: '#676633' },
+    terra: { a: '#cd683d', b: '#cd683d', dark: '#9e4539', lite: '#e6904e', edge: '#6e2727' },
+    areia: { a: '#fbb954', b: '#fbb954', dark: '#e6904e', lite: '#fdcbb0', edge: '#cd683d' }
   };
 
   // Névoa usa as mesmas cores apagadas do nublado (céu, colinas, gramados, arquibancada).
@@ -1879,13 +2031,14 @@
   function skyKey(weather) { return weather === 'nevoa' ? 'nublado' : weather; }
 
   var tileCache = new Map();
-  function surfaceTile(surface, weather, artH) {
-    var key = surface + '|' + weather + '|' + artH;
+  // regiao: o piso no clima por troca de paleta (sem o escurecido e as poças de antes, que eram mistura fora da mestra)
+  function surfaceTile(surface, weather, artH, regiao) {
+    var key = surface + '|' + weather + '|' + artH + (regiao ? '|r' : '');
     var c = tileCache.get(key);
     if (c) return c;
     var TW = 64, S = SURF[surface] || SURF.grama;
     var cols = new Array(TW * artH);
-    var wet = weather === 'chuva';
+    var wet = weather === 'chuva' && !regiao, lutT = regiao ? lutClima(weather) : null;
     for (var y = 0; y < artH; y++) {
       for (var x = 0; x < TW; x++) {
         var h = hash2(x, y), col;
@@ -1913,7 +2066,7 @@
           if (surface !== 'grama' && pd > 0.42) col = mix(col, '#9fb4c8', 0.35);
           if (surface === 'grama' && h > 0.9) col = mix(col, '#cfe8ff', 0.4);
         }
-        cols[y * TW + x] = col;
+        cols[y * TW + x] = corClima(lutT, naMestra(col));
       }
     }
     c = gridToCanvas(cols, TW, artH);
@@ -2017,16 +2170,29 @@
     return c;
   }
 
-  // Placa com texto (borda escura)
+  // Primeiro plano da região (paralaxe 1,25), por cima dos cavalos: chamar depois deles, no mesmo quadro do drawTrack.
+  // Sem a região (ou sem drawTrack neste quadro) não desenha nada e devolve false
+  function drawTrackFront(ctx) {
+    var F = frenteQuadro;
+    if (!F) return false;
+    var img = camadasNoClima(F.RG, F.clima).frente, P = F.P;
+    if (!F.trA) camadaRepetida(ctx, img, F.camArt * 1.25, F.y, F.W, P);
+    else for (var i = 0; i < F.trA.length; i++) camadaColunas(ctx, img, F.camArt * 1.25, F.y - F.trA[i][2] * P, F.trA[i][0], F.trA[i][1], P);
+    return true;
+  }
+
+  // Placa com texto (borda escura), em Galmuri7: 7 da maiúscula e 2 de folga em cima e embaixo. top é o da placa de
+  // 9 de antes: a de agora cresce 2 para cima, e o pé (preso no poste) fica onde estava
   function drawBoard(ctx, cx, top, text, P, bg, fg) {
-    var tw = measureText(text, P);
-    var w = tw + 4 * P, h = 9 * P;
+    var tw = measureText(text, 1, 'g7') * P;
+    var w = tw + 4 * P, h = 11 * P;
     var x = Math.round(cx - w / 2);
-    ctx.fillStyle = '#1c1820'; ctx.fillRect(x - P, top - P, w + 2 * P, h + 2 * P);
+    top -= 2 * P;
+    ctx.fillStyle = '#2e222f'; ctx.fillRect(x - P, top - P, w + 2 * P, h + 2 * P);
     ctx.fillStyle = bg; ctx.fillRect(x, top, w, h);
-    ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(x, top + h - P, w, P);
-    drawText(ctx, text, x + 2 * P, top + 2 * P, { scale: P, color: fg });
-    return { x: x, w: w, h: h };
+    ctx.fillStyle = naMestra(shade(bg, 0.25), bg); ctx.fillRect(x, top + h - P, w, P);   // a última linha, um tom abaixo
+    drawText(ctx, text, x + 2 * P, top + 2 * P, { scale: P, color: fg, fonte: 'g7' });
+    return { x: x, y: top, w: w, h: h };
   }
 
   // Subidas em relevo: a faixa da pista (e quem corre nela) sobe em rampa ao longo do trecho e
@@ -2091,14 +2257,15 @@
   }
   // padrões (por P) de 10P × 10P: listras inteiras (3P de largura) e só a 1ª coluna de pixel de cada listra
   var hachuraPadroes = {};
-  function hachuraPadrao(ctx, P, coluna) {
-    var k = P + (coluna ? 'c' : 'l'), p = hachuraPadroes[k];
+  // cor: com a região, a listra é sólida, num tom da mestra (sem o branco a 7%)
+  function hachuraPadrao(ctx, P, coluna, cor) {
+    var k = P + (coluna ? 'c' : 'l') + (cor || ''), p = hachuraPadroes[k];
     if (p) return p;
     var step = 10 * P, c = makeCanvas(step, step), g = c.getContext('2d');
-    g.fillStyle = 'rgba(255,255,255,0.07)';
+    g.fillStyle = cor || 'rgba(255,255,255,0.07)';
     for (var r = 0; r < 10; r++) {
       if (coluna) g.fillRect(r * P, r * P, 1, P);
-      else for (var q = 0; q < 3; q++) g.fillRect(((r + q) % 10) * P, r * P, P, P);
+      else for (var q = 0; q < (cor ? 1 : 3); q++) g.fillRect(((r + q) % 10) * P, r * P, P, P);   // sólida: listra de 1 px
     }
     return (hachuraPadroes[k] = ctx.createPattern(c, 'repeat'));
   }
@@ -2106,9 +2273,9 @@
   // listra é inteira, de uma vez; nas pontas, a coluna j de cada listra (j = 0..3P−1) vale para os começos em
   // [ini, fim), ou seja, para x em [ini + j, fim + j) — a listra que começa antes de ini não aparece e a que
   // começa antes de fim sai inteira (passa de x1, como antes)
-  function hachura(ctx, h, y, alt, P) {
+  function hachura(ctx, h, y, alt, P, cor) {
     var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j;
-    var lis = hachuraPadrao(ctx, P, false), col = hachuraPadrao(ctx, P, true);
+    var lis = hachuraPadrao(ctx, P, false, cor), col = hachuraPadrao(ctx, P, true, cor);
     function faixa(pat, dx, xa, xb) {
       if (xb <= xa) return;
       var ox = h.org + dx;
@@ -2155,6 +2322,163 @@
     return trechos.length;
   }
 
+  // ---------------------------------------------------------------------------
+  // Camadas das regiões (etapa 2.3 da direção de arte; guia §7 e §8a): window.__REGIOES (build) vira Image no game.js e
+  // chega aqui por setRegioes({ regiao: { posicao, camadas: { nuvens, horizonte, meio, arquibancada, frente } } }).
+  // Sem a região pronta, a pista cai no cenário por código de antes. Posições como na amostra (prototype/arte/amostra.js),
+  // contadas a partir do topo da pista (laneTop): céu até laneTop; nuvens com o topo em laneTop − 110; horizonte com o pé
+  // em laneTop − 32; meio com o pé em laneTop + 26 (+ posicao.meio); arquibancada com o pé em laneTop − 6, a cada 2600 px
+  // da sua paralaxe; faixa de grama de laneTop − 16 a laneTop; primeiro plano (drawTrackFront) com o topo no pé da pista
+  // − 3. Paralaxe (fração da câmera): nuvens 0,04 (mais o vento), horizonte 0,1, meio 0,3, arquibancada 0,75, pista 1,
+  // primeiro plano 1,25; cada camada arredondada para o pixel de arte.
+  // ---------------------------------------------------------------------------
+  var CAMADAS_REGIAO = ['nuvens', 'horizonte', 'meio', 'arquibancada', 'frente'];
+  var regioesImg = {};
+  function setRegioes(m) { regioesImg = m || {}; }
+  function regiaoPronta(id) {
+    var r = id && regioesImg[id];
+    if (!r || !r.camadas) return null;
+    for (var i = 0; i < CAMADAS_REGIAO.length; i++) if (!r.camadas[CAMADAS_REGIAO[i]]) return null;
+    return r;
+  }
+  // Clima por troca de paleta (guia §3; a mesma conta da amostra): cada cor da mestra misturada k com o rumo e levada de
+  // volta à mestra. Sol = a paleta como está. As camadas da região, a faixa de grama, o céu, o piso e as cercas trocam
+  // juntos, uma vez por região e clima (pré-desenhados, guia §9).
+  var CLIMA_PALETA = { nublado: ['#7f708a', 0.38], chuva: ['#323353', 0.42], nevoa: ['#c7dcd0', 0.5] };
+  var lutClimas = {};
+  function lutClima(clima) {
+    if (lutClimas[clima]) return lutClimas[clima];
+    var cl = CLIMA_PALETA[clima], t = {};
+    MESTRA.forEach(function (h) { t['#' + h] = cl ? naMestra(mix('#' + h, cl[0], cl[1])) : '#' + h; });
+    return (lutClimas[clima] = t);
+  }
+  function corClima(lut, c) { return (lut && lut[c]) || c; }
+  // uma imagem com as cores trocadas pelo lut (pixels opacos; as cores fora da mestra vão antes para a mais próxima)
+  function remapeia(img, lut) {
+    var c = makeCanvas(img.width, img.height), g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    var d = g.getImageData(0, 0, img.width, img.height), px = d.data, memo = {};
+    for (var i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 128) continue;
+      var k = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2], o = memo[k];
+      if (!o) { o = hexToRgb(corClima(lut, naMestra(rgbToHex(px[i], px[i + 1], px[i + 2])))); memo[k] = o; }
+      px[i] = o[0]; px[i + 1] = o[1]; px[i + 2] = o[2];
+    }
+    g.putImageData(d, 0, 0);
+    return c;
+  }
+  // as camadas de uma região num clima (cache na própria região)
+  function camadasNoClima(RG, clima) {
+    if (clima === 'sol' || !CLIMA_PALETA[clima]) return RG.camadas;
+    RG.porClima = RG.porClima || {};
+    if (RG.porClima[clima]) return RG.porClima[clima];
+    var lut = lutClima(clima), out = {};
+    CAMADAS_REGIAO.forEach(function (k) { out[k] = remapeia(RG.camadas[k], lut); });
+    out.grama = remapeia(faixaGrama(), lut);
+    return (RG.porClima[clima] = out);
+  }
+  // pré-desenha os climas da corrida (o game.js chama na largada, para a virada de clima não custar um quadro)
+  function prepararRegiao(id, climas) {
+    var RG = regiaoPronta(id);
+    if (!RG) return false;
+    (climas || []).forEach(function (c) { camadasNoClima(RG, c); });
+    return true;
+  }
+  // o céu em 4 faixas da paleta com 2 linhas de pontilhado entre elas (guia §3: sem degradê suave); limites como na
+  // amostra (0, 26, 64 e 100 de 128 até o chão), nas cores do clima
+  var CEU_REGIAO = ['#4d65b4', '#4d9be6', '#8fd3ff', '#c7dcd0'];
+  var ceuCache = new Map();
+  function ceuRegiao(clima, alto) {
+    var lut = lutClima(CLIMA_PALETA[clima] ? clima : 'sol'), cores = CEU_REGIAO.map(function (c) { return corClima(lut, c); });
+    var key = cores.join() + '|' + alto, c = ceuCache.get(key);
+    if (c) return c;
+    c = makeCanvas(4, Math.max(1, alto));
+    var g = c.getContext('2d'), lim = [0, 26, 64, 100].map(function (v) { return alto - 128 + v; });
+    for (var i = 0; i < 4; i++) {
+      var y0 = i === 0 ? 0 : Math.max(0, lim[i]), y1 = i < 3 ? lim[i + 1] : alto;   // a 1ª faixa vai até o topo
+      if (y1 <= 0) continue;
+      g.fillStyle = cores[i]; g.fillRect(0, y0, 4, y1 - y0);
+      if (i < 3 && y1 - 2 >= 0) {
+        g.fillStyle = cores[i + 1]; g.fillRect(0, y1 - 2, 1, 1); g.fillRect(2, y1 - 2, 1, 1); g.fillRect(0, y1 - 1, 4, 1);
+        g.fillStyle = cores[i]; g.fillRect(1, y1 - 1, 1, 1);
+      }
+    }
+    if (ceuCache.size > 20) ceuCache.clear();
+    ceuCache.set(key, c);
+    return c;
+  }
+  // véu da névoa: pontilhado em xadrez de 50% na cor clara, de laneTop − 88 (rareando) até laneTop + 10 (guia §3)
+  var veuCache = null;
+  function veuNevoa(W, lt) {
+    var key = W + '|' + lt;
+    if (veuCache && veuCache.key === key) return veuCache.c;
+    // (por ImageData: um fillRect por pixel passava do teto de chamadas do quadro em que a névoa aparece)
+    var h = Math.max(1, lt + 10), w = Math.max(1, W), c = makeCanvas(w, h), g = c.getContext('2d');
+    var img = g.createImageData(w, h), d = img.data, cor = hexToRgb('#c7dcd0');
+    for (var y = Math.max(0, lt - 88); y < h; y++) {
+      var r = y - (lt - 88);
+      for (var x = y % 2; x < w; x += 2) if (r > 30 || hash2(x, y) < r / 30) {
+        var i = (y * w + x) * 4; d[i] = cor[0]; d[i + 1] = cor[1]; d[i + 2] = cor[2]; d[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    veuCache = { key: key, c: c };
+    return c;
+  }
+  var solRegiao = null;
+  function solDaRegiao() {
+    if (solRegiao) return solRegiao;
+    var c = makeCanvas(23, 23), g = c.getContext('2d');
+    for (var y = 0; y < 23; y++) for (var x = 0; x < 23; x++) {
+      var d = Math.sqrt((x - 11) * (x - 11) + (y - 11) * (y - 11));
+      if (d <= 7) g.fillStyle = '#ffffff';
+      else if (d <= 9 || (d <= 11 && (x + y) % 2 === 0)) g.fillStyle = '#fbff86';
+      else continue;
+      g.fillRect(x, y, 1, 1);
+    }
+    return (solRegiao = c);
+  }
+  // a faixa de grama atrás da cerca de trás (16 de altura, 384 de largura, emenda nas pontas), presa à pista
+  var gramaFaixa = null;
+  function faixaGrama() {
+    if (gramaFaixa) return gramaFaixa;
+    var c = makeCanvas(384, 16), g = c.getContext('2d');
+    g.fillStyle = '#239063'; g.fillRect(0, 0, 384, 16);
+    for (var x = 0; x < 384; x++) {
+      var t = hash2(x, 7);
+      if (t < 0.35) { g.fillStyle = '#1ebc73'; g.fillRect(x, t < 0.12 ? 1 : 2, 1, 2); }
+      if (hash2(x, 9) < 0.18) { g.fillStyle = '#165a4c'; g.fillRect(x, 14, 1, 2); }
+    }
+    return (gramaFaixa = c);
+  }
+  // camada repetida na horizontal, deslocada desloc pixels de arte (arredondado), com o topo em y (pixels do canvas)
+  function camadaRepetida(ctx, img, desloc, y, W, P) {
+    var w = img.width * P, x = -mod(Math.floor(desloc) * P, w);
+    for (; x < W; x += w) ctx.drawImage(img, x, y, w, img.height * P);
+  }
+  // a mesma camada só nas colunas [xa, xb) do canvas: um drawImage por emenda atravessada (1 ou 2), sem recorte
+  // (no arco das curvas, um trecho de colunas por subida; guia §9: poucas chamadas por quadro)
+  function camadaColunas(ctx, img, desloc, y, xa, xb, P) {
+    var w = img.width, a = Math.round(xa / P), b = Math.round(xb / P), sx = mod(a + Math.floor(desloc), w);
+    while (a < b) {
+      var n = Math.min(b - a, w - sx);
+      ctx.drawImage(img, sx, 0, n, img.height, a * P, y, n * P, img.height * P);
+      a += n; sx = 0;
+    }
+  }
+  // o fundo da região: céu, sol, nuvens, horizonte e meio (a arquibancada e a faixa de grama vêm depois, com o arco)
+  function fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P) {
+    var lt = Math.round(laneTop / P), cm = camadasNoClima(RG, weather);
+    ctx.drawImage(ceuRegiao(weather, lt), 0, 0, W, lt * P);
+    if (weather === 'sol') ctx.drawImage(solDaRegiao(), 100 * P, (lt - 104) * P, 23 * P, 23 * P);   // à esquerda (a luz vem de cima e da esquerda), fora do minimapa
+    camadaRepetida(ctx, cm.nuvens, camArt * 0.04 - vento.dir * t * 3 * (vento.k.nuvem || 1), (lt - 110) * P, W, P);
+    camadaRepetida(ctx, cm.horizonte, camArt * 0.1, (lt - 32 - cm.horizonte.height) * P, W, P);
+    if (weather === 'nevoa') ctx.drawImage(veuNevoa(Math.ceil(W / P), lt), 0, 0, Math.ceil(W / P) * P, (lt + 10) * P);
+    camadaRepetida(ctx, cm.meio, camArt * 0.3, (lt + 26 - cm.meio.height + ((RG.posicao || {}).meio || 0)) * P, W, P);
+  }
+  // o que drawTrack deixou para o primeiro plano do mesmo quadro (drawTrackFront): os trechos do arco das curvas
+  var frenteQuadro = null;
+
   function drawTrack(ctx, o) {
     var W = o.width, Hh = o.height;
     var lanes = o.lanes || 6, laneH = o.laneH || 24, laneTop = o.laneTop || Math.round(Hh * 0.35);
@@ -2165,11 +2489,17 @@
     var camPx = cam * ppm, vento = ventoPista(o.wind);
     function sx(m) { return Math.round((m - cam) * ppm); }
     crisp(ctx);
+    // (weather junta a névoa ao nublado, para o cenário por código; a troca de paleta da região usa o clima de verdade)
+    var clima = o.weather || 'sol', RG = regiaoPronta(o.regiao), camArt = camPx / P, lutRG = RG ? lutClima(clima) : null;
+    function K(c) { return corClima(lutRG, c); }   // com a região, a cor da cerca e do chão no clima (troca de paleta)
+    frenteQuadro = null;
+    if (RG) fundoRegiao(ctx, RG, W, laneTop, camArt, t, clima, vento, P);
 
-    // --- céu em faixas
+    // --- céu em faixas (sem a região: o cenário por código de antes)
     var sky = SKY[weather] || SKY.sol;
     var horizon = laneTop - 22 * P; // linha do chão atrás da arquibancada
     var bandH = Math.ceil(horizon / sky.length / P) * P;
+    if (!RG) {
     for (var b = 0; b < sky.length; b++) { ctx.fillStyle = sky[b]; ctx.fillRect(0, b * bandH, W, bandH + 1); }
     if (horizon > sky.length * bandH) { ctx.fillStyle = sky[sky.length - 1]; ctx.fillRect(0, sky.length * bandH, W, horizon - sky.length * bandH); }
 
@@ -2216,6 +2546,7 @@
     ridge(0.08, 4, 14, 0.02, HC.mid, 50);
     // copas de árvores na colina próxima
     ridge(0.15, 2, 6, 0.08, HC.near, 90);
+    }
 
     // --- curvas (o.curves): arco da pista NA TELA (RaceFx.curveOffsetTela, "as pontas mais altas"). Com o meio da
     // tela numa curva, a cerca, as raias e os cavalos (no game.js, com o mesmo camTela) sobem até 20 px de arte
@@ -2243,6 +2574,21 @@
     // arquibancada (tile repetido). Atrás dela, abaixo do horizonte, o pé das colinas (as frestas entre as
     // arquibancadas são transparentes; sem isso ficava o quadro anterior)
     var HCn = (HILLS[weather] || HILLS.sol).near;
+    var gramC = weather === 'chuva' ? '#3f6a3c' : isDim(weather) ? '#4a7c44' : '#58944a';
+    if (RG) {
+      // a da região: um objeto a cada 2600 px da paralaxe 0,75 (a primeira 60 px depois da largada); na curva sobe
+      // como a de código (10/6 do arco da cerca), cada trecho de colunas recortado
+      var CMc = camadasNoClima(RG, clima), ar = CMc.arquibancada, arW = ar.width * P, arY = laneTop - (6 + ar.height) * P, PER_AR = 2600 * P;
+      var arX0 = -mod(Math.floor(camArt * 0.75) * P, PER_AR) + 60 * P;
+      var arTr = arco ? trechosArco(FXc.CURVA.arquibancada / FXc.CURVA.arco) : [[0, W, 0]];
+      for (var ati = 0; ati < arTr.length; ati++) {
+        var atr = arTr[ati];
+        for (var axx = arX0 - PER_AR; axx < W; axx += PER_AR) {
+          var ca = Math.max(axx, atr[0]), cb = Math.min(axx + arW, atr[1]);   // só as colunas do trecho (sem recorte)
+          if (cb > ca) ctx.drawImage(ar, (ca - axx) / P, 0, (cb - ca) / P, ar.height, ca, arY - atr[2] * P, cb - ca, ar.height * P);
+        }
+      }
+    } else {
     ctx.fillStyle = HCn; ctx.fillRect(0, horizon, W, laneTop - 4 * P - horizon);
     var frame = Math.floor(t * 3) % 2;
     var st = standTile(weather, frame);
@@ -2250,7 +2596,6 @@
     var stY = laneTop - 4 * P - stH;
     var stOff = mod(camPx * 0.35, stW);
     var flagDim = weather === 'chuva' ? 0.35 : isDim(weather) ? 0.15 : 0;
-    var gramC = weather === 'chuva' ? '#3f6a3c' : isDim(weather) ? '#4a7c44' : '#58944a';
     // desenha as arquibancadas que tocam as colunas [xa, xb), dy pixels de arte acima do lugar
     function arquibancadas(xa, xb, dy) {
       var y = stY - dy * P;
@@ -2284,6 +2629,7 @@
     // gramado entre arquibancada e pista
     ctx.fillStyle = gramC;
     ctx.fillRect(0, laneTop - 4 * P, W, 4 * P);
+    }
 
     // --- faixa da pista no arco das curvas: da cerca externa à interna, tudo sobe dyX(x) pixels do canvas na
     // coluna x (0 fora das curvas). Peças por coluna (postes, tracejados, placas) usam dyX; faixas de largura
@@ -2295,10 +2641,19 @@
       if (!trA) { ctx.fillRect(0, y, W, h); return; }
       for (var i = 0; i < trA.length; i++) ctx.fillRect(trA[i][0], y - trA[i][2] * P, trA[i][1] - trA[i][0], h);
     }
+    // camada presa à pista (paralaxe k) em y, acompanhando o arco: um recorte por trecho de colunas
+    function camadaNoArco(img, k, y) {
+      if (!trA) { camadaRepetida(ctx, img, camArt * k, y, W, P); return; }
+      for (var i = 0; i < trA.length; i++) camadaColunas(ctx, img, camArt * k, y - trA[i][2] * P, trA[i][0], trA[i][1], P);
+    }
+    if (RG) {
+      camadaNoArco(camadasNoClima(RG, clima).grama || faixaGrama(), 1, laneTop - 16 * P);
+      frenteQuadro = { RG: RG, clima: clima, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P };
+    }
 
     // --- superfície da pista
     var artH = Math.ceil(trackH / P);
-    var tile = surfaceTile(surface, weather, artH);
+    var tile = surfaceTile(surface, RG ? clima : weather, artH, !!RG);
     var tw = tile.width * P;
     var tOff = mod(camPx, tw);
     function piso(xa, xb, dy) {
@@ -2318,18 +2673,19 @@
     var SC = SURF[surface] || SURF.grama;
     for (var l = 1; l < lanes; l++) {
       var ly = laneTop + l * laneH;
-      ctx.fillStyle = rgba('#ffffff', surface === 'areia' ? 0.28 : 0.16);
+      ctx.fillStyle = K(SC.lite);
       var dash = 6 * P, gap = 4 * P, dOff = mod(camPx, dash + gap);
       for (var dx = -dOff; dx < W; dx += dash + gap) ctx.fillRect(Math.round(dx), ly - Math.floor(P / 2) - dyX(dx + dash / 2), dash, Math.max(1, Math.floor(P / 2) || 1));
     }
     // borda escura no topo da pista (sombra da cerca)
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; faixaLarga(laneTop, P);
+    ctx.fillStyle = K(SC.dark); faixaLarga(laneTop, P);
     // raia destacada (a do jogador): faixa dourada translúcida com bordas tracejadas
     var hl = o.highlightLane;
     if (hl != null && hl >= 0 && hl < lanes) {
       var hly = laneTop + hl * laneH;
-      ctx.fillStyle = 'rgba(242,194,48,0.12)'; faixaLarga(hly, laneH);
-      ctx.fillStyle = 'rgba(242,194,48,0.6)';
+      // (com a região, sem o véu translúcido: só os tracejados, em ouro sólido)
+      if (!RG) { ctx.fillStyle = 'rgba(242,194,48,0.12)'; faixaLarga(hly, laneH); }
+      ctx.fillStyle = RG ? K('#f9c22b') : 'rgba(242,194,48,0.6)';
       var hd = 4 * P, hOff = mod(camPx, hd * 2);
       for (var hlx = -hOff; hlx < W; hlx += hd * 2) {
         var hdy = dyX(hlx + hd / 2);
@@ -2344,12 +2700,12 @@
       if (bb < -60 * P || a > W + 60 * P) continue;
       var x0 = Math.max(0, a), x1 = Math.min(W, bb);
       if (x1 > x0) {
-        ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH);
+        if (!RG) { ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH); }
         // hachura diagonal ancorada no mundo
-        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P);
+        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null);
       }
       // linhas amarelas de início/fim
-      ctx.fillStyle = '#f2c230';
+      ctx.fillStyle = '#f9c22b';
       for (var ly2 = laneTop; ly2 < trackBottom; ly2 += 4 * P) {
         if (a >= 0 && a < W) ctx.fillRect(a, ly2, P, 2 * P);
         if (bb >= 0 && bb < W) ctx.fillRect(bb, ly2, P, 2 * P);
@@ -2360,7 +2716,7 @@
     for (var cvi = 0; cvi < curves.length; cvi++) {
       var ca = sx(curves[cvi][0]), cb = sx(curves[cvi][1]);
       if (cb < -60 * P || ca > W + 60 * P) continue;
-      ctx.fillStyle = '#7ab8ff';
+      ctx.fillStyle = '#8fd3ff';
       for (var ly3 = laneTop; ly3 < trackBottom; ly3 += 4 * P) {
         if (ca >= 0 && ca < W) ctx.fillRect(ca, ly3, P, 2 * P);
         if (cb >= 0 && cb < W) ctx.fillRect(cb, ly3, P, 2 * P);
@@ -2375,12 +2731,12 @@
     for (var mm = mStart; mm <= mEnd; mm += ev) {
       if (mm >= finishM) break;
       var mx = sx(mm), mdy = dyX(mx);
-      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.fillStyle = K(SC.lite);
       for (var my = laneTop; my < trackBottom; my += 3 * P) ctx.fillRect(mx, my - mdy, P, P * 2);
     }
     // largada
     var sx0 = sx(0);
-    if (sx0 > -10 && sx0 < W + 10) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(sx0, laneTop - dyX(sx0), P, trackH); }
+    if (sx0 > -10 && sx0 < W + 10) { ctx.fillStyle = '#ffffff'; ctx.fillRect(sx0, laneTop - dyX(sx0), P, trackH); }
 
     // --- linha de chegada quadriculada
     var fx = sx(finishM);
@@ -2388,7 +2744,7 @@
       var sq = 2 * P, fdy = dyX(fx);
       for (var fy = laneTop, k = 0; fy < trackBottom; fy += sq, k++) {
         for (var col = 0; col < 2; col++) {
-          ctx.fillStyle = (k + col) % 2 ? '#ffffff' : '#141218';
+          ctx.fillStyle = (k + col) % 2 ? '#ffffff' : '#2e222f';
           ctx.fillRect(fx + col * sq, fy - fdy, sq, Math.min(sq, trackBottom - fy));
         }
       }
@@ -2400,24 +2756,25 @@
       var every = 4, ps = Math.floor((cam - 8) / every) * every;
       for (var pm = ps; pm < cam + W / ppm + 8; pm += every) {
         var pxp = sx(pm);
-        ctx.fillStyle = '#c9c2b6';
+        ctx.fillStyle = K('#9babb2');
         ctx.fillRect(pxp, y - (postsUp ? 6 * P : 0) - dyX(pxp), P, 6 * P);
       }
-      ctx.fillStyle = '#1c1820'; faixaLarga(y - 6 * P - P, P);
-      ctx.fillStyle = '#f6f2ea'; faixaLarga(y - 6 * P, 2 * P);
-      ctx.fillStyle = '#c9c2b6'; faixaLarga(y - 4 * P, P);
-      ctx.fillStyle = 'rgba(0,0,0,0.25)'; faixaLarga(y - 3 * P, P);
+      ctx.fillStyle = K('#2e222f'); faixaLarga(y - 6 * P - P, P);
+      ctx.fillStyle = K('#ffffff'); faixaLarga(y - 6 * P, 2 * P);
+      ctx.fillStyle = K('#9babb2'); faixaLarga(y - 4 * P, P);
+      ctx.fillStyle = RG ? K('#165a4c') : 'rgba(0,0,0,0.25)'; faixaLarga(y - 3 * P, P);
     }
     rail(laneTop, true);
 
     // --- cerca interna e gramado interno (na curva o gramado começa mais acima: o rodapé fica maior)
-    var innerC = weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
+    // (com a região, chão de terra escura: o primeiro plano, drawTrackFront, cobre quase tudo)
+    var innerC = RG ? K('#4c3e24') : weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
     ctx.fillStyle = innerC;
     if (!trA) ctx.fillRect(0, trackBottom, W, Hh - trackBottom);
     else for (var iti = 0; iti < trA.length; iti++) ctx.fillRect(trA[iti][0], trackBottom - trA[iti][2] * P, trA[iti][1] - trA[iti][0], Hh - trackBottom + trA[iti][2] * P);
     // tufos e flores do gramado interno
     var inOff = camPx;
-    for (var gi = 0; gi < 40; gi++) {
+    for (var gi = 0; !RG && gi < 40; gi++) {
       var gw = 1200;
       var gx = mod(hash(gi + 300) * gw - inOff, gw);
       if (gx > W) continue;
@@ -2430,17 +2787,17 @@
       ctx.fillRect(Math.round(gx) + 2 * P + tufo, gy - P, P, P);
       if (gi % 4 === 0) { ctx.fillStyle = gi % 8 ? '#f2e04a' : '#f0f0f0'; ctx.fillRect(Math.round(gx) + P, gy - 2 * P, P, P); }
     }
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; faixaLarga(trackBottom, P);
+    ctx.fillStyle = K(SC.dark); faixaLarga(trackBottom, P);
     // cerca interna (postes para baixo)
     var every2 = 4, ps2 = Math.floor((cam - 8) / every2) * every2;
     for (var pm2 = ps2; pm2 < cam + W / ppm + 8; pm2 += every2) {
       var px2 = sx(pm2);
-      ctx.fillStyle = '#c9c2b6'; ctx.fillRect(px2, trackBottom + P - dyX(px2), P, 4 * P);
+      ctx.fillStyle = K('#9babb2'); ctx.fillRect(px2, trackBottom + P - dyX(px2), P, 4 * P);
     }
-    ctx.fillStyle = '#f6f2ea'; faixaLarga(trackBottom + P, 2 * P);
-    ctx.fillStyle = '#1c1820'; faixaLarga(trackBottom + 3 * P, P);
+    ctx.fillStyle = K('#ffffff'); faixaLarga(trackBottom + P, 2 * P);
+    ctx.fillStyle = K('#2e222f'); faixaLarga(trackBottom + 3 * P, P);
     // grama da borda: folhinhas logo abaixo da cerca interna, presas ao mundo, deitando com o vento
-    if (Hh - trackBottom >= 8 * P) {
+    if (!RG && Hh - trackBottom >= 8 * P) {
       var gBase = weather === 'chuva' ? '#4a7a48' : isDim(weather) ? '#5a8c52' : '#6aa85a';
       var gPonta = weather === 'chuva' ? '#5f8f5a' : isDim(weather) ? '#76a468' : '#8cc46a';
       var camArt = camPx / P, g0 = Math.floor(camArt / 5) * 5;
@@ -2455,31 +2812,31 @@
         if (alto === 3) { ctx.fillStyle = gPonta; ctx.fillRect(gx2 + ginga * P, yb - 2 * P, P, P); }
       }
     }
-    if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, trackBottom - dyX(fx), 2 * P, 8 * P); }
+    if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, trackBottom - dyX(fx), 2 * P, 8 * P); }
 
     // --- placas (depois do campo interno; nenhuma passa da cerca para baixo), acompanhando a cerca no arco
     // placas de distância sobre a cerca externa
     for (var m2 = mStart; m2 <= mEnd; m2 += ev) {
       if (m2 >= finishM) break;
       var bx = sx(m2), bdy = dyX(bx);
-      ctx.fillStyle = '#e8e2d6'; ctx.fillRect(bx, laneTop - 18 * P - bdy, P, 18 * P);
-      ctx.fillStyle = '#c83c3c';
+      ctx.fillStyle = '#c7dcd0'; ctx.fillRect(bx, laneTop - 18 * P - bdy, P, 18 * P);
+      ctx.fillStyle = '#b33831';
       for (var sy2 = laneTop - 18 * P; sy2 < laneTop - 6 * P; sy2 += 4 * P) ctx.fillRect(bx, sy2 - bdy, P, 2 * P);
-      drawBoard(ctx, bx, laneTop - 28 * P - bdy, m2 + 'm', P, '#f6f2ea', '#1c1820');
+      drawBoard(ctx, bx, laneTop - 28 * P - bdy, m2 + 'm', P, '#c7dcd0', '#2e222f');
     }
     // placas de subida
     for (var h2 = 0; h2 < hills.length; h2++) {
       var ha = sx(hills[h2][0]), hb = sx(hills[h2][1]);
       if (ha > -40 * P && ha < W + 40 * P) {
-        ctx.fillStyle = '#5a3a24'; ctx.fillRect(ha, laneTop - 16 * P, P, 16 * P);
-        var bd = drawBoard(ctx, ha, laneTop - 26 * P, 'SUBIDA', P, '#f2c230', '#1c1820');
+        ctx.fillStyle = '#4c3e24'; ctx.fillRect(ha, laneTop - 16 * P, P, 16 * P);
+        var bd = drawBoard(ctx, ha, laneTop - 26 * P, 'SUBIDA', P, '#f9c22b', '#2e222f');
         // rampinha
-        ctx.fillStyle = '#1c1820';
+        ctx.fillStyle = '#2e222f';
         for (var q = 0; q < 4; q++) ctx.fillRect(bd.x + bd.w + 2 * P + q * P, laneTop - 19 * P - q * P, P, (q + 1) * P);
       }
       if (hb > -40 * P && hb < W + 40 * P) {
-        ctx.fillStyle = '#5a3a24'; ctx.fillRect(hb, laneTop - 12 * P, P, 12 * P);
-        drawBoard(ctx, hb, laneTop - 22 * P, 'FIM', P, '#f2c230', '#1c1820');
+        ctx.fillStyle = '#4c3e24'; ctx.fillRect(hb, laneTop - 12 * P, P, 12 * P);
+        drawBoard(ctx, hb, laneTop - 22 * P, 'FIM', P, '#f9c22b', '#2e222f');
       }
     }
     // placas de curva: CURVA no poste do início, FIM no do fim e, ao longo da curva, placas "CURVA" presas
@@ -2493,40 +2850,40 @@
         var dm = mod(mp, ev);
         if (dm < 8 || dm > ev - 8) continue;
         var mpx = sx(mp);
-        drawBoard(ctx, mpx, laneTop - 12 * P - dyX(mpx), 'CURVA', P, '#7ab8ff', '#1c1820');
+        drawBoard(ctx, mpx, laneTop - 12 * P - dyX(mpx), 'CURVA', P, '#8fd3ff', '#2e222f');
       }
       if (ka > -40 * P && ka < W + 40 * P) {
-        ctx.fillStyle = '#2a4a78'; ctx.fillRect(ka, laneTop - 16 * P, P, 16 * P);
-        drawBoard(ctx, ka, laneTop - 26 * P, 'CURVA', P, '#7ab8ff', '#1c1820');
+        ctx.fillStyle = '#484a77'; ctx.fillRect(ka, laneTop - 16 * P, P, 16 * P);
+        drawBoard(ctx, ka, laneTop - 26 * P, 'CURVA', P, '#8fd3ff', '#2e222f');
       }
       if (kb > -40 * P && kb < W + 40 * P) {
-        ctx.fillStyle = '#2a4a78'; ctx.fillRect(kb, laneTop - 12 * P, P, 12 * P);
-        drawBoard(ctx, kb, laneTop - 22 * P, 'FIM', P, '#7ab8ff', '#1c1820');
+        ctx.fillStyle = '#484a77'; ctx.fillRect(kb, laneTop - 12 * P, P, 12 * P);
+        drawBoard(ctx, kb, laneTop - 22 * P, 'FIM', P, '#8fd3ff', '#2e222f');
       }
     }
     if (sx0 > -40 * P && sx0 < W + 40 * P) {
-      ctx.fillStyle = '#e8e2d6'; ctx.fillRect(sx0, laneTop - 14 * P, P, 14 * P);
-      drawBoard(ctx, sx0, laneTop - 24 * P, 'LARGADA', P, '#3a7ae0', '#ffffff');
+      ctx.fillStyle = '#c7dcd0'; ctx.fillRect(sx0, laneTop - 14 * P, P, 14 * P);
+      drawBoard(ctx, sx0, laneTop - 24 * P, 'LARGADA', P, '#4d65b4', '#ffffff');
     }
     // poste de chegada + faixa quadriculada
     if (fx > -60 * P && fx < W + 60 * P) {
       var postTop = Math.max(22 * P, laneTop - 40 * P);
-      ctx.fillStyle = '#1c1820'; ctx.fillRect(fx - P, postTop - P, 4 * P, laneTop - postTop + P);
-      ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, postTop, 2 * P, laneTop - postTop);
+      ctx.fillStyle = '#2e222f'; ctx.fillRect(fx - P, postTop - P, 4 * P, laneTop - postTop + P);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, postTop, 2 * P, laneTop - postTop);
       // disco vermelho no topo
-      ctx.fillStyle = '#1c1820'; ctx.fillRect(fx - 3 * P, postTop - 7 * P, 8 * P, 7 * P);
-      ctx.fillStyle = '#d83030'; ctx.fillRect(fx - 2 * P, postTop - 6 * P, 6 * P, 5 * P);
-      ctx.fillStyle = '#ff8a7a'; ctx.fillRect(fx - P, postTop - 5 * P, 2 * P, P);
+      ctx.fillStyle = '#2e222f'; ctx.fillRect(fx - 3 * P, postTop - 7 * P, 8 * P, 7 * P);
+      ctx.fillStyle = '#e83b3b'; ctx.fillRect(fx - 2 * P, postTop - 6 * P, 6 * P, 5 * P);
+      ctx.fillStyle = '#f68181'; ctx.fillRect(fx - P, postTop - 5 * P, 2 * P, P);
       // bandeira quadriculada ondulando
       var fw = 14, fh = 8;
       for (var bxi = 0; bxi < fw; bxi++) {
         var wave = Math.round(Math.sin(t * 6 - bxi * 0.6) * 1.2);
         for (var byi = 0; byi < fh; byi++) {
-          ctx.fillStyle = ((bxi >> 1) + (byi >> 1)) % 2 ? '#141218' : '#f6f2ea';
+          ctx.fillStyle = ((bxi >> 1) + (byi >> 1)) % 2 ? '#2e222f' : '#ffffff';
           ctx.fillRect(fx + 2 * P + bxi * P, postTop + 2 * P + (byi + wave) * P, P, P);
         }
       }
-      drawBoard(ctx, fx + P, postTop - 19 * P, 'CHEGADA', P, '#141218', '#ffffff');
+      drawBoard(ctx, fx + P, postTop - 19 * P, 'CHEGADA', P, '#2e222f', '#ffffff');
     }
 
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
@@ -2556,6 +2913,8 @@
     randomPalette: randomPalette,
     ELEMENTS: ['fogo', 'agua', 'grama'],   // os três tipos do v3 (a paleta e o estilo 'neutro' ficam como queda)
     drawHorse: drawHorse,
+    alturaFonte: alturaFonte,   // a altura da maiúscula da fonte do canvas ('g7', 'g9', 'g11'; sem fonte: a 3×5)
+    naMestra: naMestra,   // a cor da paleta-mestra mais perto de um hex (etapa 1b; os testes conferem as cores por ela)
     drawHorseCodigo: drawHorseCodigo,
     horseBox: horseBox,
     drawHorseSilhouette: drawHorseSilhouette,
@@ -2576,6 +2935,10 @@
     _quadroGalope: quadroGalopeTeste,
     _corBrilho: corBrilho,   // para testes: a cor do brilho da crina (cor da raridade, crina, alfa de pico)
     drawTrack: drawTrack,
+    drawTrackFront: drawTrackFront,
+    setRegioes: setRegioes,
+    prepararRegiao: prepararRegiao,
+    regiaoPronta: regiaoPronta,
     cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,
     drawElementIcon: drawElementIcon,

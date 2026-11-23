@@ -1,0 +1,16 @@
+{
+  "assinatura": "061202a46937",
+  "pedido": {
+    "prompt": "<309 chars>",
+    "prompt_style": "rd_core__platformer",
+    "width": 256,
+    "height": 64,
+    "num_images": 2,
+    "seed": 9721,
+    "input_palette": "<436 chars>"
+  },
+  "arquivos": [
+    "grama-parede-0.png",
+    "grama-parede-1.png"
+  ]
+}

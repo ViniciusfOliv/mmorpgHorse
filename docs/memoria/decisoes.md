@@ -13,6 +13,196 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **O rancho (fazenda estilo Stardew/Albion, com comidas, casas e trabalhadores) fica só como ideia por enquanto** —
   escolha do Vinicius; se voltar, começa como tela de gestão.
 
+## 2026-11-22 — Integração da arte, etapa 8 (créditos e limpeza): a direção de arte fecha
+- **Créditos no Perfil** (botão "Créditos" na seção "Sobre o jogo"): quem fez o jogo e a arte, a fonte e a paleta, com o
+  texto de `docs/arte/creditos.md`; "Licença da fonte" abre o texto inteiro da SIL OFL 1.1 (`window.__OFL`, do
+  `OFL-galmuri.txt`) num painel que rola — a licença tem de acompanhar a fonte embutida. Uma vista do Perfil
+  (`ui.perfilVer`): o "Voltar" e o voltar do aparelho voltam ao Perfil com o foco no botão. Autor escrito como
+  "Vinicius" (o nome para a loja ainda a confirmar). Bloco `creditos` novo no `ui-test`.
+- **Saíram do repositório os assets substituídos** (ficam no histórico do git): `assets/icons/` (32×32 e `raw/`),
+  `assets/pixellab/treinadores/` (64×64 e `escolhas.json`), `assets/marca/logo.png` (Canva) e `docs/capa.png`. Os testes e
+  o wiki leem os finais de `assets/arte/`; `pixellab-treinadores.mjs` e os lotes de ícones do `pixellab-moldes.mjs` avisam
+  que foram substituídos; `arte-treinadores.mjs`, `arte-icones*.mjs` dizem como recuperar a referência antiga se for
+  preciso gerar de novo. O CLAUDE.md aponta as ferramentas novas.
+
+## 2026-11-22 — Integração da arte, etapa 7 (marca)
+- **O logo do Canva saiu**: a tela inicial mostra o logo desenhado na grade (emblema 10 + letreiro em duas linhas,
+  125×38) em 2× quando a coluna tem 274 pixels de arte ou mais, senão 1×; o cabeçalho, o letreiro pequeno 1:1.
+- **Letreiro pequeno novo para o cabeçalho** (`letreiro-mini.png`, 67×22, letras de 8 px à mão no `arte-letreiro.mjs`,
+  sem custo): o de 12 px (32 de altura em duas linhas) não cabia nos 48 px de CSS do cabeçalho com a grade 1,5 e o de
+  uma linha (152 de largura) não cabia ao lado do saldo a 360 px. Os outros PNGs da marca não mudaram.
+- Ícone 512, destaque 1024×500 e capa são das lojas: ficam em `assets/arte/marca/` para a etapa de lançamento.
+
+## 2026-11-22 — Integração da arte, etapa 6 (cenas das abas e mapas das trilhas)
+- **Cena 256×160 no topo de Estábulo, Haras, Loja e Expedição** (`window.__TELAS.cenas`, com as 24 linhas de baixo em
+  pontilhado Bayer assado no build), em canvas 1:1 na grade, cortando as laterais numa coluna mais estreita; a placa do
+  título sobe 40 pixels de arte por cima da borda, como na prévia aprovada. No Estábulo, o cavalo ativo parado e
+  respirando no meio da baia. Correr fica sem cena (a corrida é a cena dela).
+- **Mapa 256×384 da trilha antes da lista de etapas** (a lista, com os bustos, continua sendo os botões e o texto
+  acessível): caminho tracejado (aceso até a etapa da vez), tablados em ouro nas vencidas, ouro claro na da vez, e o
+  oponente de pé (corpo 32×48) em cada parada; tocar numa parada toca no botão do cartão dela. O canvas tem um nome com
+  o estado de cada etapa.
+- **Limites de altura rebaseados:** o Estábulo ganha a parcela da cena (196 px a 360×780) nos limites das specs 3b §2 e
+  itens §8; a trilha agora rola o mínimo até a etapa da vez também quando ela é o líder.
+
+## 2026-11-22 — Integração da arte, etapa 5 (treinadores, bustos e arenas)
+- **Cena do desafio sobre a arena do ginásio** (`window.__ARENAS`, 256×160): mostra 256×128 (sem as 32 linhas de cima do
+  céu) e, numa coluna mais estreita, corta as laterais por igual (mínimo 160). O oponente no corpo de ~40 px (quadro
+  32×48) ao lado do cavalo dele, do outro lado do picadeiro; o seu cavalo na frente; tudo 1:1 na grade. O jogo anota
+  `data-arte` e `data-treinador` no canvas (o `ui-test` confere por eles). Sem a arena, fundo liso de painel.
+- **Bustos 64×64 nos cartões da trilha** (coluna à esquerda, 1:1). Com eles o cartão do líder cresce e a revanche a
+  360×780 passa a rolar 6 px (rebaseado). O cabeçalho do duelo na corrida ficou sem busto (mexeria na altura da cena).
+- `window.__TREINADORES` agora é `{ id: { corpo, busto } }`, dos finais em `assets/arte/treinadores/finais/`; a pasta
+  antiga `assets/pixellab/treinadores/` sai na limpeza da etapa 8.
+
+## 2026-11-22 — Integração da arte, etapa 4 (ícones) e a `main`
+- **Direção de arte (etapas 1 e 2) e skills com ranks juntas na `main`** (pedido do Vinicius): a `main` foi juntada no
+  ramo (conflitos no CSS dos ranks, passado para a Galmuri9, no balão/brilho do rank V, levado à paleta, e na memória),
+  `check.sh` completo OK e a `main` avançou sem reescrever nada (dc847ef).
+- **Ícones finais 1:1 na grade**: o jogo e o wiki usam `assets/arte/icones/` (16×16 de código e 24×24 do Pro), cada um no
+  tamanho nativo × `--px`, `pixelated`, sem o halo borrado de antes (`window.__ICONES_TAM` diz o tamanho). A casa do
+  ícone das abas tem 24 de altura para os rótulos alinharem. **A pista fica com os 8 × 8 em código** (o RaceFx não recebe
+  mais PNG: os de 16/24 não encolhem). A pasta antiga `assets/icons/` (32×32) sai na limpeza da etapa 8.
+- **A medalha de raridade (24 px) só na ficha do cavalo e na escolha inicial**; nas listas e tabelas a pílula leva só o
+  nome na cor da raridade — com a medalha, cada linha crescia ~30 px. A lista de 6 cavalos cresce 14 px (o ícone de
+  elemento a 16 × `--px`), rebaseada no `ui-test`.
+
+## 2026-11-22 — Integração da arte, etapa 2 (corrida: 2.1 a 2.5)
+- **A corrida é desenhada num canvas na resolução de arte** (S = 1) e copiada com um `drawImage` ampliado pela mesma `s`
+  da interface; cavalos 1:1 (2.1).
+- **Texto do canvas só na Galmuri, no tamanho nativo** (2.2): atlas de glifos com alfa binário gerado uma vez no Chromium
+  (`fonte-glifos.mjs`), o mesmo no jogo e nos testes. Galmuri7 nos balões, etiquetas, placas e HUD pequeno; Galmuri11
+  Bold nas faixas grandes; **a contagem 3-2-1 em Galmuri14** (entrou no atlas: o guia proíbe ampliar a fonte).
+- **Cenário da corrida pelas camadas da região** (2.3): a pista sorteada escolhe a região (`regioes.json`, "pistas");
+  os ginásios usam a região da arena (Fornalha no Sertão, Remanso no Litoral, Capoeira no Cerrado). Posições e paralaxe
+  como na amostra aprovada; a arquibancada é um objeto a cada 2600 px da paralaxe 0,75. O horizonte vai com a névoa da
+  distância assada no build. A pista, as cercas e as placas continuam de código, agora na Resurrect 64 (a terra é a da
+  amostra). Sem as imagens (Node, ou antes de carregarem), o cenário por código de antes.
+- **Câmera a 12 px de arte por metro e galope a 21 quadros do molde por segundo a 17 m/s** (2.4, guia §8a): cabem
+  ~22 m de pista na tela de retrato, então quase sempre há cavalos fora; **quem sai da tela vira uma seta de 5 × 9 na
+  borda**, na altura da raia e na cor da seda, sem os metros (guia §8). A foto de chegada continua a mesma (câmera parada
+  com a linha a 62% da tela); nela o cavalo do jogador pode sair da tela por um instante, como antes.
+- **Margem de baixo da pista 22 px de arte** (era 14), tirados do teto do topo (minTop + 62): o capim do primeiro plano
+  aparece sem a cena crescer.
+- **Clima por troca de paleta** (2.5, guia §3; a conta da amostra): nublado, chuva e névoa trocam as cores das camadas,
+  do céu, da faixa de grama, do piso e das cercas, pré-desenhadas na largada (~25 ms). Névoa com véu em pontilhado de
+  50%. Com o cenário da região, a natureza do `fx.js` sai **sem véus nem tintas de tela inteira** (chuva, nublado, névoa)
+  e **sem os raios de sol translúcidos** (a luz do sol está na paleta, como na amostra); pingos, respingos, folhas,
+  poeira e calor em cores sólidas da mestra. Só o relâmpago tem alfa.
+- **Efeitos e HUD na mestra:** todas as cores do `fx.js` levadas à Resurrect 64 (misturas feitas na hora passam por
+  `naMestra`); painéis do HUD sólidos com bisel (linha em cima, sombra embaixo); a raia do jogador só com os tracejados
+  em ouro, sem o véu; a subida com hachura sólida de 1 px. **Ficam com alfa, de propósito:** o esmaecer dos balões e o
+  pulso do contorno de skill (são fades no tempo, não véus de cor).
+- **Paisagem:** a grade já dá 640 × 360 em 1280 × 720 (s = 2); a cena ocupa a coluna do jogo (560 × 235 ali), com mais
+  pista de lado. Não mudou o layout da tela de corrida.
+
+## 2026-11-21 — Skills com 100% e ranks entram na `main`
+- **Integrar a `claude/skills-ranks` na `main` e republicar os três artefatos oficiais** — pedido do Vinicius ("integra
+  na main e republica os oficiais"), depois de testar o build da branch. A `main` (direção de arte) foi juntada na branch
+  antes (conflito só em `ESTADO.md` e `decisoes.md`); no resultado, `./scripts/check.sh` passou inteiro (201 / 129 / 173
+  testes, 989 conferências do wiki, 111 metas rápidas, 73 blocos de interface) e a `main` avançou sem reescrever nada
+  (merge `97d99df`). O `balance.js` completo (344 metas) tinha passado na branch antes do merge; a `main` só trouxe arte
+  e ferramentas, sem número de regra. Oficiais: jogo na versão 13, DEV na 11 e wiki na 10.
+
+## 2026-11-21 — Integração da arte, etapa 1b (paleta e cavalos 1:1 fora da corrida)
+- **Cores da interface pelos papéis do guia** (fundo `2e222f`, painéis `313638`/`374e4a`, destaque `165a4c`, linha
+  `547e64`, texto `c7dcd0`, ouro `f9c22b`). Os painéis são mais claros que o verde-escuro de antes: Fogo `f79617`, Água
+  `8fd3ff`, perda `f68181`, Mítico com texto branco e alguns botões com fundo mais escuro, para passar de 4,5:1.
+- **Cor do cavalo trocada pela mais próxima da Resurrect 64 na hora de recolorir** (CIELAB), sem mudar o save; sombra,
+  tom 2 da seda e manta nunca caem na cor da base.
+- **Cavalo 1:1 em todo retrato** (guia §7): o retrato grande mostra mais baia, não um cavalo maior. **No pódio, o 1º não
+  é mais ampliado**: destaque pelo degrau, holofote e ouro.
+
+## 2026-11-21 — Integração da arte, etapa 1a (interface na Galmuri)
+- **Ordem nova da etapa 1** (aprovada pelo Vinicius): 1a interface, 1b paleta e cavalos 1:1 fora da corrida; a grade da
+  corrida, o texto do canvas e os cavalos 1:1 na corrida vão junto com a etapa 2 (a pista de hoje é da grade grossa).
+- **Grade da interface: `s = min(floor(L / 240), floor(A / 300))`** (L e A: largura da coluna e altura da tela em
+  pixels do aparelho), no lugar do `round(L / 256)` do guia: a densidade 3 dava 234 px de arte e o rótulo "Expedição"
+  não cabia; deitado, a letra ficava grande demais para a altura.
+- **Galmuri9 é o texto corrido padrão**; a 11 fica para nomes, botões e títulos, a 7 para legendas (rótulos das abas,
+  dono e nível na tabela de chegada, dono no pódio, "Genética"). Com a 11 em tudo, as telas cresciam até 11%.
+- **Limites de altura do `ui-test` remedidos com a fonte nova** (Status 1.502, Skills 1.555, Correr 886, linhas da
+  chegada a 1280 até 82 px, Status com itens +170): a Galmuri é mais larga que a Jersey; a folga de 4% continua.
+
+## 2026-11-20 — Direção de arte: marca (etapa 7)
+- **Letreiro "GALOPE ELEMENTAL" desenhado à mão em código, letra por letra** (`arte-letreiro.mjs`): a IA erra letras.
+  Emblema do PixelLab Pro (escolhido o 10) ao lado; ícone do app Pro 128×128 (escolhido o 03) ampliado 4×.
+- **Destaque do Play e capa compostos pela própria cena da corrida** (`arte-capa.mjs` captura a amostra no modo
+  `?captura=`): ficam no estilo exato do jogo e são refeitos sem custo quando a arte muda. Saem em RGB sem alfa.
+
+## 2026-11-20 — Direção de arte: cenas das abas e mapas das trilhas (etapa 6)
+- **Cada aba ganha uma cena 256×160 numa faixa no topo, com a placa do título por cima da borda de baixo** (a lista e os
+  botões continuam iguais); no Estábulo, o cavalo ativo parado na cena, 1:1. Escolhas: Estábulo 3, Haras 3, Loja 1,
+  Expedição 3.
+- **A trilha do ginásio vira mapa visto de cima** (256×384, só o terreno); caminho, paradas e os oponentes de pé (corpo
+  32×48 da etapa 5) por código, de baixo para cima. Mapas: Fornalha 9841, Remanso 9852, Capoeira 9862.
+
+## 2026-11-20 — Direção de arte: treinadores (etapa 5)
+- **Oponentes dos ginásios em corpo de ~40 px (quadro 32×48) e busto 64×64, pelo Pro do PixelLab com a arte escolhida de
+  referência** — a escala dos cavalos 1:1; a altura sai do tamanho do quadro pedido (48 para adultos, 36 para a criança).
+- **Ginásios ao ar livre** (o Vinicius: "use cenário aberto nos ginásios"): a cena do desafio passa a 256×160 com uma arena
+  aberta por ginásio (uma imagem só, chão e fundo no mesmo ângulo), na paleta da região mais próxima; parede + piso
+  separados não casaram. Escolhidas: Fornalha 1, Remanso 0, Capoeira 2. Os tablados de código viram a sombra dos cavalos.
+- **00 e 00 para todos** (escolha do Vinicius): poses neutras, de frente, coerentes entre si. Recruta Broto: corpo refeito
+  (08, 33 px), porque no quadro de 48 a criança saía mais alta que os adultos.
+
+## 2026-11-20 — Direção de arte: ícones (etapa 4, parte dos assets)
+- **Ícones em dois tamanhos: simples em 16×16 desenhados em código; complexos em 24×24 pelo modo Pro do PixelLab** —
+  decisão do Vinicius depois do piloto: em 16×16 nem o `/resize` nem o Pixen ficaram bons, e o `/resize` também falhou em
+  24×24; o Pro (64 candidatos por 10 gerações, paleta travada, o ícone atual e os de código como referência) acertou.
+- **O Pro corta os 64 candidatos de uma folha com a grade fora do lugar: o script remonta a folha e separa os ícones**
+  (`separarFolha`) — sem isso cada quadro vinha cortado e com pedaços dos vizinhos.
+- **Variações de cor por troca de rampa em código** (ligas, raridades, pódio) — uma geração serve a várias.
+- **Raridade tinge o medalhão inteiro, não só os detalhes azuis** — pedido do Vinicius: as cinco pareciam iguais (cavalo
+  branco com pontos coloridos). Insígnias dos três elementos têm sempre o anel dourado (a da grama troca o anel por código).
+
+## 2026-11-20 — Direção de arte: regiões de corrida (etapa 3)
+- **5 regiões aprovadas pelo Vinicius**: Cerrado, Várzea, Planalto, Sertão e Litoral, cada uma com paleta de 32 cores; a
+  interface fica por código ("manter por código").
+- **Na Retro Diffusion, pedir sempre a versão sem a remoção de fundo junto** (`return_non_bg_removed`, sem custo a mais)
+  — a remoção apagou vegetação três vezes; a mata da várzea veio da versão sem remoção, com o céu tirado por código.
+- **Recarga de US$ 5 na Retro Diffusion feita pelo Vinicius** depois de comparar as duas ferramentas; a RD fica para as
+  faixas de vegetação e as emendas, o PixelLab para o resto.
+- **Correções pedidas pelo Vinicius**: arquibancada do Sertão com torcida e mata da Várzea mais baixa para a lagoa aparecer.
+
+## 2026-11-20 — Direção de arte: amostra aprovada e plano em etapas
+- **Amostra da corrida aprovada (versão 2)** — "aprovado, pode fazer o plano em etapas".
+- **Plano em 9 etapas** (`docs/superpowers/plans/2026-11-20-direcao-de-arte.md`): ferramentas → fundação no jogo →
+  corrida → regiões → interface e ícones → treinadores → cenas e mapas → marca → fechamento. As que tocam
+  `prototype/src/` esperam as skills com ranks entrarem na `main`; os assets pagos podem vir antes.
+- **Paisagem e Steam na grade de 640 × 360** (guia §2), alinhada à regra da Steam do checklist (2026-11-19).
+
+## 2026-11-20 — Direção de arte: retorno do Vinicius sobre a amostra
+- **A interface de hoje fica; o padrão novo só troca pixel, paleta e fonte** — "a interface do anterior me parece
+  melhor": a versão 1 da amostra simplificou demais (sem pote, estamina, vento, minimapa, células da ordem, vizinhos e
+  horários na narração) e encolheu o texto. Narração e nomes passam para Galmuri11 (guia §6, §8b).
+- **Corrida em "velocidade máxima" na tela: câmera a 12 px de arte por metro e galope a 21 quadros/s** — "no 1x parece
+  bem lento"; a pista e a distância continuam as mesmas (guia §8a). O resto da amostra foi aprovado.
+
+## 2026-11-20 — Direção de arte: amostra da corrida (execução)
+- **Guia aprovado pelo Vinicius; gasto da amostra autorizado (até 200 gerações do PixelLab e a conta da Retro Diffusion,
+  US$ 5)** — resposta dele em 2026-11-20. Chave da RD salva pelo formulário seguro da sessão (`X-RD-Token`).
+- **Camadas de cenário: a melhor ferramenta por camada + emenda da RD** — no piloto, a RD Core ganhou no cerrado e no
+  capim, o PixelLab Pixen nas chapadas, a RD Plus só na emenda nativa; a `seam_tiling` da RD emenda qualquer uma.
+- **Chão da pista por código** — as texturas geradas saíram listradas e com ruído.
+- **Quadro de estilo (50 gerações) cortado da amostra** — o piloto já fixou o visual; economiza a cota.
+- **Arquibancada como objeto espaçado (a cada ~1.000 px de paralaxe), não camada repetida** — o diagnóstico apontou a
+  repetição.
+- **Galmuri embutida em subconjunto latino (TTF de ~25 KB cada)** — os originais têm 2,6–4,6 MB por causa do coreano.
+
+## 2026-11-20 — Direção de arte: propostas do guia (aprovadas em 2026-11-20)
+- **Uma escala de pixel para tudo: 1 pixel do molde do cavalo = 1 pixel de arte = `s` pixels do aparelho (inteiro),
+  com a largura de arte perto de 256** — hoje o cavalo sai a 3/4 do pixel da pista; os moldes já pagos ditam a escala.
+- **Paleta fechada Resurrect 64, até 32 cores por região** — testada nos treinadores e ícones atuais, que mantêm a leitura.
+- **Fonte única Galmuri (11 Bold, 9 e 7; OFL)** — única família verificada com vários tamanhos na mesma grade, Bold e
+  português completo com º e ª; saem Press Start 2P, Jersey 10 e a 3×5.
+- **Canva sai da arte; logo e capa na grade de pixel (PixelLab + composição por código)** — o logo borrado veio de
+  imagem grande reduzida.
+- **Camadas de cenário: Retro Diffusion (`tile_x` + paleta) contra PixelLab, decidido num piloto pequeno** — a RD entrega
+  a camada sem emenda e na paleta a US$ 0,06; o PixelLab precisa de uma pintura extra por emenda.
+- **Efeitos por código, texto fora das raias** (só o "VOCÊ" e até 2 balões nelas) — determinismo e desempenho; o resto
+  vai para o céu e para baixo da pista.
+
 ## 2026-11-20 — Direção de arte (decisões do Vinicius)
 - **Visual com qualidade e desempenho em 100%, sem nada improvisado por ser mais barato; a ferramenta é a melhor para
   cada tipo de asset (PixelLab, outra IA ou software)** — pedido do Vinicius. O diagnóstico da coordenação: escalas de
@@ -22,6 +212,77 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Chat próprio de direção de arte** (`claude/direcao-de-arte`, Opus em esforço alto): pesquisa das ferramentas, guia
   de arte (`docs/arte/guia.md`), estimativa de custo antes de gastar, amostra da tela da corrida refeita no padrão
   final (`prototype/arte/`, artefato novo) e, aprovada a amostra, o plano para o jogo inteiro.
+
+## 2026-11-19 — Marcos menores, Garra sem falhar e faixas rebaseadas (decisões do Vinicius, no chat de implementação)
+- **Os três marcos menores** ("usa os três marcos menores") — Saída Rápida 7 s, Chama Final 11 s e Arrancada Final ×1,01
+  até a chegada, no rank V (a spec dizia 8 s, 12 s e ×1,02).
+- **A Garra também é 100%: a arrancada final sai sempre, e o status decide o quanto** ("Garra deve ser 100% também, com o
+  status modificando o quanto ela afeta") — antes era um sorteio de 50% a 72%. Mais Garra: começa antes e empurra mais.
+- **A força da Garra varia a cada corrida, pela seed, de 0 a 2× a média do status** (o Vinicius escolheu "Força variável"
+  entre quatro opções) — o sorteio da Garra era a maior fonte de incerteza da corrida. Com força fixa, medido: favorito do
+  Poder 69,2% (meta 35–55%), um degrau de raridade 97–99%, +10 num status 18 p.p. Com a força variável: favorito 51,1%.
+  Números: força média = 0,19 × n(Garra) (era 0,02 + 0,26 × n com a chance; a média esperada ficou parecida), fator
+  sorteado uma vez na montagem do corredor (`garraSpread` 1); o evento `garra` traz `forca`. A Arrancada Final deixou de
+  dar chance: soma 2,8 p.p. na força (rank I). `RaceSim.VERSION` 4.1.0. Se errado: `garraSpread` menor dá uma Garra mais
+  constante e uma corrida mais previsível (0 = força fixa).
+- **Faixas rebaseadas ao medido** ("rebaseia as faixas"), todas no `balance.js`, com o valor antigo no comentário:
+  bônus de clima do inicial 45–68 → 45–73; M4 um degrau 72–88 → 72–95; M5 ★★★ × ★ 65–75 → 61–75 e ★★ × ★ 55–64 →
+  52–64; M9 15,3–18,0 → 15,0–18,3; G2 quatro níveis acima ≥ 70 → ≥ 60 e abaixo ≤ 35 → ≤ 46; G3 com vantagem ≤ 85 → ≤ 87;
+  S5 (rank V ÷ rank I) teto 2,2× → 2,4×. Motivo: sem o cara ou coroa da ativação e da Garra, quem é melhor vence um pouco
+  mais nos confrontos diretos de um degrau e um pouco menos nos de estrelas e de nível; a escala do rank sozinha passou
+  de ~1,6× a ~1,8×. As metas de previsibilidade (P2, M8) e as de justiça entre tipos e status (M1, M9, A1, P1) não
+  precisaram de folga além dessas.
+- **Faixas de vitória do ginásio: apertada até 4 m e normal até 12 m (eram 1 e 8 m)** (construtor) — com a força da Garra
+  variando, as chegadas entre cavalos iguais ficaram mais espalhadas e só ~5% caíam em "apertada"; com 4 e 12 m cada
+  faixa volta a ter 15% ou mais (meta G6). A perda de fôlego de cada faixa não mudou.
+- **Fôlego de Montanha no rank I: gasta 70% menos (×0,30)** (construtor) — para a razão do rank V caber; do rank IV em
+  diante bate no piso de ×0,05.
+
+## 2026-11-19 — Skills com 100% e ranks: o que o construtor decidiu (chat de implementação, `claude/skills-ranks`)
+Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/superpowers/plans/2026-11-19-skills-ranks.md`.
+Build de teste desta branch (modo DEV, artefato novo; os oficiais não foram tocados): https://claude.ai/artifact/77SCN1gGcMb9DjMcUXwfkQ
+(versão 1, build do commit que fecha o teste de interface; é o `prototype/dist/jogo-dev.html` com outro título).
+- **Valores base do rank 1 (recalibração, só a parte de bônus; medição do `balance.js --skills`, 8.000 pares por skill)** —
+  Arranque ×1,108 de aceleração · Sprint ×1,04 · Drift +1,3% · Saída Rápida ×1,32 e ×1,045 · Fôlego de Montanha ×0,40 ·
+  Segundo Ar 10% e ×1,03 · Arrancada Final +10 p.p. e +2 p.p. · clima +0,04 (×1,03 → ×1,07) · Chama Final ×1,04 · Canto da
+  Iara ×1,04 e ×0,80 · Nascente 4,5% · Casco Firme +1,2% · Dado Viciado sem valor base (teto 60 a 100). O rank 1 das 14
+  skills fica de 4,7 a 10,4 p.p. (S1: 3 a 13). O Drift e o Arranque ficaram abaixo do de antes (12,7 e 12,4) de propósito:
+  com mais base, o rank 5 passava de 20 p.p.
+- **(Resolvido no mesmo dia: ver a entrada acima.) Três marcos não fechavam a S5 (rank 5 de 1,4× a 2,2× o rank 1) só com a base** — Saída Rápida
+  2,46×, Arrancada Final 2,51× e Chama Final 2,30×, medidos em dois níveis de base cada. O marco de duração multiplica o
+  efeito inteiro (8 s contra 6 s; 12 s contra 9,5 s), e o ×1,02 até a chegada vale ~6,6 p.p. sozinho, quase o rank 1 da
+  skill. Com Saída Rápida 7 s, Chama Final 11 s e Arrancada Final ×1,01, as 58 metas das skills passam (2,08×, 2,07× e
+  2,06×). O código está com os marcos da spec (as três metas falham no `balance.js` completo) até ele escolher.
+- **(Resolvido no mesmo dia: ver a entrada acima.) Sete metas antigas do modelo saíram da faixa por pouco no `balance.js` completo** — M4 dois
+  degraus no nível 50 (Raro × Comum 93,7% e Mítico × Raro 93,5%; piso 94), M5 ★★ × ★ Mítico 64,4% (teto 64; no modo
+  rápido 66,3%), M6 `inc:acel` no nível 11 44,6% (piso 45) e a maior build no nível 50 62,7% (teto 62), M9 no Lendário
+  50 (Fogo 18,0% no teto, Grama 15,2%; faixa 15,3 a 18). Causa provável: sem o sorteio, a raridade não dá mais vantagem
+  de ativação (antes 35% a 75%), e toda skill pesa sempre. Valor base de skill não resolve; as saídas são rebasear as
+  faixas ao medido ou recalibrar o TUNING. Por isso o `check.sh` para na etapa 7 (as três do modo rápido).
+- **O Dado Viciado continua isento do S1 e da razão do S5** (rank 1: 0,2 p.p.; rank 5: 1,4 p.p.) — o dado extra só mexe
+  na virada do clima; os tetos (20 p.p. e 2× a mediana) valem para ele. A spec pedia recalibrar "inclusive o Dado
+  Viciado", mas não há valor base que o leve a 3 p.p. Se errado: o dado extra precisa de outro efeito (regra nova).
+- **Marco das skills de clima: nos 15 s depois de o clima mudar, o cavalo segura o multiplicador reforçado inteiro
+  (×1,03 + reforço), como se o clima ainda fosse o dele** — a spec dizia "o reforço continua"; só a parte do reforço em
+  cima de um clima contrário quase não se sentiria. Se o clima voltar a ser o dele, o prazo acaba.
+- **Os oponentes dos ginásios não têm skill de vaga (as bases são os iniciais), então o "rank fixo por etapa" fica
+  gravado (`rank` 1, 1, 1, 2, 2) e sem efeito hoje** — vale quando algum oponente ganhar skill.
+- **A skill que um dos pais tem, mas que o potro só ganhou no sorteio para completar o mínimo, nasce no rank 1** — é a
+  letra da spec (herdada = rank do pai − 1; sorteada = 1).
+- **Pergaminho do pódio com a mochila em 99 não entra (o resultado diz "Mochila cheia"); nos ginásios o desafio não abre
+  sem espaço, como os outros itens** — o pódio não tem como esperar. O sal do sorteio é `0x50450000 + lugar`, com a seed da sala.
+- **O bônus de 3 peças do conjunto virou `setBonus.skillEffect` 0,05 (o fator do rank × 1,05, `entry.skillScale`)** — como
+  a spec manda; segue suspenso com o equipamento.
+- **O teste do plano que esperava `hillDrainMult × 0,7` no Fôlego de Montanha estava trocado** (o ×0,7 é o marco do Casco
+  Firme) — os testes seguem a tabela de marcos da spec.
+- **Na tela:** "Ativa sempre: …" no lugar de "Quando: …"; a ficha diz "2 de 3 vagas · rank III, I"; o resultado diz
+  "skills rank II" (o rank médio, o mesmo dos bots) no lugar da chance; o balão e a faixa do jogador trazem o rank em
+  romano a partir do II e ficam dourados no V. O "skills sempre ativam" do DEV saiu; entrou o rank por skill.
+- **`balance.js`: S1, S5 e S6 saem de uma medição própria (`rank`, 8.000 pares; `--skills [N]` roda só ela em ~2 min e
+  `--skilltune` troca valores para ajuste)**; a seção 10 passou a conferir que a skill ativa em 100% das corridas.
+- **Teste de interface:** seeds fixas trocadas onde o desfecho mudou com a simulação 4.0.0 (resultado: 74 e 9; faixa do
+  lugar: 9 e 249); o teto de `fillRect` por quadro foi de 4.500 para 4.700 (mediu 4.523) e a altura de referência da aba
+  Skills de 1.426 para 1.551 px (a interface mudou de propósito).
 
 ## 2026-11-19 — Qualidade primeiro, teste de engine e skills com 100% (decisões do Vinicius)
 - **A qualidade vem sempre primeiro: se Godot (ou Unity) for melhor em visual, FPS e jogabilidade, migramos** — pedido

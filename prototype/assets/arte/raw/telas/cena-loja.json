@@ -1,0 +1,18 @@
+{
+  "assinatura": "3a84ee7fcf33",
+  "pedido": {
+    "prompt": "<337 chars>",
+    "prompt_style": "rd_plus__default",
+    "width": 256,
+    "height": 160,
+    "num_images": 4,
+    "seed": 9821,
+    "input_palette": "<436 chars>"
+  },
+  "arquivos": [
+    "cena-loja-0.png",
+    "cena-loja-1.png",
+    "cena-loja-2.png",
+    "cena-loja-3.png"
+  ]
+}

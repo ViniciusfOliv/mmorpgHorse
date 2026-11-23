@@ -1,0 +1,27 @@
+{
+  "assinatura": "5ac9650aa4fc",
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "small yellow rocket launching to the right with a flame burst behind it, pixel art game ui icon, 16x16, centered, simple bold shapes, readable at small size, dark outline",
+    "image_size": {
+      "width": 16,
+      "height": 16
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "seed": 9106
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<428 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  }
+}

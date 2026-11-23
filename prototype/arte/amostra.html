@@ -1,0 +1,170 @@
+<title>Corrida no Cerrado</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: duas telas de celular lado a lado (hoje × padrão novo); no estreito, abas trocam entre elas. Visual escuro
+   único de propósito: é tela de jogo, e todas as cores saem da paleta Resurrect 64 do guia de arte. A interface do jogo
+   (dentro de #palco) segue a estrutura da tela de hoje; toda medida dela é múltiplo de --px (1 pixel de arte). */
+@font-face { font-family: 'Galmuri7A'; src: url(/*__G7__*/) format('truetype'); }
+@font-face { font-family: 'Galmuri9A'; src: url(/*__G9__*/) format('truetype'); }
+@font-face { font-family: 'Galmuri11A'; src: url(/*__G11R__*/) format('truetype'); }
+@font-face { font-family: 'Galmuri11BA'; src: url(/*__G11__*/) format('truetype'); }
+:root {
+  --fundo: #2e222f; --painel: #313638; --painel-2: #374e4a; --linha: #547e64; --texto: #c7dcd0; --texto-2: #9babb2;
+  --ouro: #f9c22b; --ouro-2: #f79617; --ouro-c: #fbb954; --tinta: #2e222f;
+  --px: 1.5px;
+  --f-titulo: 'Galmuri11BA', 'Galmuri9A', monospace; --f-corpo: 'Galmuri11A', 'Galmuri9A', monospace;
+  --f-texto: 'Galmuri9A', monospace; --f-mini: 'Galmuri7A', monospace;
+  color-scheme: dark;
+}
+body { background: var(--fundo); color: var(--texto); font-family: var(--f-texto); font-size: 20px; line-height: 28px;
+  -webkit-font-smoothing: none; font-smooth: never; }
+.pagina { max-width: 940px; margin: 0 auto; padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 20px; }
+h1 { font-family: var(--f-titulo); font-weight: normal; font-size: 24px; line-height: 32px; margin: 0; color: var(--ouro);
+  text-shadow: 2px 2px 0 var(--tinta); text-wrap: balance; }
+.sub { margin: 0; color: var(--texto-2); font-size: 20px; max-width: 62ch; }
+.abas { display: none; gap: 8px; }
+.pagina > .abas button, .amostra-ctl button {
+  font: inherit; font-size: 20px; color: var(--texto); background: var(--painel); border: 2px solid var(--tinta);
+  box-shadow: inset 0 2px 0 var(--linha), inset 0 -2px 0 var(--tinta); padding: 6px 14px 8px; cursor: pointer; min-height: 44px; }
+.pagina > .abas button[aria-selected="true"], .amostra-ctl button[aria-pressed="true"] { background: var(--ouro); color: var(--tinta);
+  box-shadow: inset 0 2px 0 var(--ouro-c), inset 0 -2px 0 var(--ouro-2); }
+button:focus-visible { outline: 3px solid #8ff8e2; outline-offset: 2px; }
+.telas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.tela { min-width: 0; display: grid; gap: 10px; }
+.tela h2 { font-family: var(--f-titulo); font-weight: normal; font-size: 24px; line-height: 32px; margin: 0; }
+.tela h2 small { font-family: var(--f-texto); font-size: 20px; color: var(--texto-2); }
+.hoje img { width: 100%; max-width: 390px; image-rendering: auto; border: 2px solid var(--tinta); display: block; }
+.amostra-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.amostra-ctl > span { color: var(--texto-2); }
+.medidas { font-family: var(--f-mini); font-size: 16px; line-height: 20px; color: var(--texto-2); margin: 0; }
+.notas { display: grid; gap: 8px; margin: 0; padding-left: 1.2em; max-width: 70ch; }
+.notas b { color: var(--ouro); font-weight: normal; }
+
+/* ---------- a tela do jogo (em pixels de arte: calc(var(--px) * n)) ---------- */
+#palco { --p: var(--px); box-sizing: border-box; width: 100%; max-width: 456px; display: grid; gap: calc(var(--p) * 6); background: #2e3b38;
+  padding-bottom: calc(var(--p) * 8); border: 2px solid var(--tinta); }
+.borda { box-shadow: 0 0 0 var(--p) var(--tinta), inset 0 var(--p) 0 var(--linha), inset 0 calc(var(--p) * -1) 0 var(--tinta); }
+.cab { display: flex; justify-content: space-between; align-items: center; gap: calc(var(--p) * 6);
+  padding: calc(var(--p) * 8) calc(var(--p) * 8) 0; }
+.cab > div:first-child { min-width: 0; }
+.pista-nome { margin: 0; font-family: var(--f-titulo); font-weight: normal; font-size: calc(var(--p) * 12); line-height: calc(var(--p) * 16);
+  color: var(--texto); text-shadow: var(--p) var(--p) 0 var(--tinta); }
+.pista-info { margin: 0; font-family: var(--f-mini); font-size: calc(var(--p) * 8); line-height: calc(var(--p) * 12); color: var(--texto-2);
+  letter-spacing: var(--p); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: calc(var(--p) * 3); }
+.pote { background: var(--painel); padding: calc(var(--p) * 3) calc(var(--p) * 6) calc(var(--p) * 4); display: grid; justify-items: end;
+  box-shadow: 0 0 0 var(--p) var(--tinta), inset 0 0 0 var(--p) var(--ouro-2), inset 0 calc(var(--p) * 2) 0 var(--ouro-c); flex: none; }
+.pote span { font-family: var(--f-mini); font-size: calc(var(--p) * 8); line-height: calc(var(--p) * 10); color: var(--texto-2); letter-spacing: var(--p); }
+.pote b { font-family: var(--f-titulo); font-weight: normal; font-size: calc(var(--p) * 12); line-height: calc(var(--p) * 14); color: var(--ouro);
+  display: flex; align-items: center; gap: calc(var(--p) * 3); text-shadow: var(--p) var(--p) 0 var(--tinta); }
+.pix { display: inline-block; image-rendering: pixelated; background-size: 100% 100%; flex: none; }
+#corrida { display: block; margin: 0 auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+.ordem { list-style: none; margin: 0; padding: 0 calc(var(--p) * 6); display: flex; justify-content: center; gap: calc(var(--p) * 3); }
+.ordem li { background: var(--painel-2); display: flex; align-items: center; gap: calc(var(--p) * 2); min-height: calc(var(--p) * 18);
+  padding: 0 calc(var(--p) * 3); font-family: var(--f-texto); font-size: calc(var(--p) * 10); line-height: calc(var(--p) * 12); color: var(--texto); }
+.ordem li.voce { box-shadow: 0 0 0 var(--p) var(--tinta), inset 0 0 0 var(--p) var(--ouro), inset 0 calc(var(--p) * 2) 0 var(--ouro-c); }
+.raia { display: inline-grid; place-items: center; min-width: calc(var(--p) * 11); height: calc(var(--p) * 12); padding-top: var(--p);
+  font-family: var(--f-titulo); font-size: calc(var(--p) * 12); line-height: calc(var(--p) * 12); box-shadow: 0 0 0 var(--p) var(--tinta); }
+.vizinhos { margin: 0; text-align: center; font-family: var(--f-texto); font-size: calc(var(--p) * 10); line-height: calc(var(--p) * 14);
+  color: var(--texto-2); padding: 0 calc(var(--p) * 6); }
+.vizinhos b { font-weight: normal; color: var(--texto); }
+.narr { list-style: none; margin: 0; padding: 0 calc(var(--p) * 6); display: grid; gap: calc(var(--p) * 3); min-height: calc(var(--p) * 41); align-content: start; }
+.narr li { background: var(--painel-2); display: flex; align-items: center; gap: calc(var(--p) * 5); padding: calc(var(--p) * 3) calc(var(--p) * 5) calc(var(--p) * 3) calc(var(--p) * 6);
+  font-family: var(--f-corpo); font-size: calc(var(--p) * 12); line-height: calc(var(--p) * 14); }
+.narr li.voce { box-shadow: inset calc(var(--p) * 2) 0 0 var(--ouro); }
+.narr time { color: var(--texto-2); font-family: var(--f-texto); font-size: calc(var(--p) * 10); flex: none; }
+.narr .raia { font-size: calc(var(--p) * 12); }
+.narr .ev { color: var(--ouro-c); min-width: 0; }
+.botoes { display: flex; gap: calc(var(--p) * 6); padding: calc(var(--p) * 4) calc(var(--p) * 6) 0; }
+.botoes button { font-family: var(--f-titulo); font-size: calc(var(--p) * 12); line-height: calc(var(--p) * 14); color: var(--texto);
+  min-height: calc(var(--p) * 32); min-width: calc(var(--p) * 36); border: 0; cursor: pointer; background: var(--painel-2);
+  box-shadow: 0 0 0 var(--p) var(--tinta), inset 0 calc(var(--p) * 2) 0 var(--linha), inset 0 calc(var(--p) * -3) 0 #313638, 0 calc(var(--p) * 2) 0 var(--p) var(--tinta); }
+.botoes button[aria-pressed="true"] { background: var(--ouro); color: var(--tinta);
+  box-shadow: 0 0 0 var(--p) var(--tinta), inset 0 calc(var(--p) * 2) 0 var(--ouro-c), inset 0 calc(var(--p) * -3) 0 var(--ouro-2), 0 calc(var(--p) * 2) 0 var(--p) var(--tinta); }
+.botoes .pular { margin-left: auto; font-family: var(--f-texto); font-size: calc(var(--p) * 10); padding: 0 calc(var(--p) * 8); white-space: nowrap; }
+.botoes button:disabled { cursor: default; color: var(--texto-2); }
+@media (max-width: 800px) {
+  .pagina > .abas { display: flex; }
+  .telas { grid-template-columns: minmax(0, 1fr); }
+  body[data-vista="novo"] .hoje, body[data-vista="hoje"] .novo { display: none; }
+}
+</style>
+
+<div class="pagina">
+  <header style="display:grid;gap:8px">
+    <h1>Corrida no Cerrado · padrão novo de arte</h1>
+    <p class="sub">À esquerda, a corrida como está no jogo (captura de 2026-11-18). À direita, a mesma tela refeita pelo guia de arte, rodando ao vivo: a mesma interface, no pixel, na paleta e na fonte novos.</p>
+  </header>
+
+  <div class="abas" role="tablist" aria-label="Qual tela mostrar">
+    <button type="button" id="aba-novo" role="tab" data-aba="novo" aria-selected="true">Padrão novo</button>
+    <button type="button" id="aba-hoje" role="tab" data-aba="hoje" aria-selected="false">Hoje</button>
+  </div>
+
+  <div class="telas">
+    <section class="tela hoje" aria-labelledby="t-hoje">
+      <h2 id="t-hoje">Hoje <small>(captura)</small></h2>
+      <img src="/*__CAPTURA__*/" alt="Captura da corrida atual: céu de um tom, terra com ruído, arquibancada repetida e etiquetas de skill cobrindo as raias." width="390" height="844">
+    </section>
+
+    <section class="tela novo" aria-labelledby="t-novo">
+      <h2 id="t-novo">Padrão novo <small>(ao vivo)</small></h2>
+      <div id="palco">
+        <div class="cab">
+          <div>
+            <h3 class="pista-nome">Prado do Cerrado</h3>
+            <p class="pista-info"><span>2000 M · TERRA ·</span><i class="pix" id="ic-clima" aria-hidden="true"></i><span id="info-clima">CLIMA: SOL</span></p>
+          </div>
+          <div class="pote"><span>POTE</span><b><i class="pix" id="ic-moeda" aria-hidden="true"></i>200</b></div>
+        </div>
+        <canvas id="corrida" role="img" aria-label="Corrida de sete cavalos no Prado do Cerrado: chapadas ao longe, cerrado com ipês amarelos, arquibancada, pista de terra vermelha e capim dourado na frente."></canvas>
+        <ol class="ordem" id="ordem" aria-label="Ordem dos corredores"></ol>
+        <p class="vizinhos" id="vizinhos">Largada em instantes</p>
+        <ol class="narr" id="narr" aria-live="polite"></ol>
+        <div class="botoes">
+          <button type="button" id="x1" aria-pressed="true">x1</button>
+          <button type="button" id="x2" aria-pressed="false">x2</button>
+          <button type="button" class="pular" disabled title="A amostra não tem tela de resultado">Pular para o resultado</button>
+        </div>
+      </div>
+      <div class="amostra-ctl" role="group" aria-label="Região da amostra">
+        <span>Região:</span>
+        <button type="button" id="r-cerrado" data-regiao="cerrado" aria-pressed="true">Cerrado</button>
+        <button type="button" id="r-varzea" data-regiao="varzea" aria-pressed="false">Várzea</button>
+        <button type="button" id="r-planalto" data-regiao="planalto" aria-pressed="false">Planalto</button>
+        <button type="button" id="r-sertao" data-regiao="sertao" aria-pressed="false">Sertão</button>
+        <button type="button" id="r-litoral" data-regiao="litoral" aria-pressed="false">Litoral</button>
+      </div>
+      <div class="amostra-ctl" role="group" aria-label="Clima da amostra">
+        <span>Clima:</span>
+        <button type="button" id="c-sol" data-clima="sol" aria-pressed="true">Sol</button>
+        <button type="button" id="c-nublado" data-clima="nublado" aria-pressed="false">Nublado</button>
+        <button type="button" id="c-chuva" data-clima="chuva" aria-pressed="false">Chuva</button>
+        <button type="button" id="c-nevoa" data-clima="nevoa" aria-pressed="false">Névoa</button>
+        <button type="button" id="pausa" aria-pressed="false">Pausar</button>
+      </div>
+      <p class="medidas" id="escala"></p>
+      <p class="medidas" id="medidas"></p>
+    </section>
+  </div>
+
+  <section style="display:grid;gap:8px" aria-labelledby="t-mudou">
+    <h2 id="t-mudou" style="font-family:var(--f-titulo);font-weight:normal;font-size:24px;line-height:32px;margin:0">O que mudou</h2>
+    <ul class="notas">
+      <li><b>Um tamanho de pixel.</b> Cavalo, cenário, cerca, efeitos, letras e a interface usam o mesmo pixel, um número inteiro de pixels do aparelho. Antes, o pixel do cavalo era 3/4 do pixel da pista.</li>
+      <li><b>A interface de hoje, no padrão novo.</b> Cabeçalho com o pote, posição, estamina, vento, clima, tempo e velocidade, minimapa, faixa de ordem, vizinhos, narração e botões ficam onde estão; mudam o pixel, a paleta e a fonte.</li>
+      <li><b>Velocidade de corrida.</b> Os cavalos galopam no ritmo de velocidade máxima e o cenário passa rápido. A pista continua com 2.000 m e a corrida leva o mesmo tempo.</li>
+      <li><b>Cinco regiões.</b> Cerrado, Várzea, Planalto, Sertão e Litoral, cada uma com a sua paleta de 32 cores e as suas camadas; troque nos botões de região.</li>
+      <li><b>Cenário em camadas.</b> Céu em faixas, nuvens, chapadas ao longe (mais claras pela distância), cerrado com ipês e buritis, arquibancada com torcida, pista de terra vermelha e capim na frente. Cada camada anda numa velocidade e emenda sem costura.</li>
+      <li><b>Paleta fechada.</b> Toda cor sai da Resurrect 64; o cenário do Cerrado usa 32 delas. O clima troca a paleta das camadas: experimente Chuva e Névoa.</li>
+      <li><b>Uma fonte.</b> Galmuri, com todos os acentos.</li>
+      <li><b>Pista limpa.</b> Nas raias ficam só o "VOCÊ" e no máximo dois balões de skill. Distâncias são placas na cerca.</li>
+    </ul>
+  </section>
+</div>
+
+<script>window.__ARTE = /*__ARTE__*/;</script>
+<script>
+/*__JS__*/
+</script>

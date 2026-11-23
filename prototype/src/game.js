@@ -76,6 +76,9 @@
   // 2026-11-18: +25% a pedido do Vinicius ("as corridas estão muito rápidas"; era de 20 a 34 s) e, no mesmo dia, mais
   // +20% ("adicione um pouco mais de tempo"): 50% acima do original.
   var TELA_S_MIN = 30, TELA_S_MAX = 51;
+  // câmera da corrida e cadência do galope (guia §8a, etapa 2.4 da direção de arte): 12 px de arte por metro (o chão a
+  // 16 m/s passa a ~190 px/s) e 14 quadros por segundo no ciclo de 6 do código = 21 no ciclo de 9 do molde, a 17 m/s
+  var PPM_ARTE = 12, GALOPE_QPS = 14;
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala dos retratos (portraitHtml sem opts.tamanho)
@@ -105,6 +108,20 @@
   }
   function syncMotionClass() { document.documentElement.classList.toggle('mov-reduzido', reduced()); }
   function dpr() { return Math.max(1, window.devicePixelRatio || 1); }
+  // Grade de pixel da interface (guia de arte §2): 1 pixel de arte = s pixels do aparelho, com s inteiro tal que a
+  // coluna do app (até 520 px de CSS) tenha pelo menos 240 pixels de arte (com o arredondamento puro, a densidade 3
+  // de 390 px dava 234 e o rótulo "Expedição" não cabia na aba); o CSS recebe --px = s / densidade e mede
+  // letras, molduras e sombras em múltiplos dele (a Galmuri só fica nítida no tamanho nativo em pixels inteiros)
+  var gradeS = 0;
+  function aplicaGrade() {
+    // a coluna fica com 240 a 479 pixels de arte; deitado (pouca altura), a altura também manda: pelo menos 300 pixels de
+    // arte na vertical, senão a letra fica grande demais para a tela (780 × 360: s = 2 em vez de 4)
+    var L = Math.min(window.innerWidth || 390, 520) * dpr(), A = (window.innerHeight || 844) * dpr();
+    var s = Math.max(1, Math.min(Math.floor(L / 240), Math.floor(A / 300)));
+    if (s === gradeS && document.documentElement.style.getPropertyValue('--px')) return;
+    gradeS = s;
+    document.documentElement.style.setProperty('--px', (s / dpr()) + 'px');
+  }
 
   // Cores de cena lidas dos tokens CSS (fonte única de verdade).
   var C = {};
@@ -193,36 +210,61 @@
     if (!m || typeof m !== 'object' || !hasOwn(m, nome) || typeof m[nome] !== 'string' || !m[nome]) return '';
     return m[nome];
   }
-  // Ícones da corrida (canvas): uma Image por ícone sk-*, cl-* e ui-dado; a cada onload o RaceFx recebe os que já
-  // carregaram (ele só desenha o PNG quando está no cache; antes disso fica o desenho em código). Sem Image (Node): nada.
-  function carregarIconesCorrida() {
-    var m = window.__ICONES;
+  // Ícones da corrida (canvas): desde a etapa 4 da direção de arte a pista usa só os 8 × 8 em código do fx.js (guia §7:
+  // os PNG de 16 e 24 não encolhem); o RaceFx.setIconImages continua para quem quiser passar imagens 1:1.
+  // Camadas das regiões na corrida (window.__REGIOES, embutidas pelo build; etapa 2.3 da direção de arte): uma Image por
+  // camada; a cada onload o Sprites recebe as regiões (só desenha a que tem as 5 camadas; antes disso, o cenário por código)
+  function carregarRegioes() {
+    var m = window.__REGIOES;
     if (typeof Image !== 'function' || !m || typeof m !== 'object') return;
     var prontas = {};
-    Object.keys(m).forEach(function (nome) {
-      if (!/^(sk-|cl-|ui-dado$)/.test(nome) || !iconeSrc(nome)) return;
-      var img = new Image();
-      img.onload = function () { prontas[nome] = img; FX.setIconImages(prontas); };
-      img.src = iconeSrc(nome);
+    Object.keys(m).forEach(function (r) {
+      var cam = m[r] && m[r].camadas;
+      if (!cam || typeof cam !== 'object') return;
+      var reg = { posicao: m[r].posicao || {}, camadas: {} };
+      Object.keys(cam).forEach(function (k) {
+        if (typeof cam[k] !== 'string') return;
+        var img = new Image();
+        img.onload = function () { reg.camadas[k] = img; prontas[r] = reg; SP.setRegioes(prontas); };
+        img.src = cam[k];
+      });
     });
   }
-  carregarIconesCorrida();
+  carregarRegioes();
+  // a região do cenário de uma corrida: a do ginásio (Fornalha no Sertão, Remanso no Litoral, Capoeira no Cerrado, as
+  // mesmas paletas das arenas) ou a da pista (regioes.json, "pistas"); senão o Cerrado
+  var GIN_REGIAO = { fogo: 'sertao', agua: 'litoral', grama: 'cerrado' };
+  function regiaoDaPista(L) {
+    var m = window.__REGIOES;
+    if (L && L.regiao) return L.regiao;
+    if (m && typeof m === 'object' && L) for (var r in m) if (hasOwn(m, r) && m[r] && (m[r].pistas || []).indexOf(L.trackName) >= 0) return r;
+    return 'cerrado';
+  }
+  // Etapa 4 da direção de arte: o ícone aparece 1:1 na grade, no tamanho nativo (16 ou 24 pixels de arte × --px, pelo
+  // CSS); tam = 32 só marca o uso "cheio" (cartão de skill, insígnia), que não amplia mais nada (guia §7)
   function iconeHtml(nome, fallback, tam) {
     var src = iconeSrc(nome);
     if (!src) return fallback || '';
-    var t = tam || 16;
-    return '<img class="icone icone--' + esc(nome) + (t === 32 ? ' icone--32' : '') + '" src="' + esc(src) + '" alt="" width="' + t + '" height="' + t + '">';
+    var T = window.__ICONES_TAM, n = T && T[nome] === 24 ? 24 : 16;
+    return '<img class="icone icone--' + esc(nome) + ' icone--n' + n + (tam === 32 ? ' icone--32' : '') + '" src="' + esc(src) + '" alt="" width="' + n + '" height="' + n + '">';
   }
-  // Logotipo do Canva (window.__MARCA.logo): <img> com o título como alt; sem arquivo, o texto de antes.
-  // width/height reservam o espaço antes de a imagem decodificar (sem salto de layout); o build manda o
-  // tamanho do PNG em __MARCA.w/h. Com `altura`, a largura sai na mesma proporção.
-  function logoHtml(fallback, altura) {
+  // A marca (window.__MARCA, etapa 7 da direção de arte): <img> com o título como alt; sem arquivo, o texto de antes.
+  // mini: o letreiro pequeno (sem o emblema) no cabeçalho, 1:1 na grade; senão o logo inteiro (emblema e letreiro)
+  // na tela inicial, em 2× da grade quando a coluna tem largura para isso (escala inteira, guia §2), senão 1×. O CSS dá o
+  // tamanho em --px (width/height do <img> só reservam o espaço antes de decodificar).
+  function logoHtml(fallback, mini) {
     var m = window.__MARCA;
     if (!m || typeof m !== 'object' || typeof m.logo !== 'string' || !m.logo) return fallback;
-    var w = m.w > 0 ? m.w : 0, h = m.h > 0 ? m.h : 0, tam = '';
-    if (altura) tam = ' height="' + altura + '"' + (w && h ? ' width="' + Math.round(w * altura / h) + '"' : '');
-    else if (w && h) tam = ' width="' + w + '" height="' + h + '"';
-    return '<img class="logo-img" src="' + esc(m.logo) + '" alt="Galope Elemental"' + tam + '>';
+    var src = m.logo, w = m.w, h = m.h;
+    if (mini) {
+      // o cabeçalho tem 46 px de CSS por dentro: o letreiro pequeno (22 de altura) cabe em toda grade; se não couber, o texto
+      if (typeof m.mini !== 'string' || m.miniH > Math.floor(46 * dpr() / (gradeS || 1))) return fallback;
+      src = m.mini; w = m.miniW; h = m.miniH;
+    }
+    var colArte = Math.floor(Math.min(window.innerWidth || 390, 520) * dpr() / (gradeS || 1));
+    var x = mini ? 1 : colArte >= 2 * w + 24 ? 2 : 1;   // (24: as margens da tela)
+    return '<img class="logo-img logo-img--x' + x + '" src="' + esc(src) + '" alt="Galope Elemental" width="' + (w * x) + '" height="' + (h * x) + '"' +
+      ' style="--logo-w:' + (w * x) + ';--logo-h:' + (h * x) + '">';
   }
   function ouroHtml(n, extraClass) {
     return '<span class="ouro' + (extraClass ? ' ' + extraClass : '') + '">' + iconeHtml('moeda-ouro', COIN) + '<span>' + fmt(n) + '</span><span class="sr">Ouro</span></span>';
@@ -570,10 +612,14 @@
   //     gravado consertado ao abrir, como a diária: ver start);
   //   state.gymCounter: desafios sorteados (a seed de cada duelo), inteiro ≥ 0 (lixo: 0).
   // Save de versão MAIOR que SAVE_VERSION (saveMaisNovo) nunca é adotado nem gravado por cima: tela de bloqueio.
-  var SAVE_VERSION = 8;
+  // Campo novo da v9 (skills com rank, 2026-11-19): cada montaria tem skillRanks = { id: 1..5 }, uma chave por skill de
+  //   vaga. Save de antes da v9 (sem o campo): toda skill fica no rank 1, sem aviso. Em qualquer versão o campo passa
+  //   pelo Itens.sanearRanks: rank ausente ou inválido (0, 7, "3", NaN) vale 1 e rank de skill que o cavalo não tem some.
+  //   A mochila ganha o Pergaminho de técnica (ausente: 0).
+  var SAVE_VERSION = 9;
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
-  var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual
+  var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual, pergaminho
   // os itens à venda, na ordem fixa da loja (GameData.SHOP_ORDER, spec de itens §6: Torrão, Manual, Cupom, Estrela)
   var LOJA_ITENS = GD.SHOP_ORDER.filter(function (id) { return hasOwn(GD.ITEMS, id) && GD.ITEMS[id].price != null; });
   // os que têm limite por dia (perDay), tirados do catálogo (o itens.js lê os mesmos campos): torrao, manual, cupom
@@ -595,6 +641,7 @@
       level: 1,
       xp: 0,
       skills: tpl.skills.slice(),
+      skillRanks: IT.sanearRanks(tpl.skills, tpl.skillRanks),   // modelo do catálogo: tudo no rank 1
       potential: clone(tpl.potential),
       alloc: zeroAlloc(),
       respecFree: true,   // a primeira redistribuição dos pontos é grátis (bloco 1b §9)
@@ -785,6 +832,7 @@
       level: num(m.level, 1, 1, MAX_LEVEL),
       xp: num(m.xp, 0, 0, 1e7),
       skills: [],
+      skillRanks: {},             // preenchido abaixo, depois das skills (a ordem das chaves é a do instanceFromTemplate)
       potential: potential,
       alloc: null,
       // só booleano; ausente ou lixo (e todo save de antes da v6): true
@@ -801,6 +849,7 @@
     };
     out.alloc = RS.validAlloc(out, v6 ? m.alloc : null);   // save antigo: zerado; inválido: cortado pelo teto e pelo custo
     out.skills = validSkills(m.skills, out);
+    out.skillRanks = IT.sanearRanks(out.skills, m.skillRanks);   // v9; save antigo (sem o campo): tudo no rank 1
     return out;
   }
 
@@ -820,6 +869,7 @@
       m1.level = num(s.level, 1, 1, MAX_LEVEL);
       m1.xp = num(s.xp, 0, 0, 1e7);
       m1.skills = validSkills(s.skills, m1);
+      m1.skillRanks = IT.sanearRanks(m1.skills, null);
       mounts = [m1]; activeId = 'm1'; nextUid = 2; stableSlots = start; breedCounter = 0;
     } else {
       // v3+: mounts que não é array vira [] (recria o inicial e mantém o Ouro)
@@ -1093,7 +1143,7 @@
     for (var k = 1; k <= levels; k++) {
       var lrng = RS.mulberry32(RS.hash2(state.seedBase, seedTag * 100 + (mount.level - levels + k)));
       var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng, bonusSkillNivel());
-      if (sid) { mount.skills.push(sid); learned.push(sid); }
+      if (sid) { mount.skills.push(sid); mount.skillRanks = IT.sanearRanks(mount.skills, mount.skillRanks); learned.push(sid); }   // a aprendida entra no rank 1
     }
     return { levels: levels, learned: learned };
   }
@@ -1232,6 +1282,18 @@
   function escalaRetrato(tamanho) {
     return tamanho === 'pequeno' ? PORTRAIT_SCALE_PEQUENO : tamanho === 'grande' ? PORTRAIT_SCALE_GRANDE : PORTRAIT_SCALE;
   }
+  // Na grade de pixel (etapa 1b da direção de arte, guia §2 e §7): o retrato tem um tamanho em pixels de arte e sai na
+  // escala da grade (gradeS); o cavalo aparece 1:1 (1 pixel do molde = 1 pixel de arte) em todos os tamanhos — o grande
+  // mostra mais baia, não um cavalo maior. O cavalo parado tem ~52 px até as orelhas: a baia tem pelo menos 56 de altura.
+  var RETRATO_ARTE = { normal: [96, 72], pequeno: [64, 56], grande: [160, 96] };
+  function setupCanvasGrade(cv, artW, artH) {
+    var r = dpr(), k = gradeS || Math.max(1, Math.round(1.5 * r));
+    cv.width = artW * k; cv.height = artH * k;
+    cv.style.width = (artW * k / r) + 'px'; cv.style.height = (artH * k / r) + 'px';
+    var ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    return { ctx: ctx, k: k };
+  }
   function portraitHtml(horse, opts) {
     opts = opts || {};
     var id = portraitQueue.length;
@@ -1308,7 +1370,13 @@
         var entry = portraitQueue[Number(cv.getAttribute('data-retrato'))];
         if (!entry) return;
         var o = entry.opts, horse = entry.horse;
-        var s = setupCanvas(cv, PORTRAIT_W, PORTRAIT_H, escalaRetrato(o.tamanho));
+        var dim = RETRATO_ARTE[o.tamanho === 'pequeno' || o.tamanho === 'grande' ? o.tamanho : 'normal'], RW = dim[0], RH = dim[1];
+        if (o.tamanho === 'grande') {   // a ficha: de borda a borda da coluna (menos a moldura de 6 px de cada lado), em pixels de arte inteiros
+          var kG = gradeS || Math.max(1, Math.round(1.5 * dpr())), caixa = cv.parentNode && cv.parentNode.parentNode;
+          var largG = caixa && caixa.clientWidth ? caixa.clientWidth - 12 : RW * kG / dpr();
+          RW = clamp(Math.floor(largG * dpr() / kG), 112, 256);
+        }
+        var s = setupCanvasGrade(cv, RW, RH);
         var seed = (horse.name.charCodeAt(0) || 0) + (horse.name.length * 3);
         var phase = (seed % 10) * 0.37;
         var vis = opcoesVisuais(horse, o.jockey ? (o.joquei || joqueiDoJogador()) : null);
@@ -1317,12 +1385,13 @@
           draw: function (t) {
             if (item.drawn && reduced()) return;
             item.drawn = true;
-            drawStall(s.ctx, s.k, PORTRAIT_W, PORTRAIT_H, seed);
-            // quadro: o molde inteiro cabe na altura da baia (o desenho por código já cabe)
+            drawStall(s.ctx, s.k, RW, RH, seed);
+            // o molde 1:1 na grade, com os cascos na palha e o corpo no meio da baia (sem moldes, o desenho por código)
             vis.reduzido = reduced();
-            SP.drawHorse(s.ctx, 5 * s.k, 1 * s.k, comVisuais({
+            SP.drawHorse(s.ctx, Math.round((RW - 40) / 2) * s.k, (RH - 37) * s.k, comVisuais({
               palette: horse.palette, element: horse.element, idle: true, t: reduced() ? 0.5 : t + phase,
-              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS, quadro: { topo: 0, base: PORTRAIT_H * s.k }
+              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS,
+              quadro: { topo: 0, base: (RH - 3) * s.k, grade: s.k, centro: Math.round(RW / 2) * s.k }
             }, vis));
           }
         };
@@ -1336,6 +1405,10 @@
     for (var z = 0; z < podios.length; z++) setupPodium(podios[z]);
     var cenas = root.querySelectorAll('canvas[data-cena]');
     for (var w = 0; w < cenas.length; w++) drawGinCena(cenas[w]);
+    var abas = root.querySelectorAll('canvas[data-cena-aba]');
+    for (var wa = 0; wa < abas.length; wa++) drawCenaAba(abas[wa]);
+    var mapas = root.querySelectorAll('canvas[data-mapa]');
+    for (var wm = 0; wm < mapas.length; wm++) drawMapaTrilha(mapas[wm]);
   }
 
   // ===========================================================================
@@ -1349,9 +1422,11 @@
     var el = elementOf(element);
     return '<span class="el el--' + esc(el.id) + '">' + iconHtml(el.id) + esc(el.name) + '</span>';
   }
-  function rarityHtml(rarity) {
+  // comMedalha: a medalha de 24 px (1:1 na grade) só na ficha do cavalo; nas linhas de lista e nas tabelas a pílula
+  // vai só com o nome na cor da raridade (com a medalha, cada linha crescia ~30 px: etapa 4 da direção de arte)
+  function rarityHtml(rarity, comMedalha) {
     var r = GD.RARITIES[rarity] || GD.RARITIES.comum;
-    return '<span class="raridade raridade--' + esc(r.id) + '">' + raridadeIcone(r.id) + esc(r.name) + '</span>';
+    return '<span class="raridade raridade--' + esc(r.id) + '">' + (comMedalha ? raridadeIcone(r.id) : '') + esc(r.name) + '</span>';
   }
   function leagueHtml(rating) {
     var L = RS.leagueFor(rating), ic = ligaIcone(L.id);
@@ -1396,56 +1471,77 @@
       '<div class="barra barra--xp" role="img" aria-label="' + esc('Experiência ' + Math.round(pct) + '%') + '"><i style="width:' + (Math.round(pct / 5) * 5) + '%"></i></div></div>';
   }
   // tam: tamanho do ícone (32 na aba Skills; 16 no resto)
-  function skillHtml(id, tam, quando) {
+  // rank (opcional, 1 a 5): o texto do efeito com os números do rank (RaceSim.skillDesc), as 5 marcas e o selo em
+  // romano; extra (opcional): HTML a mais dentro do bloco (a linha do próximo rank)
+  function skillHtml(id, tam, quando, rank, extra) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
-    return '<div class="habilidade"><b>' + skillIcone(id, tam) + esc(sk.name) + '</b><span>' + esc(sk.desc) + '</span>' +
-      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + '</div>';
+    return '<div class="habilidade' + (rank >= GD.SKILL_RANKS.max ? ' habilidade--max' : '') + '"><b>' + skillIcone(id, tam) + esc(sk.name) + (rank ? rankMarcasHtml(rank) : '') + '</b>' +
+      '<span class="habilidade-efeito">' + esc(rank ? RS.skillDesc(id, rank) : sk.desc) + '</span>' +
+      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + (extra || '') + '</div>';
+  }
+  // as 5 marcas do rank (cheias até o rank) e o algarismo romano; o leitor de tela lê "Rank III de V"
+  var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];   // o rank das skills na tela (1 a 5)
+  function rankMarcasHtml(rank) {
+    var max = GD.SKILL_RANKS.max, pips = '';
+    for (var i = 1; i <= max; i++) pips += '<i class="rank-pip' + (i <= rank ? ' rank-pip--on' : '') + '"></i>';
+    return '<span class="rank-marcas' + (rank >= max ? ' rank-marcas--max' : '') + '" role="img" aria-label="Rank ' + ROMANOS[rank] + ' de ' + ROMANOS[max] + '">' +
+      '<span class="rank-romano" aria-hidden="true">' + ROMANOS[rank] + '</span>' + pips + '</span>';
   }
   // Porcentagem para texto: inteira quando é redonda, senão com uma casa ("44,5%").
   function pctTxt(x) {
     var v = Math.round(x * 1000) / 10;
     return (v === Math.round(v) ? String(v) : v.toFixed(1).replace('.', ',')) + '%';
   }
-  // Quando cada skill de vaga tenta ativar (o gatilho dela, GameData.SKILLS[id].trigger), com os números da corrida
-  // (RaceSim.TUNING) e, na arrancada final, o ponto da pista deste cavalo (RaceSim.garraInfo). Cada skill tenta uma vez
-  // por corrida; as de bloco (blockScoped: Drift, Fôlego de Montanha, Casco Firme), uma vez em cada curva ou subida.
+  // Quando cada skill de vaga ativa (o gatilho dela, GameData.SKILLS[id].trigger; sem sorteio: o gatilho aconteceu, ela
+  // ativa), com os números da corrida (RaceSim.TUNING, e os do rank do cavalo) e, na arrancada final, o ponto da pista
+  // deste cavalo (RaceSim.garraInfo). Cada skill ativa uma vez por corrida; as de bloco (blockScoped: Drift, Fôlego de
+  // Montanha, Casco Firme), uma vez em cada curva ou subida.
   function skillQuandoTxt(id, m) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
     var t = sk.trigger, T = RS.TUNING, bloco = !!(sk.effect && sk.effect.blockScoped), q;
+    var ef = RS.skillEffect(id, RS.rankOf(m, id));   // o marco do rank V pode mudar o gatilho (reta de 100 m, estamina a 35%)
     if (t === 'start') q = 'na largada';
-    else if (t === 'straight') q = 'na 1ª reta de ' + T.straightMinM + ' m ou mais (fora a da largada)';
+    else if (t === 'straight') q = 'na 1ª reta de ' + (ef.minStraightM || T.straightMinM) + ' m ou mais (fora a da largada)';
     else if (t === 'curve') q = bloco ? 'ao entrar em cada curva' : 'ao entrar na 1ª curva';
     else if (t === 'curveExit') q = 'ao sair da 1ª curva';
     else if (t === 'hill') q = bloco ? 'ao entrar em cada subida' : 'ao entrar na 1ª subida';
-    else if (t === 'lowStamina') q = 'quando a estamina cai a ' + pctTxt(T.lowStaminaAt);
+    else if (t === 'lowStamina') q = 'quando a estamina cai a ' + pctTxt(ef.lowStaminaAt || T.lowStaminaAt);
     else if (t === 'final') q = 'na arrancada final, aos ' + pctTxt(RS.garraInfo(m).from) + ' da pista (junto com a Garra)';
     else if (t === 'dice') q = 'antes do 1º Dado da Sorte';
     else if (t.indexOf('weather:') === 0 && hasOwn(GD.WEATHERS, t.slice(8))) q = 'quando o clima for ' + GD.WEATHERS[t.slice(8)].name;
     else return '';
-    return 'Quando: ' + q + (bloco ? '' : ' · 1 vez por corrida') + '.';
+    return 'Ativa sempre: ' + q + (bloco ? '' : ' · 1 vez por corrida') + '.';
   }
-  // A chance de cada skill de vaga ativar quando o momento dela chega, com a conta (RaceSim.skillChance): a base da
-  // raridade, + por nível acima do 1, + por ponto de Sorte; o teto do TUNING.
-  function skillChanceHtml(m) {
-    var T = RS.TUNING, st = RS.computeStats(m), rar = RS.rarityOf(m), nv = RS.sanitizeLevel(m.level);
-    var total = RS.skillChance(m, st, 0), bruto = rar.skillChance + T.skillPerLevel * (nv - 1) + T.skillPerSorte * st.sorte;
-    var conta = rar.name + ' ' + pctTxt(rar.skillChance) + ' + nível ' + nv + ': +' + pctTxt(T.skillPerLevel * (nv - 1)).replace('%', '') + ' + Sorte ' + st.sorte +
-      ': +' + pctTxt(T.skillPerSorte * st.sorte).replace('%', '') + (bruto > T.skillChanceMax ? '; máximo ' + pctTxt(T.skillChanceMax) : '');
-    return '<p class="skill-chance">Chance de cada skill ativar: <strong>' + pctTxt(total) + '</strong> (' + esc(conta) + ').</p>';
+  // "2 de 3 vagas · rank III, I" (linha da ficha) e "skills rank II" (a linha do resultado: o rank médio arredondado, o
+  // mesmo número que vale para os bots; sem skill de vaga, nada)
+  function skillsFichaTxt(h) {
+    var slots = RS.rarityOf(h).skillSlots, ids = (h.skills || []).filter(function (id) { return hasOwn(GD.SKILLS, id); });
+    return '<b>' + ids.length + '</b> de ' + slots + (slots === 1 ? ' vaga' : ' vagas') + (ids.length ? ' · rank ' + ids.map(function (id) { return ROMANOS[RS.rankOf(h, id)]; }).join(', ') : '');
+  }
+  function skillsRankTxt(h) {
+    var ids = ((h && h.skills) || []).filter(function (id) { return hasOwn(GD.SKILLS, id); });
+    return ids.length ? 'skills rank ' + ROMANOS[RS.botRank(h)] : '';
+  }
+  // O topo das skills de vaga: elas ativam sempre (sem sorteio), o ⓘ do rank e quantos Pergaminhos de técnica há.
+  function skillRankTopoHtml() {
+    var n = itemQtd('pergaminho');
+    return '<div class="linha-meta rank-topo"><span>Skills de vaga: <strong>ativam sempre</strong>' + ajudaBtn('rank', 'o rank das skills') + '</span>' +
+      '<span class="rank-tem">' + itemIconeHtml('pergaminho') + '<span class="sr">' + esc(GD.ITEMS.pergaminho.plural) + ': </span><b>' + fmt(n) + '</b></span></div>';
   }
   // A Garra deste cavalo (RaceSim.garraInfo, as contas da corrida, sem clima): onde a arrancada começa, a chance e o teto;
   // com a Arrancada Final, os números se ela ativar.
   function garraInfoHtml(m) {
     var g = RS.garraInfo(m), st = RS.computeStats(m), linhas = [];
-    linhas.push('1 vez por corrida, aos ' + pctTxt(g.from) + ' da pista: ' + pctTxt(g.chance) + ' de chance' + (g.tipo ? ' (com a ' + RS.typeSkill(m).name + ')' : '') +
-      '. Se der certo: velocidade máxima ×' + g.boost.toFixed(2).replace('.', ',') + ' até a chegada.');
+    var vz = function (x) { return '×' + x.toFixed(2).replace('.', ','); };
+    linhas.push('Sempre, 1 vez por corrida, aos ' + pctTxt(g.from) + ' da pista: velocidade máxima ' + vz(g.boost) + ' em média até a chegada' +
+      (g.tipo ? ' (com a ' + RS.typeSkill(m).name + ')' : '') + '. A cada corrida ela vem mais fraca ou mais forte: de ' + vz(g.boostMin) + ' a ' + vz(g.boostMax) + '.');
     if (m.skills.indexOf('arrancada-final') >= 0 && hasOwn(GD.SKILLS, 'arrancada-final')) {
-      var e = GD.SKILLS['arrancada-final'].effect, gb = RS.garraInfo(m, { chance: e.garraChanceBonus, boost: e.garraBoostBonus });
-      linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ' ativa: ' + pctTxt(gb.chance) + ' de chance e ×' + gb.boost.toFixed(2).replace('.', ',') + '.');
+      var e = RS.skillEffect('arrancada-final', RS.rankOf(m, 'arrancada-final')), gb = RS.garraInfo(m, { boost: e.garraBoostBonus });
+      linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ': ' + vz(gb.boost) + ' em média.');
     }
-    linhas.push('Mais Garra: começa antes, com mais chance e mais força.');
+    linhas.push('Mais Garra: começa antes e empurra mais.');
     return '<div class="habilidade habilidade--garra"><b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>' +
       linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>';
   }
@@ -1547,7 +1643,13 @@
     else if (!isRoot(ui.screen) && state) voltaDaSubtela();
   });
 
+  // Toque duplo no "Largar!": o 2º toque não pode cair no "Pular" da corrida que acabou de abrir (com a Galmuri, a tela da
+  // corrida ficou mais baixa e o "Pular" passou a ficar onde estava o "Largar!"). Um clique que é o 2º de um toque duplo
+  // (event.detail ≥ 2) até PULAR_GUARDA_MS depois de a corrida abrir não pula; um toque de propósito no "Pular", por mais
+  // rápido que seja, é um clique simples (detail 1) e vale, como o teclado (detail 0).
+  var PULAR_GUARDA_MS = 1000, corridaDesde = 0;
   function go(screen) {
+    if (screen === 'corrida' && ui.screen !== 'corrida') corridaDesde = Date.now();
     if (saveBloqueado) screen = 'bloqueio';   // a tela de bloqueio não tem saída (só o Recarregar)
     // sem o que mostrar, a navegação leva a um lugar que existe: sem cartão, o resumo (ou o Estábulo); sem corrida, a aba
     // Correr (não acontece: só garante que a tela de corrida e o cartão nunca são desenhados vazios)
@@ -1573,6 +1675,7 @@
     if (screen !== 'loja' && !(kindOf(screen) === 'sub' && ui.tab === 'loja')) ui.loja = null;
     // entrar na aba Loja abre na parte Comprar (voltar de uma sub-tela aberta a partir dela mantém a parte)
     if (screen === 'loja' && ui.screen !== 'loja' && !voltaMesmaAba) { ui.lojaParte = 'comprar'; ui.lojaMsg = null; }
+    if (screen !== 'perfil') { ui.perfilVer = null; ui.licencaAberta = false; }   // os Créditos só vivem dentro do Perfil
     if (kindOf(screen) === 'aba') ui.tab = screen;   // a barra de abas lê ui.tab
     ui.screen = screen;
     if (appEl) appEl.classList.toggle('app--corrida', screen === 'corrida');
@@ -1586,6 +1689,8 @@
   // o foco vai para a linha daquele cavalo, não para o título (3b, Review Focus 2), e a página rola só o que precisar
   // para a linha aparecer (o scroll-padding desconta o cabeçalho e a barra de abas)
   function voltaDaSubtela() {
+    // dos Créditos, de volta ao Perfil (foco no botão "Créditos")
+    if (ui.screen === 'perfil' && ui.perfilVer) { ui.perfilVer = null; ui.licencaAberta = false; go('perfil'); focoNaLinha('perfil-creditos', 'creditos'); return; }
     // ginásio: do detalhe da etapa volta à trilha (foco na etapa); da trilha, à aba (foco no cartão do ginásio)
     // do resumo do desafio, à trilha (já atualizada), mostrando a etapa próxima como ao abrir
     if (ui.screen === 'ginasio' && ui.gym) {
@@ -1641,9 +1746,10 @@
   // - Ouro infinito (ui.dev.ouroInf, ligado por padrão): persist() chama Dev.refillGold.
   // - O painel cria cavalos fora das regras: sanitize aceita o templateId 'dev-<n>' e qualquer skill
   //   do catálogo (devTemplateId, validSkills); o estábulo cresce sem limite de vagas.
-  // - Próxima corrida: ui.devNext = { seed, cond, wind, skillsAlways } (cond = filtro de Dev.conditions,
-  //   sem a sala; null = nada armado). buildLobby aplica seed e condições e grava L.dev = { wind,
-  //   skillsAlways } para a tela da corrida; settle passa skillsAlways ao RaceSim e limpa ui.devNext.
+  // - Próxima corrida: ui.devNext = { seed, cond, wind } (cond = filtro de Dev.conditions,
+  //   sem a sala; null = nada armado). buildLobby aplica seed e condições e grava L.dev = { wind } para a tela da
+  //   corrida; settle limpa ui.devNext. O antigo "skills sempre ativam" saiu (toda skill já ativa quando o gatilho
+  //   acontece); no lugar, a aba Cavalo escolhe o rank (I a V) de cada skill.
   // - A gaveta mora em #dev (fora de #tela): re-renderizar a tela não perde a rolagem dela; os campos
   //   ficam em ui.dev.f (lidos do DOM a cada mudança e antes de cada ação).
   // As funções puras (cavalo, peça, condições, vento, seed, Ouro) estão em dev.js.
@@ -1718,10 +1824,10 @@
   function devForm() {
     if (!ui.dev.f) {
       ui.dev.f = {
-        pedras: null, redeas: null, 'mochila-torrao': null, 'mochila-estrela': null, 'mochila-cupom': null, 'mochila-manual': null,
+        pedras: null, redeas: null, 'mochila-torrao': null, 'mochila-estrela': null, 'mochila-cupom': null, 'mochila-manual': null, 'mochila-pergaminho': null,
         copiar: GD.STARTERS[0].id,
         slot: GR.SLOTS[0], conjunto: 'sol', rpeca: 'lendario', melhoria: '0', equipar: false,
-        clima: '', piso: '', distancia: '', tracado: 'normal', blocos: '', vento: '', direcao: '1', seed: '', sempre: false
+        clima: '', piso: '', distancia: '', tracado: 'normal', blocos: '', vento: '', direcao: '1', seed: ''
       };
       devCavaloDaAtiva();
     }
@@ -1738,7 +1844,7 @@
     // genética por status (vale com "Genética: por status") e pontos distribuídos, da ativa
     var al = RS.validAlloc(a, a.alloc);
     STAT_KEYS.forEach(function (k) { f['gen-' + k] = String(a.potential[k]); f['pt-' + k] = String(al[k]); });
-    for (var i = 0; i < DEV_SKILL_VAGAS; i++) f['skill' + i] = a.skills[i] || '';
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) { f['skill' + i] = a.skills[i] || ''; f['rank' + i] = String(a.skills[i] ? RS.rankOf(a, a.skills[i]) : 1); }
     f.coat = pal.coat.toLowerCase(); f.coatshade = pal.coatShade.toLowerCase();
     f.mane = pal.mane.toLowerCase(); f.accent = pal.accent.toLowerCase();
     var mk = marcasDe(a.marcas, a.templateId, a.uid);
@@ -1769,6 +1875,12 @@
       marcas: { cara: f.cara, patas: f.patas, corpo: f.corpo },
       porte: f.porte
     };
+  }
+  // o rank escolhido para cada skill da gaveta: { id: 1..5 } (o Itens.sanearRanks corta o que não vale)
+  function devRanks(f) {
+    var out = {};
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) if (f['skill' + i]) out[f['skill' + i]] = Math.floor(Number(f['rank' + i])) || 1;
+    return out;
   }
   // pontos do template (inteiros ≥ 0) cortados pelo teto de 150 e pelo custo, com os pontos do nível da instância
   function devAplicaPontos(m, tpl) { m.alloc = RS.validAlloc(m, tpl.alloc); }
@@ -1801,8 +1913,8 @@
     var wind = f.vento ? DV.wind({ intensity: f.vento, dir: Number(f.direcao) }) : null;
     var hasCond = false;
     for (var k in cond) if (hasOwn(cond, k)) hasCond = true;
-    var dv = (hasCond || seed != null || wind || f.sempre)
-      ? { seed: seed, cond: hasCond ? cond : null, wind: wind, skillsAlways: !!f.sempre } : null;
+    var dv = (hasCond || seed != null || wind)
+      ? { seed: seed, cond: hasCond ? cond : null, wind: wind } : null;
     return { next: dv, erros: erros };
   }
   function devResumoArmado(dv) {
@@ -1816,7 +1928,6 @@
     else if (Array.isArray(c.tracado)) p.push('blocos ' + c.tracado.join(' '));
     if (dv.wind) p.push('vento ' + dv.wind.intensity + (dv.wind.dir > 0 ? ' →' : ' ←'));
     if (dv.seed != null) p.push('seed ' + dv.seed);
-    if (dv.skillsAlways) p.push('skills sempre ativam');
     return 'Armado para a próxima corrida: ' + p.join(' · ') + '.';
   }
   // a sala aberta na tela reflete o que acabou de ser armado (o resultado ainda não existe)
@@ -1864,7 +1975,8 @@
       return [id, sk.name + ' · ' + elementOf(sk.element).name];
     }));
     var skillSel = '';
-    for (var i = 0; i < DEV_SKILL_VAGAS; i++) skillSel += devSelect('skill' + i, 'Skill ' + (i + 1), skillOpts, f['skill' + i]);
+    var rankOpts = [1, 2, 3, 4, 5].map(function (r) { return [String(r), 'Rank ' + ROMANOS[r]]; });
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) skillSel += devSelect('skill' + i, 'Skill ' + (i + 1), skillOpts, f['skill' + i]) + devSelect('rank' + i, 'Rank da skill ' + (i + 1), rankOpts, f['rank' + i] || '1');
     var prontos = devProntos().map(function (h) {
       return [h.id, h.name + ' (' + GD.RARITIES[h.rarity].name + ', ' + GD.ELEMENTS[h.element].name + ', Nv ' + (h.level || 1) + ')'];
     });
@@ -1975,7 +2087,7 @@
         devSelect('vento', 'Vento', [['', '— sorteado —']].concat(DV.WIND_INTENSITIES.map(function (w) { return [w, w.charAt(0).toUpperCase() + w.slice(1)]; })), f.vento) +
         devSelect('direcao', 'Direção do vento', [['1', '→ Direita'], ['-1', '← Esquerda']], f.direcao) +
         devEntrada('seed', 'Seed', 'type="text" inputmode="numeric" autocomplete="off" placeholder="da sala"', f.seed) +
-      '</div>' + devCheck('sempre', 'Skills sempre ativam', f.sempre) +
+      '</div>' +
       '<p class="dev-armado' + (ui.devNext ? ' dev-armado--on' : '') + '" id="dev-armado">' + esc(devResumoArmado(ui.devNext)) + '</p>' +
       '<div class="dev-acoes">' + devBotao('dev-armar', 'Armar', 'btn--ouro') + devBotao('dev-limpar', 'Limpar') + '</div>');
 
@@ -2115,6 +2227,7 @@
       case 'dev-criar':
         tpl = DV.horseTemplate(devCavaloEscolhido(f), state.nextUid);
         m = instanceFromTemplate(tpl, 'm' + state.nextUid);
+        m.skillRanks = IT.sanearRanks(m.skills, devRanks(f));
         m.level = devNivel(f); m.xp = 0;
         devAplicaPontos(m, tpl);
         state.nextUid += 1;
@@ -2125,7 +2238,7 @@
         tpl = DV.horseTemplate(devCavaloEscolhido(f), uidNum(a.uid));
         a.name = tpl.name; a.element = tpl.element; a.rarity = tpl.rarity; a.sex = tpl.sex; a.grau = tpl.grau;
         a.level = devNivel(f); a.xp = 0;
-        a.skills = tpl.skills.slice(); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
+        a.skills = tpl.skills.slice(); a.skillRanks = IT.sanearRanks(a.skills, devRanks(f)); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
         a.marcas = clone(tpl.marcas);
         a.porte = tpl.porte;
         devAplicaPontos(a, tpl);
@@ -2281,7 +2394,7 @@
     if (visObs) visObs.disconnect();
     live = [];
     portraitQueue = [];
-    cenaQueue = []; cenaItems = [];
+    cenaQueue = []; cenaItems = []; telaItems = [];
     var html;
     if (saveBloqueado) ui.screen = 'bloqueio';
     switch (ui.screen) {
@@ -2325,7 +2438,7 @@
   // Casca: cabeçalho fixo e barra de abas (abas e sub-telas)
   // ===========================================================================
   function appTopoHtml() {
-    return '<header class="app-topo"><span class="logo-mini">' + logoHtml('Galope Elemental', 24) + '</span>' +
+    return '<header class="app-topo"><span class="logo-mini">' + logoHtml('Galope Elemental', true) + '</span>' +
       '<span class="topo-saldos">' + (GEAR_ON ? pedrasSaldoHtml() : '') +
       '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span>' +
       '<button type="button" class="btn btn--pequeno app-perfil" data-acao="perfil" aria-label="Perfil">' + iconeHtml('ui-perfil', '👤', 16) + '</button></header>';
@@ -2388,6 +2501,7 @@
   }
   // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"
   function renderPerfil() {
+    if (ui.perfilVer === 'creditos') return renderCreditos();
     return '<section class="tela" aria-labelledby="t-perfil">' +
       '<button type="button" class="btn btn--pequeno" data-acao="perfil-voltar">Voltar</button>' +
       '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' + noticeHtml() +
@@ -2400,7 +2514,32 @@
           (GEAR_ON ? ' · ' + esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') : '') + '</span></div>' +
       '</div>' +
       perfilInsigniasHtml() + joqueiHtml() + animacoesHtml() +
+      '<section class="caixa" aria-labelledby="t-sobre"><h2 class="titulo" id="t-sobre">Sobre o jogo</h2>' +
+        '<button type="button" class="btn" data-acao="perfil-creditos" data-id="creditos">Créditos</button></section>' +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
+  }
+  // Créditos (etapa 8 da direção de arte; texto de docs/arte/creditos.md): quem fez o jogo e a arte, a fonte e a paleta. A
+  // licença da Galmuri (SIL OFL 1.1) tem de acompanhar a fonte, que o jogo embute: o botão "Licença da fonte" mostra o
+  // texto inteiro (window.__OFL, embutido pelo build) num painel que rola. Uma vista do Perfil (ui.perfilVer): o "Voltar"
+  // e o voltar do aparelho levam de volta ao Perfil, com o foco no botão "Créditos".
+  function renderCreditos() {
+    var ofl = typeof window.__OFL === 'string' ? window.__OFL : '';
+    return '<section class="tela" aria-labelledby="t-creditos">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="perfil-voltar">Voltar</button>' +
+      '<h1 class="titulo titulo--tela" id="t-creditos" tabindex="-1" data-foco>Créditos</h1>' +
+      '<div class="caixa creditos">' + logoHtml('<b>Galope Elemental</b>') +
+        '<p><b>Jogo, regras e código:</b> Vinicius</p></div>' +
+      '<section class="caixa creditos" aria-labelledby="t-cred-arte"><h2 class="titulo" id="t-cred-arte">Arte</h2>' +
+        '<p>Direção de arte, acabamento e composição por código.</p>' +
+        '<p>Arte gerada com ajuda de IA (PixelLab, Retro Diffusion), escolhida e acabada à mão. Nada é gerado por IA durante o jogo.</p></section>' +
+      '<section class="caixa creditos" aria-labelledby="t-cred-fonte"><h2 class="titulo" id="t-cred-fonte">Fonte</h2>' +
+        '<p>Galmuri, de Lee Minseo — SIL Open Font License 1.1.</p>' +
+        (ofl ? '<button type="button" class="btn" data-acao="creditos-licenca" aria-expanded="' + !!ui.licencaAberta + '" aria-controls="licenca-fonte">Licença da fonte</button>' +
+          (ui.licencaAberta ? '<pre class="licenca" id="licenca-fonte" tabindex="0" aria-label="Licença da fonte Galmuri">' + esc(ofl) + '</pre>' : '') : '') +
+      '</section>' +
+      '<section class="caixa creditos" aria-labelledby="t-cred-paleta"><h2 class="titulo" id="t-cred-paleta">Paleta</h2>' +
+        '<p>Resurrect 64, de Kerrie Lake (Lospec).</p></section>' +
+      '</section>';
   }
   // As insígnias no Perfil (spec §9), as três na ordem de GYM_ORDER: a conquistada com o ícone, o nome e o bônus (o mesmo
   // texto da trilha, ginBonusTxt); a que falta apagada, sem o bônus, com o que falta escrito
@@ -2454,7 +2593,7 @@
         '<div class="retrato-palco">' + portraitHtml(h) + '<span class="contador">' + (idx + 1) + '/' + GD.STARTERS.length + '</span></div>' +
         '<div class="inicial-topo"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' + elementHtml(h.element) + '</div>' +
         '<p class="cavalo-titulo"><b>' + esc(h.title) + '.</b> ' + esc(h.bio) + '</p>' +
-        '<div class="linha-meta">' + rarityHtml(h.rarity) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(h.grau) + ajudaBtn('estrelas', 'as estrelas') +
+        '<div class="linha-meta">' + rarityHtml(h.rarity, true) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(h.grau) + ajudaBtn('estrelas', 'as estrelas') +
           '<span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         '<p class="inicial-fortes">Fortes: <b>' + esc(GD.STATS[fortes[0]].name) + '</b> e <b>' + esc(GD.STATS[fortes[1]].name) + '</b></p>' +
         statsHtml(stats) +
@@ -2634,7 +2773,7 @@
 
   // Aba Estábulo: o cartão da recompensa diária e a lista de montarias
   function renderEstabulo() {
-    return '<section class="tela" aria-labelledby="t-estabulo">' +
+    return '<section class="tela" aria-labelledby="t-estabulo">' + cenaAbaHtml('estabulo') +
       '<h1 class="titulo titulo--tela" id="t-estabulo" tabindex="-1" data-foco>Estábulo <span class="nota">' +
         state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>' + noticeHtml() +
       diariaCartaoHtml() + montariasHtml() +
@@ -2739,6 +2878,7 @@
   function ginPremioTxt(id, e) {
     var partes = e.premio.ouro ? [fmt(e.premio.ouro) + ' de Ouro'] : [];
     e.premio.itens.forEach(function (it) { partes.push(itemQtdTxt(it, 1)); });
+    if (e.premio.pergaminhos) partes.push(itemQtdTxt('pergaminho', e.premio.pergaminhos));
     if (e.lider) partes.push('a ' + GD.GYMS[id].insignia.name);
     return ginJunta(partes);
   }
@@ -2769,7 +2909,7 @@
         elementHtml(w.element) +
         '<span class="nota">' + esc(w.habitat || '') + '</span></div>';
     }).join('');
-    return '<section class="tela" aria-labelledby="t-expedicao">' +
+    return '<section class="tela" aria-labelledby="t-expedicao">' + cenaAbaHtml('expedicao') +
       '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>' +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
@@ -2798,11 +2938,17 @@
   // o detalhe. Fechada: botão apagado (aria-disabled) com o motivo escrito. Com a insígnia, o líder mostra o ícone dela e
   // vira a revanche (o módulo diz qual, ginModo): livre hoje, um botão como a próxima ("Revanche hoje", a entrada da revanche
   // e o prêmio de hoje do rodízio); já tentada hoje, só texto ("Revanche de hoje feita. Volte amanhã.").
+  // o estado da etapa i na trilha (o cartão e o mapa usam o mesmo)
+  var ETAPA_ESTADO_TXT = { vencida: 'Vencida', proxima: 'Próxima', fechada: 'Fechada', revanche: 'Revanche hoje', feita: 'Feita hoje' };
+  function ginEtapaEstado(id, i) {
+    var e = GD.GYMS[id].etapas[i], p = ginProgresso(id), modo = e.lider && ginTemInsignia(id) ? ginModo(id, i) : null;
+    return modo && modo.revanche ? (modo.pode ? 'revanche' : 'feita') : i < p ? 'vencida' : i === p ? 'proxima' : 'fechada';
+  }
+  function trilhaEstadoTxt(id, i) { return ETAPA_ESTADO_TXT[ginEtapaEstado(id, i)]; }
   function trilhaEtapaHtml(id, e, i) {
-    var p = ginProgresso(id), modo = e.lider && ginTemInsignia(id) ? ginModo(id, i) : null;
-    var estado = modo && modo.revanche ? (modo.pode ? 'revanche' : 'feita') : i < p ? 'vencida' : i === p ? 'proxima' : 'fechada';
+    var estado = ginEtapaEstado(id, i);
     var MOTIVO = 'Vença a etapa anterior';
-    var estadoTxt = { vencida: 'Vencida', proxima: 'Próxima', fechada: 'Fechada', revanche: 'Revanche hoje', feita: 'Feita hoje' }[estado];
+    var estadoTxt = ETAPA_ESTADO_TXT[estado];
     var rev = estado === 'revanche' || estado === 'feita';
     var corpo = '<span class="etapa-rotulo">' + esc(ginEtapaRotulo(e, i)) + '</span>' +
       '<span class="etapa-nome">' + esc(e.nome) + '</span>' +
@@ -2811,7 +2957,8 @@
       (estado === 'fechada' ? '<span class="etapa-motivo">' + esc(MOTIVO) + '</span>' : '') +
       (estado === 'revanche' ? '<span class="etapa-motivo">' + esc('Prêmio de hoje: ' + ginRevPremioTxt(id)) + '</span>' : '') +
       (estado === 'feita' ? '<span class="etapa-motivo">Revanche de hoje feita. Volte amanhã.</span>' : '') +
-      (e.lider && ginTemInsignia(id) ? '<span class="etapa-insignia">' + ginInsigniaIcone(id) + '</span>' : '');
+      (e.lider && ginTemInsignia(id) ? '<span class="etapa-insignia">' + ginInsigniaIcone(id) + '</span>' : '') +
+      treinadorBustoHtml(e.nome);
     var caixa = estado === 'vencida' || estado === 'feita'
       ? '<div class="etapa-btn">' + corpo + '</div>'
       : '<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="' + i + '"' +
@@ -2835,7 +2982,7 @@
         (ginTemInsignia(id) ? '<p class="ginasio-insignia">' + ginInsigniaIcone(id) + '<span><b>' + esc(g.insignia.name) + ':</b> ' + esc(ginBonusTxt(id)) + '.</span></p>' : '') +
       '</div>' +
       '<section class="caixa" aria-labelledby="t-trilha"><h2 class="titulo" id="t-trilha">Trilha</h2>' +
-        '<p class="nota">Vença as etapas em ordem, de baixo para cima.</p>' + trilhaHtml(id) +
+        '<p class="nota">Vença as etapas em ordem, de baixo para cima.</p>' + trilhaMapaHtml(id) + trilhaHtml(id) +
       '</section>' +
       '</section>';
   }
@@ -2922,6 +3069,8 @@
       case 'cheia': {
         var its = ginItensPremio(id, i, rev);
         for (var k = 0; k < its.length; k++) if (!diariaCabe(its[k], 1)) return ginCheiaTxt(its[k]);
+        var pgs = rev ? 0 : GD.GYMS[id].etapas[i].premio.pergaminhos;
+        if (pgs && !diariaCabe('pergaminho', pgs)) return 'A mochila não tem espaço para ' + itemQtdTxt('pergaminho', pgs) + ' (o máximo é ' + GD.BAG_MAX + '). Suba o rank de uma skill antes de desafiar.';
         return 'A mochila está cheia. Use um item antes de desafiar.';
       }
       case 'time-grande': return 'O time passou do limite: até ' + ginCavalosTxt(ginLimite(id, i)) + '.';
@@ -2996,6 +3145,7 @@
     var entrada = ginEntrada(gymId, etapa, c.revanche);   // a entrada cobrada: a mesma conta do número do botão, com o revanche do podeDesafiar
     state.gold = state.gold - entrada + ac.ouro;   // o prêmio do ginásio não leva o bônus de Ouro (só a corrida valendo)
     ac.itens.forEach(function (it) { if (it === 'redea') state.redeas += 1; else state.mochila[it] += 1; });
+    state.mochila.pergaminho = Math.min(GD.BAG_MAX, itemQtd('pergaminho') + ac.pergaminhos);   // o podeDesafiar já conferiu que cabem
     var cavalos = uids.map(function (u, k) {
       var m = mountByUid(u), xp = xpComBonus(ac.xp[k]);
       var g = applyXp(m, xp, GIN_SEED_TAG + contador * 4 + k);
@@ -3007,7 +3157,7 @@
     if (gv === 'outra-aba') return 'outra-aba';
     if (gv === 'falhou') return FALHA_SALVAR;
     var prox = ac.progresso[gymId].etapa;
-    var R = { gymId: gymId, etapa: etapa, revanche: c.revanche, contador: contador, venceu: res.venceu, entrada: entrada, ouro: ac.ouro, itens: ac.itens,
+    var R = { gymId: gymId, etapa: etapa, revanche: c.revanche, contador: contador, venceu: res.venceu, entrada: entrada, ouro: ac.ouro, itens: ac.itens, pergaminhos: ac.pergaminhos,
       insignia: ac.insignia, proxima: res.venceu && !c.revanche && prox < ginEtapasTotal(gymId) ? prox : null, cavalos: cavalos,
       adversario: et.cavalos.map(function (d) { return GN.cavalo(d).name; }), duelos: res.duelos };
     if (ui.gym) ui.gym.res = R;
@@ -3028,7 +3178,8 @@
   function ginResumoHtml(R) {
     var g = GD.GYMS[R.gymId], e = g.etapas[R.etapa];
     var ouro = '<p>' + esc('Entrada: −' + fmt(R.entrada) + ' de Ouro') + '</p>' + (R.ouro ? '<p>' + esc('Prêmio: +' + fmt(R.ouro) + ' de Ouro') + '</p>' : '') +
-      (R.itens.length ? '<p>' + esc('Itens: ' + ginJunta(R.itens.map(function (it) { return itemQtdTxt(it, 1); }))) + '</p>' : '');
+      (R.itens.length || R.pergaminhos ? '<p>' + esc('Itens: ' + ginJunta(R.itens.map(function (it) { return itemQtdTxt(it, 1); })
+        .concat(R.pergaminhos ? [itemQtdTxt('pergaminho', R.pergaminhos)] : []))) + '</p>' : '');
     var cavalos = R.cavalos.map(function (c) {
       var partes = [c.correu ? c.nome + ': +' + c.xp + ' XP' : c.nome + ': não correu'];
       if (c.levels) partes.push('subiu ' + (c.levels === 1 ? '1 nível' : c.levels + ' níveis') + ' (Nível ' + c.nivel + ')');
@@ -3093,6 +3244,7 @@
     var a = cfg.racers[0].horse, b = cfg.racers[1].horse, seda = hasOwn(GIN_SEDA, R.gymId) ? GIN_SEDA[R.gymId] : 0, t = ginDueloTxt(R, k);
     var L = {
       counter: 0, seed: sim.seed, training: false, fee: 0, n: 2, cond: withRanges(sim.conditions), trackName: g.name,
+      regiao: hasOwn(GIN_REGIAO, R.gymId) ? GIN_REGIAO[R.gymId] : null,
       racers: [
         { isPlayer: true, name: PLAYER_NAME, horse: a, gear: null, silks: PLAYER_SILKS, silkIdx: -1 },
         { isPlayer: false, name: dono, horse: b, gear: null, silks: SP.SILKS[seda], silkIdx: seda, rotulo: a.name === b.name ? b.name + ' (' + dono + ')' : null }
@@ -3140,14 +3292,139 @@
   // 'desafio' }; "Começar duelo" leva ao duelo k; "Pular tudo" e o voltar do aparelho, ao resumo. Sem a arte do oponente,
   // a cena fica só com o cavalo dele. Só desenho: nada grava nem muda o state.
   // ---------------------------------------------------------------------------------------------
-  var CENA_W = 160, CENA_H = 112, CENA_PISO = 30;   // a cena em pixels de arte (o canvas sai em escala inteira, 1 a 3)
-  // o fundo de cada ginásio: parede (tijolo na Fornalha, pedra com um filete de água no Remanso, tábuas com cipó na
-  // Capoeira), duas luzes, o piso e os dois tablados
-  var CENA_CORES = {
-    fogo: { parede: '#3a1410', junta: '#4c1a12', piso: '#6a2a14', risco: '#7c3418', borda: '#2c1008', palco: '#8c3c1c', palco2: '#4a1c10', luz: '#ff6a1a', luz2: '#ffb020', suporte: '#5a4a4c' },
-    agua: { parede: '#142c38', junta: '#1d3a48', piso: '#24505e', risco: '#2d606f', borda: '#0c1e26', palco: '#3f7c8c', palco2: '#1a3a46', luz: '#62b8ff', luz2: '#c8ecff', suporte: '#4a5a64', agua: '#2f7fa8', espuma: '#7fc8e8' },
-    grama: { parede: '#33240f', junta: '#46321a', piso: '#3d6b2a', risco: '#4c7d33', borda: '#1e3612', palco: '#7a5a2e', palco2: '#4a3418', luz: '#8ee06a', luz2: '#e8f8a0', suporte: '#5a4a32', cipo: '#3f8a3a' }
-  };
+  // Etapa 5 da direção de arte: o fundo é a arena do ginásio (window.__ARENAS, 256×160 ao ar livre), sem as 32 linhas de
+  // cima do céu; o treinador no corpo de ~40 px (quadro 32×48) e os cavalos, todos 1:1 na grade. Numa coluna mais estreita
+  // que 256 pixels de arte, a cena corta as laterais (centrada). Posições em pixels da cena (já sem o céu cortado).
+  var CENA_W = 256, CENA_H = 128, CENA_CORTE = 32;
+  var CENA_POS = { rival: { cx: 168, base: 70 }, treinador: { x: 194, base: 70 }, voce: { cx: 84, base: 118 } };
+  var arenaImgs = {};
+  function arenaImg(id) {
+    var m = window.__ARENAS;
+    if (!m || !hasOwn(m, id) || typeof Image !== 'function') return null;
+    var im = arenaImgs[id];
+    if (!im) {
+      im = arenaImgs[id] = new Image();
+      im.onload = function () { cenaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.src = m[id];
+    }
+    return im.complete && im.naturalWidth ? im : null;
+  }
+  // ---------------------------------------------------------------------------------------------
+  // Etapa 6 da direção de arte: a cena de cada aba (256×160, window.__TELAS.cenas, com o pontilhado de baixo assado no
+  // build) numa faixa no topo, com a placa do título por cima da borda de baixo; no Estábulo, o cavalo ativo parado na
+  // cena, 1:1. E o mapa de cada trilha de ginásio (256×384, só o terreno): o caminho, as 5 paradas e os oponentes de pé
+  // (corpo 32×48) por código, de baixo para cima. Numa coluna mais estreita, a arte corta as laterais por igual. Só
+  // desenho: nada grava nem muda o state. Sem a arte, nada (a tela fica como antes).
+  // ---------------------------------------------------------------------------------------------
+  var TELA_W = 256, CENA_ABA_H = 160, MAPA_H = 384;
+  var MAPA_PARADAS = [[88, 360], [168, 292], [84, 224], [168, 156], [128, 84]];   // (x, y do chão), da 1ª etapa ao líder
+  var telaImgs = {}, telaItems = [];
+  function telaImg(tipo, id) {
+    var m = window.__TELAS, src = m && m[tipo] && hasOwn(m[tipo], id) ? m[tipo][id] : null;
+    if (typeof src !== 'string' || typeof Image !== 'function') return null;
+    var key = tipo + ':' + id, im = telaImgs[key];
+    if (!im) {
+      im = telaImgs[key] = new Image();
+      im.onload = function () { telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.src = src;
+    }
+    return im.complete && im.naturalWidth ? im : null;
+  }
+  function temTela(tipo, id) { var m = window.__TELAS; return !!(m && m[tipo] && hasOwn(m[tipo], id) && typeof m[tipo][id] === 'string'); }
+  function cenaAbaHtml(aba) { return temTela('cenas', aba) ? '<canvas class="cena-aba" data-cena-aba="' + aba + '" aria-hidden="true"></canvas>' : ''; }
+  // a largura (pixels de arte) que cabe no pai do canvas, até a da arte, e o corte de cada lado
+  function larguraTela(cv) {
+    var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), pai = cv.parentElement ? cv.parentElement.clientWidth : 0;
+    var W = Math.max(160, Math.min(TELA_W, pai ? Math.floor(pai * r / kG) : TELA_W));
+    return { W: W, ox: Math.floor((TELA_W - W) / 2) };
+  }
+  // o cavalo parado 1:1 com o corpo centrado em cx e os cascos em base (pixels de arte do canvas)
+  function cavaloParado(ctx, k, h, vis, cx, base, t) {
+    vis.reduzido = reduced();
+    SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
+      jockey: false, silks: PLAYER_SILKS, quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
+  }
+  function drawCenaAba(cv) {
+    var aba = cv.getAttribute('data-cena-aba'), L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, CENA_ABA_H), k = s.k, ctx = s.ctx;
+    cv.setAttribute('data-arte', L.W + 'x' + CENA_ABA_H);
+    var h = aba === 'estabulo' ? playerHorse() : null, vis = h ? opcoesVisuais(h, null) : null;
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        if (item.drawn && reduced()) return;
+        var img = telaImg('cenas', aba);
+        item.drawn = !!img; item.t = t;
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        if (!img) return;
+        ctx.drawImage(img, -L.ox * k, 0, TELA_W * k, CENA_ABA_H * k);
+        // o cavalo ativo no meio da baia, com os cascos acima da placa do título (que cobre as últimas ~40 linhas)
+        if (h) cavaloParado(ctx, k, h, vis, TELA_W / 2 - L.ox, 112, reduced() ? 0.5 : t);
+      }
+    };
+    item.draw(0);
+    if (h) vivo(item, cv);
+    telaItems.push(item);
+  }
+  function trilhaMapaHtml(id) {
+    if (!temTela('mapas', id)) return '';
+    var g = GD.GYMS[id], txt = g.etapas.map(function (e, i) { return ginEtapaRotulo(e, i) + ' ' + e.nome + ': ' + trilhaEstadoTxt(id, i); }).join('; ');
+    return '<div class="trilha-mapa-palco"><canvas class="trilha-mapa" data-mapa="' + esc(id) + '" role="img" aria-label="' +
+      esc('Mapa da trilha, de baixo para cima. ' + txt + '.') + '"></canvas></div>';
+  }
+  function drawMapaTrilha(cv) {
+    var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];
+    if (!g) return;
+    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox;
+    cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
+    var estados = g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); });
+    function px(x, y, w, hh, cor) { ctx.fillStyle = cor; ctx.fillRect((x - ox) * k, y * k, w * k, hh * k); }
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        var img = telaImg('mapas', id);
+        item.drawn = !!img; item.t = t;
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        if (!img) return;
+        ctx.drawImage(img, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        // o caminho: tracejado de 3 px (borda escura, miolo claro); até a etapa seguinte à última vencida, aceso
+        for (var q = 0; q + 1 < MAPA_PARADAS.length; q++) {
+          var a = MAPA_PARADAS[q], b = MAPA_PARADAS[q + 1], n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+          var aceso = estados[q] === 'vencida' || estados[q] === 'revanche' || estados[q] === 'feita';
+          for (var u = 0; u <= n; u++) {
+            if (u % 8 >= 5) continue;
+            var x = Math.round(a[0] + (b[0] - a[0]) * u / n), y = Math.round(a[1] + (b[1] - a[1]) * u / n);
+            px(x - 2, y - 2, 5, 5, C.sombra);
+            px(x - 1, y - 1, 3, 3, aceso ? C.ouroClaro : '#c7dcd0');
+          }
+        }
+        // as paradas: um tablado de pedra (ouro na vencida e na tocável) e o oponente de pé em cima
+        g.etapas.forEach(function (e, i) {
+          var p = MAPA_PARADAS[i], st = estados[i], ouro = st === 'vencida' || st === 'feita', vez = st === 'proxima' || st === 'revanche';
+          for (var yy = -5; yy <= 5; yy++) {
+            var w = Math.round(18 * Math.sqrt(1 - (yy * yy) / 25));
+            px(p[0] - w, p[1] + yy, 2 * w, 1, Math.abs(yy) === 5 ? C.sombra : yy < 1 ? (vez ? C.ouroClaro : ouro ? C.ouro : '#c7dcd0') : (vez || ouro ? C.ouroEscuro : '#9babb2'));
+            if (Math.abs(yy) < 5) { px(p[0] - w, p[1] + yy, 1, 1, C.sombra); px(p[0] + w - 1, p[1] + yy, 1, 1, C.sombra); }
+          }
+          var corpo = treinadorImg(ginTreinadorId(e.nome));
+          if (corpo) ctx.drawImage(corpo, (p[0] - 16 - ox) * k, (p[1] - corpo.naturalHeight + 1) * k, corpo.naturalWidth * k, corpo.naturalHeight * k);
+        });
+      }
+    };
+    item.draw(0);
+    telaItems.push(item);
+    // tocar numa parada é tocar no cartão dela (só as tocáveis têm botão)
+    cv.addEventListener('click', function (ev) {
+      var r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * L.W + ox, y = (ev.clientY - r.top) / r.height * MAPA_H;
+      for (var i = 0; i < MAPA_PARADAS.length; i++) {
+        var p = MAPA_PARADAS[i];
+        if (Math.abs(x - p[0]) <= 20 && y >= p[1] - 50 && y <= p[1] + 8) {
+          var b = document.querySelector('#tela .trilha .etapa[data-etapa="' + i + '"] button.etapa-btn');
+          if (b && !b.disabled && b.getAttribute('aria-disabled') !== 'true') b.click();
+          return;
+        }
+      }
+    });
+  }
   var cenaQueue = [];   // as cenas da tela atual (como o portraitQueue): { gymId, dono, a, b }
   var cenaItems = [];   // os desenhos dessas cenas (para redesenhar só o canvas quando a arte do oponente chega)
   var treinadorImgs = {};
@@ -3161,14 +3438,21 @@
   // inteira tiraria o foco do título). null enquanto não chega (ou sem arte para ele)
   function treinadorImg(id) {
     var m = window.__TREINADORES;
-    if (!m || !hasOwn(m, id)) return null;
+    if (!m || !hasOwn(m, id) || !m[id] || typeof m[id].corpo !== 'string') return null;
     var im = treinadorImgs[id];
     if (!im) {
       im = treinadorImgs[id] = new Image();
-      im.onload = function () { cenaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
-      im.src = m[id];
+      // ao chegar, as cenas do desafio e os mapas da trilha na tela são desenhados de novo
+      im.onload = function () { cenaItems.concat(telaItems).forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.src = m[id].corpo;
     }
     return im.complete && im.naturalWidth ? im : null;
+  }
+  // o busto (64×64) do oponente para os cartões da trilha: <img> 1:1 na grade, decorativo; '' sem a arte
+  function treinadorBustoHtml(nome) {
+    var m = window.__TREINADORES, id = ginTreinadorId(nome);
+    if (!m || !hasOwn(m, id) || !m[id] || typeof m[id].busto !== 'string') return '';
+    return '<img class="etapa-busto" src="' + esc(m[id].busto) + '" alt="" width="64" height="64">';
   }
   // as placas e o palco da cena do duelo k (o canvas é desenhado no hydrate: drawGinCena)
   function ginCenaHtml(R, k) {
@@ -3188,42 +3472,23 @@
   function drawGinCena(cv) {
     var e = cenaQueue[Number(cv.getAttribute('data-cena'))];
     if (!e) return;
-    // escala inteira que cabe na largura do palco e deixa a tela inteira sem rolar (em paisagem, só a cena ao lado)
-    var larg = cv.parentNode && cv.parentNode.clientWidth ? cv.parentNode.clientWidth : CENA_W * 2;
-    var alt = window.innerHeight - (window.innerHeight <= 500 ? 150 : 340);
-    var s = setupCanvas(cv, CENA_W, CENA_H, clamp(Math.floor(Math.min(larg / CENA_W, alt / CENA_H)), 1, 3));
-    var k = s.k, ctx = s.ctx, c = CENA_CORES[e.gymId] || CENA_CORES.fogo;
-    var hk = Math.max(1, Math.round(k * 1.5));   // os cavalos a 1,5× (o quadro de 36 px de arte vira 54)
-    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, null), img = null;
-    function px(x, y, w, h, cor) { ctx.fillStyle = cor; ctx.fillRect(x * k, y * k, w * k, h * k); }
-    function palco(cx, cy, rx, ry) {
-      for (var y = -ry; y <= ry; y++) { var w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry))); px(cx - w, cy + y, 2 * w, 1, y < 0 ? c.palco : c.palco2); }
-    }
-    function fundo() {
-      var x, y, P = CENA_PISO;
-      px(0, 0, CENA_W, P, c.parede);
-      if (e.gymId === 'grama') {
-        for (x = 0; x < CENA_W; x += 6) px(x, 0, 1, P, c.junta);
-        for (x = 3; x < CENA_W; x += 23) { var comp = 6 + (x * 7) % 9; px(x, 0, 1, comp, c.cipo); px(x + 1, comp - 2, 1, 2, c.cipo); }
-      } else {
-        var alto = e.gymId === 'agua' ? 6 : 4, largo = e.gymId === 'agua' ? 12 : 8;
-        for (y = 0; y < P; y += alto) { px(0, y, CENA_W, 1, c.junta); for (x = (y / alto) % 2 ? 0 : largo / 2; x < CENA_W; x += largo) px(x, y, 1, alto, c.junta); }
-      }
-      if (e.gymId === 'agua') { px(0, P - 4, CENA_W, 4, c.agua); for (x = 0; x < CENA_W; x += 8) px(x, P - 4, 3, 1, c.espuma); }
-      [6, CENA_W - 9].forEach(function (tx) { px(tx, 8, 3, 6, c.suporte); px(tx, 4, 3, 4, c.luz); px(tx + 1, 2, 1, 3, c.luz2); px(tx, 14, 3, 1, c.borda); });
-      px(0, P, CENA_W, CENA_H - P, c.piso);
-      for (y = P + 3; y < CENA_H; y += 4) px(0, y, CENA_W, 1, c.risco);
-      px(0, P, CENA_W, 1, c.borda);
-      palco(104, 64, 52, 5);
-      palco(38, 106, 36, 5);
-    }
-    function cavalo(h, vis, x, base, t, espelha) {
+    // na grade da interface: 1 pixel de arte = gradeS pixels do aparelho; a largura é a da arena (256) ou a que cabe no
+    // palco, cortando as laterais por igual
+    var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), palcoW = cv.parentElement ? cv.parentElement.clientWidth : 0;
+    var W = Math.max(160, Math.min(CENA_W, palcoW ? Math.floor(palcoW * r / kG) : CENA_W)), ox = Math.floor((CENA_W - W) / 2);
+    var s = setupCanvasGrade(cv, W, CENA_H);
+    var k = s.k, ctx = s.ctx;
+    cv.setAttribute('data-arte', W + 'x' + CENA_H);
+    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, null), img = null, arena = null;
+    // o cavalo 1:1 com o corpo centrado em cx e os cascos em base (pixels da cena); espelhado em volta de cx
+    function cavalo(h, vis, cx, base, t, espelha) {
+      cx -= ox;
       vis.reduzido = reduced();
-      var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: hk, jockey: false, silks: PLAYER_SILKS,
-        quadro: { topo: base * k - 36 * hk, base: base * k } }, vis);
-      if (!espelha) { SP.drawHorse(ctx, x * k, base * k - 36 * hk, o); return; }
-      ctx.save(); ctx.translate(x * k, 0); ctx.scale(-1, 1);
-      SP.drawHorse(ctx, 0, base * k - 36 * hk, o);
+      var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k, jockey: false, silks: PLAYER_SILKS,
+        quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
+      if (!espelha) { SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); return; }
+      ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
+      SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
       ctx.restore();
     }
     var item = {
@@ -3232,13 +3497,19 @@
         if (item.drawn && reduced()) return;
         item.drawn = true;
         item.t = t;
-        var tt = reduced() ? 0.5 : t;
+        var tt = reduced() ? 0.5 : t, P = CENA_POS;
         ctx.clearRect(0, 0, cv.width, cv.height);
-        fundo();
-        cavalo(e.b, visB, 116, 64, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
+        arena = arena || arenaImg(e.gymId);
+        if (arena) ctx.drawImage(arena, -ox * k, -CENA_CORTE * k, CENA_W * k, (CENA_H + CENA_CORTE) * k);
+        else { ctx.fillStyle = C.painel; ctx.fillRect(0, 0, cv.width, cv.height); }
+        cavalo(e.b, visB, P.rival.cx, P.rival.base, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
         img = img || treinadorImg(ginTreinadorId(e.dono));
-        if (img) ctx.drawImage(img, 96 * k, 0, 64 * k, 64 * k);
-        cavalo(e.a, visA, 4, 106, tt, false);
+        if (img) {
+          var tx = P.treinador.x - ox, ty = P.treinador.base - img.naturalHeight;
+          ctx.drawImage(img, tx * k, ty * k, img.naturalWidth * k, img.naturalHeight * k);
+          cv.setAttribute('data-treinador', [tx, ty, img.naturalWidth, img.naturalHeight].join(','));
+        }
+        cavalo(e.a, visA, P.voce.cx, P.voce.base, tt, false);
       }
     };
     item.draw(0);
@@ -3388,7 +3659,7 @@
   function harasCardHtml(h, acao, kind, id, on, extra) {
     return '<button type="button" class="btn opcao haras-card' + (on ? ' sel--on' : '') + '" data-acao="' + acao + '"' +
         (kind ? ' data-kind="' + kind + '"' : '') + ' data-id="' + esc(id) + '" aria-pressed="' + on + '">' +
-      portraitHtml(h, { selo: true }) +
+      portraitHtml(h, { selo: true, tamanho: 'pequeno' }) +
       '<b class="haras-nome">' + esc(h.name) + '</b>' +
       '<span class="linha-meta">' + rarityHtml(h.rarity) + estrelasHtml(h.grau) + '</span>' +
       '<span class="linha-meta">' + elementHtml(h.element) + '</span>' +
@@ -3463,7 +3734,7 @@
 
   function renderHaras() {
     var H = harasNormalize();
-    var head = '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' + noticeHtml();
+    var head = cenaAbaHtml('haras') + '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' + noticeHtml();
     var foal = H.result ? mountByUid(H.result) : null;
     if (foal) return '<section class="tela" aria-labelledby="t-haras">' + head + harasResultHtml(foal) + '</section>';
 
@@ -3596,7 +3867,7 @@
     var st = gear.set, sb = GE.setBonus;
     if (!st || !st.id || !st.count || !hasOwn(GD.GEAR_SETS, st.id)) return '<p class="set-linha nota">sem conjunto</p>';
     var bon = [];
-    if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillChance * 100) + '% de skill');
+    if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillEffect * 100) + '% no efeito das skills');
     if (st.count >= sb.pieces[1]) bon.push('bônus do clima reforçado (×1,07)');
     if (st.count >= sb.pieces[2]) bon.push('sem penalidade de clima');
     return '<p class="set-linha"><span class="set-badge">' + esc(GD.GEAR_SETS[st.id].name + ' ×' + st.count) + '</span> ' +
@@ -3949,7 +4220,6 @@
     var M = ui.montaria, P = state.pending, uid = esc(m.uid), isActive = m.uid === state.activeId;
     var h = clone(m);
     // a corrida não usa mais o bônus de chance de skill do conjunto (o equipamento não entra: sim.js)
-    var skillPct = Math.round(RS.skillChance(h, RS.computeStats(h), 0) * 100);
     var corcel = window.Breed && window.Breed.isCorcel(m)
       ? fichaLinha('Corcel', '<span class="corcel" title="Corcel: herança garantida">' + iconeHtml('ui-corcel', '⚑', 16) + ' herança garantida</span>') : '';
     // renomear: campo na própria tela (window.prompt não abre num iframe sem allow-modals, como o do artefato)
@@ -3976,7 +4246,7 @@
         fichaLinhaTexto(porteTexto(m)) +
         fichaLinhaTexto(marcasTexto(m)) +
         fichaLinha('Cruzas restantes', esc(m.breedLeft)) +
-        fichaLinha('Skills', '<b>' + skillPct + '%</b> de ativar') +
+        fichaLinha('Skills', skillsFichaTxt(h)) +
         (m.parents ? fichaLinha('Pais', paiHtml(m.parents.f) + ' e ' + paiHtml(m.parents.m)) : '') +
       '</ul></section>';
   }
@@ -3997,7 +4267,7 @@
       '<div class="cavalo-info">' +
         '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco><span class="montaria-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></span>' +
           (isActive ? ' <span class="badge-ativa">Ativa</span>' : '') + '</h1>' +   // o espaço: o leitor de tela lê "Brasa #1 Ativa"
-        '<div class="linha-meta">' + rarityHtml(m.rarity) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) + '</div>' +
+        '<div class="linha-meta">' + rarityHtml(m.rarity, true) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) + '</div>' +
         '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         xpHtml(m.level, m.xp, true) +
         (GEAR_ON ? gearSummaryHtml(m) : '') +
@@ -4011,7 +4281,7 @@
     if (M.aba === 'skills') {
       var vagas = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).skillSlots - m.skills.length;
       corpo = '<section class="caixa" aria-label="Skills">' + vagaTipoHtml(m) +
-        (m.skills.length ? skillChanceHtml(m) + skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
+        (m.skills.length ? skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
         '<p class="nota">' + (vagas > 0
           ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(chanceSkillNivel() * 100) + '% de chance de aprender uma skill nova a cada nível'
           : 'Sem vagas livres') + '</p>' +
@@ -4026,6 +4296,7 @@
     }
     // o uso de um item aberto pela ficha deste cavalo: o passo dele no lugar da sub-aba; o aviso do último uso, em cima dela
     if (ui.item && ui.item.origem === 'ficha' && ui.item.mountUid === m.uid) corpo = itemPassoHtml();
+    else if (M.aba === 'skills' && M.rank && m.skills.indexOf(M.rank.skillId) >= 0) corpo = rankPassoHtml(m);   // a confirmação do "Subir rank"
     else if (ui.itemMsg && ui.itemMsg.origem === 'ficha' && ui.itemMsg.uid === m.uid) corpo = '<p class="aviso" role="status">' + esc(ui.itemMsg.txt) + '</p>' + corpo;
 
     return '<section class="tela" aria-labelledby="t-montaria">' +
@@ -4110,21 +4381,21 @@
     return '<section class="caixa item-lista" aria-label="Itens à venda">' + LOJA_ITENS.map(lojaProdutoHtml).join('') +
       itemLinhaHtml('redea', { qtd: itemQtd('redea'), forma: 'tem', classe: 'item-linha--fora', texto: GD.ITEMS.redea.origem }) + '</section>';
   }
-  // os cinco, na ordem do catálogo; com 0, a linha apagada diz de onde o item vem (sem "Usar"); o aviso do último uso
+  // todos os itens, na ordem do catálogo; com 0, a linha apagada diz de onde o item vem (sem "Usar"); o aviso do último uso
   // pela Mochila fica na linha do item
   function lojaMochilaHtml() {
     var msg = ui.itemMsg && ui.itemMsg.origem === 'mochila' ? ui.itemMsg : null;
     return '<section class="caixa item-lista" aria-label="Mochila">' + Object.keys(GD.ITEMS).map(function (id) {
-      var n = itemQtd(id);
-      var usar = n > 0 ? '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '">Usar' +
+      var n = itemQtd(id), semUso = id === 'pergaminho';   // o Pergaminho é gasto ao subir rank, na aba Skills
+      var usar = n > 0 && !semUso ? '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '">Usar' +
         '<span class="sr"> ' + esc(GD.ITEMS[id].name) + '</span></button></div>' : '';
-      return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: usar,
+      return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: usar + (n > 0 && semUso ? '<p class="nota item-nota-uso">Use em Subir rank, na aba Skills do cavalo.</p>' : ''),
         aviso: msg && msg.id === id ? msg.txt : null });
     }).join('') + '</section>';
   }
   function renderLoja() {
     if (!LOJA_PARTES.some(function (a) { return a.id === ui.lojaParte; })) ui.lojaParte = 'comprar';
-    var head = '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
+    var head = cenaAbaHtml('loja') + '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
     var partes = '<div class="subabas" role="group" aria-label="Partes da loja">' + LOJA_PARTES.map(function (a) {
       return '<button type="button" class="btn opcao opcao--centro" data-acao="loja-parte" data-id="' + esc(a.id) + '" aria-pressed="' + (ui.lojaParte === a.id) + '">' + esc(a.rotulo) + '</button>';
     }).join('') + '</div>';
@@ -4174,17 +4445,89 @@
     if (itemQtd('estrela') > 0) usos.push(itemUsoHtml('estrela', m, [naMochilaTxt('estrela')]));
     return usos.length ? '<div class="item-usos">' + usos.join('') + '</div>' : '';
   }
-  // aba Skills: as skills das vagas, cada uma com "Trocar" quando há Cupom (a skill de tipo não ocupa vaga e nunca troca)
+  // ---- Rank das skills de vaga (spec 2026-11-19): sobe com Ouro + Pergaminhos de técnica, sem sorteio e sem volta.
+  // o contexto do Itens.podeSubirRank: o Ouro fora do reservado para a entrada da sala aberta, o saldo todo, os
+  // Pergaminhos da mochila e se o cavalo é o ativo com páreo aberto (o Poder dele não pode passar do que a sala viu)
+  function rankCtx(m) {
+    return { ouroLivre: ouroLivre(), ouro: state.gold, pergaminhos: itemQtd('pergaminho'), salaAbertaAtivo: m.uid === state.activeId && !!state.pending };
+  }
+  function rankCustoHtml(custo) {
+    return '<span class="rank-custo">' + ouroHtml(custo.ouro) + '<span class="rank-mais" aria-hidden="true">+</span>' +
+      '<span class="rank-perg">' + itemIconeHtml('pergaminho') + '<span class="sr"> e </span><b>' + custo.perg + '</b><span class="sr"> ' +
+      esc(custo.perg === 1 ? GD.ITEMS.pergaminho.name : GD.ITEMS.pergaminho.plural) + '</span></span></span>';
+  }
+  // a linha do próximo rank dentro do bloco da skill: o efeito que vem (no IV → V, também o marco); no V, o marco ativo
+  function rankProxHtml(id, rank) {
+    var max = GD.SKILL_RANKS.max;
+    if (rank >= max) return '<span class="rank-prox rank-prox--max">' + esc('Rank máximo. Marco ativo: ' + RS.skillMarcoDesc(id) + '.') + '</span>';
+    return '<span class="rank-prox"><b>' + esc('Rank ' + ROMANOS[rank + 1] + ': ') + '</b>' + esc(RS.skillDesc(id, rank + 1)) +
+      (rank + 1 === max ? ' <b class="rank-marco">' + esc('Marco: ' + RS.skillMarcoDesc(id) + '.') + '</b>' : '') + '</span>';
+  }
+  // aba Skills: as skills das vagas, cada uma com o rank (5 marcas), o efeito de agora e o do próximo rank, o custo e
+  // "Subir rank"; e "Trocar" quando há Cupom (a skill de tipo não ocupa vaga, não tem rank e nunca troca)
   function skillsVagasHtml(m) {
-    var cupom = itemQtd('cupom') > 0, mot = cupom ? motivoUso('cupom', m) : '', algum = false;
+    var cupom = itemQtd('cupom') > 0, mot = cupom ? motivoUso('cupom', m) : '', algum = false, ctx = rankCtx(m);
     var lista = m.skills.map(function (id) {
-      if (!cupom || !hasOwn(GD.SKILLS, id)) return skillHtml(id, 32, skillQuandoTxt(id, m));
-      algum = true;
-      return '<div class="item-uso item-uso--skill">' + skillHtml(id, 32, skillQuandoTxt(id, m)) +
-        '<button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="cupom" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(mot) + '>' +
-        'Trocar<span class="sr"> ' + esc(skillNome(id) + ' (usa 1 ' + GD.ITEMS.cupom.name + ')') + '</span></button></div>';
+      if (!hasOwn(GD.SKILLS, id)) return '';
+      var rank = RS.rankOf(m, id), p = IT.podeSubirRank(m, id, ctx), noMax = rank >= GD.SKILL_RANKS.max;
+      var subir = noMax ? '<span class="rank-max-selo">Rank máximo</span>'
+        : '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="rank-subir" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(p.ok ? '' : p.motivo + '.') + '>' +
+          'Subir rank<span class="sr"> ' + esc('de ' + skillNome(id) + ' para ' + ROMANOS[rank + 1]) + '</span></button>';
+      var trocar = '';
+      if (cupom) {
+        algum = true;
+        trocar = '<button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="cupom" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(mot) + '>' +
+          'Trocar<span class="sr"> ' + esc(skillNome(id) + ' (usa 1 ' + GD.ITEMS.cupom.name + ')') + '</span></button>';
+      }
+      return '<div class="item-uso item-uso--skill skill-rank" data-skill="' + esc(id) + '" data-rank="' + rank + '">' + skillHtml(id, 32, skillQuandoTxt(id, m), rank, rankProxHtml(id, rank)) +
+        '<div class="rank-acoes">' + (noMax ? '' : rankCustoHtml(p.custo)) + subir + trocar + '</div></div>';
     }).join('');
-    return lista + (algum && mot ? '<p class="nota">' + esc('Trocar: ' + mot) + '</p>' : '');
+    return skillRankTopoHtml() + lista + (algum && mot ? '<p class="nota">' + esc('Trocar: ' + mot) + '</p>' : '');
+  }
+  // o passo de confirmação do "Subir rank" (ui.montaria.rank = { skillId }), no lugar da sub-aba: o antes e o depois, o
+  // custo e o Poder; sem sorteio e sem volta. Desenhado com o estado atual (o que mudou aparece apagado, com o motivo).
+  function rankPassoHtml(m) {
+    var id = ui.montaria.rank.skillId, rank = RS.rankOf(m, id), max = GD.SKILL_RANKS.max;
+    var p = IT.podeSubirRank(m, id, rankCtx(m)), mot = p.ok ? '' : p.motivo + '.';
+    var falha = ui.itemMsg && ui.itemMsg.passo ? ui.itemMsg.txt : '';
+    var corpo = '';
+    if (rank < max) {
+      var depois = clone(m); depois.skillRanks = IT.subirRank(m, id).skillRanks;
+      corpo = '<p class="rank-de-para">' + skillIcone(id, 32) + '<b>' + esc(skillNome(id)) + '</b>' + rankMarcasHtml(rank) + '<span aria-hidden="true">→</span><span class="sr"> para </span>' + rankMarcasHtml(rank + 1) + '</p>' +
+        '<dl class="rank-antes-depois"><div><dt>' + esc('Agora (rank ' + ROMANOS[rank] + ')') + '</dt><dd>' + esc(RS.skillDesc(id, rank)) + '</dd></div>' +
+        '<div><dt>' + esc('Depois (rank ' + ROMANOS[rank + 1] + ')') + '</dt><dd>' + esc(RS.skillDesc(id, rank + 1)) +
+          (rank + 1 === max ? ' <b class="rank-marco">' + esc('Marco: ' + RS.skillMarcoDesc(id) + '.') + '</b>' : '') + '</dd></div></dl>' +
+        '<p class="rank-custo-linha">Custo: ' + rankCustoHtml(p.custo) + '</p>' +
+        '<p class="nota">' + esc('Poder ' + RS.powerRating(m) + ' → ' + RS.powerRating(depois) + '. Subir rank não falha e não tem volta.') + '</p>';
+    }
+    return '<section class="caixa item-passo rank-passo" aria-labelledby="t-rank">' + noticeHtml() +
+      '<h2 class="titulo" id="t-rank" tabindex="-1" data-foco-item>Subir rank</h2>' + corpo +
+      (mot ? '<p class="nota rank-motivo">' + esc(mot) + '</p>' : '') + (falha ? '<p class="aviso" role="status">' + esc(falha) + '</p>' : '') +
+      '<div class="acoes"><button type="button" class="btn btn--ouro" data-acao="rank-confirmar"' + indisponivel(mot) + '>Confirmar</button>' +
+      '<button type="button" class="btn" data-acao="rank-cancelar">Cancelar</button></div></section>';
+  }
+  // Sobe o rank: confere de novo (depois de sincronizar com outras abas), desconta o Ouro e os Pergaminhos e grava tudo de
+  // uma vez (gravaGasto, o padrão do usaItem). 'ok', 'outra-aba' ou o motivo da recusa (FALHA_SALVAR se não gravou).
+  function sobeRank(uid, skillId) {
+    var s0 = state;
+    persist();
+    if (state !== s0) return 'outra-aba';
+    var m = mountByUid(uid);
+    if (!m) return 'Este cavalo não está mais no estábulo.';
+    var p = IT.podeSubirRank(m, skillId, rankCtx(m));
+    if (!p.ok) return p.motivo + '.';
+    var antes = clone(state), r = IT.subirRank(m, skillId);
+    if (!r) return 'Rank máximo.';   // não acontece: o podeSubirRank já conferiu
+    m.skillRanks = r.skillRanks;
+    state.gold -= r.ouro;
+    state.mochila.pergaminho = itemQtd('pergaminho') - r.perg;
+    var g = gravaGasto(s0, antes);
+    if (g === 'outra-aba') return 'outra-aba';
+    if (g === 'falhou') return FALHA_SALVAR;
+    var novo = r.skillRanks[skillId];
+    ui.itemMsg = { id: 'pergaminho', uid: m.uid, origem: 'ficha', txt: skillNome(skillId) + ' subiu para o rank ' + ROMANOS[novo] + '.' +
+      (novo >= GD.SKILL_RANKS.max ? ' Marco liberado: ' + RS.skillMarcoDesc(skillId) + '.' : '') };
+    return 'ok';
   }
   // o que o item vai fazer, no passo da confirmação (sem sortear nada)
   function confirmaTxt(F, m) {
@@ -4194,7 +4537,10 @@
       case 'estrela':
         var g = RS.starsOf(m);
         return (g < 3 ? m.name + ' sobe de ' + g + ' para ' + (g + 1) + ' estrelas; os pontos a mais aparecem para distribuir.' : m.name + ' já tem 3 estrelas.') + fim;
-      case 'cupom': return skillNome(F.skillId) + ' sai das vagas de ' + m.name + ' e entra outra skill, sorteada entre as que ele pode aprender.' + fim;
+      case 'cupom':
+        var rkSai = RS.rankOf(m, F.skillId);
+        return skillNome(F.skillId) + ' sai das vagas de ' + m.name + ' e entra outra skill, sorteada entre as que ele pode aprender, no rank I.' +
+          (rkSai > 1 ? ' Rank ' + ROMANOS[rkSai] + ' de ' + skillNome(F.skillId) + ' será perdido.' : '') + fim;
       default: return m.name + ' tenta aprender uma skill nova na hora: ' + Math.round(GD.ITEMS.manual.chance * 100) + '% de chance. Aprendendo ou não, o manual é gasto e não tem volta.';
     }
   }
@@ -4243,6 +4589,15 @@
     try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
     if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
   }
+  // de volta à aba Skills depois de subir o rank ou cancelar: o foco no "Subir rank" da mesma skill (ou no bloco dela,
+  // se ela chegou ao rank máximo e o botão saiu)
+  function rankVolta(skillId) {
+    render();
+    var el = telaEl.querySelector('[data-acao="rank-subir"][data-skill="' + skillId + '"]');
+    if (!el) { var h = telaEl.querySelector('[data-foco]'); if (h) { try { h.focus({ preventScroll: true }); } catch (e0) { h.focus(); } } return; }
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  }
   // toque recusado num passo: desenha de novo (a tela pode estar velha) e diz o porquê, como no botão indisponível
   function recusaItem(sel, txt) {
     rerenderKeepScroll();
@@ -4271,8 +4626,9 @@
       r = id === 'cupom' ? IT.trocarSkill(m, skillId, state.seedBase, state.itemCounter) : IT.tentarDoma(m, state.seedBase, state.itemCounter);
       if (!r) return 'Este item não pode ser usado neste cavalo agora.';   // não acontece: podeUsar já garantiu a skill, a vaga e a candidata
       m.skills = r.skills;
+      m.skillRanks = r.skillRanks;   // a que entra (Cupom) ou a aprendida (Manual) fica no rank 1; a que sai perde o rank
       state.itemCounter += 1;
-      txt = id === 'cupom' ? skillNome(r.sai) + ' saiu e entrou ' + skillNome(r.entra) + '.'
+      txt = id === 'cupom' ? skillNome(r.sai) + (r.rankPerdido > 1 ? ' (rank ' + ROMANOS[r.rankPerdido] + ')' : '') + ' saiu e entrou ' + skillNome(r.entra) + (r.rankPerdido > 1 ? ', no rank I.' : '.')
         : r.aprendeu ? m.name + ' aprendeu ' + skillNome(r.aprendeu) + '!' : 'Não foi desta vez: ' + m.name + ' não aprendeu. O manual foi usado.';
     } else if (id === 'torrao') {
       m.torroes = IT.usarTorrao(m).torroes;
@@ -4365,20 +4721,21 @@
   // (~57 ms no Node, contra ~11 ms antes do 1b; com a memória, ~13 ms a 1ª sala e menos de 1 ms as seguintes).
   // Só os modelos fixos do catálogo (GD.WILD_HORSES e GD.STARTERS) passam por aqui.
   var poderBotMemo = {};
-  function poderBot(template, L) {
-    var k = template.id + '|' + L;
+  // O rank das skills do bot (RS.botRank do cavalo do jogador) entra no Poder dele, então também entra na chave.
+  function poderBot(template, L, rank) {
+    var k = template.id + '|' + L + '|' + rank;
     if (!hasOwn(poderBotMemo, k)) {
-      var h = clone(template);
+      var h = RS.withRanks(template, rank);
       h.level = L;
       h.alloc = RS.botAlloc(h);
       poderBotMemo[k] = RS.powerRating(h);
     }
     return poderBotMemo[k];
   }
-  function bestLevelFor(template, target, lo, hi) {
+  function bestLevelFor(template, target, lo, hi, rank) {
     var best = lo || 1, bestD = Infinity;
     for (var L = (lo || 1); L <= (hi || E.maxLevel || 50); L++) {
-      var d = Math.abs(poderBot(template, L) - target);
+      var d = Math.abs(poderBot(template, L, rank) - target);
       if (d < bestD - 0.5) { bestD = d; best = L; }
     }
     return { level: best, diff: bestD };
@@ -4458,6 +4815,9 @@
     var used = {};
     var silkOrder = shuffle(BOT_SILKS.map(function (c, i) { return i; }), rng);
     var bots = [];
+    // rank das skills dos bots: a média (arredondada) dos ranks das skills de vaga do cavalo do jogador, sem sorteio.
+    // Sai antes do Poder do bot (entra na escolha do nível). Com o páreo aberto o rank da ativa não muda.
+    var rankBots = RS.botRank(player.horse);
     for (var b = 0; b < n - 1; b++) {
       // alvo em torno do rating do jogador (−8,5%..+11,5%); o rating já pesa cada habilidade pela chance
       // do gatilho. O leve viés para cima mantém a margem da casa (~10%) também contra bots.
@@ -4469,7 +4829,7 @@
       var botGear = function (tpl) { return GEAR_ON ? GR.botGear(leagueIdx, tpl.element, gpick) : null; };
       var inBand = pool.map(function (tpl) {
         var bd = levelBand(tpl);
-        return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1]) };
+        return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1], rankBots) };
       })
         .filter(function (c) { return c.fit.diff <= target * 0.06; });
       var fresh = inBand.filter(function (c) { return !used[c.tpl.id]; });
@@ -4477,14 +4837,14 @@
       if (!cands.length) {
         // ninguém plausível na faixa: o mais próximo do alvo em qualquer nível
         var all = pool.map(function (tpl) {
-          return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target) };
+          return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, null, null, rankBots) };
         });
         all.sort(function (x, y) { return x.fit.diff - y.fit.diff; });
         cands = all.slice(0, 3);
       }
       var choice = pick(cands, rng);
       used[choice.tpl.id] = true;
-      var horse = clone(choice.tpl);   // genética do catálogo; os pontos livres pela build fixa
+      var horse = RS.withRanks(choice.tpl, rankBots);   // genética do catálogo; os pontos livres pela build fixa
       horse.level = choice.fit.level;
       horse.alloc = RS.botAlloc(horse);
       horse.id = choice.tpl.id + '-b' + b;
@@ -4502,8 +4862,8 @@
       counter: counter, seed: seed, training: !!P.training, fee: P.fee || 0, n: n,
       cond: cond, trackName: trackName,
       racers: racers, playerIdx: playerIdx, sim: null,
-      // modo DEV: vento forçado (a tela da corrida o desenha) e "skills sempre ativam" (vai ao RaceSim)
-      dev: dv ? { wind: dv.wind, skillsAlways: !!dv.skillsAlways } : null
+      // modo DEV: vento forçado (a tela da corrida o desenha)
+      dev: dv ? { wind: dv.wind } : null
     };
   }
   // vento da corrida (só visual): o forçado no modo DEV (L.dev é null sem nada armado) ou o da seed da sala
@@ -4664,11 +5024,11 @@
     ['reta', 'curva', 'subida'].forEach(function (tp) {
       if (!cond.blocks.some(function (bl) { return bl.type === tp; })) return;
       var nome = GD.BLOCK_TYPES[tp].name.toUpperCase();
-      R(lx, ly + 1, 5, 3, tp === 'reta' ? surf : GD.BLOCK_TYPES[tp].color);
-      SP.drawText(ctx, nome, (lx + 7) * k, ly * k, { scale: k, color: C.texto2 });
-      lx += 7 + SP.measureText(nome, 1) + 5;
+      R(lx, ly + 2, 5, 3, tp === 'reta' ? surf : GD.BLOCK_TYPES[tp].color);
+      SP.drawText(ctx, nome, (lx + 7) * k, ly * k, { fonte: 'g7', scale: k, color: C.texto2 });
+      lx += 7 + SP.measureText(nome, 1, 'g7') + 5;
     });
-    SP.drawText(ctx, D + 'm', (artW - 4) * k, ly * k, { scale: k, color: C.texto, align: 'right' });
+    SP.drawText(ctx, D + 'm', (artW - 4) * k, ly * k, { fonte: 'g7', scale: k, color: C.texto, align: 'right' });
   }
 
   // ===========================================================================
@@ -4680,10 +5040,12 @@
       seed: L.seed,
       conditions: L.cond,
       racers: L.racers.map(function (r) {
-        return { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
+        // bônus de 3 peças do conjunto (suspenso com o equipamento): o efeito das skills × (1 + skillEffectBonus)
+        var e = { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
+        if (r.gear && r.gear.special && r.gear.special.skillEffectBonus) e.skillScale = 1 + r.gear.special.skillEffectBonus;
+        return e;
       })
     };
-    if (DEV_MODE && L.dev && L.dev.skillsAlways) cfg.dev = { skillsAlways: true };   // só o modo DEV
     L.sim = RS.simulate(cfg);
     L.cond = withRanges(L.sim.conditions);
     var order = L.sim.finishOrder;
@@ -4707,6 +5069,11 @@
     // suspenso (GEAR_ON) não cai: o podiumStone (RNG própria, da seed da sala) nem é chamado; o resto não muda
     var stone = L.training || !GEAR_ON ? 0 : GR.podiumStone(L.seed, place, L.fee);
     state.pedras += stone;
+    // Pergaminho de técnica do pódio: só em corrida valendo (o treino nem chama o sorteio), pela seed da sala (RNG
+    // própria: não desloca nada), na mesma gravação do Ouro. Com a mochila no teto, não entra (pergCheia avisa).
+    var perg = L.training ? 0 : IT.pergaminhoPodio(L.seed, place), pergCheia = false;
+    if (perg && itemQtd('pergaminho') + perg > GD.BAG_MAX) { perg = 0; pergCheia = true; }
+    state.mochila.pergaminho = itemQtd('pergaminho') + perg;
     var gained = applyXp(activeMount(), xpGain, state.raceCounter);
     var levels = gained.levels, learned = gained.learned;
     state.races += 1;
@@ -4719,7 +5086,7 @@
 
     var hAfter = playerHorse();
     return {
-      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone,
+      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone, pergaminho: perg, pergCheia: pergCheia,
       xpGain: xpGain, levels: levels, learned: learned,
       before: before,
       after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter),
@@ -4831,7 +5198,10 @@
     var cv = root.querySelector('#pista');
     var palco = cv.parentNode;
     var tela = root.querySelector('.tela--corrida');
-    var ctx = cv.getContext('2d');
+    // a corrida desenha num canvas do tamanho da arte (etapa 2.1 da direção de arte, guia §2 e §9): 1 pixel de arte = 1
+    // pixel do buffer (self.S = 1, o molde do cavalo 1:1), e cada quadro é copiado para o canvas da tela com um drawImage
+    // só, ampliado s vezes (s inteiro, a grade da interface), sem suavização
+    var vctx = cv.getContext('2d'), buf = document.createElement('canvas'), ctx = buf.getContext('2d');
     var hud = {
       feed: root.querySelector('#feed'), pular: root.querySelector('#btn-pular'), anuncio: root.querySelector('#anuncio'),
       clima: root.querySelector('#clima-atual'),
@@ -4915,6 +5285,8 @@
       wind: ventoDaSala(L)   // só visual (RaceFx.wind da seed, ou o forçado no DEV)
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
+    // as camadas da região nos climas que trocam a paleta, pré-desenhadas na largada (uma virada de clima não custa um quadro)
+    SP.prepararRegiao(regiaoDaPista(L), ['nublado', 'chuva', 'nevoa']);
     // marcas, jóquei, raridade (parte 2a) e porte (parte 2b) de cada corredor, calculados uma vez; cada cavalo é
     // montado já na largada, no molde do porte (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora,
     // ~0,8 ms por quadro com marcas e jóquei), e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi
@@ -4929,7 +5301,7 @@
     // minimapa do HUD (fora do layout compacto): caixa em pixels de arte logo abaixo da linha de cima
     function miniCaixa(artW) {
       var w = clamp(Math.round(artW * 0.2), 40, 72);
-      return { x: 2, y: 18, w: w, h: clamp(Math.round(w * 0.45), 22, 30) };
+      return { x: 3, y: 28, w: w, h: clamp(Math.round(w * 0.45), 22, 30) };   // embaixo do lugar (HUD de 20 + 5)
     }
 
     // maior redutor d (divisor de S, com S/d ≥ 2 e os moldes compatíveis) até o canvas caber em CANVAS_MAX_PX
@@ -4963,45 +5335,39 @@
       var cs = appEl ? getComputedStyle(appEl) : null;
       var padY = cs ? (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) : 16;
       var cssH = Math.max(150, (window.innerHeight || 700) - padY - other);
-      var pick = null;
-      [3, 2].forEach(function (k) {
-        if (pick) return;
-        var S = Math.max(1, Math.round(k * r));
-        var artW = Math.floor(cssW * r / S), artH = Math.floor(cssH * r / S);
-        var compact = artH < 190;
-        var mini = compact ? null : miniCaixa(artW);
-        var hudH = compact ? 15 : Math.max(20 + n, mini.y + mini.h + 2);
-        var bottom = compact ? 8 : 14;
-        var minTop = hudH + (compact ? 12 : 30);
-        var lane = Math.floor((artH - bottom - minTop) / n);
-        if (k === 3 && (lane < 20 || artW < 300)) return;
-        lane = clamp(lane, compact ? 12 : 13, 26);
-        var top = Math.max(minTop, Math.min(artH - bottom - n * lane, minTop + 70));
-        pick = {
-          k: k, S: S, artW: artW, artH: top + n * lane + bottom, laneArt: lane, laneTopArt: top, hudH: hudH, compact: compact, mini: mini,
-          maxLift: clamp(top - hudH - 12, 4, 24),   // a subida não invade o HUD
-          // arco da curva: o cavalo da raia 1 (pés em top + lane − 3, sprite de FOOT_Y + 1 de altura) não sai
-          // por cima do canvas; só o layout compacto (raias de 12) fica abaixo dos 6 px de arte
-          arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.tela) / FX.CURVA.tela
-        };
-      });
-      // escala de trabalho: com o canvas acima de CANVAS_MAX_PX, desenha em S/d (d inteiro) e o CSS amplia d vezes
-      // com image-rendering: pixelated — cada pixel de arte continua quadrado e do mesmo tamanho na tela (S/d·d = S
-      // pixels do aparelho). Só quando a escala dos moldes também divide certinho: com os moldes atuais, S = 6, 9 ou
-      // 12 (d = 2, 3 ou 2). S = 6 sai de DPR 2 com k = 3 (janela larga e alta o bastante, ex.: 1280×800@2 conforme a
-      // sala) e de DPR 3 com k = 2 (celular); S = 4 (DPR 2 com k = 2) nunca reduz.
-      var d = reducaoEscala(pick.S, pick.artW * pick.artH), S = pick.S / d;
-      self.S = S; self.lay = pick; pick.reducao = d;
+      // a grade da corrida: s pixels do aparelho por pixel de arte, a mesma regra da interface (aplicaGrade: pelo menos
+      // 240 de largura e 300 de altura da janela em pixels de arte), e a cena com a largura e a altura que sobram
+      var sTela = Math.max(1, Math.min(Math.floor(cssW * r / 240), Math.floor((window.innerHeight || 700) * r / 300)));
+      var artW = Math.floor(cssW * r / sTela), artH = Math.floor(cssH * r / sTela);
+      var compact = artH < 190;
+      var mini = compact ? null : miniCaixa(artW);
+      var hudH = compact ? 15 : Math.max(20 + n, mini.y + mini.h + 2);
+      // embaixo da pista, o capim do primeiro plano (drawTrackFront): 22 de arte, 8 de cima do teto do topo (a altura da
+      // cena fica a mesma quando o topo está no teto)
+      var bottom = compact ? 8 : 22;
+      var minTop = hudH + (compact ? 12 : 30);
+      var lane = clamp(Math.floor((artH - bottom - minTop) / n), compact ? 12 : 13, 26);
+      var top = Math.max(minTop, Math.min(artH - bottom - n * lane, minTop + 62));
+      var pick = {
+        k: sTela, S: sTela, artW: artW, artH: top + n * lane + bottom, laneArt: lane, laneTopArt: top, hudH: hudH, compact: compact, mini: mini,
+        maxLift: clamp(top - hudH - 12, 4, 24),   // a subida não invade o HUD
+        // arco da curva: o cavalo da raia 1 (pés em top + lane − 3, sprite de FOOT_Y + 1 de altura) não sai
+        // por cima do canvas; só o layout compacto (raias de 12) fica abaixo dos 6 px de arte
+        arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.tela) / FX.CURVA.tela
+      };
+      self.S = 1; self.sTela = sTela; self.lay = pick; pick.reducao = 1;
       // nome da skill dos balões em duas linhas só quando o balão alto (BALAO.h2) cabe na raia com a folga de cima (2)
       // e de baixo (1); senão o nome curto numa linha (spec 3c §5)
       self.linhasBalao = pick.laneArt >= FX.BALAO.h2 + 3 ? 2 : 1;
-      self.W = pick.artW * S; self.H = pick.artH * S;
-      cv.width = self.W; cv.height = self.H;
-      cv.style.width = (self.W * d / r) + 'px';
-      cv.style.height = (self.H * d / r) + 'px';
-      palco.style.height = (self.H * d / r) + 'px';
+      self.W = pick.artW; self.H = pick.artH;
+      buf.width = self.W; buf.height = self.H;
       ctx.imageSmoothingEnabled = false;
-      self.ppmArt = pick.artW < 260 ? 2 : 2.5;
+      cv.width = self.W * sTela; cv.height = self.H * sTela;
+      cv.style.width = (self.W * sTela / r) + 'px';
+      cv.style.height = (self.H * sTela / r) + 'px';
+      palco.style.height = (self.H * sTela / r) + 'px';
+      vctx.imageSmoothingEnabled = false;
+      self.ppmArt = PPM_ARTE;   // guia §8a: 12 px de arte por metro (era 2 a 2,5)
       // a narração ocupa a altura que sobrar (campos pequenos): nada de faixa vazia sob os botões. Só aqui (no
       // redimensionar) a altura dela muda: durante a corrida, a faixa de ordem e a narração têm altura fixa
       if (!baixa && hud.feed && getComputedStyle(hud.feed).display !== 'none') {
@@ -5177,94 +5543,105 @@
     function caixaPainel(x, y, w, h, bg, friso) {
       var S = self.S;
       if (friso) { borda(x - 1, y - 1, w + 2, h + 2, C.sombra); box(x, y, w, h, bg, friso); } else box(x, y, w, h, bg, C.sombra);
-      ctx.fillStyle = C.brilho08; ctx.fillRect(x * S, y * S, w * S, S);
-      ctx.fillStyle = C.escuro; ctx.fillRect(x * S, (y + h - 1) * S, w * S, S);
+      // bisel na mestra, sem alfa (guia §3 e a amostra): luz de cima na cor da linha, sombra embaixo
+      ctx.fillStyle = C.linha; ctx.fillRect(x * S, y * S, w * S, S);
+      ctx.fillStyle = C.sombra; ctx.fillRect(x * S, (y + h - 1) * S, w * S, S);
     }
     // volatil: texto que muda quase a cada quadro (relógio, km/h, distâncias), pintado fora do cache de texto
-    function text(str, x, y, color, scale, align, shadow, volatil) {
-      SP.drawText(ctx, str, x * self.S, y * self.S, { scale: (scale || 1) * self.S, color: color, align: align, shadow: shadow, volatil: volatil });
+    // a fonte do texto da corrida (etapa 2.2 da direção de arte): 'g7', 'g9' ou 'g11' (Galmuri no tamanho nativo); um
+    // número é a escala antiga da fonte 3×5 — 1 vira a Galmuri7, 2 a Galmuri11 Bold, 3 ou mais continua a 3×5 ampliada
+    // (os números grandes da contagem, que são desenho, não letra)
+    function fonteDe(f) { return typeof f === 'string' ? f : (f || 1) >= 3 ? null : (f === 2 ? 'g11' : 'g7'); }
+    function text(str, x, y, color, f, align, shadow, volatil) {
+      var fo = fonteDe(f);
+      return SP.drawText(ctx, str, x * self.S, y * self.S, { fonte: fo, scale: fo ? self.S : (f || 1) * self.S, color: color, align: align, shadow: shadow, volatil: volatil });
     }
-    function tw(str, scale) { return SP.measureText(str, scale || 1); }
+    function tw(str, f) { var fo = fonteDe(f); return fo ? SP.measureText(str, 1, fo) : SP.measureText(str, f || 1); }
     function digitColor(silk) { return hexLum(silk) > 0.5 ? C.tinta : C.texto; }
 
+    // HUD no céu (guia §8, a amostra aprovada): placas de 20 pixels de arte, o lugar em Galmuri11 Bold, rótulos em
+    // Galmuri7 e os números em Galmuri9; o minimapa embaixo do lugar
+    var HUD_Y = 3, HUD_H = 20;
     function drawHud(st, order) {
-      var lay = self.lay, A = lay.artW;
+      var lay = self.lay, A = lay.artW, y = HUD_Y, h = lay.compact ? 14 : HUD_H;
       // posição
       var place = order.indexOf(me) + 1;
-      var big = self.phase === 'contagem' ? '—' : String(place);
+      var big = self.phase === 'contagem' ? '—' : String(place) + 'º';
       var small = '/' + n;
-      var bw = tw(big, 2) + 2 + Math.max(tw('º'), tw(small)) + 6;
-      caixaPainel(2, 2, bw, 14, C.veu, C.ouro);
-      text(big, 5, 4, C.ouro, 2, null, C.sombra);
-      if (self.phase !== 'contagem') text('º', 5 + tw(big, 2) + 2, 3, C.ouro);
-      text(small, 5 + tw(big, 2) + 2, 9, C.texto);
-      // estamina
-      var sx = 2 + bw + 5, barW = clamp(Math.floor(A * 0.28), 32, 84);
+      var bw = tw(big, 'g11') + tw(small, 'g7') + 9;
+      caixaPainel(3, y, bw, h, C.painel, C.ouro);
+      text(big, 7, y + Math.floor((h - 11) / 2), C.ouro, 'g11', null, C.sombra);
+      text(small, 7 + tw(big, 'g11') + 1, y + h - 10, C.texto, 'g7');
+      // estamina: 12 segmentos (ou o que couber)
+      var sx = 3 + bw + 5, segs = clamp(Math.floor((A * 0.28 - 8) / 4), 8, 12), barW = segs * 4 - 1;
       var stam = clamp(st.stamina[me], 0, 1);
-      caixaPainel(sx, 2, barW + 4, 14, C.veu);
-      text('EST', sx + 2, 3, C.texto2);
+      caixaPainel(sx, y, barW + 8, h, C.painel);
+      if (!lay.compact) text('EST', sx + 4, y + 3, C.texto2, 'g7');
       var col = stam > 0.5 ? C.ganho : stam > 0.25 ? C.ouro : C.perda;
-      var segs = Math.floor(barW / 4), on = Math.round(stam * segs);
+      var on = Math.round(stam * segs);
       for (var s = 0; s < segs; s++) {
         ctx.fillStyle = s < on ? col : C.sombra;
-        ctx.fillRect((sx + 2 + s * 4) * self.S, 10 * self.S, 3 * self.S, 4 * self.S);
+        ctx.fillRect((sx + 4 + s * 4) * self.S, (y + h - 8) * self.S, 3 * self.S, 5 * self.S);
       }
       // tempo e velocidade (relógio da corrida)
       var tShown = Math.min(self.simT, fTime[me]);
       var tTxt = fmtClock(tShown), kmh = Math.round(st.speed[me] * 3.6) + ' KM/H';
-      var tw2 = Math.max(tw(tTxt), tw(kmh)) + 4;
-      caixaPainel(A - 2 - tw2, 2, tw2, 14, C.veu);
-      text(tTxt, A - 4, 3, C.texto, 1, 'right', null, true);
-      text(kmh, A - 4, 10, C.texto2, 1, 'right', null, true);
+      var tw2 = Math.max(tw('0:00,0', 'g9'), tw(tTxt, 'g9'), tw(kmh, 'g7'), tw('00 KM/H', 'g7')) + 8, tx = A - 3 - tw2;
+      caixaPainel(tx, y, tw2, h, C.painel);
+      if (lay.compact) text(tTxt, A - 7, y + 3, C.texto, 'g9', 'right', null, true);
+      else {
+        text(tTxt, A - 7, y + 2, C.texto, 'g9', 'right', null, true);
+        text(kmh, A - 7, y + 12, C.texto2, 'g7', 'right', null, true);
+      }
       // clima atual (vira com o Dado da Sorte), à esquerda do relógio; no layout compacto
       // não há espaço (a CURVA/SUBIDA fica ali) e o cabeçalho da tela mostra o clima
       var wName = GD.WEATHERS[climaMostrado(self.simT)].name.toUpperCase();
-      var ww = Math.max(tw('CLIMA'), tw(wName)) + 4, wx = A - 2 - tw2 - 4 - ww;
-      var livre = sx + barW + 4 + 4, climaVisivel = !lay.compact && wx > livre;
+      var ww = Math.max(tw('CLIMA', 'g7'), tw(wName, 'g7')) + 8, wx = tx - 4 - ww;
+      var livre = sx + barW + 8 + 4, climaVisivel = !lay.compact && wx > livre;
       if (climaVisivel) {
-        caixaPainel(wx, 2, ww, 14, C.veu);
-        text('CLIMA', wx + 2, 3, C.texto2);
-        text(wName, wx + 2, 10, C.texto);
+        caixaPainel(wx, y, ww, h, C.painel);
+        text('CLIMA', wx + 4, y + 3, C.texto2, 'g7');
+        text(wName, wx + 4, y + 12, C.texto, 'g7');
       }
       // vento (só visual) à esquerda do clima: "VENTO / BRISA →"; sem espaço, ou no layout compacto (onde
       // o selo CURVA/SUBIDA ocupa o lugar do clima), só o ícone: seta (traço no calmo) e 1–3 barrinhas
-      var vw = self.wind, vNome = ventoTxt(vw).toUpperCase(), dir0 = climaVisivel ? wx : A - 2 - tw2;
-      var vbw = Math.max(tw('VENTO'), tw(vNome)) + 4, vx = dir0 - 4 - vbw;
+      var vw = self.wind, vNome = ventoTxt(vw).toUpperCase(), dir0 = climaVisivel ? wx : tx;
+      var vbw = Math.max(tw('VENTO', 'g7'), tw(vNome, 'g7')) + 8, vx = dir0 - 4 - vbw;
       if (!lay.compact && vx > livre) {
-        caixaPainel(vx, 2, vbw, 14, C.veu);
-        text('VENTO', vx + 2, 3, C.texto2);
-        text(vNome, vx + 2, 10, C.texto);
+        caixaPainel(vx, y, vbw, h, C.painel);
+        text('VENTO', vx + 4, y + 3, C.texto2, 'g7');
+        text(vNome, vx + 4, y + 12, C.texto, 'g7');
         FX._stats.ventoHud = 'texto';
       } else {
-        var reserva = lay.compact ? Math.max(tw('\u25b2SUBIDA'), tw('\u21aaCURVA')) + 4 + 4 : 0;
-        var iw = 9, ix = dir0 - 4 - reserva - iw;
+        var reserva = lay.compact ? Math.max(tw('\u25b2SUBIDA', 'g7'), tw('CURVA', 'g7')) + 8 + 4 : 0;
+        var iw = 14, ix = dir0 - 4 - reserva - iw;
         if (ix > livre) {
-          caixaPainel(ix, 2, iw, 14, C.veu);
+          caixaPainel(ix, y, iw, h, C.painel);
           var seta = vw.intensity === 'calmo' ? '\u2013' : vw.dir > 0 ? '\u2192' : '\u2190';
-          text(seta, ix + Math.round((iw - tw(seta)) / 2), 3, C.texto);
+          text(seta, ix + Math.round((iw - tw(seta, 'g7')) / 2), y + 2, C.texto, 'g7');
           var nivel = ['calmo', 'brisa', 'ventania'].indexOf(vw.intensity) + 1;
           for (var vb = 0; vb < 3; vb++) {
             ctx.fillStyle = vb < nivel ? C.texto : C.sombra;
-            ctx.fillRect((ix + 2 + vb * 2) * self.S, (13 - vb) * self.S, self.S, (vb + 1) * self.S);
+            ctx.fillRect((ix + 3 + vb * 3) * self.S, (y + h - 4 - vb * 2) * self.S, 2 * self.S, (vb * 2 + 2) * self.S);
           }
           FX._stats.ventoHud = 'icone';
         }
       }
       // tipo do bloco do jogador: SUBIDA ou CURVA (nada na reta)
       var bType = blocks[RS.blockAt(blocks, st.pos[me])].type;
-      var lbl = bType === 'subida' ? '▲SUBIDA' : bType === 'curva' ? '↪CURVA' : '';
+      var lbl = bType === 'subida' ? '▲SUBIDA' : bType === 'curva' ? 'CURVA' : '';   // a Galmuri não tem o ↪
       var mc = lay.mini;
       if (lbl && self.phase !== 'contagem') {
-        var lw = tw(lbl) + 4;
-        var hy = lay.compact ? 6 : mc.y + 1;
-        var hx = lay.compact ? A - 2 - tw2 - 4 - lw : mc.x + mc.w + 4;
-        caixaPainel(hx, hy, lw, 7, bType === 'curva' ? GD.BLOCK_TYPES.curva.color : C.ouro);
-        text(lbl, hx + 2, hy + 1, C.tinta);
+        var lw = tw(lbl, 'g7') + 6;
+        var hy = lay.compact ? y + 2 : mc.y + 1;
+        var hx = lay.compact ? tx - 4 - lw : mc.x + mc.w + 4;
+        caixaPainel(hx, hy, lw, 11, bType === 'curva' ? GD.BLOCK_TYPES.curva.color : C.ouro);
+        text(lbl, hx + 3, hy + 2, C.tinta, 'g7');
       }
       if (lay.compact) return;
       // minimapa: o traçado visto de cima (curvas na cor da curva, subidas em ouro, retas na cor do piso) com
       // um ponto por cavalo na cor da raia; o seu é maior, com contorno claro, e vem por cima
-      caixaPainel(mc.x, mc.y, mc.w, mc.h, C.veu);
+      caixaPainel(mc.x, mc.y, mc.w, mc.h, C.painel);
       FX.drawMiniMap(ctx, mapa, st.pos, silksCores, me, { x: mc.x, y: mc.y, w: mc.w, h: mc.h, P: self.S, piso: pisoCor });
     }
 
@@ -5290,13 +5667,14 @@
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
         t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
-        curveScale: lay.arcoK
+        curveScale: lay.arcoK, regiao: regiaoDaPista(L)
       });
       // natureza, camada de trás (calor, respingos, névoa do fundo): antes dos cavalos. lift acompanha o
       // relevo das subidas e o arco das curvas (os respingos e o calor ficam no chão levantado)
       var natO = {
         weather: clima, wind: self.wind, t: tr, W: W, H: H, P: S, laneTop: laneTop, trackBottom: laneTop + n * laneH,
         reduced: red, seed: L.seed, cam: cam * ppm, camada: 'tras', surface: L.cond.surface,
+        paleta: !!SP.regiaoPronta(regiaoDaPista(L)),   // cenário da região: o clima já está na paleta, sem véus translúcidos
         lift: hills.length || curves.length ? function (px) { var m = cam + px / ppm; return (SP.hillLiftAt(m, hills, lay.maxLift) + arcoArt(m)) * S; } : null
       };
       FX.drawNature(ctx, natO);
@@ -5324,8 +5702,9 @@
         // então a cauda do molde (que passa do x do sprite) não some de uma vez na borda
         var caixaCav = SP.horseBox(x, y, cavalo);
         if (j === me) self.playerRect = { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, W: W, H: H };
-        if (caixaCav.x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 12 * S, txt: '+' + Math.round(st.pos[j] - p) + 'm' }); continue; }
-        if (caixaCav.x + caixaCav.w < 2 * S) { tagsL.push({ j: j, y: feetY - 12 * S, txt: '-' + Math.round(p - st.pos[j]) + 'm' }); continue; }
+        // fora da tela: a seta (layoutTags) com o meio na altura do corpo do cavalo
+        if (caixaCav.x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 20 * S }); continue; }
+        if (caixaCav.x + caixaCav.w < 2 * S) { tagsL.push({ j: j, y: feetY - 20 * S }); continue; }
         // aura da skill de tipo enquanto o cavalo está no terço dela (antes do anel e do cavalo: não cobre nada);
         // relógio = segundos de apresentação (simT / ts), deslocado por raia
         if (self.phase !== 'contagem' && FX.typeZone(tipoTerco[j], st.pos[j]) != null &&
@@ -5346,7 +5725,7 @@
         if (lift > 0 && !standing && !reduced()) {
           // poeira levantada na subida
           var dp = Math.floor(tr * 10 + j) % 3;
-          ctx.fillStyle = 'rgba(214,190,140,0.55)';
+          ctx.fillStyle = '#ab947a';
           ctx.fillRect(x + (4 - dp) * S, feetY - (2 + dp) * S, 2 * S, S);
           ctx.fillRect(x + (1 + dp) * S, feetY - 4 * S, S, S);
         }
@@ -5369,17 +5748,19 @@
         if (j === me) youTag = { x: x + (an.nose[0] + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
         else if (finished) badges.push({ x: x + 22 * S, y: y - 2 * S, j: j, place: rankOf[j] + 1 });
       }
+      // primeiro plano da região (capim, paralaxe 1,25) por cima dos cavalos, abaixo das etiquetas
+      SP.drawTrackFront(ctx);
       // segunda passada: etiquetas por cima de todos os cavalos
       badges.forEach(function (b) {
-        var t = b.place + 'º', w = tw(t) + 4;
-        var bx = Math.round(b.x / S) - Math.round(w / 2), by = Math.round(b.y / S) - 7;
-        box(bx, by, w, 7, L.racers[b.j].silks, C.sombra);
+        var t = b.place + 'º', w = tw(t) + 3;   // Galmuri7: 7 da maiúscula, 1 de folga em cima (o º sobe 1) e embaixo
+        var bx = Math.round(b.x / S) - Math.round(w / 2), by = Math.round(b.y / S) - 9;
+        box(bx, by, w, 9, L.racers[b.j].silks, C.sombra);
         text(t, bx + 2, by + 1, digitColor(L.racers[b.j].silks));
       });
       if (youTag) {
         var yb = youTagBox(youTag);
-        box(yb.x, yb.y, yb.w, 9, C.veu, C.ouro);
-        text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);
+        box(yb.x, yb.y, yb.w, YOU_H, C.painel, C.ouro);
+        text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);   // 2 de acento (o Ê) e 1 de folga acima da maiúscula
       }
       // Dado ativo e a caixa da faixa dele, uma vez por quadro: a faixa, as plaquinhas, as etiquetas e os balões usam
       // a mesma. Com a etiqueta "FOTO DE CHEGADA" na tela, a faixa do Dado não é desenhada
@@ -5395,7 +5776,8 @@
       var tagsTopo = null;
       if (dCaixa && !foto && !lugarDado.embaixo) tagsTopo = dCaixa.y + dCaixa.h + 2;
       if (lCaixa && !lugarFaixa.embaixo) tagsTopo = Math.max(tagsTopo || 0, lCaixa.y + lCaixa.h + 2);
-      layoutTags(tagsR, true, tagsTopo); layoutTags(tagsL, false, tagsTopo);
+      var tagsObst = [dCaixa && lugarDado.embaixo ? dCaixa : null, lCaixa && lugarFaixa.embaixo ? lCaixa : null];
+      layoutTags(tagsR, true, tagsTopo, tagsObst); layoutTags(tagsL, false, tagsTopo, tagsObst);
       // natureza, camada da frente (véu, pingos, relâmpago, sol, sombras, folhas) e a névoa da frente
       natO.camada = 'frente';
       FX.drawNature(ctx, natO);
@@ -5405,8 +5787,8 @@
       if (dItem) drawDadosNaPista(dItem, vis, youTag, dCaixa);
       drawHud(st, order);
       if (foto) {
-        var bt = 'FOTO DE CHEGADA', bw = tw(bt) + 6, bx2 = Math.round(lay.artW / 2 - bw / 2), by2 = lay.hudH + 3;
-        box(bx2, by2, bw, 9, C.sombra, C.ouro);
+        var bt = 'FOTO DE CHEGADA', bw = tw(bt) + 5, bx2 = Math.round(lay.artW / 2 - bw / 2), by2 = lay.hudH + 3;
+        box(bx2, by2, bw, 11, C.sombra, C.ouro);
         text(bt, bx2 + 3, by2 + 2, C.ouro);
       } else if (dItem) {
         FX.drawDiceBanner(ctx, dItem, L.racers, lay, S, self.simT, reduced(), me, lugarDado.embaixo, dCaixa);
@@ -5416,12 +5798,12 @@
       if (self.phase === 'contagem') {
         var c = Math.ceil(self.count / (reduced() ? 0.4 : 0.8));
         var label = c >= 3 ? '3' : c === 2 ? '2' : c === 1 ? '1' : 'JÁ!';
-        var sc = 5, cw = tw(label, sc);
-        var cy = lay.laneTopArt + Math.round((n * lay.laneArt) / 2) - 13;
+        // Galmuri14 (maiúscula de 14, guia §6: título maior numa fonte maior, nunca ampliada); 4 de acento (o Á) em cima
+        var cw = tw(label, 'g14');
+        var cy = lay.laneTopArt + Math.round((n * lay.laneArt) / 2) - 7;
         var cx = Math.round(lay.artW / 2);
-        box(cx - Math.round(cw / 2) - 5, cy - 5, cw + 10, 5 * sc + 10, C.veu, C.ouro);
-        text(label, cx + 1, cy + 1, C.sombra, sc, 'center');
-        text(label, cx, cy, C.ouro, sc, 'center');
+        box(cx - Math.round(cw / 2) - 5, cy - 7, cw + 11, 7 + 14 + 6, C.painel, C.ouro);
+        text(label, cx, cy, C.ouro, 'g14', 'center', C.sombra);
       }
     }
 
@@ -5444,7 +5826,8 @@
       var faixa = null, fx0 = null;
       for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
       if (fx0) {
-        var ft = fx0.item.nome.toUpperCase() + '!', skId = FX.iconNameOf(fx0.item);
+        var rmF = fx0.item.typeSkill ? '' : FX.rankRomano(fx0.item.rank);   // "SPRINT III!"; no rank V a faixa fica dourada
+        var ft = fx0.item.nome.toUpperCase() + (rmF ? ' ' + rmF : '') + '!', skId = FX.iconNameOf(fx0.item);
         var bl = FX.skillBannerLayout(ft, lay.artW, S, !!FX.iconImage(skId), tw), fs = bl.fs, fw = bl.w, fh = bl.h;
         var fxx = bl.x, fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
         // com o Dado na pista, logo abaixo da faixa dele
@@ -5452,10 +5835,10 @@
         // com a faixa do lugar em cima, logo abaixo dela
         if (lCaixa && !lugarFaixa.embaixo) fyy = Math.max(fyy, lCaixa.y + lCaixa.h + 2);
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
-        var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
+        var cor = FX.rankMax(fx0.item) ? C.ouro : ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
-        box(fxx, fyy, fw, fh, C.veu, cor);
-        if (bl.icone) FX.drawIconPng(ctx, skId, bl.iconX * S, (fyy + bl.iconDy) * S, 8 * fs, S);
+        box(fxx, fyy, fw, fh, C.painel, cor);
+        if (bl.icone) FX.drawIconPng(ctx, skId, bl.iconX * S, (fyy + bl.iconDy) * S, 8, S);   // 1:1 (nada ampliado)
         text(ft, bl.textX, fyy + bl.textDy, C.texto, fs, 'center', C.sombra);
         ctx.globalAlpha = 1;
         faixa = { x: fxx - 1, y: fyy - 1, w: fw + 2, h: fh + 2 };
@@ -5472,7 +5855,7 @@
       if (lCaixa) obst.push(lCaixa);
       if (dItem) { obst.push(dCaixa); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
       function bate(a, o) { return a.x < o.x + o.w + 1 && o.x < a.x + a.w + 1 && a.y < o.y + o.h + 1 && o.y < a.y + a.h + 1; }
-      if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
+      if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: YOU_H + 2 }; }
       if (self.voceRect) obst.push(self.voceRect);
       vis.forEach(function (v) {
         var lista = porCavalo[v.j];
@@ -5480,7 +5863,7 @@
         lista = lista.slice(-3);
         // o nome da skill no balão mais novo: inteiro numa linha, ou em duas quando a raia comporta (self.linhasBalao)
         var novo = lista[lista.length - 1];
-        var linhas = novo.kind === 'skill' ? FX.nomeEmLinhas(novo.nome, FX.BALAO.textoMax, self.linhasBalao, novo.nomeCurto) : null;
+        var linhas = novo.kind === 'skill' ? FX.linhasBalao(novo, FX.BALAO.textoMax, self.linhasBalao) : null;   // com o rank em romano (II a V)
         var h0 = FX.balloonSize(novo, 0, linhas).h;
         var y0 = lay.laneTopArt + v.j * lay.laneArt - (v.sobe || 0), y1 = y0 + lay.laneArt;
         // na altura do jóquei (como o "◀VOCÊ"), mas sempre dentro da faixa da raia (o de duas linhas, que só existe em
@@ -5516,7 +5899,7 @@
           // no de texto): então ele e os mais velhos ficam de fora
           if (ant && bate(r, ant)) break;
           if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q, q ? null : linhas)) {
-            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : linhas ? linhas.join(' ') : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
+            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : linhas ? linhas.join(' ') : (item.nomeCurto || ''), rank: item.rank || 0, dourado: FX.rankMax(item), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
           }
           bx = r.x + r.w + 2; ant = r;
         }
@@ -5531,8 +5914,9 @@
     }
 
     // etiqueta "◀VOCÊ" (pixels de arte; caixa de 9 de altura, borda por fora): texto e posição
+    var YOU_H = 11;   // a etiqueta "◀VOCÊ" (com o acento), em Galmuri7
     function youTagBox(yt) {
-      var s = '◀VOCÊ' + (yt.place ? ' ' + yt.place + 'º' : ''), w = tw(s) + 4;
+      var s = '◀VOCÊ' + (yt.place ? ' ' + yt.place + 'º' : ''), w = tw(s) + 3;
       return { txt: s, x: Math.min(Math.round(yt.x / self.S), self.lay.artW - w - 2), y: Math.round(yt.y / self.S) - 2, w: w };
     }
 
@@ -5585,7 +5969,7 @@
       if (dCaixa && !dEmCima) base = Math.min(base, dCaixa.y - 2);
       function caixaDe(emb) { return FX.lugarLayout(self.lugar.texto, lay, topo, emb, base); }
       var obst = [dCaixa];
-      if (youTag) { var yb = youTagBox(youTag); obst.push({ x: yb.x - 1, y: yb.y - 1, w: yb.w + 2, h: 11 }); }
+      if (youTag) { var yb = youTagBox(youTag); obst.push({ x: yb.x - 1, y: yb.y - 1, w: yb.w + 2, h: YOU_H + 2 }); }
       var d = decideLugar(vis, self.simT, self.simT + LUGAR_S * ts * 2, caixaDe, obst);
       lugarFaixa.decidida = true; lugarFaixa.embaixo = d.embaixo; lugarFaixa.caixa = caixaDe(d.embaixo);
       self.lugarFaixa = { embaixo: d.embaixo, caixa: lugarFaixa.caixa, cavalo: d.cavalo };   // para o teste e o relatório
@@ -5601,7 +5985,7 @@
       var S = self.S, lay = self.lay, red = reduced(), maior = FX.diceRevealed(item, self.simT, red) ? DADO_MAIOR : 1;
       var topo = lugarDado.embaixo ? lay.hudH + 2 : faixa.y + faixa.h + 2, base = lugarDado.embaixo ? faixa.y - 2 : lay.artH;
       var fixos = [];
-      if (youTag) { var yb = youTagBox(youTag); fixos.push({ x: yb.x - 1, y: yb.y - 1 - topo, w: yb.w + 2, h: 11 }); }
+      if (youTag) { var yb = youTagBox(youTag); fixos.push({ x: yb.x - 1, y: yb.y - 1 - topo, w: yb.w + 2, h: YOU_H + 2 }); }
       self.voceRect = fixos.length ? { x: fixos[0].x, y: fixos[0].y + topo, w: fixos[0].w, h: fixos[0].h } : null;
       var rects = vis.map(function (v) {
         var sz = FX.badgeSize(item.rolls[v.j]), k = v.j === item.winner ? maior : 1;
@@ -5618,29 +6002,24 @@
       });
     }
 
-    // etiquetas de quem está fora da tela: coluna própria, sem se sobrepor, com nº da raia; topo (opcional) = a
-    // primeira linha livre abaixo de uma faixa no alto da pista (a do Dado). Anota as caixas em _stats.caixasEtiquetas
-    function layoutTags(tags, right, topo) {
+    // quem está fora da tela vira uma seta de 5 × 9 na borda, na altura da raia, na cor da seda e sem metros (guia §8;
+    // etapa 2.4: com a câmera a 12 px/m quase sempre há alguém fora). topo (opcional) = a primeira linha livre abaixo de
+    // uma faixa no alto da pista; obst = caixas que a seta não cobre (uma faixa no pé da pista): ela sobe para cima da
+    // caixa. Anota as caixas em _stats.caixasEtiquetas
+    var SETA_W = 5, SETA_H = 9;
+    function layoutTags(tags, right, topo, obst) {
       if (!tags.length) return;
-      var S = self.S, lay = self.lay;
-      tags.sort(function (a, b) { return a.y - b.y; });
-      var minY = Math.max(lay.compact ? lay.hudH + 2 : lay.hudH + 14, topo || 0);
-      var prev = minY - 9;
+      var lay = self.lay, minY = Math.max(lay.hudH + 2, topo || 0);
       tags.forEach(function (t) {
-        var y = Math.max(Math.round(t.y / S), prev + 9);
-        y = Math.min(y, lay.artH - 9);
-        prev = y;
-        var r = L.racers[t.j], num = String(t.j + 1);
-        var w = 7 + tw(t.txt) + 4;
-        var bx = right ? lay.artW - w - 1 : 1;
-        box(bx, y, w, 8, C.veu);
-        FX._stats.caixasEtiquetas.push({ racer: t.j, x: right ? bx : bx - 1, y: y, w: w + 1, h: 8 });   // com a setinha
-        box(bx + 1, y + 1, 5, 6, r.silks);
-        text(num, bx + 2, y + 1, digitColor(r.silks));
-        text(t.txt, bx + 8, y + 1, C.texto, 1, null, null, true);
-        ctx.fillStyle = C.texto2;
-        var ax = right ? bx + w : bx - 1;
-        ctx.fillRect(ax * S, (y + 3) * S, S, 2 * S);
+        var y = clamp(Math.round(t.y / self.S), minY, lay.artH - SETA_H - 1);
+        var ax = right ? lay.artW - SETA_W - 1 : 1, i, cx;
+        (obst || []).forEach(function (b) {
+          if (b && ax < b.x + b.w && ax + SETA_W > b.x && y < b.y + b.h && y + SETA_H > b.y) y = b.y - SETA_H - 1;
+        });
+        // contorno escuro e o miolo na cor da seda; a ponta para o lado de fora da tela
+        for (i = 0; i < 5; i++) { cx = right ? ax + i : ax + 4 - i; box(cx, y + i, 1, SETA_H - 2 * i, C.tinta); }
+        for (i = 0; i < 4; i++) { cx = right ? ax + i : ax + 4 - i; box(cx, y + 1 + i, 1, SETA_H - 2 - 2 * i, L.racers[t.j].silks); }
+        FX._stats.caixasEtiquetas.push({ racer: t.j, x: ax, y: y, w: SETA_W, h: SETA_H });
       });
     }
 
@@ -5677,7 +6056,8 @@
       }
       var st = sample(self.simT);
       // galope: cadência em tempo real proporcional à velocidade (mais lenta na câmera lenta)
-      for (var j = 0; j < n; j++) self.gallop[j] += dtReal * 13 * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
+      // (guia §8a: 21 quadros do molde por segundo a 17 m/s = 14 dos 6 do ciclo do código)
+      for (var j = 0; j < n; j++) self.gallop[j] += dtReal * GALOPE_QPS * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
       // narração
       while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT && !esperaRevelacao(feedEvents[feedPtr])) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
@@ -5688,6 +6068,7 @@
       var tDes = window.performance.now();
       FX.beginFrame();
       draw(st, order);
+      vctx.drawImage(buf, 0, 0, cv.width, cv.height);   // a única cópia do quadro para a tela, ampliada s vezes
       FX.endFrame(window.performance.now() - tDes, now);
     }
 
@@ -5725,7 +6106,7 @@
   // o 2º e o 3º na escala de hoje, cada um centrado no espaço que sobra do seu lado, para as caixas não se tocarem. O
   // canvas tem 168 de arte de largura (336 px) e a altura que o cavalo maior pedir (a caixa dele, mais o lugar da seta
   // do jogador acima). Degraus, números, nomes, holofotes, confete e a seta como antes.
-  var PODIUM_W = 168, PODIUM_H_MIN = 84;
+  var PODIUM_W = 224, PODIUM_H_MIN = 84;   // na grade (etapa 1b): 224 pixels de arte, os cavalos 1:1
   var PODIO_DEGRAU = { 1: 29, 2: 25, 3: 21 };   // altura de cada degrau em arte (o "3" ainda cabe acima da faixa escura)
   var PODIO_BLOCO = { 1: 56, 2: 44, 3: 44 };     // largura de cada degrau em arte
   var PODIO_SETA = 9;                             // arte acima da caixa do cavalo: 1 de folga, a seta (4) e 4 até a caixa
@@ -5734,18 +6115,17 @@
     var L = ui.lobby; if (!L || !L.sim) return;
     var top3 = L.sim.finishOrder.slice(0, 3);
     var playerOnPodium = top3.indexOf(L.playerIdx) >= 0;
-    var k = Math.max(1, Math.round(2 * dpr()));   // a escala do setupCanvas(…, 2) abaixo
-    var passo = Math.max(1, Math.round(k / 2));
-    // cada lugar: o cavalo (opções do drawHorse), a escala e a caixa medida com os cascos em y = 0. O quadro não tem
-    // topo (−1e6): os cascos ficam na base, o molde nunca desce de escala nem é cortado, e a caixa medida aqui é a
-    // desenhada; o canvas cresce para ela caber
+    var k = gradeS || Math.max(1, Math.round(1.5 * dpr()));   // a escala da grade (setupCanvasGrade abaixo)
+    // cada lugar: o cavalo (opções do drawHorse) e a caixa medida com os cascos em y = 0 e o corpo em x = 0. Na grade
+    // (etapa 1b da direção de arte) os três cavalos saem 1:1, do mesmo tamanho: o 1º se destaca pelo degrau mais alto, o
+    // holofote e o ouro (o guia não deixa ampliar o molde); o canvas cresce para a caixa caber
     var slots = [1, 2, 3].map(function (place) {
       var ri = top3[place - 1];
       if (ri == null) return null;
-      var r = L.racers[ri], kS = place === 1 ? k + passo : k;
+      var r = L.racers[ri], kS = k;
       var opts = comVisuais({
         palette: r.horse.palette, element: r.horse.element, idle: true, t: 0,
-        scale: kS, silks: r.silks, shadow: false, quadro: { topo: -1e6, base: 0 }
+        scale: kS, silks: r.silks, shadow: false, quadro: { topo: -1e6, base: 0, grade: k, centro: 0 }
       }, opcoesVisuais(r.horse, joqueiDoCorredor(L, ri)));   // parte 2a
       var b = SP.horseBox(0, -HORSE_PE * kS, opts);
       var alto = Math.max(-b.y, HORSE_PE * kS);   // o desenho por código ocupa HORSE_PE·kS acima dos cascos
@@ -5754,7 +6134,7 @@
     });
     var H = PODIUM_H_MIN;
     slots.forEach(function (sl) { if (sl) H = Math.max(H, PODIO_DEGRAU[sl.place] + Math.ceil(sl.alto / k) + PODIO_SETA); });
-    var s = setupCanvas(cv, PODIUM_W, H, 2), ctx = s.ctx;
+    var s = setupCanvasGrade(cv, PODIUM_W, H), ctx = s.ctx;
     // posições (px do canvas): o 1º centrado; o 2º no meio do espaço à esquerda dele; o 3º no da direita
     var W = PODIUM_W * k, g = slots[0];
     g.left = Math.round(W / 2 - g.bw / 2);
@@ -5767,7 +6147,7 @@
       sl.cx = (sl.left + sl.bw / 2) / k;           // centro do cavalo e do degrau, em arte
       sl.hx = sl.left - sl.bx;
       sl.hy = sl.top * k - HORSE_PE * sl.kS;
-      sl.opts.quadro = { topo: -1e6, base: sl.top * k };   // em pé no degrau (o canvas já tem a altura da caixa)
+      sl.opts.quadro = { topo: -1e6, base: sl.top * k, grade: k, centro: sl.left - sl.bx };   // em pé no degrau, 1:1
       sl.caixa = SP.horseBox(sl.hx, sl.hy, sl.opts);
       podio.push({ lugar: sl.place, x: sl.caixa.x / dpr(), y: sl.caixa.y / dpr(), w: sl.caixa.w / dpr(), h: sl.caixa.h / dpr(), escala: sl.kS / dpr() });
     });
@@ -5800,7 +6180,7 @@
           R(bx, sl.top, bw, H - sl.top - 4, sl.col);
           R(bx, sl.top, bw, 1, C.brilho);
           R(bx, H - 7, bw, 3, C.escuro);
-          SP.drawText(ctx, String(sl.place), Math.round(sl.cx) * k, (sl.top + 3) * k, { scale: 2 * k, color: C.tinta, align: 'center' });
+          SP.drawText(ctx, String(sl.place), Math.round(sl.cx) * k, (sl.top + 3) * k, { fonte: 'g11', scale: k, color: C.tinta, align: 'center' });
           sl.opts.t = reduced() ? 0.5 : t + sl.place * 0.8;
           sl.opts.reduzido = reduced();
           SP.drawHorse(ctx, sl.hx, sl.hy, sl.opts);
@@ -5843,7 +6223,9 @@
       : par('Entrada', '−' + fmt(R.fee), 'menos-t') +
         par('Prêmio (' + R.place + 'º lugar)', R.prize ? '+' + fmt(R.prize) : '0', R.prize ? 'mais' : '') +
         par('Resultado', signed(net), net > 0 ? 'mais' : net < 0 ? 'menos-t' : '') +
-        (R.stone ? par('Pedra Negra', iconeHtml('pedra-negra', '🪨') + ' +1', 'mais') : '')) + '</dl>';
+        (R.stone ? par('Pedra Negra', iconeHtml('pedra-negra', '🪨') + ' +1', 'mais') : '') +
+        (R.pergaminho ? par(GD.ITEMS.pergaminho.name, itemIconeHtml('pergaminho') + ' +' + R.pergaminho, 'mais') : '') +
+        (R.pergCheia ? par(GD.ITEMS.pergaminho.name, 'Mochila cheia (' + GD.BAG_MAX + '): não coube') : '')) + '</dl>';
 
     var lvl = '';
     if (R.levels > 0) {
@@ -5899,7 +6281,7 @@
         // pedaços (Ruling 17): cada um sem quebra por dentro e o " ·" no fim do pedaço de cima
         '<td><div class="quem"><b>' + laneChip(r, ri, 'raia--mini') + esc(r.horse.name) +
         (r.isPlayer ? ' <span class="tag-voce">VOCÊ</span>' : '') + '</b>' +
-        '<small>' + (r.isPlayer ? [] : [r.name]).concat(['Nv ' + r.horse.level]).concat(info ? ['skills ' + Math.round(info.skillChance * 100) + '%'] : [])
+        '<small>' + (r.isPlayer ? [] : [r.name]).concat(['Nv ' + r.horse.level]).concat(skillsRankTxt(r.horse) ? [skillsRankTxt(r.horse)] : [])
           .map(function (p, i, ps) { return '<span class="quem-peca">' + esc(p + (i < ps.length - 1 ? ' ·' : '')) + '</span>'; }).join(' ') + '</small></div></td>' +
         '<td class="num"><span class="tempo">' + fmtSec(t) + '</span><small>' + gap + '</small></td><td class="num">' + prize + '</td></tr>';
     }).join('');
@@ -5971,6 +6353,14 @@
       case 'perfil':
         if (state) go('perfil');
         break;
+      case 'perfil-creditos':
+        if (ui.screen !== 'perfil') break;
+        ui.perfilVer = 'creditos'; ui.licencaAberta = false;
+        go('perfil'); break;
+      case 'creditos-licenca':
+        if (ui.screen !== 'perfil' || ui.perfilVer !== 'creditos') break;
+        ui.licencaAberta = !ui.licencaAberta;
+        rerenderKeepScroll(); break;   // o foco volta ao botão
       // ---- Loja de itens (fora do portão do equipamento): a parte aberta e a compra de um toque ----
       case 'loja-parte':
         if (ui.screen !== 'loja' || !LOJA_PARTES.some(function (a) { return a.id === id; })) break;
@@ -6056,6 +6446,7 @@
         ui.itemMsg = null;
         var motU = itemQtd(id) < 1 ? 'Você não tem ' + GD.ITEMS[id].name + '.' : naFicha ? (skU ? motivoUsoSkill(id, mountByUid(uidU), skU) : motivoUso(id, mountByUid(uidU))) : '';
         if (motU) { recusaItem(seletorDe(b), motU); break; }
+        if (ui.montaria) ui.montaria.rank = null;
         ui.item = { id: id, mountUid: naFicha ? uidU : null, skillId: null, passo: 'cavalo', origem: naFicha ? 'ficha' : 'mochila' };
         if (naFicha && id === 'cupom' && skU) { ui.item.skillId = skU; ui.item.passo = 'confirma'; }
         else if (naFicha) ui.item.passo = id === 'cupom' ? 'skill' : 'confirma';
@@ -6097,6 +6488,42 @@
         itemVolta(FF);
         motivoVivo(ui.itemMsg.txt);   // a região viva anuncia; o aviso fica na tela
         break;
+      }
+      case 'rank-subir': {
+        // abre a confirmação (o antes e o depois, o custo); botão indisponível só diz o motivo
+        var uidR = b.getAttribute('data-mount'), skR = b.getAttribute('data-skill');
+        if (ui.screen !== 'montaria' || !ui.montaria || ui.montaria.uid !== uidR || ui.montaria.aba !== 'skills') break;
+        var sR0 = state;
+        persist();                    // tela velha (outra aba): adota o save mais novo antes de abrir
+        if (state !== sR0) break;
+        var mR = mountByUid(uidR), pR = mR ? IT.podeSubirRank(mR, skR, rankCtx(mR)) : null;
+        if (!pR) break;
+        ui.itemMsg = null;
+        if (!pR.ok) { recusaItem(seletorDe(b), pR.motivo + '.'); break; }
+        ui.item = null;
+        ui.montaria.rank = { skillId: skR };
+        itemPasso(); break;
+      }
+      case 'rank-confirmar': {
+        var MR = ui.montaria;
+        if (ui.screen !== 'montaria' || !MR || !MR.rank) break;
+        ui.itemMsg = null;
+        var skC = MR.rank.skillId, rR = sobeRank(MR.uid, skC);
+        if (rR === 'outra-aba') break;
+        if (rR !== 'ok') {
+          if (rR === FALHA_SALVAR) ui.itemMsg = { passo: true, txt: rR };
+          recusaItem('[data-acao="rank-confirmar"]', rR); break;
+        }
+        MR.rank = null;
+        rankVolta(skC);
+        motivoVivo(ui.itemMsg.txt);
+        break;
+      }
+      case 'rank-cancelar': {
+        if (!ui.montaria || !ui.montaria.rank) break;
+        var skX = ui.montaria.rank.skillId;
+        ui.montaria.rank = null; ui.itemMsg = null;
+        rankVolta(skX); break;
       }
       case 'item-cancelar': {
         var FX = ui.item;
@@ -6160,6 +6587,7 @@
         ui.montaria.confirmaRedist = false;
         ui.montaria.renomear = null; ui.confirmLiberar = null;   // nem o campo de renomear e a confirmação de liberar da aba Ficha
         ui.item = null; ui.itemMsg = null;                       // nem o uso de item aberto
+        ui.montaria.rank = null;                                 // nem a confirmação do "Subir rank"
         rerenderKeepScroll(); break;
       case 'ponto-mais': {
         // +1, +5 ou +10 (data-n): soma exatamente N ao rascunho, ou nada
@@ -6505,6 +6933,7 @@
         });
         break;
       case 'pular':
+        if (e.detail >= 2 && Date.now() - corridaDesde < PULAR_GUARDA_MS) break;   // o 2º toque do "Largar!" (ver PULAR_GUARDA_MS)
         if (raceView) raceView.skip(); else corridaAtual().fim();
         break;
       case 'denovo':
@@ -6799,11 +7228,13 @@
       var hot = window.claude && window.claude.hot;
       if (hot && typeof hot.snapshot === 'function') hot.snapshot(snapshot);
     } catch (e) { /* opcional */ }
+    aplicaGrade();
     render();   // liga o laço de animação se a tela tiver o que animar
     // só a largura (ou a densidade) muda o layout fora da corrida: a barra de endereço do celular
     // mudando a altura não reconstrói a tela no meio da rolagem
     var resizeTimer = null, lastW = window.innerWidth, lastDpr = dpr();
     window.addEventListener('resize', function () {
+      aplicaGrade();
       if (ui.screen === 'corrida') return;
       if (window.innerWidth === lastW && dpr() === lastDpr) return;
       clearTimeout(resizeTimer);

@@ -45,7 +45,7 @@ desenvolvedor e o recrutamento dos 12 testadores podem começar já: são o que 
 - [ ] Conta de desenvolvedor do Play (US$ 25, documento oficial; conta pessoal nova exige o teste
       fechado abaixo). Verificação de desenvolvedor Android, obrigatória no Brasil desde 30/09/2026 (conferir).
 - [ ] Teste fechado: 12 testadores inscritos por 14 dias seguidos, para cada app novo. Recrutar com folga.
-- [ ] Ficha da loja: ícone 512 px, imagem de destaque 1024×500 (`docs/capa.png` já tem esse tamanho), capturas.
+- [ ] Ficha da loja: ícone 512 px, imagem de destaque 1024×500 (`prototype/assets/arte/marca/destaque-1024x500.png`, da direção de arte; o ícone em `icone-512.png`), capturas.
 
 ### Técnico
 - [ ] Pacote AAB com assinatura do Play; alvo Android 16 / API 36 (exigido desde 31/08/2026, conferir).

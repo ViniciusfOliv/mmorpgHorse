@@ -38,16 +38,15 @@
   //   ptsMult: fator da raridade nos pontos por nível (RaceSim.freePoints).
   //   skillSlots: nº máximo de habilidades; bornSkills: nº MÍNIMO ao nascer (o potro completa
   //   com skills compatíveis até esse número, limitado às vagas);
-  //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
   //   baseLo: início da faixa de 16 pontos (RaceSim.TUNING.gBand) onde nasce cada status, conforme a
   //   genética: base = baseLo + 16 × g / 31 (nada cresce sozinho com o nível; o resto são pontos comprados).
   // ---------------------------------------------------------------------------
   var RARITIES = {
-    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', ptsMult: 1.00, skillSlots: 1, bornSkills: 1, skillChance: 0.35, order: 0, baseLo: 40 },
-    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', ptsMult: 1.05, skillSlots: 2, bornSkills: 1, skillChance: 0.45, order: 1, baseLo: 44 },
-    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', ptsMult: 1.10, skillSlots: 3, bornSkills: 2, skillChance: 0.55, order: 2, baseLo: 49 },
-    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', ptsMult: 1.15, skillSlots: 4, bornSkills: 2, skillChance: 0.65, order: 3, baseLo: 54 },
-    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.20, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4, baseLo: 60 }
+    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', ptsMult: 1.00, skillSlots: 1, bornSkills: 1, order: 0, baseLo: 40 },
+    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', ptsMult: 1.05, skillSlots: 2, bornSkills: 1, order: 1, baseLo: 44 },
+    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', ptsMult: 1.10, skillSlots: 3, bornSkills: 2, order: 2, baseLo: 49 },
+    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', ptsMult: 1.15, skillSlots: 4, bornSkills: 2, order: 3, baseLo: 54 },
+    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.20, skillSlots: 5, bornSkills: 3, order: 4, baseLo: 60 }
   };
 
   // ---------------------------------------------------------------------------
@@ -60,7 +59,7 @@
     man: 'Rendimento nas curvas: quem tem mais perde menos velocidade nelas.',
     forca: 'Rendimento nas subidas, nos pisos pesados e para passar pelo pelotão.',
     est: 'Fôlego para manter o ritmo até o fim; também deixa correr mais forte no meio e no sprint.',
-    garra: 'Chance e força da arrancada final; com mais Garra ela começa mais cedo.',
+    garra: 'Força média da arrancada final, que acontece sempre; com mais Garra ela começa mais cedo e empurra mais.',
     sorte: 'Vem do nascimento e não recebe pontos. Chance de jogar o Dado da Sorte duas vezes.',
     genetica: 'Nota S, A, B ou C: o quanto o status já nasce alto. Vem do nascimento e não muda.',
     estrelas: 'Grau do cavalo, de 1 a 3 estrelas: mais estrelas, mais pontos para distribuir a cada nível.',
@@ -72,7 +71,8 @@
     piso: 'Piso mais pesado tira velocidade e gasta mais fôlego; a Força ajuda a perder menos.',
     dado: 'Duas vezes por corrida, quem tira o maior dado puxa o clima para o seu elemento. Sorte alta rola dois dados.',
     custo: 'O custo de cada ponto sobe a cada 10 pontos comprados no mesmo status. Os pontos que sobram ficam guardados para depois.',
-    redea: 'Devolve todos os pontos para você distribuir de novo. A primeira de cada cavalo é grátis; depois gasta 1 Rédea nova.'
+    redea: 'Devolve todos os pontos para você distribuir de novo. A primeira de cada cavalo é grátis; depois gasta 1 Rédea nova.',
+    rank: 'Skill de vaga ativa sempre. O rank (I a V) dá +15% de efeito por passo e, no V, um marco. Sobe com Ouro e Pergaminhos de técnica, sem falhar e sem volta.'
   };
 
   var STAT_KEYS = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
@@ -145,90 +145,120 @@
   //     curveBonus / hillBonus / hillDrainMult: bônus nos blocos de curva/subida;
   //     blockScoped: vale uma vez por bloco (curva/subida), não uma vez por corrida;
   //     staminaRestore: recupera fração do tanque (instantâneo);
-  //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
-  //     extraDice: dados extras; weatherDouble: o bônus do clima vira T.weatherMultDouble (×1,08 no lugar de ×1,03).
+  //     garraBoostBonus: soma à força da arrancada de Garra (que acontece sempre);
+  //     extraDice: dados extras no Dado da Sorte (cada um de 1 até SKILL_RANKS.diceTeto do rank);
+  //     weatherBonus: soma ao bônus do clima do próprio elemento (×1,03 → ×(1,03 + bônus)).
+  //   Os valores de effect são os do RANK 1; RaceSim.skillEffect(id, rank) dá os do rank (escala SKILL_RANKS.step
+  //   só na parte de bônus; duração e distância não crescem).
+  //   rank5: o marco do rank 5, somado ao efeito já escalado. durationS, lowStaminaAt (gatilho do Segundo Ar),
+  //     minStraightM (reta mínima do Sprint) e extraDice substituem; multiplicadores se multiplicam; staminaRestore
+  //     soma; exitRestore: recupera ao sair da subida; weatherLingerS: o reforço do clima dura mais N s depois
+  //     de o clima mudar; untilFinish: o efeito vale até a chegada.
   //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra).
   //   element: 'geral' (qualquer tipo aprende) ou o tipo que aprende.
   // ---------------------------------------------------------------------------
+  // Ranks das skills de vaga (por cavalo, em horse.skillRanks): 1 a max. O fator do rank r é 1 + step × (r − 1).
+  // custo[r]: Ouro e Pergaminhos de técnica para subir de r para r + 1 (sem sorteio). diceTeto[r − 1]: até quanto
+  // rola o dado extra do Dado Viciado.
+  var SKILL_RANKS = {
+    max: 5, step: 0.15,
+    custo: { 1: { ouro: 150, perg: 1 }, 2: { ouro: 400, perg: 2 }, 3: { ouro: 900, perg: 4 }, 4: { ouro: 2000, perg: 7 } },
+    diceTeto: [60, 70, 80, 90, 100]
+  };
   var SKILLS = {
     // --- Gerais (qualquer tipo) ---
     'arranque': {
       id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
-      desc: 'Largada explosiva: +18% de aceleração nos primeiros 100 m.',
-      effect: { accelMult: 1.18, distanceM: 100 }
+      desc: 'Largada explosiva: +10,8% de aceleração nos primeiros 100 m.',
+      effect: { accelMult: 1.108, distanceM: 100 },
+      rank5: { speedMult: 1.03 }
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m.',
-      effect: { speedMult: 1.06, drainMult: 1.0, distanceM: 150 }
+      desc: 'Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m.',
+      effect: { speedMult: 1.04, distanceM: 150 },
+      rank5: { minStraightM: 100 }
     },
     'drift': {
       id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
-      desc: 'Em cada curva: +2,5% de rendimento na curva.',
-      effect: { curveBonus: 0.025, blockScoped: true }
+      desc: 'Em cada curva: +1,3% de rendimento na curva.',
+      effect: { curveBonus: 0.013, blockScoped: true },
+      rank5: { drainMult: 0.85 }
     },
     'saida-rapida': {
       id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
-      desc: 'Ao sair da curva: +40% de aceleração e +6% de velocidade por 6s.',
-      effect: { accelMult: 1.4, speedMult: 1.06, durationS: 6 }
+      desc: 'Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s.',
+      effect: { accelMult: 1.32, speedMult: 1.045, durationS: 6 },
+      rank5: { durationS: 7 }
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
-      desc: 'Em cada subida: gasta 80% menos estamina extra da subida.',
-      effect: { hillDrainMult: 0.2, blockScoped: true }
+      desc: 'Em cada subida: gasta 70% menos estamina extra da subida.',
+      effect: { hillDrainMult: 0.3, blockScoped: true },
+      rank5: { exitRestore: 0.03 }
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'geral', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 30%, recupera 15% e ganha +5% de velocidade por 8s.',
-      effect: { staminaRestore: 0.15, speedMult: 1.05, durationS: 8 }
+      desc: 'Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s.',
+      effect: { staminaRestore: 0.1, speedMult: 1.03, durationS: 8 },
+      rank5: { lowStaminaAt: 0.35 }
     },
     'arrancada-final': {
       id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
-      desc: 'Na reta final: +15% de chance de Garra e +3% de força na arrancada.',
-      effect: { garraChanceBonus: 0.15, garraBoostBonus: 0.03 }
+      desc: 'Na reta final: +2,8% de força na arrancada de Garra.',
+      effect: { garraBoostBonus: 0.028 },
+      rank5: { speedMult: 1.01, untilFinish: true }
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
-      desc: 'Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida.',
-      effect: { extraDice: 1 }
+      desc: 'Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida.',
+      effect: { extraDice: 1 },
+      rank5: { extraDice: 2 }
     },
     // --- Fogo ---
     'sol-a-pino': {
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
-      desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +8%.',
-      effect: { weatherDouble: true }
+      desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +7%.',
+      effect: { weatherBonus: 0.04 },
+      rank5: { weatherLingerS: 15 }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
-      desc: 'Na reta final, +5% de velocidade por 9,5s.',
-      effect: { speedMult: 1.05, durationS: 9.5 }
+      desc: 'Na reta final: +4% de velocidade por 9,5s.',
+      effect: { speedMult: 1.04, durationS: 9.5 },
+      rank5: { durationS: 11 }
     },
     // --- Água ---
     'pe-na-chuva': {
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
-      desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +8%.',
-      effect: { weatherDouble: true }
+      desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +7%.',
+      effect: { weatherBonus: 0.04 },
+      rank5: { weatherLingerS: 15 }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
-      desc: 'Na reta final, +6% de velocidade por 9s e gasta 30% menos estamina.',
-      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 9 }
+      desc: 'Na reta final: +4% de velocidade e 20% menos gasto de estamina por 9s.',
+      effect: { speedMult: 1.04, drainMult: 0.8, durationS: 9 },
+      rank5: { staminaRestore: 0.05 }
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina.',
-      effect: { staminaRestore: 0.12 }
+      desc: 'Numa reta de 150 m ou mais (fora a da largada): recupera 4,5% de estamina.',
+      effect: { staminaRestore: 0.045 },
+      rank5: { speedMult: 1.03, durationS: 4 }
     },
     // --- Grama ---
     'nevoa-amiga': {
       id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
-      desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +8%.',
-      effect: { weatherDouble: true }
+      desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +7%.',
+      effect: { weatherBonus: 0.04 },
+      rank5: { weatherLingerS: 15 }
     },
     'casco-firme': {
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
-      desc: 'Em cada subida: +2% de rendimento na subida.',
-      effect: { hillBonus: 0.02, blockScoped: true }
+      desc: 'Em cada subida: +1,2% de rendimento na subida.',
+      effect: { hillBonus: 0.012, blockScoped: true },
+      rank5: { hillDrainMult: 0.7 }
     }
   };
 
@@ -460,7 +490,7 @@
       enhanceChance: [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25],
       enhanceCost: [1, 1, 1, 1, 1, 1, 2, 2, 2, 2],
       enhanceDropFrom: 6,
-      setBonus: { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [3, 15, 20] },
+      setBonus: { pieces: [3, 4, 5], skillEffect: 0.05, sorte: 5, ratingPts: [3, 15, 20] },
       podiumStone: [0.6, 0.4, 0.25],
       startGear: ['sela-comum', 'ferraduras-comum']
     }
@@ -500,9 +530,17 @@
       id: 'manual', name: 'Manual de doma', plural: 'Manuais de doma', price: 200, perDay: 1, chance: 0.35,
       desc: 'O cavalo tenta aprender uma skill na hora; o manual é gasto mesmo se ele não aprender.',
       origem: 'Compre na loja, ganhe no 4º dia da recompensa diária ou nos ginásios.'
+    },
+    // Pergaminho de técnica: só se ganha jogando (nunca na loja: sem price; nunca por Gemas; nunca em treino).
+    //   cap: o teto na mochila; podio: chance de cair no 1º, 2º e 3º lugar de uma corrida valendo (Itens.pergaminhoPodio,
+    //   pela seed da sala). Não se usa pela mochila: é gasto, com Ouro, ao subir o rank de uma skill (SKILL_RANKS.custo).
+    pergaminho: {
+      id: 'pergaminho', name: 'Pergaminho de técnica', plural: 'Pergaminhos de técnica', cap: 99, podio: [0.5, 0.3, 0.15],
+      desc: 'Sobe o rank de uma skill do cavalo, junto com Ouro, na aba Skills.',
+      origem: 'Cai no pódio das corridas valendo e vem nos ginásios; não está à venda.'
     }
   };
-  // A ordem dos produtos na loja: fixa, a da spec §6 (não segue o preço); só itens com price. A mochila mostra os cinco
+  // A ordem dos produtos na loja: fixa, a da spec §6 (não segue o preço); só itens com price. A mochila mostra todos
   // na ordem das chaves de ITEMS.
   var SHOP_ORDER = ['torrao', 'manual', 'cupom', 'estrela'];
   // Teto da mochila por item (Torrão, Estrela, Cupom, Manual); a Rédea nova tem o teto dela no save (999).
@@ -530,10 +568,11 @@
     // de hoje os 4% somam cerca de 2 pontos (a vantagem anda em degraus de 1 ponto de status)
     vantagem: 0.04,
     fadiga: {
-      // entre cavalos iguais as chegadas se dividem entre "colado" e "longe"; 1 e 8 m deixam cada faixa com 18% ou mais
+      // entre cavalos iguais as chegadas se dividem entre "colado" e "longe"; 4 e 12 m deixam cada faixa com 15% ou mais
+      // (2026-11-19: eram 1 e 8 m; com a Garra saindo sempre, com força variável, as chegadas ficaram mais espalhadas)
       faixas: [
-        { id: 'apertada', name: 'Apertada', ate: 1, perde: 0.25 },
-        { id: 'normal', name: 'Normal', ate: 8, perde: 0.15 },
+        { id: 'apertada', name: 'Apertada', ate: 4, perde: 0.25 },
+        { id: 'normal', name: 'Normal', ate: 12, perde: 0.15 },
         { id: 'folgada', name: 'Folgada', ate: null, perde: 0.05 }
       ],
       teto: 0.5
@@ -549,12 +588,14 @@
     return { distance: at, surface: surface, blocks: blocks };
   }
   // As cinco etapas (mesmos níveis, entradas e prêmios nos três; spec §4).
+  // premio.pergaminhos: Pergaminhos de técnica a mais na 1ª vitória (a revanche não dá: o rodízio não muda).
+  // rank: o rank de todas as skills de vaga dos cavalos da etapa (fixo, sem sorteio; a revanche usa o do líder).
   var GYM_ETAPAS = [
-    { id: 'soldado-1', lider: false, level: 4, entrada: 20, premio: { ouro: 80, itens: [] } },
-    { id: 'soldado-2', lider: false, level: 8, entrada: 30, premio: { ouro: 120, itens: ['torrao'] } },
-    { id: 'soldado-3', lider: false, level: 12, entrada: 40, premio: { ouro: 160, itens: [] } },
-    { id: 'soldado-4', lider: false, level: 16, entrada: 50, premio: { ouro: 200, itens: ['manual'] } },
-    { id: 'lider', lider: true, level: 20, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'] } }
+    { id: 'soldado-1', lider: false, level: 4, rank: 1, entrada: 20, premio: { ouro: 80, itens: [] } },
+    { id: 'soldado-2', lider: false, level: 8, rank: 1, entrada: 30, premio: { ouro: 120, itens: ['torrao'], pergaminhos: 1 } },
+    { id: 'soldado-3', lider: false, level: 12, rank: 1, entrada: 40, premio: { ouro: 160, itens: [] } },
+    { id: 'soldado-4', lider: false, level: 16, rank: 2, entrada: 50, premio: { ouro: 200, itens: ['manual'], pergaminhos: 1 } },
+    { id: 'lider', lider: true, level: 20, rank: 2, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'], pergaminhos: 3 } }
   ];
   // Os cavalos de todas as etapas têm a genética do inicial do elemento (base); graus: as estrelas de cada cavalo,
   // por etapa (o tamanho de cada lista é o tamanho do time).
@@ -564,8 +605,8 @@
       etapas: GYM_ETAPAS.map(function (e, i) {
         return {
           id: e.id, nome: e.lider ? lider : soldados[i], lider: e.lider,
-          cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr }; }),
-          entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice() }
+          cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr, rank: e.rank }; }),
+          entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice(), pergaminhos: e.premio.pergaminhos || 0 }
         };
       }),
       insignia: { icone: 'ins-' + id, name: insignia }
@@ -656,6 +697,7 @@
     WEATHERS: WEATHERS,
     BLOCK_TYPES: BLOCK_TYPES,
     SKILLS: SKILLS,
+    SKILL_RANKS: SKILL_RANKS,
     GEAR_SLOTS: GEAR_SLOTS,
     GEAR_SLOT_INFO: GEAR_SLOT_INFO,
     GEAR_SETS: GEAR_SETS,

@@ -1,0 +1,52 @@
+{
+  "assinatura": "8c0f5e294ce6",
+  "api": "retrodiffusion",
+  "ferramenta": "seam_tiling",
+  "pedido": {
+    "input_image": "<25112 chars>",
+    "tile_x": true,
+    "tile_y": false,
+    "seed": 7403
+  },
+  "resposta": {
+    "tool_id": "seam_tiling",
+    "inference_id": "inf_nXNWAovexJ1p0G6aJ2YwVl43792BE6zZ",
+    "balance_cost": 0.12,
+    "credit_cost": 14,
+    "charged": true,
+    "remaining_credits": null,
+    "remaining_balance": 3.0399999999999983,
+    "base64_images": [
+      "<38404 chars>"
+    ],
+    "output_urls": [
+      "https://da8ztllw6by0f.cloudfront.net/92d9e72830a8c4041b50ad6685b0907a.png"
+    ],
+    "output_width": 384,
+    "output_height": 64,
+    "scheduled_region_summary": null,
+    "scheduled_region_job_id": null,
+    "request_id": "f190e31d-40f1-438f-8dfa-3e55ff0a267b",
+    "billing": {
+      "source": "balance",
+      "reason": "no_plan",
+      "plan_jobs_running": null,
+      "plan_job_limit": null,
+      "plan_usage_left_pct": null,
+      "balance_charged": 0.12,
+      "balance_left": 3.04
+    },
+    "warnings": null,
+    "toolId": "seam_tiling",
+    "outputImageBase64": "<38404 chars>",
+    "outputImageUrl": "https://da8ztllw6by0f.cloudfront.net/92d9e72830a8c4041b50ad6685b0907a.png",
+    "inferenceId": "inf_nXNWAovexJ1p0G6aJ2YwVl43792BE6zZ",
+    "balanceCost": 0.12,
+    "creditCost": 14,
+    "scheduledRegionSummary": null,
+    "scheduledRegionJobId": null
+  },
+  "arquivos": [
+    "frente-rd-core-s7201-1-emenda-s7403-0.png"
+  ]
+}

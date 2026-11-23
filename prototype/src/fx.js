@@ -14,7 +14,7 @@
  *       'dado' { t0: ev.t, t1: ev.t + 2.4·escala, racer: winner, winner, rolls (cópia), changed,
  *                weather, escala, frase }   — um por evento 'dado'. frase = o efeito, como na narração: o trecho
  *                de ev.text depois de ' — ' ('o sol abre!', 'o clima segura!'…).
- *       'skill' { t0: ev.t, t1, racer, skillId, icon, clima, element, cavalo, nome, nomeCurto, silks, raia,
+ *       'skill' { t0: ev.t, t1, racer, skillId, icon, clima, element, cavalo, nome, nomeCurto, rank (1..5, do evento), silks, raia,
  *                escala } — um por
  *                evento 'skill'. t1 = t0 + duração do efeito real da simulação (durationS; ou o
  *                tempo para o cavalo andar distanceM pelos frames; ou até sair do bloco se
@@ -42,7 +42,7 @@
  *     tipo usam 'chama' | 'folha' | 'onda', desenhados como os outros ícones de 8×8)
  *     Primeira chave presente em skill.effect, nesta ordem: speedMult→vel, accelMult→ace,
  *     staminaRestore→folego, drainMult(<1)→folego, curveBonus→curva, hillBonus→subida,
- *     hillDrainMult→subida, extraDice→dado, weatherDouble→clima, garraChanceBonus→garra,
+ *     hillDrainMult→subida, extraDice→dado, weatherBonus→clima, garraBoostBonus→garra,
  *     garraBoostBonus→garra; nenhuma (ou sem skill) ⇒ 'vel'.
  *   RaceFx.nomeCurto(nome, short) -> texto do balão: o nome inteiro em maiúsculas se couber em 12
  *     letras; senão o campo opcional `short` do catálogo (data.js), ou, sem ele, o nome cortado
@@ -277,21 +277,24 @@
     efeitoMax: 7,
     garraFim: 0.6,     // a Garra segue até finishTime + 0.6
     sobe: 2,           // pixels de arte que o balão sobe ao entrar
-    textoMax: 48,      // largura (pixels de arte) do nome numa linha do balão: a das 12 letras do nomeCurto
-    h2: 17             // altura do balão com o nome em duas linhas (o de uma linha tem 11)
+    textoMax: 60,      // largura (pixels de arte) do nome numa linha do balão: a das 12 letras do nomeCurto (Galmuri7)
+    h2: 23             // altura do balão com o nome em duas linhas (o de uma linha tem 13): 4 + 7 + 3 + 7 + 2
   };
   var EPS = 1e-6;
-  var PLACA_H = 9, PONTA_H = 2, GAP = 1;
-  var MARCA = '\u21bb', MARCA_W = 6;   // "↻" (glifo de 5 colunas na fonte do Sprites) + 1 de espaço
+  // etapa 2.2 da direção de arte: o texto da pista é a Galmuri7 (maiúscula de 7 e 3 pixels para o acento acima dela);
+  // os textos grandes (o nome de quem venceu o Dado, a faixa do lugar, a faixa da skill) são a Galmuri11 Bold
+  var FONTE = 'g7', FONTE_G = 'g11';
+  var PLACA_H = 11, PONTA_H = 2, GAP = 1;
+  var MARCA = '\u21bb', MARCA_W = 6;   // "↻" (a Galmuri não tem: glifo de 5 colunas da fonte 3×5 do Sprites) + 1 de espaço
 
-  // paleta (mesmos valores dos tokens de game.css)
+  // na paleta-mestra (Resurrect 64), pelos papéis do guia §3 (os mesmos tokens do game.css desde a etapa 1b)
   var COR = {
-    tinta: '#1a1405', texto: '#f1e9d4', texto3: '#95a99b', painel: '#16271f', sombra: '#060d0a',
-    ouro: '#f2c230', ouroClaro: '#ffe27a', ouroEscuro: '#9c7210', palha2: '#6f5526', faisca: '#fff6c8',
-    ganho: '#7be07a', cinza: '#8f9893', cinzaClaro: '#c3cac6', fundoCinza: '#2b2f2d'
+    tinta: '#2e222f', texto: '#c7dcd0', texto3: '#9babb2', painel: '#313638', sombra: '#2e222f',
+    ouro: '#f9c22b', ouroClaro: '#fbff86', ouroEscuro: '#f79617', palha2: '#4c3e24', faisca: '#ffffff',
+    ganho: '#91db69', cinza: '#9babb2', cinzaClaro: '#c7dcd0', fundoCinza: '#3e3546'
   };
-  // cores dos elementos para o balão e o contorno (versões claras dos tokens do jogo)
-  var ELEM = { fogo: '#ff8a4c', agua: '#62b8ff', grama: '#7ed65a', neutro: '#d6d0c0' };
+  // cores dos elementos para o balão e o contorno (os tokens do jogo)
+  var ELEM = { fogo: '#f79617', agua: '#8fd3ff', grama: '#91db69', neutro: '#c7dcd0' };
 
   // ===========================================================================
   // Utilidades
@@ -310,6 +313,8 @@
     }
     return o;
   }
+  // a cor da paleta-mestra mais próxima (Sprites.naMestra; sem o Sprites, a própria): para as misturas feitas na hora
+  function pal(hex) { var S = sp(); return S && S.naMestra ? S.naMestra(hex) : hex; }
   function rgba(hex, a) { var v = hexRgb(hex); return 'rgba(' + v[0] + ',' + v[1] + ',' + v[2] + ',' + a.toFixed(3) + ')'; }
   function lum(hex) { var v = hexRgb(hex); return (0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2]) / 255; }
   function frac(x) { return x - Math.floor(x); }
@@ -333,8 +338,11 @@
     return spNode;
   }
   // largura em pixels de arte: dígitos têm sempre 3 colunas (+1 de espaço)
-  function numW(s) { return Math.max(0, String(s).length * 4 - 1); }
-  function textW(s) { var S = sp(); return S ? S.measureText(s, 1) : numW(s); }
+  function numW(s) { return textW(String(s)); }
+  function textW(s, fonte) { var S = sp(); return S ? S.measureText(s, 1, fonte || FONTE) : Math.max(0, String(s).length * 5 - 1); }
+  // altura da maiúscula e o espaço do acento acima dela, por fonte (Galmuri7: 7 e 3; Galmuri11 Bold: 11 e 4)
+  function capDe(fonte) { var S = sp(); return S && S.alturaFonte ? S.alturaFonte(fonte || FONTE) : 7; }
+  function acentoDe(fonte) { return (fonte || FONTE) === FONTE_G ? 4 : 3; }
 
   // ===========================================================================
   // Funções puras
@@ -363,7 +371,7 @@
   var ICON_ORDEM = [
     ['speedMult', 'vel'], ['accelMult', 'ace'], ['staminaRestore', 'folego'], ['drainMult', 'folego'],
     ['curveBonus', 'curva'], ['hillBonus', 'subida'], ['hillDrainMult', 'subida'], ['extraDice', 'dado'],
-    ['weatherDouble', 'clima'], ['garraChanceBonus', 'garra'], ['garraBoostBonus', 'garra']
+    ['weatherBonus', 'clima'], ['garraBoostBonus', 'garra']
   ];
   function skillIcon(skill) {
     var ef = skill && skill.effect;
@@ -427,6 +435,10 @@
   // duração (em segundos de simulação) do efeito real da skill; instantâneo ⇒ 0 (o mínimo vale)
   function duracaoSkill(sim, ev, sk) {
     var ef = (sk && sk.effect) || {};
+    // rank V: o marco pode mudar a duração (durationS) ou valer até a chegada (untilFinish)
+    var m5 = sk && sk.rank5 && rankDe(ev.rank) >= 5 ? sk.rank5 : null;
+    if (m5 && m5.untilFinish) { var fimM = sim && sim.finishTimes && sim.finishTimes[ev.racer]; return fimM != null ? fimM - ev.t : BALAO.efeitoMax; }
+    if (m5 && m5.durationS && (ef.durationS || !ef.distanceM && !ef.blockScoped)) return m5.durationS;
     if (ef.durationS) return ef.durationS;
     var frames = sim && sim.frames, dt = (sim && sim.dt) || 0.1;
     if (!frames || !frames.length || (!ef.distanceM && !ef.blockScoped)) return 0;
@@ -505,6 +517,7 @@
           kind: 'skill', t0: ev.t, t1: ev.t + dur, racer: ev.racer, skillId: sk ? sk.id : null, icon: skillIcon(sk), clima: trig,
           element: sk ? sk.element : (horse && horse.element) || 'neutro', cavalo: (horse && horse.element) || 'neutro',
           nome: sk ? sk.name : '', nomeCurto: nomeCurto(sk ? sk.name : '', sk && sk.short),
+          rank: rankDe(ev.rank),
           silks: (r && r.silks) || null, raia: ev.racer + 1, escala: e
         });
       } else if (ev.type === 'garra') {
@@ -613,30 +626,31 @@
     var eu = me != null && me >= 0 && me !== w && rolls[me] ? 'VOC\u00ca TIROU ' + rolls[me].best : '';
     var linhas = [F.pre + ' ' + nn, frase];
     if (eu) linhas.push(eu);
-    var A = lay.artW, ic = F.icone + F.gapIcone, preW = textW(F.pre), nnW = textW(nn), fraseW = textW(frase), sepW = textW(F.sep);
+    var A = lay.artW, ic = F.icone + F.gapIcone, preW = textW(F.pre), fraseW = textW(frase), sepW = textW(F.sep);
     var euW = eu ? textW(eu) : 0, maxIn = A - 2 * F.margem - 2 * (F.borda + F.folgaX);
-    function l1W(fs) { return ic + preW + F.gapPre + nnW * fs; }
-    var fs = l1W(2) <= maxIn ? 2 : 1;
+    function l1W(f) { return ic + preW + F.gapPre + textW(nn, f); }
+    var fonteNome = l1W(FONTE_G) <= maxIn ? FONTE_G : FONTE, fs = fonteNome === FONTE_G ? 2 : 1;
     var juntas = !!eu && ic + fraseW + sepW + euW <= maxIn;
-    var inW = Math.max(l1W(fs), ic + textW(ROTULO), ic + fraseW + (juntas ? sepW + euW : 0), eu && !juntas ? ic + euW : 0);
+    var inW = Math.max(l1W(fonteNome), ic + textW(ROTULO), ic + fraseW + (juntas ? sepW + euW : 0), eu && !juntas ? ic + euW : 0);
     var bw = inW + 2 * (F.borda + F.folgaX), x = Math.round((A - bw) / 2), y = lay.hudH + 2;
     var cx = x + F.borda + F.folgaX, cy = y + F.borda + F.folgaY;
     // linha 1
-    var m1 = marcasTexto(nn), h1 = Math.max(F.icone, 5 * fs), y1 = cy + (m1.cima ? 3 * fs : 0);
-    var t1 = y1 + Math.floor((h1 - 5 * fs) / 2), fim = Math.max(y1 + h1, t1 + 5 * fs + (m1.baixo ? fs : 0));
+    var capN = capDe(fonteNome), capP = capDe(FONTE);
+    var m1 = marcasTexto(nn), h1 = Math.max(F.icone, capN), y1 = cy + (m1.cima ? acentoDe(fonteNome) : 0);
+    var t1 = y1 + Math.floor((h1 - capN) / 2), fim = Math.max(y1 + h1, t1 + capN + (m1.baixo ? 2 : 0));
     var L = {
-      x: x, y: y, w: bw, h: 0, linhas: linhas, fs: fs, juntas: juntas, nome: nn, frase: frase, eu: eu,
-      l1: { icone: { x: cx, y: y1 + Math.floor((h1 - F.icone) / 2) }, pre: { x: cx + ic, y: t1 + 5 * fs - 5 }, nome: { x: cx + ic + preW + F.gapPre, y: t1 } }
+      x: x, y: y, w: bw, h: 0, linhas: linhas, fs: fs, fonteNome: fonteNome, juntas: juntas, nome: nn, frase: frase, eu: eu,
+      l1: { icone: { x: cx, y: y1 + Math.floor((h1 - F.icone) / 2) }, pre: { x: cx + ic, y: t1 + capN - capP }, nome: { x: cx + ic + preW + F.gapPre, y: t1 } }
     };
-    // linha 2 (ícone de 8 e texto de 5 no meio dele: o acento do texto sobe 2 acima da linha)
-    var m2 = marcasTexto(juntas ? frase + eu : frase), y2 = fim + F.gap + (m2.cima ? 2 : 0);
-    L.l2 = { icone: { x: cx, y: y2 }, texto: { x: cx + ic, y: y2 + 1 } };
-    if (juntas) { L.l2.sep = { x: cx + ic + fraseW, y: y2 + 1 }; L.l2.eu = { x: cx + ic + fraseW + sepW, y: y2 + 1 }; }
-    fim = y2 + F.icone;
+    // linha 2 (ícone de 8 e o texto de 7 no meio dele: o acento sobe 3 acima da linha)
+    var m2 = marcasTexto(juntas ? frase + eu : frase), y2 = fim + F.gap + (m2.cima ? acentoDe() : 0);
+    L.l2 = { icone: { x: cx, y: y2 }, texto: { x: cx + ic, y: y2 } };
+    if (juntas) { L.l2.sep = { x: cx + ic + fraseW, y: y2 }; L.l2.eu = { x: cx + ic + fraseW + sepW, y: y2 }; }
+    fim = y2 + Math.max(F.icone, capP);
     if (eu && !juntas) {
-      var m3 = marcasTexto(eu), y3 = fim + F.gap + (m3.cima ? 3 : 0);
+      var m3 = marcasTexto(eu), y3 = fim + F.gap + (m3.cima ? acentoDe() : 0);
       L.l3 = { x: cx + ic, y: y3 };
-      fim = y3 + 5 + (m3.baixo ? 1 : 0);
+      fim = y3 + capP + (m3.baixo ? 2 : 0);
     }
     L.h = fim + F.folgaY + F.borda - y;
     // embaixo (a tela decide, um lugar por Dado): a mesma caixa encostada na borda de baixo da pista, com a margem
@@ -883,7 +897,7 @@
   // ===========================================================================
   // Dado de 9×9 em 4 quadros (frente, quina, outra face, quina ao contrário).
   // o contorno · w face clara · h luz · s face na sombra · d base · p pinta · r pinta vermelha
-  var CUBO_COR = { o: COR.tinta, w: '#fbf4e2', h: '#ffffff', s: '#cdbf9f', d: '#9b8a6a', p: '#24122e', r: '#d8353b' };
+  var CUBO_COR = { o: COR.tinta, w: '#ffffff', h: '#ffffff', s: '#b2ba90', d: '#ab947a', p: '#2e222f', r: '#e83b3b' };
   var CUBO = [
     ['.ooooooo.', 'ohhhhhhho', 'owpwwwpwo', 'owwwwwwwo', 'owwwpwwwo', 'owwwwwwwo', 'owpwwwpwo', 'ossssssso', '.ooooooo.'],
     ['..ooooo..', '.owwwsso.', '.owpwsso.', '.owwwspo.', '.owwwsso.', '.owwwpso.', '.owwwsso.', '.odddddo.', '..ooooo..'],
@@ -892,9 +906,10 @@
   ];
 
   // volatil: números que trocam a cada quadro (o Dado girando), fora do cache de texto do Sprites
-  function texto(ctx, s, x, y, S, color, volatil) {
+  // fonte: 'g7' (padrão), 'g11', ou null para a fonte 3×5 (só o "↻", que a Galmuri não tem)
+  function texto(ctx, s, x, y, S, color, volatil, fonte) {
     var SP = sp();
-    if (SP) SP.drawText(ctx, s, x, y, { scale: S, color: color, volatil: volatil });
+    if (SP) SP.drawText(ctx, s, x, y, { scale: S, color: color, volatil: volatil, fonte: fonte === undefined ? FONTE : fonte });
   }
 
   function drawDice(ctx, x, y, S, roll, estado, isWinner, simT, cor) {
@@ -908,7 +923,7 @@
       var q = Math.floor(Math.max(0, tempo) * 14) % 4;
       var pulo = Math.round(Math.abs(Math.sin(tempo * Math.PI * 3)) * (estado.fase === 'regira' ? 3 : 2));
       var cx = Math.floor((w - 9) / 2), mapa = CUBO[q];
-      R(cx + 2, 9, 5, 1, 'rgba(0,0,0,0.35)');   // sombra no chão
+      R(cx + 2, 9, 5, 1, COR.sombra);   // sombra no chão
       for (var ry = 0; ry < 9; ry++) for (var rx = 0; rx < 9; rx++) {
         var ch = mapa[ry].charAt(rx);
         if (ch !== '.') R(cx + rx, ry - pulo, 1, 1, CUBO_COR[ch]);
@@ -920,14 +935,14 @@
     var ouro = !!isWinner && (estado.dourado == null ? true : !!estado.dourado);
     var b = ouro ? (estado.brilho != null ? estado.brilho : 1) : 0;
     var borda = ouro ? COR.ouroEscuro : (cor || COR.texto);
-    var fundo = ouro ? mix(COR.ouro, COR.ouroClaro, b) : COR.painel;
+    var fundo = ouro ? pal(mix(COR.ouro, COR.ouroClaro, b)) : COR.painel;
     var tBest = ouro ? COR.tinta : COR.texto, tOutros = ouro ? COR.palha2 : COR.texto3;
-    if (ouro) R(-1, -1, w + 2, PLACA_H + 2, rgba(COR.ouroClaro, 0.3 + 0.55 * b));   // halo
+    if (ouro && b > 0.35) R(-1, -1, w + 2, PLACA_H + 2, COR.ouroClaro);   // halo (aceso na metade de cima do pulso; sem alfa)
     R(0, 0, w, PLACA_H, borda);
     R(1, 1, w - 2, PLACA_H - 2, fundo);
     var bx = 3;
     if (L.marca) {
-      texto(ctx, L.marca, x + bx * S, y + 2 * S, S, ouro ? COR.palha2 : COR.ouroClaro);
+      texto(ctx, L.marca, x + bx * S, y + 3 * S, S, ouro ? COR.palha2 : COR.ouroClaro, false, null);
       bx += MARCA_W;
     }
     texto(ctx, L.best, x + bx * S, y + 2 * S, S, tBest, true);
@@ -965,7 +980,7 @@
 
   // bisel da faixa do Dado: os mesmos tons do bisel das caixas do HTML (--brilho-08 em cima e à esquerda,
   // --escuro-25 embaixo e à direita) sobre o fundo do painel
-  var BISEL_LUZ = mix(COR.painel, '#ffffff', 0.08), BISEL_SOMBRA = mix(COR.painel, '#000000', 0.25);
+  var BISEL_LUZ = '#374e4a', BISEL_SOMBRA = '#2e222f';   // um tom acima e um abaixo do painel, na mestra
   // moldura das faixas grandes da pista (a do Dado e a do lugar): contorno --sombra, friso na cor pedida e bisel, numa
   // caixa B = { x, y, w, h } em pixels de arte. Parada: nada aqui depende do tempo (nem pisca nem desliza)
   function moldura(ctx, B, S, friso) {
@@ -986,11 +1001,11 @@
     if (!diceRevealed(item, simT, reduced)) {
       // dados girando (Ruling 13): a caixa já no tamanho e no lugar finais, só com o ícone do dado e "DADO DA SORTE"
       // (nada do vencedor), centrados na caixa, em escala 2 quando cabe
-      var F = FAIXA, livre = B.w - 2 * (F.borda + F.folgaX), rw = textW(ROTULO);
-      var fr = F.icone + F.gapIcone + 2 * rw <= livre ? 2 : 1, gw = F.icone + F.gapIcone + fr * rw, gh = Math.max(F.icone, 5 * fr);
+      var F = FAIXA, livre = B.w - 2 * (F.borda + F.folgaX), fr = F.icone + F.gapIcone + textW(ROTULO, FONTE_G) <= livre ? FONTE_G : FONTE;
+      var rw = textW(ROTULO, fr), gw = F.icone + F.gapIcone + rw, gh = Math.max(F.icone, capDe(fr));
       var gx = B.x + Math.round((B.w - gw) / 2), gy = B.y + Math.round((B.h - gh) / 2);
       drawIconPng(ctx, 'ui-dado', gx * S, (gy + Math.floor((gh - F.icone) / 2)) * S, 8, S);
-      texto(ctx, ROTULO, (gx + F.icone + F.gapIcone) * S, (gy + Math.floor((gh - 5 * fr) / 2)) * S, S * fr, COR.ouro);
+      texto(ctx, ROTULO, (gx + F.icone + F.gapIcone) * S, (gy + Math.floor((gh - capDe(fr)) / 2)) * S, S, COR.ouro, false, fr);
       stats.faixaDadoLinhas = [ROTULO];
       return B;
     }
@@ -998,7 +1013,7 @@
     drawIconPng(ctx, 'ui-dado', B.l1.icone.x * S, B.l1.icone.y * S, 8, S);
     drawIconPng(ctx, 'cl-' + item.weather, B.l2.icone.x * S, B.l2.icone.y * S, 8, S);
     texto(ctx, FAIXA.pre, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.texto);
-    texto(ctx, B.nome, B.l1.nome.x * S, B.l1.nome.y * S, S * B.fs, COR.ouroClaro);
+    texto(ctx, B.nome, B.l1.nome.x * S, B.l1.nome.y * S, S, COR.ouroClaro, false, B.fonteNome);
     texto(ctx, B.frase, B.l2.texto.x * S, B.l2.texto.y * S, S, COR.texto);
     if (B.l2.eu) {
       texto(ctx, FAIXA.sep, B.l2.sep.x * S, B.l2.sep.y * S, S, COR.texto3);
@@ -1016,19 +1031,19 @@
   // Centrada na largura, com y = topo; com embaixo, encostada em base (padrão: o pé da pista, artH − 2).
   var LUGAR = { borda: 3, folgaX: 6, folgaY: 2, margem: 2 };
   function lugarLayout(texto, lay, topo, embaixo, base) {
-    var F = LUGAR, t = String(texto || '').toUpperCase(), tw0 = textW(t), fs = 1;
-    for (var k = 3; k > 1; k--) if (tw0 * k + 2 * (F.borda + F.folgaX) <= lay.artW - 2 * F.margem) { fs = k; break; }
-    var w = tw0 * fs + 2 * (F.borda + F.folgaX), h = 2 * (F.borda + F.folgaY) + 7 * fs, acento = marcasTexto(t).cima;
+    // a Galmuri11 Bold se couber na pista (margem 2 dos lados), senão a Galmuri7 (fs fica: 2 e 1)
+    var F = LUGAR, t = String(texto || '').toUpperCase(), fonte = textW(t, FONTE_G) + 2 * (F.borda + F.folgaX) <= lay.artW - 2 * F.margem ? FONTE_G : FONTE;
+    var tw0 = textW(t, fonte), fs = fonte === FONTE_G ? 2 : 1, cap = capDe(fonte), ac = acentoDe(fonte);
+    var w = tw0 + 2 * (F.borda + F.folgaX), h = 2 * (F.borda + F.folgaY) + ac + cap, acento = marcasTexto(t).cima;
     var y = embaixo ? (base != null ? base : lay.artH - F.margem) - h : topo, x = Math.round((lay.artW - w) / 2);
-    var alto = (acento ? 2 * fs : 0) + 5 * fs;
-    return { texto: t, fs: fs, acento: acento, x: x, y: y, w: w, h: h, tw: tw0 * fs,
-      tx: x + F.borda + F.folgaX, ty: y + F.borda + F.folgaY + Math.floor((7 * fs - alto) / 2) + (acento ? 2 * fs : 0) };
+    return { texto: t, fs: fs, fonte: fonte, acento: acento, x: x, y: y, w: w, h: h, tw: tw0,
+      tx: x + F.borda + F.folgaX, ty: y + F.borda + F.folgaY + ac };
   }
   // desenha a faixa B (lugarLayout) com o friso e o texto na cor do lugar; parada (aparece e some, sem animação, com ou
   // sem movimento reduzido). Marca _stats.faixaLugar e faixaLugarCaixa
   function drawPlaceBanner(ctx, B, cor, S) {
     moldura(ctx, B, S, cor);
-    texto(ctx, B.texto, B.tx * S, B.ty * S, S * B.fs, cor);
+    texto(ctx, B.texto, B.tx * S, B.ty * S, S, cor, false, B.fonte);
     stats.faixaLugar = B.texto;
     stats.faixaLugarCaixa = { x: B.x, y: B.y, w: B.w, h: B.h };
     return B;
@@ -1077,11 +1092,29 @@
   function textoBalao(item) {
     if (item.kind === 'garra') return 'GARRA!';
     if (item.kind === 'cansou') return 'CANSOU';
-    return item.nomeCurto || nomeCurto(item.nome);
+    return comRank([item.nomeCurto || nomeCurto(item.nome)], item)[0];
   }
+  // Rank da skill de vaga no balão (o evento 'skill' da simulação traz rank 1..5): em algarismo romano a partir do II,
+  // colado no fim do nome ("ARRANQUE III"); o rank I não aparece. A skill de tipo não tem rank.
+  var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];
+  function rankDe(x) { return typeof x === 'number' && x % 1 === 0 && x >= 1 && x <= 5 ? x : 1; }
+  function rankRomano(rank) { var r = rankDe(rank); return r >= 2 ? ROMANOS[r] : ''; }
+  function comRank(linhas, item) {
+    var rm = item && item.kind === 'skill' && !item.typeSkill ? rankRomano(item.rank) : '';
+    if (!rm || !linhas || !linhas.length) return linhas;
+    var out = linhas.slice();
+    out[out.length - 1] = out[out.length - 1] + ' ' + rm;
+    return out;
+  }
+  // O texto do balão de uma skill, em linhas: o nome (nomeEmLinhas) com o rank no fim da última linha.
+  function linhasBalao(item, larguraMax, linhasMax) {
+    return comRank(nomeEmLinhas(item.nome, larguraMax, linhasMax, item.nomeCurto), item);
+  }
+  // rank máximo: o balão fica dourado e o brilho do cavalo também (o marco da skill está valendo)
+  function rankMax(item) { return !!item && item.kind === 'skill' && !item.typeSkill && rankDe(item.rank) >= 5; }
   // Balão preso à raia do cavalo: à frente do focinho, com chip do número e borda na cor da seda.
   // Altura 11 (cabe duas vezes na raia de 26 px); pilha > 0 vira só o chip + ícone (cresce para a frente).
-  var BAL_H = 11, BAL_ICONE_X = 9;
+  var BAL_H = 13, BAL_ICONE_X = 9;   // 4 + 7 da letra + 2 (o acento cabe nos 3 de cima)
   function iconeDe(item) {
     if (item.kind === 'cansou') return 'gota';
     if (item.icon === 'clima') return item.clima === 'chuva' ? 'gota' : item.clima === 'nevoa' ? 'nevoa' : 'sol';
@@ -1102,23 +1135,23 @@
     ctx.drawImage(img, x, y, lado * S, lado * S);
     return true;
   }
+  // fs: 2 = Galmuri11 Bold, 1 = Galmuri7 (textW(texto, fs) mede na fonte do fs); o ícone de 8 sempre 1:1 (nada ampliado)
   function skillBannerLayout(texto, artW, S, temImg, textW) {
     function medida(fs, comIcone) {
-      var skW = comIcone ? 8 * fs + 2 : 0;
+      var skW = comIcone ? 8 + 2 : 0;
       return { fs: fs, icone: comIcone, skW: skW, w: textW(texto, fs) + 8 + skW };
     }
-    function icoOk(fs) { return !!temImg && 8 * fs * S >= 16; }
-    var m = medida(2, icoOk(2));
+    function icoOk() { return !!temImg && 8 * S >= 8; }
+    var m = medida(2, icoOk());
     if (m.w > artW - 6) {
-      // sem ícone vale a regra de sempre (tw(texto, 2) + 8 <= artW - 6); com ícone ele entra na conta
-      m = medida(1, icoOk(1));
+      m = medida(1, icoOk());
       if (m.w > artW - 6 && m.icone) m = medida(1, false);
     }
-    var fs = m.fs, h = Math.max(5 * fs + 6, m.icone ? 8 * fs + 2 : 0), x = Math.round(artW / 2 - m.w / 2);
+    var fs = m.fs, cap = capDe(fs === 2 ? FONTE_G : FONTE), h = Math.max(cap + 3 + acentoDe(fs === 2 ? FONTE_G : FONTE), m.icone ? 8 + 4 : 0), x = Math.round(artW / 2 - m.w / 2);
     return {
-      fs: fs, icone: m.icone, x: x, w: m.w, h: h,
-      iconX: x + 4, iconDy: Math.floor((h - 8 * fs) / 2),
-      textX: Math.round(artW / 2) + Math.round(m.skW / 2), textDy: Math.floor((h - 5 * fs) / 2)
+      fs: fs, fonte: fs === 2 ? FONTE_G : FONTE, icone: m.icone, x: x, w: m.w, h: h,
+      iconX: x + 4, iconDy: Math.floor((h - 8) / 2),
+      textX: Math.round(artW / 2) + Math.round(m.skW / 2), textDy: h - 3 - cap
     };
   }
   // linhas (opcional, do nomeEmLinhas): o texto do balão de skill; sem elas, o de sempre numa linha
@@ -1143,22 +1176,24 @@
     var y0 = y + (BALAO.sobe - sobe) * S;              // entra 2 px mais baixo e sobe até o lugar
     var cansou = item.kind === 'cansou', garra = item.kind === 'garra';
     var seda = item.silks || COR.texto3;
-    var cor = cansou ? COR.cinza : garra ? COR.ouro : corElemento(item);
-    var fundo = cansou ? COR.fundoCinza : COR.painel;
-    var txt = cansou ? COR.cinzaClaro : mix(cor, '#ffffff', 0.35);
+    var r5 = rankMax(item);
+    var cor = cansou ? COR.cinza : garra || r5 ? COR.ouro : corElemento(item);
+    var fundo = cansou ? COR.fundoCinza : r5 ? pal(mix(COR.painel, COR.ouroEscuro, 0.45)) : COR.painel;
+    var txt = cansou ? COR.cinzaClaro : r5 ? COR.ouroClaro : pal(mix(cor, '#ffffff', 0.35));
     var prev = ctx.globalAlpha;
     ctx.globalAlpha = prev * alpha;
     function R(dx, dy, ww, hh, col) { ctx.fillStyle = col; ctx.fillRect(x + dx * S, y0 + dy * S, ww * S, hh * S); }
+    if (r5) R(-2, -2, w + 4, h + 4, COR.ouro);          // rank V: moldura dourada por fora do contorno
     R(-1, -1, w + 2, h + 2, COR.sombra);                // contorno escuro por fora da seda
     R(0, 0, w, h, seda);
     R(1, 1, w - 2, h - 2, fundo);
     R(1, 1, 7, h - 2, seda);                            // chip com o número da raia
-    texto(ctx, String(item.raia || ''), x + (item.raia > 9 ? 1 : 3) * S, y0 + (3 + meio) * S, S, lum(seda) > 0.5 ? COR.tinta : COR.texto);
-    if (!drawIconPng(ctx, iconNameOf(item), x + BAL_ICONE_X * S, y0 + (1 + meio) * S, 8, S)) desenhaIcone(ctx, iconeDe(item), x + BAL_ICONE_X * S, y0 + (1 + meio) * S, S, txt);
-    // as linhas a cada 7 px: 5 da letra e 2 entre elas, para a cedilha da linha de cima e o acento da de baixo
-    for (var li = 0; !pilha && li < ls.length; li++) texto(ctx, ls[li], x + (BAL_ICONE_X + 10) * S, y0 + (3 + 7 * li) * S, S, txt);
+    texto(ctx, String(item.raia || ''), x + (item.raia > 9 ? 1 : 1) * S, y0 + (4 + meio) * S, S, lum(seda) > 0.5 ? COR.tinta : COR.texto);
+    if (!drawIconPng(ctx, iconNameOf(item), x + BAL_ICONE_X * S, y0 + (2 + meio) * S, 8, S)) desenhaIcone(ctx, iconeDe(item), x + BAL_ICONE_X * S, y0 + (2 + meio) * S, S, txt);
+    // as linhas a cada 10 px: 7 da letra e 3 entre elas, para a descendente da linha de cima e o acento da de baixo
+    for (var li = 0; !pilha && li < ls.length; li++) texto(ctx, ls[li], x + (BAL_ICONE_X + 10) * S, y0 + (4 + 10 * li) * S, S, txt);
     if (!pilha) {                                      // pontinha para o cavalo (na cor da seda)
-      R(-3, 4 + meio, 3, 3, COR.sombra); R(-2, 4 + meio, 2, 3, seda); R(-1, 3 + meio, 1, 5, seda); R(-2, 5 + meio, 1, 1, seda);
+      R(-3, 5 + meio, 3, 3, COR.sombra); R(-2, 5 + meio, 2, 3, seda); R(-1, 4 + meio, 1, 5, seda); R(-2, 6 + meio, 1, 1, seda);
     }
     ctx.globalAlpha = prev;
     stats.baloes++;
@@ -1175,7 +1210,9 @@
     var d = (simT - item.t0) / e, sai = (item.t1 - simT) / e;
     var amp = Math.max(0, Math.min(1, d / 0.15, sai / 0.3));
     var pulso = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(d * 2 * Math.PI / 0.7);
-    return { cor: mix(corElemento(item), '#ffffff', 0.25), alpha: amp * (0.55 + 0.4 * pulso) };
+    // rank V: o contorno brilha em ouro e um pouco mais forte
+    if (rankMax(item)) return { cor: pal(mix(COR.ouro, '#ffffff', 0.3)), alpha: amp * (0.7 + 0.3 * pulso) };
+    return { cor: pal(mix(corElemento(item), '#ffffff', 0.25)), alpha: amp * (0.55 + 0.4 * pulso) };
   }
 
   // Efeitos de movimento enquanto a skill (ou a Garra) dura. box = caixa do cavalo em px do canvas + S.
@@ -1185,7 +1222,7 @@
     var e = item.escala || 1;
     if (simT < item.t0 - EPS || simT >= item.t1 - EPS * e) return false;
     if (reduced) return true;
-    var S = box.S, cor = corElemento(item), claro = mix(cor, '#ffffff', 0.45);
+    var S = box.S, cor = corElemento(item), claro = pal(mix(cor, '#ffffff', 0.45));
     var d = (simT - item.t0) / e;
     var amp = Math.max(0, Math.min(1, d / 0.15, ((item.t1 - simT) / e) / 0.3));
     var prev = ctx.globalAlpha;
@@ -1215,7 +1252,15 @@
         var sx = bx + Math.round(bw * (0.25 + 0.45 * ((k * 5) % 3) / 2)) - Math.round(ph * 6);
         var sy = by + bh - 4 - Math.round(ph * 7);
         R(sx, sy, 1, 1, COR.faisca, 1 - ph);
-        R(sx - 1, sy, 1, 1, '#ffb347', 0.6 * (1 - ph));
+        R(sx - 1, sy, 1, 1, '#fbb954', 0.6 * (1 - ph));
+        stats.particulas++;
+      }
+    }
+    if (rankMax(item)) {                               // rank V: estrelinhas douradas subindo em volta do cavalo
+      for (k = 0; k < 4; k++) {
+        ph = frac(d * 1.3 + k * 0.25);
+        var gx = bx + Math.round(bw * (0.15 + 0.7 * ((k * 3) % 4) / 3)), gy = by + 2 + Math.round((bh - 8) * ((k * 5) % 4) / 3) - Math.round(ph * 4);
+        R(gx - 1, gy, 3, 1, COR.ouro, 0.7 * (1 - ph)); R(gx, gy - 1, 1, 3, COR.ouro, 0.7 * (1 - ph)); R(gx, gy, 1, 1, COR.faisca, 1 - ph);
         stats.particulas++;
       }
     }
@@ -1231,11 +1276,11 @@
   // ---------------------------------------------------------------------------
   var AURA = {
     chao: 31, max: 30,
-    fogo: { cerne: '#ffe27a', ponta: '#e8492b' },
+    fogo: { cerne: '#fbff86', ponta: '#ea4f36' },
     // Grama: cores escolhidas pelo contraste contra os pisos (gramado, terra, areia, com as faixas claras e
     // escuras): a raiz escura passa de 3:1 em todos; o realce e a folha são mais claros que o gramado
-    grama: { raiz: '#2a1708', raizClara: '#ffe8b0', folha: '#eaff9a', sombra: '#1e3a10' },
-    agua: { fundo: '#2f7fd0', espuma: '#eaf7ff', gota: '#bfe6ff' }
+    grama: { raiz: '#2e222f', raizClara: '#fdcbb0', folha: '#fbff86', sombra: '#45293f' },
+    agua: { fundo: '#4d9be6', espuma: '#ffffff', gota: '#8fd3ff' }
   };
   // contorno no chão, em volta dos cascos (o que fica em movimento reduzido), parado: Fogo e Água = anel de
   // 4 retângulos na cor do elemento; Grama = faixa de raiz marrom-escura (2 px) com dois realces claros e as
@@ -1363,17 +1408,42 @@
   // folha voando: 3×2 px de arte com 1 px mais escuro (talo/sombra), 4 quadros girando por função do tempo
   // ('l' = cor da folha, 'd' = a mesma mais escura); espelhada quando o vento sopra para a esquerda
   var FOLHA = {
-    cores:   ['#7cb342', '#c9a227', '#d9772b', '#5e9a3a', '#a4c639'],
-    escuras: ['#4b7424', '#836412', '#94461a', '#365e22', '#66801c'],
+    cores:   ['#91db69', '#fbb954', '#e6904e', '#a2a947', '#d5e04b'],
+    escuras: ['#676633', '#676633', '#9e4539', '#676633', '#a2a947'],
     quadros: [['ll.', '.ld'], ['.ll', 'dl.'], ['lld', '...'], ['.dl', 'll.']]
   };
   // Tom e alfa por piso, para o sol não sumir no pontilhado claro do piso (contraste medido no navegador):
   // calor = traço da miragem; poeira = miolo (cor, alfa) e, na areia, 1 px de borda mais escura
   // (o creme antigo dava a mesma cor do pontilhado claro do piso: o traço da miragem é branco-azulado)
+  // com o cenário da região (o.paleta), o clima já está na troca de paleta das camadas (guia §3): a natureza sai sem véus
+  // nem tintas de tela inteira, nas cores sólidas da mestra; névoa em pontilhado de 50%; só o relâmpago tem alfa
+  var PALETA_NAT = {
+    pingoLonge: '#8fd3ff', pingoPerto: '#c7dcd0', respingo: '#c7dcd0', calor: '#c7dcd0', nevoa: '#c7dcd0', grao: '#ab947a',
+    folhas: ['#91db69', '#fbb954', '#e6904e', '#a2a947', '#d5e04b'], folhasEscuras: ['#239063', '#cd683d', '#9e4539', '#676633', '#a2a947']
+  };
+  // xadrez de 50% (pixel aceso onde x + y é par), em cache por tamanho; null sem canvas (Node)
+  var xadrezCache = null;
+  function xadrez(w, h, cor) {
+    if (typeof document === 'undefined' || !document.createElement) return null;
+    if (xadrezCache && xadrezCache.w >= w + 1 && xadrezCache.h >= h && xadrezCache.cor === cor) return xadrezCache.c;
+    var W = Math.max(w + 1, xadrezCache ? xadrezCache.w : 0), H = Math.max(h, xadrezCache ? xadrezCache.h : 0);
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var g = c.getContext('2d'), img = g.createImageData(W, H), d = img.data, v = hexRgb(cor);   // por ImageData (poucas chamadas)
+    for (var y = 0; y < H; y++) for (var x = y % 2; x < W; x += 2) { var i = (y * W + x) * 4; d[i] = v[0]; d[i + 1] = v[1]; d[i + 2] = v[2]; d[i + 3] = 255; }
+    g.putImageData(img, 0, 0);
+    xadrezCache = { w: W, h: H, cor: cor, c: c };
+    return c;
+  }
+  // retângulo pontilhado preso à grade da tela (a fase do xadrez segue x + y)
+  function retXadrez(ctx, X, x, y, w, h) {
+    if (w <= 0 || h <= 0) return;
+    ctx.drawImage(X, mod(x + y, 2), 0, w, h, x, y, w, h);
+  }
   var CALOR = { areia: 'rgba(220,238,255,0.50)', terra: 'rgba(220,238,255,0.40)', grama: 'rgba(240,255,224,0.24)' };
+  // poeira dos cascos na mestra, sem alfa: a nuvenzinha some (deixa de ser desenhada) na segunda metade da vida
   var POEIRA = {
-    terra: { cor: [236, 218, 188], a: 0.9, borda: null },
-    areia: { cor: [255, 255, 250], a: 0.95, borda: [128, 96, 58] }
+    terra: { cor: '#fdcbb0', borda: null },
+    areia: { cor: '#ffffff', borda: '#cd683d' }
   };
 
   function semente(seed) { var s = Number(seed); return Math.floor(hash((isFinite(s) ? s >>> 0 : 0) ^ SAL_NATUREZA) * 65536); }
@@ -1389,12 +1459,13 @@
     var ctx = c.ctx, P = c.P, alt = c.bot - c.top;
     if (alt < 8 * P) return;
     var seg = Math.max(7 * P, Math.ceil(c.W / 80 / P) * P), faixas = [0.12, 0.38, 0.66];
-    ctx.fillStyle = CALOR[c.piso] || CALOR.grama;
+    ctx.fillStyle = c.paleta ? PALETA_NAT.calor : CALOR[c.piso] || CALOR.grama;
     for (var b = 0; b < faixas.length; b++) {
       var y0 = c.top + snap(alt * faixas[b], P), deriva = mod(c.t * (5 + 3 * b) * P, seg);
       for (var x = deriva - seg; x < c.W; x += seg) {
         var dy = Math.round(Math.sin(x / (9 * P) + c.t * 3.2 + b * 1.7) * 1.4) * P - (c.lift ? c.lift(x) : 0);
-        ctx.fillRect(snap(x, P), y0 + dy, 5 * P, P);
+        if (c.paleta) ctx.fillRect(snap(x, P) + 2 * P, y0 + dy, P, P);   // um brilho de 1 px
+        else ctx.fillRect(snap(x, P), y0 + dy, 5 * P, P);
         stats.natureza.calor++;
       }
     }
@@ -1406,7 +1477,7 @@
     var linhas = Math.max(1, Math.floor((alt - 5 * P) / P));
     var vagas = Math.min(NATUREZA.respingoVagas, Math.round((c.W / P) * (alt / P) / NATUREZA.respingoArea));
     var span = c.W + 20 * P, lento = c.red ? RAIN.velReduzida : 1, n = 0;
-    ctx.fillStyle = RAIN.corRespingo;
+    ctx.fillStyle = c.paleta ? PALETA_NAT.respingo : RAIN.corRespingo;
     for (var j = 0; j < vagas && n < NATUREZA.respingosMax; j++) {
       if (c.red && (j & 1)) continue;
       var per = (0.45 + 0.4 * hash(c.sd + j * 7 + 900)) / lento;
@@ -1433,14 +1504,18 @@
     var v = VENTO[c.w.intensity].nuvem * c.w.dir * (c.red ? 0.4 : 1);
     var linhas = frente ? [c.top + alt * 0.62, c.bot - 3 * P, c.top + alt * 0.22] : [c.top - 30 * P, c.top - 12 * P, c.top + alt * 0.4];
     ctx.fillStyle = frente ? 'rgba(232,238,242,0.15)' : 'rgba(222,230,236,0.20)';
+    var X = c.paleta && P === 1 ? xadrez(W, 12, PALETA_NAT.nevoa) : null;
     for (var b = 0; b < linhas.length; b++) {
       var s0 = c.sd + b * 17 + (frente ? 300 : 200);
       var bw = snap(W * (0.45 + 0.3 * hash(s0)), P), span = W + bw;
       var vel = (frente ? 11 + 4 * b : 5 + 2 * b) * P * v;
       var x = snap(mod(hash(s0 + 1) * span + c.t * vel, span) - bw, P), y = snap(linhas[b], P), e = (frente ? 5 : 6) * P;
-      ctx.fillRect(x + 4 * P, y - 2 * P, bw - 8 * P, 2 * P);
-      ctx.fillRect(x, y, bw, e);
-      ctx.fillRect(x + 3 * P, y + e, bw - 6 * P, 2 * P);
+      if (X) { retXadrez(ctx, X, x + 4, y - 2, bw - 8, 2); retXadrez(ctx, X, x, y, bw, e); retXadrez(ctx, X, x + 3, y + e, bw - 6, 2); }
+      else {
+        ctx.fillRect(x + 4 * P, y - 2 * P, bw - 8 * P, 2 * P);
+        ctx.fillRect(x, y, bw, e);
+        ctx.fillRect(x + 3 * P, y + e, bw - 6 * P, 2 * P);
+      }
       if (frente) stats.natureza.nevoaFrente++; else stats.natureza.nevoa++;
     }
   }
@@ -1483,14 +1558,14 @@
   // pingos inclinados pelo vento (dois tons: longe e perto) e relâmpago raro
   function chuva(c) {
     var ctx = c.ctx, P = c.P, W = c.W, H = c.H;
-    ctx.fillStyle = RAIN.corVeu; ctx.fillRect(0, 0, W, H);
+    if (!c.paleta) { ctx.fillStyle = RAIN.corVeu; ctx.fillRect(0, 0, W, H); }
     var n = Math.min(NATUREZA.pingosMax, Math.round((W / P) * (H / P) / NATUREZA.pingoArea));
     var s = rainSlant(c.w), vel = H * RAIN.vel * (c.red ? RAIN.velReduzida : 1);
     // a tela se repete nas duas direções: o pingo que sai por um lado entra pelo outro, então a folga só
     // precisa cobrir o comprimento do pingo (com folga grande, a maioria cairia fora da tela)
     var topo = 12 * P, spanY = H + 2 * topo, pad = 12 * P * Math.abs(s) + 4 * P, spanX = W + 2 * pad, conta = 0;
     for (var pass = 0; pass < 2; pass++) {
-      ctx.fillStyle = pass ? RAIN.corPerto : RAIN.corLonge;
+      ctx.fillStyle = c.paleta ? (pass ? PALETA_NAT.pingoPerto : PALETA_NAT.pingoLonge) : pass ? RAIN.corPerto : RAIN.corLonge;
       for (var i = 0; i < n; i++) {
         if (c.red && (i & 1)) continue;
         var perto = hash(c.sd + i * 5 + 9) > 0.68;
@@ -1568,23 +1643,24 @@
       if (x < -2 * P || x >= W || y < 0 || y >= H) continue;
       var X = snap(x, P), Y = snap(y, P);
       if (seco && i % 4 === 3) {                       // grão de poeira
-        ctx.fillStyle = 'rgba(214,190,140,0.60)'; ctx.fillRect(X, Y, P, P);
+        ctx.fillStyle = c.paleta ? PALETA_NAT.grao : 'rgba(214,190,140,0.60)'; ctx.fillRect(X, Y, P, P);
       } else {
         var cor = Math.floor(h2 * FOLHA.cores.length);
-        desenhaFolha(ctx, X, Y, P, FOLHA.quadros[Math.floor(frac(c.t * lento * (1.5 + 2 * h3) + h1) * 4)], c.w.dir < 0, FOLHA.cores[cor], FOLHA.escuras[cor]);
+        desenhaFolha(ctx, X, Y, P, FOLHA.quadros[Math.floor(frac(c.t * lento * (1.5 + 2 * h3) + h1) * 4)], c.w.dir < 0,
+          (c.paleta ? PALETA_NAT.folhas : FOLHA.cores)[cor], (c.paleta ? PALETA_NAT.folhasEscuras : FOLHA.escuras)[cor]);
       }
       stats.natureza.folhas++;
     }
   }
 
-  // o: { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed, cam, camada, lift, surface }
+  // o: { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed, cam, camada, lift, surface, paleta }
   function natureza(o) {
     o = o || {};
     var H = +o.H || 0;
     return {
       W: +o.W || 0, H: H, P: Math.max(1, Math.round(o.P || 1)), t: +o.t || 0, red: !!o.reduced,
       clima: o.weather || 'sol', w: ventoOk(o.wind), sd: semente(o.seed), cam: +o.cam || 0,
-      lift: typeof o.lift === 'function' ? o.lift : null, piso: o.surface || 'grama',
+      lift: typeof o.lift === 'function' ? o.lift : null, piso: o.surface || 'grama', paleta: !!o.paleta,
       top: o.laneTop != null ? o.laneTop : Math.round(H * 0.35), bot: o.trackBottom != null ? o.trackBottom : H
     };
   }
@@ -1599,7 +1675,9 @@
       else if (c.clima === 'nevoa') nevoa(c, false);
     }
     if (camada !== 'tras') {
+      // (com a paleta da região: o nublado, o véu da névoa e a luz do sol já estão nas camadas)
       if (c.clima === 'chuva') chuva(c);
+      else if (c.paleta) { /* nublado, névoa e sol: nada por cima */ }
       else if (c.clima === 'nublado') nublado(c);
       else if (c.clima === 'nevoa') { ctx.fillStyle = 'rgba(200,212,222,0.10)'; ctx.fillRect(0, 0, c.W, c.H); }
       else sol(c);
@@ -1622,15 +1700,15 @@
     var n = reduced ? 1 : NATUREZA.poeiraCasco, lento = reduced ? 0.4 : 1;
     for (var k = 0; k < n; k++) {
       var ph = frac((t || 0) * 2.4 * lento + k / n);
-      var a = pe.a * (ph < 0.5 ? 1 : Math.max(0, (1 - ph) / 0.5));
+      if (ph >= 0.8) continue;   // (o fim da vida: no lugar do esmaecer por alfa)
       var w = ph < 0.3 ? 2 : 3, h = ph < 0.3 || ph >= 0.7 ? 1 : 2;
       var px = Math.round(x - (1 + ph * 8) * S), py = Math.round(y - (1 + ph * 5) * S);   // canto de baixo, à direita
       var bx = px - w * S, by = py - h * S;
       if (pe.borda) {
-        ctx.fillStyle = rgbaN(pe.borda[0], pe.borda[1], pe.borda[2], a);
+        ctx.fillStyle = pe.borda;
         ctx.fillRect(bx - S, by - S, (w + 2) * S, (h + 2) * S);
       }
-      ctx.fillStyle = rgbaN(pe.cor[0], pe.cor[1], pe.cor[2], a);
+      ctx.fillStyle = pe.cor;
       ctx.fillRect(bx, by, w * S, h * S);
     }
     stats.natureza.poeiraCascos += n;
@@ -1640,8 +1718,8 @@
   // ---- traçado de cima: mapa da pista (sala) e minimapa (HUD da corrida) ---------------------------
   // Cores: reta na cor do piso (opts.piso; sem ele, a cor da reta do catálogo), curva e subida na cor do
   // tipo (GameData.BLOCK_TYPES). Largada: quadrado claro com borda escura; chegada: xadrez com borda.
-  var MAPA = { largada: '#f1e9d4', borda: '#060d0a', claro: '#f1e9d4', escuro: '#141218',
-    tipo: { reta: '#f6f2ea', curva: '#7ab8ff', subida: '#f2c230' } };
+  var MAPA = { largada: '#c7dcd0', borda: '#2e222f', claro: '#c7dcd0', escuro: '#2e222f',
+    tipo: { reta: '#ffffff', curva: '#4d9be6', subida: '#f9c22b' } };
   function corTipo(tipo) {
     var g = gameData(), bt = g && g.BLOCK_TYPES && g.BLOCK_TYPES[tipo];
     return bt ? bt.color : (MAPA.tipo[tipo] || MAPA.tipo.reta);
@@ -1747,6 +1825,9 @@
     skillIcon: skillIcon,
     nomeCurto: nomeCurto,
     nomeEmLinhas: nomeEmLinhas,
+    linhasBalao: linhasBalao,
+    rankRomano: rankRomano,
+    rankMax: rankMax,
     lugarLayout: lugarLayout,
     slowFactor: slowFactor,
     diceState: diceState,

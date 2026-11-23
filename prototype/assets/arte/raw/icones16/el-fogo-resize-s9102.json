@@ -1,0 +1,38 @@
+{
+  "assinatura": "b559563c458f",
+  "endpoint": "/resize",
+  "pedido": {
+    "description": "flame icon, pixel art game ui icon, 16x16, centered, simple bold shapes, readable at small size, dark outline",
+    "reference_image": {
+      "type": "base64",
+      "base64": "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAApUlEQVR4nO3WwQ2AIAwFUEZwMKfx6AjO4HQuUoNRY0vBaOjvpU168vAfRZGUoqL6FZ3tE75Ogz/AC3EE0zK6AO6VZwAawYLRgDJ8m2EIPRwE4Ht+BQtAblNAsXIFYTWFdvgDYQGojx4AeB+9IeBzeE9A+603BhTHrBvAawt0QAth8E/QARpEPOv+CVYRStseQg7hDFGbBupKRhIigmHXMVI6KupX7Wn7o+bZMRpLAAAAAElFTkSuQmCC",
+      "format": "png"
+    },
+    "reference_image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "target_size": {
+      "width": 16,
+      "height": 16
+    },
+    "no_background": true,
+    "color_image": {
+      "type": "base64",
+      "base64": "<436 chars>",
+      "format": "png"
+    },
+    "seed": 9102
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<372 chars>",
+      "format": "png"
+    }
+  }
+}

@@ -1233,24 +1233,26 @@ section('Catálogo de ícones');
     });
     assert.ok(refeitos > 0, 'nenhum item refeito encontrado');
   });
-  // Todo PNG de assets/icons (fora raw/) é conhecido, 32x32, de canto transparente e com algo desenhado.
-  test('PNGs de assets/icons: conhecidos, 32x32, fundo transparente, ao menos um pixel opaco', () => {
-    const dirIcons = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'icons');
+  // Todo PNG de assets/arte/icones (os finais da etapa 4 da direção de arte) é conhecido, 16×16 ou 24×24, de canto
+  // transparente e com algo desenhado; o lado bate com o icones.json (a pasta antiga de 32×32 saiu na etapa 8)
+  test('PNGs de assets/arte/icones: conhecidos, 16 ou 24 de lado (o do icones.json), fundo transparente, ao menos um pixel opaco', () => {
+    const dirIcons = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'arte', 'icones');
+    const lados = JSON.parse(fs.readFileSync(path.join(dirIcons, 'icones.json'), 'utf8'));
     const conhecidos = new Set([...ids, ...ANTIGOS]);
     const arquivos = fs.readdirSync(dirIcons).filter(f => f.endsWith('.png'));
+    assert.ok(arquivos.length >= 70, 'só ' + arquivos.length + ' ícones');
+    assert.ok(!fs.existsSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'icons')), 'a pasta antiga assets/icons/ (32×32) voltou');
     for (const f of arquivos) {
       const id = f.slice(0, -4);
       assert.ok(conhecidos.has(id), f + ': fora do catálogo e dos 16 antigos');
       const { width, height, rgba } = decodePng(fs.readFileSync(path.join(dirIcons, f)));
-      assert.strictEqual(width + 'x' + height, '32x32', f + ': tamanho');
+      assert.ok(width === height && (width === 16 || width === 24), f + ': ' + width + 'x' + height);
+      if (lados[id] === 16 || lados[id] === 24) assert.strictEqual(width, lados[id], f + ': o lado do icones.json');
       assert.strictEqual(rgba[3], 0, f + ': canto superior esquerdo não é transparente');
       let opaco = false;
       for (let p = 3; p < rgba.length; p += 4) if (rgba[p] >= 128) { opaco = true; break; }
       assert.ok(opaco, f + ': sem pixel opaco');
     }
-    // Ícone sem arquivo (ainda não gerado/refeito) é só aviso.
-    const tem = new Set(arquivos.map(f => f.slice(0, -4)));
-    for (const id of conhecidos) if (!tem.has(id)) console.log('  aviso: sem arquivo: ' + id);
   });
   // Ruling 16 dos ginásios: as três insígnias saem dos reservados (aparecem na aba Expedição); ficam a Rédea e a Gema
   test('RESERVADOS são os 2 que ainda não têm tela e estão no catálogo', () => {
@@ -2806,23 +2808,30 @@ const pecaOk = { nome: 'x', mapa: ['.k', 'kk'], legenda: { k: '--sombra' } };
 test('lerTokens: só os hex do primeiro :root, em #rrggbb minúsculo', () => {
   const t = IA.lerTokens(':root { --a: #ABC; --b: #112233; --c: 12px; --d: rgb(1,2,3); }\n:root { --e: #000000; }');
   assert.deepStrictEqual(t, { '--a': '#aabbcc', '--b': '#112233' });
-  assert.strictEqual(TOK['--sombra'], '#060d0a');
+  assert.strictEqual(TOK['--sombra'], '#2e222f');
 });
 test('os 4 tokens novos estão no :root', () => {
-  assert.strictEqual(TOK['--linha-luz'], '#4a6e5c');
-  assert.strictEqual(TOK['--ouro-medio'], '#c99a1c');
-  assert.strictEqual(TOK['--prego'], '#9aa3a0');
-  assert.strictEqual(TOK['--prego-luz'], '#e6ece9');
+  assert.strictEqual(TOK['--linha-luz'], '#92a984');
+  assert.strictEqual(TOK['--ouro-medio'], '#f79617');
+  assert.strictEqual(TOK['--prego'], '#9babb2');
+  assert.strictEqual(TOK['--prego-luz'], '#ffffff');
+});
+// etapa 1b da direção de arte (guia §3): todo token de cor em hex do :root é da Resurrect 64
+await testA('os tokens de cor do :root são da paleta-mestra (Resurrect 64)', async () => {
+  const { RESURRECT64 } = await import('./arte-paleta.mjs');
+  const mestra = new Set(RESURRECT64.map(h => '#' + h.toLowerCase()));
+  const fora = Object.entries(TOK).filter(([, v]) => !mestra.has(v)).map(([k, v]) => k + ' ' + v);
+  assert.deepStrictEqual(fora, []);
 });
 test('cada peça do catálogo passa na validação contra o game.css', () => {
   assert.ok(IA.PECAS.length >= 5);
   IA.validarCatalogo(IA.PECAS, TOK);
   for (const n of ['rebite', 'prego', 'veio', 'ajuda', 'ajuda-ativa']) assert.ok(IA.PECAS.some(p => p.nome === n), n);
 });
-test('os cinco ícones de item (spec de itens §13): uma peça item-<id> de 16x16 por item do catálogo, com contorno', () => {
+test('os ícones de item (spec de itens §13; o Pergaminho de técnica desde 2026-11-19): uma peça item-<id> de 16x16 por item do catálogo, com contorno', () => {
   const ITENS = createRequire(import.meta.url)('../src/data.js').ITEMS;
   const ids = Object.keys(ITENS);
-  assert.deepStrictEqual(ids, ['torrao', 'estrela', 'redea', 'cupom', 'manual']);
+  assert.deepStrictEqual(ids, ['torrao', 'estrela', 'redea', 'cupom', 'manual', 'pergaminho']);
   const desenhos = new Set();
   for (const id of ids) {
     const p = IA.PECAS.find(x => x.nome === 'item-' + id);
@@ -2863,16 +2872,14 @@ test('cssArte: uma propriedade --arte-<nome> por peça e determinístico', () =>
   assert.ok(a.startsWith(':root {'));
 });
 const FONTES = await IA.cssFontes(PROTO);
-test('cssFontes: dois @font-face, data: antes da URL do gstatic', () => {
-  const f = FONTES;
-  const faces = f.match(/@font-face\s*\{[^}]*\}/g) || [];
-  assert.strictEqual(faces.length, 2);
-  for (const fam of ["'Press Start 2P'", "'Jersey 10'"]) {
-    const face = faces.find(x => x.includes(fam));
+test('cssFontes: as quatro Galmuri embutidas em TTF, sem rede', () => {
+  const faces = FONTES.match(/@font-face\s*\{[^}]*\}/g) || [];
+  assert.strictEqual(faces.length, 4);
+  for (const fam of ["'Galmuri11 Bold'", "'Galmuri11'", "'Galmuri9'", "'Galmuri7'"]) {
+    const face = faces.find(x => x.includes('font-family: ' + fam + ';'));
     assert.ok(face, fam);
-    const d = face.indexOf('data:font/woff2;base64,'), g = face.indexOf('https://fonts.gstatic.com/');
-    assert.ok(d >= 0 && g > d, fam + ': data antes do gstatic');
-    assert.ok(/font-display:\s*swap/.test(face) && /font-weight:\s*400/.test(face) && /font-style:\s*normal/.test(face), fam);
+    assert.ok(face.includes('data:font/ttf;base64,') && !/https?:/.test(face), fam + ': só data:, sem URL de rede');
+    assert.ok(/font-display:\s*block/.test(face) && /font-weight:\s*400/.test(face) && /font-style:\s*normal/.test(face), fam);
   }
 });
 test('o game.css não importa fontes da rede', () => {
@@ -2880,26 +2887,34 @@ test('o game.css não importa fontes da rede', () => {
   assert.ok(!/fonts\.googleapis/.test(GAME_CSS));
 });
 
-section('Oponentes dos ginásios (tela de desafio, 2026-11-18)');
-// cada oponente do catálogo (GameData.GYMS) tem a candidata escolhida em treinadores/escolhas.json: o id é o nome sem
-// acento, em minúsculas e com hífen (o mesmo que o game.js usa para achar a arte), e o PNG é 64×64 com o fundo transparente
-test('os 15 oponentes dos ginásios têm a arte escolhida, 64×64 e sem fundo', () => {
+section('Oponentes dos ginásios e arenas (etapa 5 da direção de arte)');
+// cada oponente do catálogo (GameData.GYMS) tem o corpo (32×48, ~40 px de altura, a escala dos cavalos) e o busto (64×64)
+// em assets/arte/treinadores/finais/: o id é o nome sem acento, em minúsculas e com hífen (o mesmo que o game.js usa para
+// achar a arte); fundo transparente
+test('os 15 oponentes dos ginásios têm corpo 32×48 e busto 64×64, sem fundo', () => {
   const G = createRequire(import.meta.url)('../src/data.js');
-  const dirT = path.join(DIR, 'treinadores'), escolhas = JSON.parse(fs.readFileSync(path.join(dirT, 'escolhas.json'), 'utf8'));
+  const dirT = path.join(DIR, '..', 'arte', 'treinadores', 'finais');
   const slug = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const ids = [];
   for (const g of G.GYM_ORDER) for (const e of G.GYMS[g].etapas) ids.push(slug(e.nome));
   assert.strictEqual(ids.length, 15);
-  assert.deepStrictEqual(Object.keys(escolhas).sort(), ids.slice().sort(), 'escolhas.json tem de cobrir só os oponentes do catálogo');
-  for (const id of ids) {
-    const f = path.join(dirT, `${id}-s${escolhas[id]}.png`);
-    assert.ok(Number.isInteger(escolhas[id]) && fs.existsSync(f), `${id}: falta ${path.basename(f)}`);
-    const d = decodePng(fs.readFileSync(f));
-    assert.ok(d.width === 64 && d.height === 64, `${id}: ${d.width}×${d.height}`);
-    for (const [x, y] of [[0, 0], [63, 0], [0, 63], [63, 63]]) assert.strictEqual(d.rgba[(y * 64 + x) * 4 + 3], 0, `${id}: o canto ${x},${y} não é transparente`);
-    let opacos = 0;
-    for (let i = 3; i < d.rgba.length; i += 4) if (d.rgba[i] > 0) opacos++;
-    assert.ok(opacos > 400, `${id}: só ${opacos} pixels desenhados`);
+  const arqs = fs.readdirSync(dirT).filter((n) => n.endsWith('.png')).sort();
+  assert.deepStrictEqual(arqs, ids.flatMap((id) => [id + '-busto.png', id + '-corpo.png']).sort(), 'só os oponentes do catálogo, cada um com corpo e busto');
+  for (const id of ids) for (const [parte, w, h, min] of [['corpo', 32, 48, 200], ['busto', 64, 64, 400]]) {
+    const d = decodePng(fs.readFileSync(path.join(dirT, `${id}-${parte}.png`)));
+    assert.ok(d.width === w && d.height === h, `${id} ${parte}: ${d.width}×${d.height}`);
+    for (const [x, y] of [[0, 0], [w - 1, 0]]) assert.strictEqual(d.rgba[(y * w + x) * 4 + 3], 0, `${id} ${parte}: o canto ${x},${y} não é transparente`);
+    let opacos = 0, alto = h, baixo = -1;
+    for (let i = 3; i < d.rgba.length; i += 4) if (d.rgba[i] > 0) { opacos++; const y = Math.floor((i - 3) / 4 / w); alto = Math.min(alto, y); baixo = Math.max(baixo, y); }
+    assert.ok(opacos > min, `${id} ${parte}: só ${opacos} pixels desenhados`);
+    if (parte === 'corpo') assert.ok(baixo - alto + 1 >= 30 && baixo - alto + 1 <= 46, `${id}: corpo com ${baixo - alto + 1} px de altura (guia: ~40)`);
+  }
+});
+test('as arenas dos três ginásios: 256×160, opacas', () => {
+  for (const g of ['fogo', 'agua', 'grama']) {
+    const d = decodePng(fs.readFileSync(path.join(DIR, '..', 'arte', 'ginasios', 'finais', g + '.png')));
+    assert.ok(d.width === 256 && d.height === 160, `${g}: ${d.width}×${d.height}`);
+    for (const [x, y] of [[0, 0], [255, 159]]) assert.strictEqual(d.rgba[(y * 256 + x) * 4 + 3], 255, `${g}: canto ${x},${y} transparente`);
   }
 });
 

@@ -180,7 +180,7 @@ test('tamanho da plaquinha e números (melhor em destaque, os outros depois)', f
   assert.strictEqual(FX.badgeSize({ dice: [87], best: 87, rerolls: 2 }).w, s1.w + 6, '↻ (5 px + 1) antes do número');
 });
 section('skills, Garra e cansaço');
-// corrida com todas as skills do catálogo distribuídas pelos cavalos e "skills sempre ativam" (modo DEV da simulação);
+// corrida com todas as skills do catálogo distribuídas pelos cavalos (toda skill ativa quando o gatilho acontece);
 // sem a skill de tipo (noTypeSkill): aqui só as skills de vaga (a skill de tipo na pista é outra tarefa)
 function corridaSkills(seed, escala) {
   var ids = Object.keys(G.SKILLS), hs = G.STARTERS.concat(G.WILD_HORSES.slice(0, 5));
@@ -189,7 +189,7 @@ function corridaSkills(seed, escala) {
     c.skills = ids.filter(function (id, q) { return q % hs.length === i; });
     return { horse: c, gear: null, name: 'r' + i, isPlayer: i === 0, silks: CORES[i], noTypeSkill: true };
   });
-  var sim = S.simulate({ seed: seed, recordFrames: true, racers: racers, conditions: { distance: 2000 }, dev: { skillsAlways: true } });
+  var sim = S.simulate({ seed: seed, recordFrames: true, racers: racers, conditions: { distance: 2000 } });
   return { sim: sim, racers: racers, tl: FX.timeline(sim, racers, escala) };
 }
 // Desde o bloco 1b o jóquei erra pouco (−0,5% a +2,5%, abaixo da reserva de 3%) e quase ninguém se cansa. Para
@@ -246,18 +246,19 @@ test('nomeCurto: nome inteiro até 12 letras; campo short nos longos; nenhum cor
 // recurso (raia estreita demais para duas linhas). A fonte só tem maiúsculas: as linhas saem como o nomeCurto, em maiúsculas
 test('nomeEmLinhas: inteiro numa linha se couber; senão duas linhas entre palavras; linhasMax 1 dá o nomeCurto', function () {
   var w = FX.BALAO.textoMax, SP = require('../src/sprites.js');
-  assert.ok(SP.measureText('RAÍZES FIRMES', 1) > w, 'o teste conta com "Raízes Firmes" sem caber numa linha');
-  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 2), ['RAÍZES', 'FIRMES']);
-  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', SP.measureText('RAÍZES FIRMES', 1), 2), ['RAÍZES FIRMES'], 'na largura exata cabe numa linha');
+  function mt(x) { return SP.measureText(x, 1, 'g7'); }   // o balão escreve em Galmuri7
+  assert.ok(mt('ARRANCADA FINAL') > w, 'o teste conta com "Arrancada Final" sem caber numa linha');
+  assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', w, 2), ['ARRANCADA', 'FINAL']);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', mt('ARRANCADA FINAL'), 2), ['ARRANCADA FINAL'], 'na largura exata cabe numa linha');
   assert.deepStrictEqual(FX.nomeEmLinhas('Labareda', w, 2), ['LABAREDA']);
-  assert.deepStrictEqual(FX.nomeEmLinhas('Saída Rápida', w, 2), ['SAÍDA RÁPIDA'], 'nome de duas palavras que cabe: uma linha');
+  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 2), ['RAÍZES FIRMES'], 'nome de duas palavras que cabe: uma linha');
   assert.deepStrictEqual(FX.nomeEmLinhas('Labareda', w, 1), ['LABAREDA']);
   // linhasMax 1: o nomeCurto de hoje (com o short do catálogo, quando há)
-  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 1), [FX.nomeCurto('Raízes Firmes')]);
-  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 1, 'RAÍZES FIRM.'), ['RAÍZES FIRM.']);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', w, 1), [FX.nomeCurto('Arrancada Final')]);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', w, 1, 'ARR. FINAL'), ['ARR. FINAL']);
   // três palavras: a quebra de linhas mais equilibradas que caibam
   assert.deepStrictEqual(FX.nomeEmLinhas('Fôlego de Montanha', w, 2), ['FÔLEGO DE', 'MONTANHA']);
-  assert.deepStrictEqual(FX.nomeEmLinhas('Canto da Iara', w, 2), ['CANTO', 'DA IARA']);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Canto da Iara', mt('CANTO DA IARA') - 1, 2), ['CANTO', 'DA IARA']);
   // sem quebra que caiba (uma palavra só, ou uma linha larga demais): o nomeCurto
   assert.deepStrictEqual(FX.nomeEmLinhas('Supercalifragilistico', w, 2), [FX.nomeCurto('Supercalifragilistico')]);
   assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', 20, 2, 'ARR. FINAL'), ['ARR. FINAL']);
@@ -265,7 +266,7 @@ test('nomeEmLinhas: inteiro numa linha se couber; senão duas linhas entre palav
   Object.keys(G.SKILLS).map(function (id) { return G.SKILLS[id]; }).concat(Object.keys(G.TYPE_SKILLS).map(function (k) { return G.TYPE_SKILLS[k]; })).forEach(function (sk) {
     var l = FX.nomeEmLinhas(sk.name, w, 2, sk.short);
     assert.ok(l.length >= 1 && l.length <= 2, sk.name);
-    l.forEach(function (x) { assert.ok(SP.measureText(x, 1) <= w, sk.name + ': "' + x + '" passa de ' + w); });
+    l.forEach(function (x) { assert.ok(mt(x) <= w, sk.name + ': "' + x + '" passa de ' + w); });
     assert.strictEqual(l.join(' '), sk.name.toUpperCase(), sk.name + ' inteiro em até duas linhas');
   });
 });
@@ -273,7 +274,7 @@ test('balão com o nome em duas linhas: mais alto, texto das duas linhas dentro 
   var um = ctxFalso(), dois = ctxFalso(), it = { kind: 'skill', t0: 10, t1: 15, racer: 0, skillId: 'raizes', icon: 'vel', element: 'grama', cavalo: 'grama', nome: 'Raízes Firmes', nomeCurto: 'RAÍZES FIRM.', silks: '#d8353b', raia: 1, escala: 1 };
   var s1 = FX.balloonSize(it, 0), s2 = FX.balloonSize(it, 0, ['RAÍZES', 'FIRMES']), s0 = FX.balloonSize(it, 0, ['RAÍZES FIRM.']);
   assert.deepStrictEqual(s0, s1, 'sem linhas: o nome curto numa linha, do mesmo tamanho');
-  assert.strictEqual(s1.h, 11);
+  assert.strictEqual(s1.h, 13, 'uma linha: 3 de acento + 7 da maiúscula da Galmuri7 + bordas');
   assert.strictEqual(s2.h, FX.BALAO.h2);
   assert.ok(s2.w < s1.w, 'duas linhas curtas: balão mais estreito');
   assert.deepStrictEqual(FX.balloonSize(it, 1, ['RAÍZES', 'FIRMES']), FX.balloonSize(it, 1), 'compacto não muda');
@@ -281,7 +282,8 @@ test('balão com o nome em duas linhas: mais alto, texto das duas linhas dentro 
   // (sobe 2 px ao entrar: aos 0,5 s já está no lugar) nada além do contorno de 1 px em volta do corpo e da pontinha
   dois.rects.forEach(function (r) { assert.ok(r.y >= -1 && r.y + r.h <= s2.h + 1 && r.x >= -3 && r.x + r.w <= s2.w + 1, 'fora do balão: ' + JSON.stringify(r)); });
   var lin = dois.rects.filter(function (r) { return r.x >= 19; });   // o texto começa em x = 19 (chip, ícone e folga antes)
-  assert.ok(lin.some(function (r) { return r.y < 9; }) && lin.some(function (r) { return r.y >= 10 && r.y + r.h <= 16; }), 'texto nas duas linhas');
+  // as maiúsculas em y 4..10 e 14..20 (Galmuri7: 7 px de altura, linhas a cada 10 px)
+  assert.ok(lin.some(function (r) { return r.y >= 4 && r.y + r.h <= 11; }) && lin.some(function (r) { return r.y >= 14 && r.y + r.h <= 21; }), 'texto nas duas linhas');
   FX.resetStats(true);
 });
 test('timeline tem um item por evento skill/garra/cansou', function () { comJoqueiOtimista(function () {
@@ -379,6 +381,203 @@ test('a linha do tempo de skills é a mesma para a mesma seed e não mexe na sim
   assert.strictEqual(JSON.stringify(a.sim.events), antes);
 });
 
+section('skills com rank na corrida (sem sorteio)');
+// um cavalo de teste: inicial copiado, com as skills e os ranks dados
+function comRank(base, skills, ranks, extra) {
+  var h = cl(base); h.skills = skills; h.skillRanks = ranks || {};
+  if (extra) Object.keys(extra).forEach(function (k) { h[k] = extra[k]; });
+  return h;
+}
+function corre(seed, cond, horses, entradas) {
+  return S.simulate({ seed: seed, recordFrames: true, conditions: cl(cond), racers: horses.map(function (h, i) {
+    var e = { horse: h, name: 'r' + i, noTypeSkill: true };
+    if (entradas && entradas[i]) Object.keys(entradas[i]).forEach(function (k) { e[k] = entradas[i][k]; });
+    return e;
+  }) });
+}
+function skillsDe(res, racer, nome) { return res.events.filter(function (e) { return e.type === 'skill' && !e.typeSkill && e.racer === racer && (!nome || e.text.indexOf(' ativou ' + nome + '!') >= 0); }); }
+var PISTA_R = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 400 }, { type: 'curva', from: 400, to: 700 }, { type: 'subida', from: 700, to: 1000 }, { type: 'reta', from: 1000, to: 1600 }] };
+var BRASA = G.STARTERS[0], MARE = G.STARTERS[1], IPE = G.STARTERS[2];
+test('skill sem sorteio: um Comum nível 1 com Arranque ativa em 200 seeds de 200, e o evento traz o rank', function () {
+  var h = comRank(BRASA, ['arranque'], { arranque: 3 }, { rarity: 'comum', level: 1 });
+  for (var s = 1; s <= 200; s++) {
+    var res = corre(s, PISTA_R, [h, cl(MARE)]), ev = skillsDe(res, 0, 'Arranque');
+    assert.strictEqual(ev.length, 1, 'seed ' + s); assert.strictEqual(ev[0].rank, 3);
+    if (s === 1) assert.deepStrictEqual(res.racerInfo[0].skillRanks, { arranque: 3 });
+  }
+});
+test('rank 5 do Segundo Ar dispara com 35% de estamina; o rank 4 só com 30%', function () {
+  [5, 4].forEach(function (rank) {
+    for (var s = 1; s <= 12; s++) {
+      var res = corre(s, PISTA_R, [comRank(BRASA, ['segundo-ar'], { 'segundo-ar': rank }), cl(MARE)]), ev = skillsDe(res, 0, 'Segundo Ar');
+      assert.strictEqual(ev.length, 1, 'rank ' + rank + ' seed ' + s + ': ativa uma vez');
+      var est = res.frames[Math.round(ev[0].t * 10)].stamina[0];
+      if (rank === 5) assert.ok(est <= 0.35 && est > 0.30, 'rank 5 seed ' + s + ': estamina ' + est);
+      else assert.ok(est <= 0.30 && est > 0.25, 'rank 4 seed ' + s + ': estamina ' + est);
+    }
+  });
+});
+test('rank 5 do Sprint dispara numa reta de 100 a 149 m; o rank 4 não; a Nascente (mesmo gatilho) continua em 150 m', function () {
+  var cond = { distance: 1000, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 500 }, { type: 'reta', from: 500, to: 620 }, { type: 'curva', from: 620, to: 1000 }] };
+  for (var s = 1; s <= 10; s++) {
+    var r5 = corre(s, cond, [comRank(MARE, ['sprint', 'nascente'], { sprint: 5, nascente: 5 }), cl(BRASA)]);
+    var r4 = corre(s, cond, [comRank(MARE, ['sprint', 'nascente'], { sprint: 4, nascente: 4 }), cl(BRASA)]);
+    var e5 = skillsDe(r5, 0, 'Sprint');
+    assert.strictEqual(e5.length, 1, 'seed ' + s); assert.strictEqual(e5[0].rank, 5);
+    var pos = r5.frames[Math.round(e5[0].t * 10)].pos[0]; assert.ok(pos >= 500 && pos < 620, 'na reta de 120 m: ' + pos);
+    assert.strictEqual(skillsDe(r4, 0, 'Sprint').length, 0, 'rank 4 seed ' + s);
+    assert.strictEqual(skillsDe(r5, 0, 'Nascente').length, 0, 'a Nascente não ganhou a reta curta');
+  }
+  // reta de 99 m: nem no rank 5
+  cond.blocks[2].to = 599; cond.blocks[3].from = 599;
+  assert.strictEqual(skillsDe(corre(1, cond, [comRank(MARE, ['sprint'], { sprint: 5 }), cl(BRASA)]), 0, 'Sprint').length, 0);
+});
+// troca o marco de uma skill só durante fn (para comparar a corrida com e sem ele)
+function comMarco(id, marco, fn) {
+  var salvo = G.SKILLS[id].rank5; G.SKILLS[id].rank5 = marco;
+  try { return fn(); } finally { G.SKILLS[id].rank5 = salvo; }
+}
+test('marco do clima: com Sol a Pino rank 5, o reforço vale até 15 s depois de o Dado virar o clima, e some depois', function () {
+  var cond = { distance: 2000, surface: 'grama', weather: 'sol', blocks: [{ type: 'reta', from: 0, to: 2000 }] };
+  var fogo = comRank(BRASA, ['sol-a-pino'], { 'sol-a-pino': 5 }), agua = cl(MARE), achou = 0;
+  for (var s = 1; s <= 80 && achou < 3; s++) {
+    var a = corre(s, cond, [fogo, agua]);
+    var virou = a.events.filter(function (e) { return e.type === 'clima'; });
+    if (!virou.length || virou[0].weather === 'sol') continue;
+    var tc = virou[0].t;
+    if (virou.length > 1 && virou[1].t < tc + 25) continue;          // o clima não muda de novo na janela
+    if (a.finishTimes[0] < tc + 25 || tc < 5) continue;
+    achou++;
+    assert.strictEqual(skillsDe(a, 0, 'Sol a Pino').length, 1);
+    var sem = comMarco('sol-a-pino', {}, function () { return corre(s, cond, [fogo, agua]); });
+    var longo = comMarco('sol-a-pino', { weatherLingerS: 1000 }, function () { return corre(s, cond, [fogo, agua]); });
+    var f = function (res, t) { return res.frames[Math.round(t * 10)].pos[0]; };
+    assert.strictEqual(f(a, tc), f(sem, tc), 'seed ' + s + ': até o clima virar, igual a quem não tem o marco');
+    assert.ok(f(a, tc + 10) > f(sem, tc + 10), 'seed ' + s + ': 10 s depois, o marco segura o reforço (' + f(a, tc + 10) + ' × ' + f(sem, tc + 10) + ')');
+    assert.strictEqual(f(a, tc + 15), f(longo, tc + 15), 'seed ' + s + ': nos 15 s, igual a um reforço que não acaba');
+    assert.ok(f(a, tc + 24) < f(longo, tc + 24), 'seed ' + s + ': depois dos 15 s o reforço some');
+    // sem o marco (rank 4), virar o clima tira o reforço na hora
+    var r4 = corre(s, cond, [comRank(BRASA, ['sol-a-pino'], { 'sol-a-pino': 4 }), agua]);
+    var r4longo = comMarco('sol-a-pino', { weatherLingerS: 1000 }, function () { return corre(s, cond, [comRank(BRASA, ['sol-a-pino'], { 'sol-a-pino': 4 }), agua]); });
+    assert.strictEqual(JSON.stringify(r4.frames), JSON.stringify(r4longo.frames), 'o marco só vale no rank 5'); assert.notStrictEqual(r4.tuningHash, r4longo.tuningHash, 'o marco entra na impressão digital das regras');
+  }
+  assert.strictEqual(achou, 3, 'seeds em que o Dado tira o sol');
+});
+test('Dado Viciado rank 5 rola 3 ou 4 dados (com o 2º da Sorte); rank 2 rola 1 extra que nunca passa de 70', function () {
+  var cond = { distance: 1400, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 1400 }] };
+  var maior2 = 0, quatro = 0, tres = 0;
+  for (var s = 1; s <= 120; s++) {
+    var a = corre(s, cond, [comRank(BRASA, ['dado-viciado'], { 'dado-viciado': 5 }), cl(MARE)]);
+    var b = corre(s, cond, [comRank(BRASA, ['dado-viciado'], { 'dado-viciado': 2 }), cl(MARE)]);
+    a.events.filter(function (e) { return e.type === 'dado'; }).forEach(function (d) {
+      var n = d.rolls[0].dice.length; assert.ok(n === 3 || n === 4, 'rank 5: ' + n + ' dados'); if (n === 4) quatro++; else tres++;
+      assert.ok(d.rolls[1].dice.length <= 2, 'quem não tem a skill não ganha dado');
+    });
+    b.events.filter(function (e) { return e.type === 'dado'; }).forEach(function (d) {
+      var dice = d.rolls[0].dice; assert.ok(dice.length === 2 || dice.length === 3, 'rank 2: ' + dice.length + ' dados');
+      var extra = dice[dice.length - 1]; assert.ok(extra >= 1 && extra <= 70, 'extra ' + extra); maior2 = Math.max(maior2, extra);
+    });
+    assert.strictEqual(skillsDe(a, 0, 'Dado Viciado').length, 1);
+  }
+  assert.ok(maior2 > 60, 'o extra do rank 2 passa de 60 às vezes (teto 70): ' + maior2);
+  assert.ok(tres > 0 && quatro > 0, 'com a Sorte da Brasa, há rodadas com e sem o 2º dado: ' + tres + ' / ' + quatro);
+});
+test('mesma seed e mesmos ranks dão o mesmo resultado; subir um rank muda o resultado', function () {
+  for (var s = 1; s <= 10; s++) {
+    var mk = function (r) { return corre(s, PISTA_R, [comRank(BRASA, ['arranque', 'drift'], { arranque: r, drift: 2 }), cl(MARE), cl(IPE)]); };
+    var a = mk(2), b = mk(2), c = mk(3);
+    assert.strictEqual(JSON.stringify(a), JSON.stringify(b), 'seed ' + s);
+    assert.notStrictEqual(JSON.stringify(a.frames), JSON.stringify(c.frames), 'seed ' + s + ': o rank 3 corre diferente do 2');
+    assert.ok(c.frames[40].pos[0] > a.frames[40].pos[0], 'seed ' + s + ': Arranque III sai na frente do II');
+    // rank ausente, inválido ou de skill que o cavalo não tem vale 1
+    var semRank = corre(s, PISTA_R, [comRank(BRASA, ['arranque'], null), cl(MARE)]);
+    var lixo = corre(s, PISTA_R, [comRank(BRASA, ['arranque'], { arranque: 9, sprint: 5 }), cl(MARE)]);
+    var um = corre(s, PISTA_R, [comRank(BRASA, ['arranque'], { arranque: 1 }), cl(MARE)]);
+    assert.strictEqual(JSON.stringify(semRank), JSON.stringify(um)); assert.strictEqual(JSON.stringify(lixo), JSON.stringify(um));
+  }
+});
+test('skillScale (1 a 1,1) reforça o efeito das skills do corredor; fora da faixa vale 1', function () {
+  var hs = [comRank(BRASA, ['arranque'], { arranque: 2 }), cl(MARE)];
+  var base = corre(7, PISTA_R, hs), com = corre(7, PISTA_R, hs, [{ skillScale: 1.05 }]);
+  assert.ok(com.frames[40].pos[0] > base.frames[40].pos[0], 'com 1,05 o Arranque rende mais');
+  [0.9, 1.2, NaN, '1.05', null].forEach(function (x) { assert.strictEqual(JSON.stringify(corre(7, PISTA_R, hs, [{ skillScale: x }])), JSON.stringify(base), String(x)); });
+});
+test('marcos: o Fôlego de Montanha recupera 3% ao sair da subida; a Arrancada Final dá velocidade até a chegada', function () {
+  var hf = [comRank(BRASA, ['folego-de-montanha'], { 'folego-de-montanha': 5 }), cl(MARE)];
+  var a = corre(3, PISTA_R, hf), sem = comMarco('folego-de-montanha', {}, function () { return corre(3, PISTA_R, hf); });
+  var sai = 0; while (a.frames[sai].pos[0] < 1000) sai++;
+  assert.strictEqual(a.frames[sai - 1].stamina[0], sem.frames[sai - 1].stamina[0], 'dentro da subida, igual');
+  var ganho = a.frames[sai + 1].stamina[0] - sem.frames[sai + 1].stamina[0];
+  assert.ok(Math.abs(ganho - 0.03) < 0.002, 'recuperou ' + ganho);
+  var ha = [comRank(BRASA, ['arrancada-final'], { 'arrancada-final': 5 }), cl(MARE)];
+  var b = corre(3, PISTA_R, ha), semB = comMarco('arrancada-final', {}, function () { return corre(3, PISTA_R, ha); });
+  assert.ok(b.finishTimes[0] < semB.finishTimes[0], 'chega antes com o marco: ' + b.finishTimes[0] + ' × ' + semB.finishTimes[0]);
+  var ev = skillsDe(b, 0, 'Arrancada Final')[0], q = Math.round(ev.t * 10);
+  assert.strictEqual(b.frames[q].pos[0], semB.frames[q].pos[0], 'até a arrancada, igual');
+});
+test('nenhuma chamada a Math.random nem ao relógio durante simulate', function () {
+  var mr = Math.random, dn = Date.now, usou = false;
+  Math.random = function () { usou = true; return mr.apply(Math, arguments); };
+  Date.now = function () { usou = true; return dn.apply(Date, arguments); };
+  try {
+    var ids = Object.keys(G.SKILLS), hs = G.STARTERS.concat(G.WILD_HORSES.slice(0, 5));
+    for (var s = 1; s <= 6; s++) {
+      corre(s, { distance: 1800, surface: 'terra', weather: ['sol', 'chuva', 'nevoa'][s % 3], blocks: PISTA_R.blocks.concat([{ type: 'curva', from: 1600, to: 1800 }]) }, hs.map(function (h, i) {
+        var sk = ids.filter(function (id, q) { return q % hs.length === i; }), rk = {};
+        sk.forEach(function (id) { rk[id] = 1 + (s + i) % 5; });
+        return comRank(h, sk, rk);
+      }));
+    }
+  } finally { Math.random = mr; Date.now = dn; }
+  assert.ok(!usou);
+});
+
+test('linha do tempo: o item da skill traz o rank do evento; o balão mostra o rank em romano a partir do II', function () {
+  var hs = [comRank(BRASA, ['arranque'], { arranque: 3 }), comRank(MARE, ['arranque'], { arranque: 1 }), comRank(IPE, ['arranque'], { arranque: 5 })];
+  var racers = hs.map(function (h, i) { return { horse: h, name: 'r' + i, noTypeSkill: true, silks: CORES[i] }; });
+  var sim = S.simulate({ seed: 5, recordFrames: true, conditions: cl(PISTA_R), racers: racers });
+  var itens = FX.timeline(sim, racers).filter(function (it) { return it.kind === 'skill'; });
+  assert.deepStrictEqual(itens.map(function (it) { return it.rank; }), [3, 1, 5]);
+  assert.deepStrictEqual(itens.map(function (it) { return FX.linhasBalao(it, FX.BALAO.textoMax, 2); }), [['ARRANQUE III'], ['ARRANQUE'], ['ARRANQUE V']]);
+  assert.deepStrictEqual([1, 2, 3, 4, 5, 0, 6, '3', undefined].map(FX.rankRomano), ['', 'II', 'III', 'IV', 'V', '', '', '', '']);
+  assert.deepStrictEqual(itens.map(FX.rankMax), [false, false, true]);
+  // nome em duas linhas: o rank vai no fim da última; o balão cresce com o texto
+  var fm = { kind: 'skill', nome: 'Fôlego de Montanha', nomeCurto: 'FÔLEGO MONT.', rank: 4, t0: 0, escala: 1 };
+  assert.deepStrictEqual(FX.linhasBalao(fm, FX.BALAO.textoMax, 2), ['FÔLEGO DE', 'MONTANHA IV']);
+  assert.deepStrictEqual(FX.linhasBalao(fm, FX.BALAO.textoMax, 1), ['FÔLEGO MONT. IV']);
+  var semRank = { kind: 'skill', nome: 'Arranque', nomeCurto: 'ARRANQUE', rank: 1, t0: 0, escala: 1 }, com = { kind: 'skill', nome: 'Arranque', nomeCurto: 'ARRANQUE', rank: 3, t0: 0, escala: 1 };
+  assert.ok(FX.balloonSize(com, 0).w > FX.balloonSize(semRank, 0).w, 'sem linhas, o balão usa o nome curto com o rank');
+  assert.strictEqual(FX.balloonSize(com, 0, FX.linhasBalao(com, FX.BALAO.textoMax, 2)).w, FX.balloonSize(com, 0).w);
+  // a skill de tipo e a Garra não têm rank
+  assert.deepStrictEqual(FX.linhasBalao({ kind: 'skill', typeSkill: true, nome: 'Labareda', nomeCurto: 'LABAREDA', rank: 5 }, FX.BALAO.textoMax, 2), ['LABAREDA']);
+  assert.strictEqual(FX.rankMax({ kind: 'skill', typeSkill: true, rank: 5 }), false); assert.strictEqual(FX.rankMax({ kind: 'garra', rank: 5 }), false); assert.strictEqual(FX.rankMax(null), false);
+});
+test('rank V: o balão e o brilho ficam dourados; a duração do item segue o marco (Saída Rápida 8 s, Arrancada Final até a chegada)', function () {
+  var pintou = [];
+  var ctx = { globalAlpha: 1, set fillStyle(v) { this._f = v; }, get fillStyle() { return this._f; }, fillRect: function () { pintou.push(this._f); }, drawImage: function () {} };
+  function cores(rank) { pintou = []; FX.drawBalloon(ctx, 10, 10, 2, { kind: 'skill', nome: 'Sprint', nomeCurto: 'SPRINT', rank: rank, t0: 0, escala: 1, element: 'geral', cavalo: 'fogo', raia: 1, silks: '#d8353b' }, 0.5, 0); return pintou.slice(); }
+  var c4 = cores(4), c5 = cores(5);
+  assert.strictEqual(c5[0].toLowerCase(), '#f9c22b', 'a moldura dourada é o primeiro retângulo');
+  assert.notStrictEqual(c4[0].toLowerCase(), '#f9c22b', 'no rank IV o primeiro retângulo é o contorno escuro'); assert.strictEqual(c5[1], c4[0], 'depois da moldura, o contorno de sempre');
+  assert.ok(c5.indexOf('#fbff86') >= 0 && c4.indexOf('#fbff86') < 0, 'o texto do rank V é ouro claro');
+  var g4 = FX.glow({ kind: 'skill', rank: 4, t0: 0, t1: 5, escala: 1, element: 'geral', cavalo: 'agua' }, 1, true), g5 = FX.glow({ kind: 'skill', rank: 5, t0: 0, t1: 5, escala: 1, element: 'geral', cavalo: 'agua' }, 1, true);
+  assert.notStrictEqual(g5.cor, g4.cor); assert.ok(g5.alpha > g4.alpha);
+  // duração: o item do rank 5 dura o que o marco manda
+  var cond = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 500 }, { type: 'reta', from: 500, to: 1600 }] };
+  function dur(id, rank) {
+    var h = comRank(BRASA, [id], {}); h.skillRanks[id] = rank;
+    var racers = [{ horse: h, name: 'a', noTypeSkill: true }, { horse: cl(MARE), name: 'b', noTypeSkill: true }];
+    var sim = S.simulate({ seed: 9, recordFrames: true, conditions: cl(cond), racers: racers });
+    var it = FX.timeline(sim, racers).filter(function (x) { return x.kind === 'skill' && x.racer === 0; })[0];
+    return { d: it.t1 - it.t0, fim: sim.finishTimes[0], t0: it.t0 };
+  }
+  assert.ok(Math.abs(dur('saida-rapida', 4).d - Math.min(FX.BALAO.efeitoMax, G.SKILLS['saida-rapida'].effect.durationS)) < 1e-9);
+  assert.ok(Math.abs(dur('saida-rapida', 5).d - Math.min(FX.BALAO.efeitoMax, G.SKILLS['saida-rapida'].rank5.durationS)) < 1e-9);
+  var a4 = dur('arrancada-final', 4), a5 = dur('arrancada-final', 5);
+  assert.ok(Math.abs(a4.d - FX.BALAO.efeitoMin) < 1e-9, 'sem o marco, o efeito é instantâneo (vale o mínimo): ' + a4.d);
+  assert.ok(Math.abs(a5.d - Math.max(FX.BALAO.efeitoMin, Math.min(FX.BALAO.efeitoMax, a5.fim - a5.t0))) < 1e-6, 'com o marco, até a chegada (ou o teto): ' + a5.d);
+});
+
 section('balão e contorno (desenho com contexto falso)');
 // contexto que só registra fillRect/estilo: o suficiente para contar o que foi desenhado
 function ctxFalso() {
@@ -406,12 +605,13 @@ test('balão de Garra e de cansou: tamanho e cores próprios', function () {
   var z = { kind: 'cansou', t0: 10, t1: 11.5, racer: 0, silks: '#2f6fd8', raia: 2, escala: 1 };
   var cg = ctxFalso(), cz = ctxFalso();
   assert.ok(FX.drawBalloon(cg, 0, 0, 2, g, 10.2, 0) && FX.drawBalloon(cz, 0, 0, 2, z, 10.2, 0));
-  assert.ok(cg.rects.some(function (r) { return r.cor === '#f7d778'; }), 'Garra em dourado (ícone e texto)');
-  assert.ok(cz.rects.every(function (r) { return r.cor !== '#f7d778'; }), 'cansou sem dourado');
-  assert.ok(cz.rects.some(function (r) { return r.cor === '#c3cac6'; }) && cz.rects.some(function (r) { return r.cor === '#2b2f2d'; }), 'cansou em cinza');
+  var GARRA = ['#f9c22b', '#fbff86', '#fbb954'];   // o ouro e os tons claros dele, na mestra
+  assert.ok(cg.rects.some(function (r) { return GARRA.indexOf(r.cor) >= 0; }), 'Garra em dourado (ícone e texto)');
+  assert.ok(cz.rects.every(function (r) { return GARRA.indexOf(r.cor) < 0; }), 'cansou sem dourado');
+  assert.ok(cz.rects.some(function (r) { return r.cor === '#c7dcd0'; }) && cz.rects.some(function (r) { return r.cor === '#3e3546'; }), 'cansou em cinza');
   assert.ok(cg.rects.some(function (r) { return r.cor === '#d8353b'; }), 'borda e chip na cor da seda da raia');
   var sz = FX.balloonSize(ITEM_SKILL, 0), sg = FX.balloonSize(g, 0), sc = FX.balloonSize(z, 0), sp1 = FX.balloonSize(ITEM_SKILL, 1);
-  assert.ok(sz.w > 20 && sz.h === 11 && sg.w > 20 && sc.w > 20);
+  assert.ok(sz.w > 20 && sz.h === 13 && sg.w > 20 && sc.w > 20);
   assert.ok(sp1.w < sz.w, 'pilha > 0 é compacta');
   FX.resetStats(true);
 });
@@ -673,30 +873,33 @@ test('sol por piso: calor e poeira com tom e alfa próprios; na areia a poeira t
   assert.notStrictEqual(ca, ct, 'calor da areia ≠ da terra');
   var aA = Number(ca.replace(/.*,([\d.]+)\)$/, '$1')), aT = Number(ct.replace(/.*,([\d.]+)\)$/, '$1'));
   assert.ok(aA >= 0.3, 'calor na areia mais forte: ' + ca);
-  function lum(c) { var m = c.match(/rgba\((\d+),(\d+),(\d+)/); return 0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]; }
+  function lum(c) { var m = c.match(/#(..)(..)(..)/); return 0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16); }
   var a = ctxNat(), t = ctxNat();
   FX.drawHoofDust(a, 100, 200, 3, 0.4, 'areia'); FX.drawHoofDust(t, 100, 200, 3, 0.4, 'terra');
-  var cores = {}; a.rects.forEach(function (q) { cores[q.cor.replace(/,[\d.]+\)$/, ')')] = true; });
+  // a poeira dos cascos é sólida, na paleta-mestra (etapa 2.5): sem alfa
+  var cores = {}; a.rects.forEach(function (q) { cores[q.cor] = true; });
   var cs = Object.keys(cores);
   assert.strictEqual(cs.length, 2, 'areia: miolo e borda ' + cs.join(' '));
+  cs.forEach(function (c) { assert.ok(/^#[0-9a-f]{6}$/.test(c), 'poeira sem alfa: ' + c); });
   cs.sort(function (x, y) { return lum(x) - lum(y); });
   assert.ok(lum(cs[1]) - lum(cs[0]) > 60, 'borda bem mais escura que o miolo ' + cs.join(' '));
   assert.ok(t.rects.length < a.rects.length, 'terra sem a borda');
   assert.ok(aT > 0, 'terra com calor');
 });
-test('poeira: nasce atrás do casco (x − 1 px de arte) e só desbota da metade da vida em diante', function () {
-  var S = 3, alfas = [];
+test('poeira: nasce atrás do casco (x − 1 px de arte), sólida, e some no último quinto da vida (sem alfa)', function () {
+  var S = 3, vistas = 0;
   for (var k = 0; k < 20; k++) {
     var c = ctxNat(), t = k / 20 / 2.4;              // uma volta do ciclo da nuvenzinha 0 (ph = k/20)
     FX.drawHoofDust(c, 100, 200, S, t, 'terra', true);   // reduced: uma só (ph = frac(t·2,4·0,4))
+    var ph = frac04(t);
+    if (ph >= 0.8) { assert.strictEqual(c.rects.length, 0, 'no fim da vida não desenha (ph ' + ph.toFixed(2) + ')'); continue; }
     var q = c.rects[c.rects.length - 1];
-    alfas.push({ ph: frac04(t), a: Number(q.cor.replace(/.*,([\d.]+)\)$/, '$1')), x: q.x + q.w });
+    assert.ok(q.x + q.w <= 100, 'a nuvenzinha não passa do casco (borda direita ' + (q.x + q.w) + ')');
+    assert.strictEqual(q.cor, '#fdcbb0', 'cor sólida da mestra (ph ' + ph.toFixed(2) + ')');
+    vistas++;
   }
+  assert.ok(vistas > 0);
   function frac04(t) { var v = t * 2.4 * 0.4; return v - Math.floor(v); }
-  alfas.forEach(function (p) {
-    assert.ok(p.x <= 100, 'a nuvenzinha não passa do casco (borda direita ' + p.x + ')');
-    if (p.ph < 0.5) assert.ok(Math.abs(p.a - alfas[0].a) < 1e-9, 'alfa cheio até a metade (ph ' + p.ph.toFixed(2) + ': ' + p.a + ')');
-  });
 });
 test('teto de partículas por tela (tela enorme, P = 1)', function () {
   ['sol', 'chuva', 'nevoa', 'nublado'].forEach(function (w) {
@@ -1098,15 +1301,15 @@ test('drawTypeAura: movimento reduzido desenha só o contorno na cor do elemento
   FX.resetStats(true);
 });
 // contraste (WCAG) contra os pisos em que a pista aparece: GameData.SURFACES e os tons das faixas do gramado,
-// da terra e da areia (Sprites, SURF: a, b, dark, lite)
+// da terra e da areia (Sprites, SURF: a, dark, lite, na paleta-mestra desde a etapa 2.3)
 function lumRel(h) {
   var v = [1, 3, 5].map(function (i) { var c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
   return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
 }
 function contraste(a, b) { var x = lumRel(a), y = lumRel(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
 var PISOS = Object.keys(G.SURFACES).map(function (k) { return G.SURFACES[k].color; })
-  .concat(['#5cb44a', '#4ea640', '#3f8f36', '#7ccc5c', '#a46c3e', '#9a6337', '#6e4324', '#c08a58', '#e2c98f', '#d9be82', '#bf9f62', '#f4e4b8']);
-var GRAMADO = ['#5fa34a', '#5cb44a', '#4ea640', '#3f8f36', '#7ccc5c'];
+  .concat(['#239063', '#165a4c', '#1ebc73', '#cd683d', '#9e4539', '#e6904e', '#fbb954', '#fdcbb0']);
+var GRAMADO = ['#5fa34a', '#239063', '#1ebc73'];   // os tons de área (o #165a4c é só o pontilhado)
 test('drawTypeAura Grama: a raiz marrom domina e se destaca em todos os pisos; folhas mais claras que o gramado', function () {
   var A = FX.AURA.grama, area = { raiz: 0, folha: 0, verde: 0 };
   // em todo piso, a raiz (escura com realce claro) tem um dos dois tons a 3:1 ou mais; no gramado, a escura
@@ -1356,18 +1559,19 @@ function dentroDaPista(B, lay) {
   assert.ok(B.w > 0 && B.h > 0);
 }
 // faixa do lugar na chegada (spec 3c §7, Ruling 14): caixa e desenho
-test('faixa do lugar: escala 3 quando cabe, centrada, no topo pedido ou no pé da pista; a mesma altura para qualquer lugar', function () {
+test('faixa do lugar: Galmuri11 Bold (fs 2) quando cabe, centrada, no topo pedido ou no pé da pista; a mesma altura para qualquer lugar', function () {
   var lay = { artW: 180, artH: 232, hudH: 42 }, topo = 57;
   var V = FX.lugarLayout('VITÓRIA!', lay, topo, false), D = FX.lugarLayout('2º LUGAR', lay, topo, false), O = FX.lugarLayout('8º LUGAR', lay, topo, false);
   assert.strictEqual(V.texto, 'VITÓRIA!');
   [V, D, O].forEach(function (B) {
-    assert.strictEqual(B.fs, 3, B.texto);
+    assert.strictEqual(B.fs, 2, B.texto);
+    assert.strictEqual(B.fonte, 'g11', B.texto);
     assert.strictEqual(B.y, topo);
     assert.ok(B.x >= 2 && B.x + B.w <= lay.artW - 2, 'na largura da pista: ' + JSON.stringify(B));
     assert.ok(Math.abs(B.x + B.w / 2 - lay.artW / 2) <= 0.5, 'centrada');
     assert.strictEqual(B.h, V.h, 'mesma altura');
-    // o texto (5·fs de altura, mais o acento de 2·fs em cima) dentro da caixa, com a borda de 3 em volta
-    assert.ok(B.tx >= B.x + 3 && B.tx + B.tw <= B.x + B.w - 3 && B.ty - (B.acento ? 2 * B.fs : 0) >= B.y + 3 && B.ty + 5 * B.fs <= B.y + B.h - 3, 'texto dentro: ' + JSON.stringify(B));
+    // o texto (11 da maiúscula da Galmuri11 Bold, mais 4 de acento em cima) dentro da caixa, com a borda de 3 em volta
+    assert.ok(B.tx >= B.x + 3 && B.tx + B.tw <= B.x + B.w - 3 && B.ty - 4 >= B.y + 3 && B.ty + 11 <= B.y + B.h - 3, 'texto dentro: ' + JSON.stringify(B));
   });
   assert.ok(V.acento && !D.acento);
   var E = FX.lugarLayout('VITÓRIA!', lay, topo, true);
@@ -1375,9 +1579,9 @@ test('faixa do lugar: escala 3 quando cabe, centrada, no topo pedido ou no pé d
   assert.strictEqual(E.y + E.h, lay.artH - 2, 'encostada no pé da pista');
   assert.strictEqual(E.ty - E.y, V.ty - V.y, 'o texto desce junto');
   assert.strictEqual(FX.lugarLayout('VITÓRIA!', lay, topo, true, 150).y + E.h, 150, 'base pedida (acima de outra faixa no pé)');
-  // pista estreita: a escala cai até caber
-  var N = FX.lugarLayout('8º LUGAR', { artW: 90, artH: 120, hudH: 15 }, 20, false);
-  assert.ok(N.fs < 3 && N.x >= 2 && N.x + N.w <= 88, JSON.stringify(N));
+  // pista estreita: cai para a Galmuri7 até caber
+  var N = FX.lugarLayout('8º LUGAR', { artW: 60, artH: 120, hudH: 15 }, 20, false);
+  assert.ok(N.fs === 1 && N.fonte === 'g7' && N.x >= 2 && N.x + N.w <= 58, JSON.stringify(N));
 });
 test('drawPlaceBanner: moldura na cor do lugar, nada fora da caixa, marca _stats.faixaLugar e a caixa; beginFrame zera', function () {
   var lay = { artW: 180, artH: 232, hudH: 42 }, B = FX.lugarLayout('3º LUGAR', lay, 57, false), c = ctxFalso();
@@ -1527,7 +1731,7 @@ test('Ruling 6: antes da revelação, a mesma caixa só com "DADO DA SORTE"; o v
   assert.strictEqual(FX.diceState(it, revela - 0.01, false, 0).dourado, false);
   assert.strictEqual(FX.diceState(it, revela, false, 0).dourado, true);
 });
-test('Ruling 13: antes da revelação, o ícone e "DADO DA SORTE" centrados na caixa (escala 2 quando cabe)', function () {
+test('Ruling 13: antes da revelação, o ícone e "DADO DA SORTE" centrados na caixa (Galmuri11 Bold quando cabe)', function () {
   var it = dadoFaixa({ escala: 4, t1: 10 + 2.4 * 4 });
   [[RACERS_FAIXA, false], [RACERS_FAIXA, true], [[{ silks: '#d8353b', horse: { name: 'Ipê' } }, RACERS_FAIXA[1]], false]].forEach(function (cs) {
     FX.setIconImages({ 'ui-dado': IMG });
@@ -1537,7 +1741,7 @@ test('Ruling 13: antes da revelação, o ícone e "DADO DA SORTE" centrados na c
     // o que está dentro da borda (contorno, friso e bisel = 3): o texto, e a imagem do dado
     var miolo = c.rects.filter(function (r) { return A(r.x) >= B.x + 3 && A(r.y) >= B.y + 3 && A(r.x + r.w) <= B.x + B.w - 3 && A(r.y + r.h) <= B.y + B.h - 3; });
     assert.ok(miolo.length > 20, 'o texto foi desenhado');
-    miolo.forEach(function (r) { assert.strictEqual(r.cor, '#f2c230', 'só o texto em ouro dentro da caixa'); });
+    miolo.forEach(function (r) { assert.strictEqual(r.cor, '#f9c22b', 'só o texto em ouro dentro da caixa'); });
     assert.strictEqual(c.imgs.length, 1);
     var im = c.imgs[0], cx = [A(im.args[1])], cy = [A(im.args[2])], cx2 = [A(im.args[1] + im.args[3])], cy2 = [A(im.args[2] + im.args[4])];
     miolo.forEach(function (r) { cx.push(A(r.x)); cy.push(A(r.y)); cx2.push(A(r.x + r.w)); cy2.push(A(r.y + r.h)); });
@@ -1545,10 +1749,10 @@ test('Ruling 13: antes da revelação, o ícone e "DADO DA SORTE" centrados na c
     var esq = x0 - B.x, dir = B.x + B.w - x1, cima = y0 - B.y, baixo = B.y + B.h - y1;
     assert.ok(Math.abs(esq - dir) <= 1, 'centrado na horizontal: ' + esq + ' / ' + dir);
     assert.ok(Math.abs(cima - baixo) <= 1, 'centrado na vertical: ' + cima + ' / ' + baixo);
-    // escala 2 quando cabe: a altura do texto (sem o ícone) é 10
+    // Galmuri11 Bold quando cabe: a altura do texto (sem o ícone, sem acento) é a maiúscula, 11; senão a da Galmuri7, 7
     var ty0 = Math.min.apply(null, miolo.map(function (r) { return A(r.y); })), ty1 = Math.max.apply(null, miolo.map(function (r) { return A(r.y + r.h); }));
-    var cabe = 8 + 2 + 2 * require('../src/sprites.js').measureText('DADO DA SORTE', 1) <= B.w - 12;
-    assert.strictEqual(ty1 - ty0, cabe ? 10 : 5, 'escala do rótulo (caixa de ' + B.w + ')');
+    var cabe = 8 + 2 + require('../src/sprites.js').measureText('DADO DA SORTE', 1, 'g11') <= B.w - 12;
+    assert.strictEqual(ty1 - ty0, cabe ? 11 : 7, 'fonte do rótulo (caixa de ' + B.w + ')');
   });
 });
 test('drawDiceBanner com ui-dado (e o ícone do clima) no cache desenha as imagens; o resto é o mesmo', function () {
@@ -1595,7 +1799,8 @@ function nomesFaixa() {
   for (k in G.TYPE_SKILLS) if (Object.prototype.hasOwnProperty.call(G.TYPE_SKILLS, k)) out.push(G.TYPE_SKILLS[k].name.toUpperCase() + '!');
   return out;
 }
-function twFaixa(str, sc) { return SPR2.measureText(str, sc || 1); }
+// a medida do jogo (game.js, tw): fs 2 = Galmuri11 Bold, fs 1 = Galmuri7
+function twFaixa(str, sc) { return SPR2.measureText(str, 1, (sc || 1) >= 2 ? 'g11' : 'g7'); }
 test('faixa de skill: a caixa cabe em [3, artW - 3] para todo nome, com e sem ícone, em S 1 e 2', function () {
   var nomes = nomesFaixa();
   assert.ok(nomes.length >= 10 && nomes.indexOf('FÔLEGO DE MONTANHA!') >= 0, 'nomes do jogo: ' + nomes.length);
@@ -1611,32 +1816,34 @@ test('faixa de skill: a caixa cabe em [3, artW - 3] para todo nome, com e sem í
     });
   });
 });
-test('faixa de skill: a largura do ícone só é reservada quando o ícone vai ser desenhado (imagem no cache e 8·fs·S ≥ 16)', function () {
+test('faixa de skill: a largura do ícone (8 + 2) só é reservada quando há imagem no cache; sai antes da fonte grande', function () {
   var n = 'ARRANQUE!';
   var com = FX.skillBannerLayout(n, 240, 2, true, twFaixa), sem = FX.skillBannerLayout(n, 240, 2, false, twFaixa);
   assert.strictEqual(com.icone, true);
   assert.strictEqual(com.fs, 2);
-  assert.strictEqual(com.w, sem.w + 8 * 2 + 2, 'ícone soma 8·fs + 2');
+  assert.strictEqual(com.w, sem.w + 8 + 2, 'ícone (8 px de arte, 1:1) soma 8 + 2');
   assert.strictEqual(sem.icone, false);
-  // S = 1 e fs = 2: 8·2·1 = 16, desenha; S = 1 e fs = 1 (tela estreita): 8 < 16, não desenha nem reserva
-  var estreito = FX.skillBannerLayout('FÔLEGO DE MONTANHA!', 164, 1, true, twFaixa);
-  assert.strictEqual(estreito.fs, 1);
-  assert.strictEqual(estreito.icone, false);
-  assert.strictEqual(estreito.w, twFaixa('FÔLEGO DE MONTANHA!', 1) + 8);
-  // com S = 2 em tela estreita, cai para fs = 1 e o ícone (8·1·2 = 16) continua, se couber
-  var s2 = FX.skillBannerLayout('FÔLEGO DE MONTANHA!', 164, 2, true, twFaixa);
-  assert.strictEqual(s2.fs, 1);
-  assert.strictEqual(s2.icone, true);
-  assert.strictEqual(s2.w, twFaixa('FÔLEGO DE MONTANHA!', 1) + 8 + 8 + 2);
+  // o ícone é 1:1 na grade: S não muda a decisão
+  assert.deepStrictEqual(FX.skillBannerLayout(n, 240, 1, true, twFaixa), com);
+  // tela estreita: primeiro a Galmuri7 com ícone; se nem assim couber, sem ícone
+  var n2 = 'FÔLEGO DE MONTANHA!', w7 = twFaixa(n2, 1) + 8;
+  [140, 120, 100].forEach(function (artW) {
+    var b = FX.skillBannerLayout(n2, artW, 1, true, twFaixa);
+    if (twFaixa(n2, 2) + 8 + 10 <= artW - 6) assert.strictEqual(b.fs, 2, 'artW ' + artW);
+    else if (w7 + 10 <= artW - 6) { assert.strictEqual(b.fs, 1); assert.strictEqual(b.icone, true); assert.strictEqual(b.w, w7 + 10); }
+    else { assert.strictEqual(b.fs, 1); assert.strictEqual(b.icone, false); assert.strictEqual(b.w, w7); }
+  });
 });
-test('faixa de skill: sem ícone a geometria é a de antes (fs por tw(ft, 2) + 8 <= artW - 6, fh = 5·fs + 6, w = tw + 8)', function () {
+test('faixa de skill: sem ícone, fs 2 (Galmuri11 Bold) quando tw + 8 <= artW - 6; h = maiúscula + acento + 3; w = tw + 8', function () {
   nomesFaixa().forEach(function (n) {
     [160, 164, 170, 200, 240].forEach(function (artW) {
       var fs = twFaixa(n, 2) + 8 <= artW - 6 ? 2 : 1, fw = twFaixa(n, fs) + 8;
       var b = FX.skillBannerLayout(n, artW, 2, false, twFaixa);
       assert.strictEqual(b.fs, fs, n);
+      assert.strictEqual(b.fonte, fs === 2 ? 'g11' : 'g7', n);
       assert.strictEqual(b.w, fw, n);
-      assert.strictEqual(b.h, 5 * fs + 6, n);
+      assert.strictEqual(b.h, fs === 2 ? 11 + 4 + 3 : 7 + 3 + 3, n);
+      assert.strictEqual(b.textDy, b.h - 3 - (fs === 2 ? 11 : 7), n);
       assert.strictEqual(b.x, Math.round(artW / 2 - fw / 2), n);
       assert.strictEqual(b.textX, Math.round(artW / 2), n);
     });
@@ -1959,8 +2166,9 @@ test('com moldes (sintéticos): sem as opções novas, o mesmo desenho de hoje (
     casos.push(com(CAVM, { idle: true }), com(CAVM, { idle: true, jockey: false }), com(CAVM, { retrato: true, shadow: false }));
     casos.push(com(CAVM, { idle: true, element: 'grama', palette: PAL.grama, quadro: { topo: 0, base: 108 } }));
     var sig = casos.map(function (o) { return assinatura(desenhaCav(o, 50, 40)); }).join('\n');
-    // assinatura do desenho de antes da parte 2a (sprites.js em 91c48ab), com este mesmo molde sintético
-    assert.strictEqual(fnvTexto(sig), 'b16463ea');
+    // assinatura do desenho sem as opções novas, com este mesmo molde sintético: era b16463ea (sprites.js em 91c48ab, antes da
+    // parte 2a); desde a etapa 1b da direção de arte (2026-11-21) as cores saem da paleta-mestra, o resto igual
+    assert.strictEqual(fnvTexto(sig), '30adc27e');
   });
 });
 
@@ -1985,14 +2193,16 @@ test('com moldes: marcas e jóquei nas cores das camadas; a chave do cache leva 
         assert.strictEqual(Object.keys(cores[k]).length, 1, 'uma cor só na camada ' + k + ': ' + Object.keys(cores[k]));
       });
       function c1(k) { return Object.keys(cores[k])[0]; }
-      assert.strictEqual(c1('m1'), G.MARCAS.branco, 'branco das marcas');
+      assert.strictEqual(c1('m1'), SPR.naMestra(G.MARCAS.branco), 'branco das marcas (na paleta-mestra)');
       assert.ok(lumHex(c1('m2')) < lumHex(G.MARCAS.branco), 'branco sombreado mais escuro que o branco');
       var sombra = hexPx(base, Array.prototype.indexOf.call(idx, 3));
       assert.ok(lumHex(c1('m3')) < lumHex(sombra), 'pinta escura mais escura que a sombra da pelagem');
-      if (lumHex(cs[0]) < 0.5) assert.ok(lumHex(c1('j1')) > lumHex(cs[0]), 'seda escura: tom 2 mais claro');
-      else assert.ok(lumHex(c1('j1')) < lumHex(cs[0]), 'seda clara: tom 2 mais escuro');
-      assert.strictEqual(c1('j2'), cs[1], 'capacete na cor escolhida');
-      assert.ok(lumHex(c1('j3')) < lumHex(cs[1]) || cs[1] === '#2a2a2a' && lumHex(c1('j3')) <= lumHex(cs[1]), 'manta: o capacete escurecido');
+      // o tom 2 comparado com a seda como ela é pintada (na paleta-mestra, etapa 1b)
+      if (lumHex(cs[0]) < 0.5) assert.ok(lumHex(c1('j1')) > lumHex(SPR.naMestra(cs[0])), 'seda escura: tom 2 mais claro');
+      else assert.ok(lumHex(c1('j1')) < lumHex(SPR.naMestra(cs[0])), 'seda clara: tom 2 mais escuro');
+      assert.strictEqual(c1('j2'), SPR.naMestra(cs[1]), 'capacete na cor escolhida (na paleta-mestra)');
+      var capM = SPR.naMestra(cs[1]);
+      assert.ok(lumHex(c1('j3')) < lumHex(capM) || cs[1] === '#2a2a2a' && lumHex(c1('j3')) <= lumHex(capM), 'manta: o capacete escurecido');
     });
     // chave do cache: as mesmas opções reaproveitam; marcas, semente, padrão e capacete fazem entradas novas
     SPR.limparCacheMoldes();
@@ -2263,7 +2473,7 @@ test('portes: escala do padrão', function () {
   assert.ok(SINT.porte.robusto.J.larguraUtil > SINT.porte.padrao.J.larguraUtil, 'o robusto sintético é mais largo');
   var portes = escalas(SINT.tabelaDe(SINT.PORTES));
   // os cavalos do padrão ficam do tamanho de antes da 2b: a escala é a dos moldes do padrão sozinhos (o molde sintético
-  // de sempre, o mesmo da assinatura b16463ea)
+  // de sempre, o mesmo da assinatura 30adc27e)
   assert.strictEqual(portes, escalas(SINT.tabelaDe(SINT.PORTES, function () { return 'padrao'; })), 'a mesma escala só com os moldes do padrão');
   // o teste distingue: se os moldes do padrão fossem os mais largos, a escala mudaria
   assert.notStrictEqual(portes, escalas(SINT.tabelaDe(SINT.PORTES, function (ch) { return ch.indexOf('padrao-') === 0 ? 'robusto' : null; })));

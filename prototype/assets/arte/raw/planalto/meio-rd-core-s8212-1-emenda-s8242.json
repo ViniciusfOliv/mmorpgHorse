@@ -1,0 +1,13 @@
+{
+  "assinatura": "0333985e85f4",
+  "api": "rd-edit",
+  "pedido": {
+    "input_image": "<29004 chars>",
+    "tile_x": true,
+    "tile_y": false,
+    "seed": 8242
+  },
+  "arquivos": [
+    "meio-rd-core-s8212-1-emenda-s8242-0.png"
+  ]
+}

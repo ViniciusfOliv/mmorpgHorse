@@ -1,7 +1,7 @@
 // prototype/tools/interface-arte.mjs — peças de pixel e fontes embutidas da interface (usado pelo build e pelos testes).
 // As peças são mapas de caracteres pintados com tokens do :root do game.css; viram PNGs em data: URL nas propriedades
-// --arte-<nome>, e o CSS do jogo as usa em background (sem border-image). As fontes vão em data: woff2, com a URL do
-// gstatic só de reserva.
+// --arte-<nome>, e o CSS do jogo as usa em background (sem border-image). As fontes (Galmuri, TTF) vão em data:, sem
+// depender de rede.
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { encodePng } from './png.mjs';
@@ -24,7 +24,7 @@ export const PECAS = [
     'vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv'], legenda: { w: '--madeira', v: '--madeira-2' } },
   { nome: 'ajuda', mapa: AJUDA, legenda: { k: '--sombra', T: '--texto-2' } },
   { nome: 'ajuda-ativa', mapa: AJUDA, legenda: { k: '--sombra', T: '--ouro' } },
-  // ícones dos cinco itens (spec de itens §13; o jogo mostra em 32px: .item-icone--<id> no game.css), 16x16 com
+  // ícones dos itens (spec de itens §13; o Pergaminho de técnica entrou em 2026-11-19; o jogo mostra em 32px: .item-icone--<id> no game.css), 16x16 com
   // contorno --sombra. Torrão: cubo de açúcar (topo claro, as faces em dois tons).
   { nome: 'item-torrao', mapa: [
     '................',
@@ -114,7 +114,26 @@ export const PECAS = [
     '.kBPPPPPPPPPPPk.',
     '.kkkkkkkkkkkkkk.',
     '................',
-    '................'], legenda: { k: '--sombra', B: '--madeira-2', R: '--seda-0', Y: '--ouro', P: '--texto' } }
+    '................'], legenda: { k: '--sombra', B: '--madeira-2', R: '--seda-0', Y: '--ouro', P: '--texto' } },
+  // Pergaminho de técnica: o rolo aberto, com as duas hastes, as linhas escritas e o lacre vermelho (feito por
+  // código; a arte do PixelLab fica para quando o Vinicius confirmar)
+  { nome: 'item-pergaminho', mapa: [
+    '................',
+    '..kkkkkkkkkkkk..',
+    '.kPPPPPPPPPPPPk.',
+    '.kDDDDDDDDDDDDk.',
+    '..kkkkkkkkkkkk..',
+    '...kPPPPPPPPk...',
+    '...kPmmmmmmPk...',
+    '...kPPPPPPPPk...',
+    '...kPmmmmPPPk...',
+    '...kPPPPPPPPk...',
+    '...kPmmmPRRPk...',
+    '...kPPPPRRRRk...',
+    '..kkkkkkRRRRkk..',
+    '.kPPPPPPPRRPPPk.',
+    '.kDDDDDDDDDDDDk.',
+    '..kkkkkkkkkkkk..'], legenda: { k: '--sombra', P: '--texto', D: '--texto-2', m: '--madeira-2', R: '--seda-0' } }
 ];
 
 // Tokens `--nome: #hex;` do primeiro bloco :root { … } (valor em #rrggbb minúsculo; o que não é hex fica de fora).
@@ -174,17 +193,21 @@ export function cssArte(css) {
   return ':root {\n' + linhas.join('\n') + '\n}';
 }
 
+// Galmuri (Lee Minseo, OFL 1.1; guia de arte §6), subconjunto latino em TTF: uma família por arquivo (o negrito é uma
+// família própria, para o navegador nunca sintetizar nem trocar de arquivo pelo peso)
 const FONTES = [
-  { familia: 'Press Start 2P', arquivo: 'press-start-2p-latin.woff2', url: 'https://fonts.gstatic.com/s/pressstart2p/v16/e3t4euO8T-267oIAQAu6jDQyK3nVivM.woff2' },
-  { familia: 'Jersey 10', arquivo: 'jersey-10-latin.woff2', url: 'https://fonts.gstatic.com/s/jersey10/v4/GftH7vZKsggXMf9n_J5n_5jh.woff2' }
+  { familia: 'Galmuri11 Bold', arquivo: 'galmuri11-bold-latin.ttf' },
+  { familia: 'Galmuri11', arquivo: 'galmuri11-latin.ttf' },
+  { familia: 'Galmuri9', arquivo: 'galmuri9-latin.ttf' },
+  { familia: 'Galmuri7', arquivo: 'galmuri7-latin.ttf' }
 ];
 
-// root = a pasta prototype/. Os mesmos arquivos de hoje, embutidos: o jogo abre sem rede e sem piscar de fonte.
+// root = a pasta prototype/. Embutidas: o jogo abre sem rede e sem piscar de fonte.
 export async function cssFontes(root) {
   const faces = [];
   for (const f of FONTES) {
     const b64 = (await readFile(join(root, 'assets', 'fontes', f.arquivo))).toString('base64');
-    faces.push(`@font-face {\n  font-family: '${f.familia}';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url(data:font/woff2;base64,${b64}) format('woff2'),\n    url(${f.url}) format('woff2');\n}`);
+    faces.push(`@font-face {\n  font-family: '${f.familia}';\n  font-style: normal;\n  font-weight: 400;\n  font-display: block;\n  src: url(data:font/ttf;base64,${b64}) format('truetype');\n}`);
   }
   return faces.join('\n');
 }

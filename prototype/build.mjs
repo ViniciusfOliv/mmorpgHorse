@@ -18,7 +18,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lerMoldes, lerIcones, lerMarca, lerTreinadores, jsonJs } from './tools/arte-embutida.mjs'
+import { lerMoldes, lerIcones, lerIconesTam, lerMarca, lerTreinadores, lerArenas, lerTelas, lerRegioes, jsonJs } from './tools/arte-embutida.mjs'
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
@@ -75,11 +75,20 @@ const MOLDES = await lerMoldes(ROOT, avisos)
 const arteJs = [
   `window.__MOLDES = ${jsonJs(MOLDES)};`,
   `window.__ICONES = ${jsonJs(await lerIcones(ROOT))};`,
+  `window.__ICONES_TAM = ${jsonJs(await lerIconesTam(ROOT))};`,   // 16 ou 24: o ícone aparece 1:1 na grade (--px)
   `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`,
-  `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`
+  `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
+  `window.__ARENAS = ${jsonJs(await lerArenas(ROOT))};`,
+  `window.__TELAS = ${jsonJs(await lerTelas(ROOT))};`,
+  // a licença da Galmuri (SIL OFL 1.1): acompanha a fonte embutida; a tela de Créditos mostra o texto inteiro
+  `window.__OFL = ${jsonJs(await read('assets/fontes/OFL-galmuri.txt'))};`,
+  // as camadas das 5 regiões na corrida (paralaxe; a pista, as cercas e as placas são de código)
+  `window.__REGIOES = ${jsonJs(await lerRegioes(ROOT))};`,
+  // os glifos da Galmuri para o texto do canvas (tools/fonte-glifos.mjs; o sprites.js lê o mesmo arquivo no Node)
+  `window.__GLIFOS = ${jsonJs(JSON.parse(await read('assets/fontes/galmuri-glifos.json')))};`
 ].join('\n')
 
-const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca, oponentes dos ginásios) */\n${arteJs}\n</script>`
+const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca, oponentes dos ginásios, camadas das regiões) */\n${arteJs}\n</script>`
 const scripts = [arteTag], scriptsProd = [arteTag]
 for (const file of SCRIPTS) {
   const fonte = await read(file)

@@ -169,6 +169,10 @@ function registrarLote(lote, feitos, geracoes) {
 }
 
 async function main() {
+  // substituído pela arte da etapa 5 da direção de arte (tools/arte-treinadores.mjs, corpo 32×48 e busto 64×64); a pasta
+  // assets/pixellab/treinadores/ deste script saiu na etapa 8 (fica no histórico do git)
+  console.error('pixellab-treinadores.mjs foi substituído por prototype/tools/arte-treinadores.mjs (etapa 5 da direção de arte).');
+  process.exit(1);
   const a = args(process.argv.slice(2));
   const itens = plano(a.lote);
   const novos = itens.filter(x => !x.cru);

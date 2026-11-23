@@ -32,21 +32,21 @@ progressão de nível, estrelas e raridade. Fórmulas e tabelas completas: `docs
 | Manobra (MAN) | Quanto da velocidade segura nas curvas |
 | Força (FOR) | Velocidade na subida, piso pesado (terra/areia) e disputa no pelotão |
 | Estamina (EST) | Tamanho do tanque de fôlego e ritmo no meio e no sprint |
-| Garra (GAR) | Chance e força da arrancada final; com mais Garra ela começa mais cedo |
-| Sorte (SOR) | Chance de rolar um segundo dado no Dado da Sorte e de ativar skills; **só de nascimento** |
+| Garra (GAR) | Força média da arrancada final, que acontece sempre (a de cada corrida varia pela seed); com mais Garra ela começa mais cedo e empurra mais |
+| Sorte (SOR) | Chance de rolar um segundo dado no Dado da Sorte (não mexe nas skills, que ativam sempre); **só de nascimento** |
 
 **Nada cresce sozinho.** O status de um cavalo é a **base** (raridade + genética) mais os **pontos
 comprados** pelo jogador, e só isso:
 - **Base:** `início da raridade + 16·genética/31`. A genética vai de 0 a 31 por status, à mostra como
   nota (C, B, A, S), e vem só do nascimento. O início da faixa por raridade:
 
-  | Raridade | Base nasce entre | Fator de pontos | Vagas de skill | Chance base de skill |
-  |---|---|---|---|---|
-  | Comum | 40 e 56 | ×1,00 | 1 + a do tipo | 35% |
-  | Mágico | 44 e 60 | ×1,05 | 2 + a do tipo | 45% |
-  | Raro | 49 e 65 | ×1,10 | 3 + a do tipo | 55% |
-  | Lendário | 54 e 70 | ×1,15 | 4 + a do tipo | 65% |
-  | Mítico | 60 e 76 | ×1,20 | 5 + a do tipo | 75% |
+  | Raridade | Base nasce entre | Fator de pontos | Vagas de skill |
+  |---|---|---|---|
+  | Comum | 40 e 56 | ×1,00 | 1 + a do tipo |
+  | Mágico | 44 e 60 | ×1,05 | 2 + a do tipo |
+  | Raro | 49 e 65 | ×1,10 | 3 + a do tipo |
+  | Lendário | 54 e 70 | ×1,15 | 4 + a do tipo |
+  | Mítico | 60 e 76 | ×1,20 | 5 + a do tipo |
 - **Pontos por nível:** cada nível dá pontos, e o jogador distribui todos na aba Status e confirma.
   Nível 1 dá 0; a taxa é 2 por nível no nível 2 e sobe em linha reta até 6 no nível 50 (média 4). O total
   até o nível L é multiplicado pelo fator da raridade (tabela) e das **estrelas** (★ ×1 / ★★ ×1,09 /
@@ -68,8 +68,19 @@ valem de 9,6 a 11,0 p.p. de vitória nos seis status de corrida, maior ÷ menor 
 onde pôr os pontos é escolha de estilo. A **build equilibrada** é a mais forte; as inclinadas ficam
 poucos pontos percentuais abaixo (spec 1b §15).
 
-A chance de uma skill disparar quando o gatilho acontece = base da raridade + 0,5 p.p. por nível + 0,1
-p.p. por ponto de Sorte (teto 95%). A cada nível ganho há 8% de chance de aprender uma skill nova, se
+**Skills de vaga: ativam sempre e têm rank (2026-11-19).** Quando o gatilho acontece (largada, reta, curva,
+subida, estamina baixa, reta final, Dado, clima), a skill de vaga **ativa sempre**, sem sorteio: raridade,
+nível e Sorte não mudam a ativação (a raridade dá as vagas; a Sorte só vale no Dado, seção 4). Cada skill
+tem um **rank, de I a V, por cavalo**: um fator único por rank multiplica só a parte de bônus do efeito
+(duração e distância não crescem) e, no rank V, cada skill ganha um **marco** próprio. O rank sobe na aba
+Skills com **Ouro + Pergaminhos de técnica** (8.2), sem sorteio, sem falha e sem volta; com páreo aberto,
+o cavalo ativo não sobe rank. O rank entra no Poder; Cupom, Manual e aprendizado por nível entram no rank I
+(o Cupom perde o rank da skill que sai); os bots da sala usam a média arredondada dos ranks do cavalo do
+jogador, e os oponentes dos ginásios têm rank fixo por etapa. Spec:
+`docs/superpowers/specs/2026-11-19-skills-ranks-design.md`; a escala, os marcos, o custo e o texto de cada
+skill por rank estão no wiki (Skills, "Rank das skills"), gerados do código.
+
+A cada nível ganho há 8% de chance de **aprender** uma skill nova, se
 houver vaga (11% com a Insígnia da Capoeira, 8.6). Cada montaria também tem **sexo** (macho/fêmea), para o cruzamento.
 
 ## 4. Tipos, clima e Dado da Sorte
@@ -94,7 +105,7 @@ no tipo" fica em 48–53% contra as outras. A meta que vale é o **equilíbrio d
 de um tipo só ele aprende (Fogo 2, Água 3, Grama 2). Skill que atrapalha rival fica fora por enquanto
 (rever depois do teste fechado).
 
-O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima** na corrida valendo; nos duelos de ginásio ele também vale como vantagem de elemento (8.6). O dono do clima tem os status ×1,03 (×1,07 com 4 peças do conjunto do clima; ×1,08 com a skill de clima do elemento); o penalizado, ×0,97.
+O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima** na corrida valendo; nos duelos de ginásio ele também vale como vantagem de elemento (8.6). O dono do clima tem os status ×1,03 (mais com a skill de clima do elemento ativa, e o reforço cresce com o rank dela: números no wiki; as 4 peças do conjunto do clima, suspensas, não acumulam com ela); o penalizado, ×0,97.
 
 | Clima | Favorece | Penaliza | Efeito geral |
 |---|---|---|---|
@@ -153,7 +164,7 @@ A base é a menor raridade entre os pais. **Estrelas do potro:** se a raridade s
 
 **Tipo, sexo e genética:** pais do mesmo tipo passam o tipo; diferentes, 50/50. Sexo 50/50. A genética é **metade herdada**: por status, 50% de chance de vir de um dos pais (sorteado), senão sai de 0 a 31. O potro nasce no nível 1, sem pontos comprados e com a primeira redistribuição grátis.
 
-**Skills e Corcel:** a skill de tipo vem sempre, com o tipo. O potro herda cada skill de vaga dos pais compatível com o seu tipo com 35% de chance, até as vagas da raridade; completa até o mínimo de nascimento com skills sorteadas. Corcel é a montaria com todas as skills "de linha" da sua raridade; garante herança de skill:
+**Skills e Corcel:** a skill de tipo vem sempre, com o tipo. O potro herda cada skill de vaga dos pais compatível com o seu tipo com 35% de chance, até as vagas da raridade; completa até o mínimo de nascimento com skills sorteadas. A skill herdada nasce um rank abaixo do pai que a tem (o maior, se os dois têm; nunca abaixo do I) e a sorteada nasce no rank I, sem sorteio novo. Corcel é a montaria com todas as skills "de linha" da sua raridade; garante herança de skill:
 
 | Raridade | Conjunto do Corcel | Skills garantidas |
 |---|---|---|
@@ -212,8 +223,8 @@ Custo esperado da cadeia completa, contando as quedas (pedra a 40 Ouro): **+5 �
 
 | Peças | Bônus |
 |---|---|
-| 3 | +5 p.p. na chance de todas as skills e +5 de Sorte |
-| 4 | O bônus do clima do conjunto sobe de 1,03 para 1,07 quando a montaria é do elemento favorecido por ele. Não acumula com a skill de clima (1,08): vale o maior |
+| 3 | +5% no efeito das skills de vaga (multiplica o fator do rank) e +5 de Sorte |
+| 4 | O bônus do clima do conjunto sobe de 1,03 para 1,07 quando a montaria é do elemento favorecido por ele. Não acumula com a skill de clima: vale o maior |
 | 5 | A montaria ignora a penalidade de clima, em qualquer clima |
 
 Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). No desenho guardado o conjunto também somava ao Rating de Poder; hoje o Poder não conta peças.
@@ -255,14 +266,20 @@ volta. Os números ficam juntos em `GameData.ITEMS` (`prototype/src/data.js`), p
 | Rédea nova | redistribui os pontos; a primeira de cada cavalo é grátis | jogando: 7º dia da diária e a 1ª vitória sobre cada líder de ginásio (8.6); depois também missões; **nunca por Ouro** | sim |
 | Cupom de troca de skill | uma skill das vagas sai e entra outra, sorteada entre as que o cavalo pode aprender | loja: 250 de Ouro, 1 por dia; diária: 6º dia | sim, skill escolhida numa lista |
 | Manual de doma | tentativa na hora: 35% de chance de aprender uma skill; o manual é gasto mesmo se não aprender | loja: 200 de Ouro, 1 por dia; diária: 4º dia | sim, garante aprender |
+| Pergaminho de técnica (2026-11-19) | sobe o rank de uma skill, junto com Ouro (seção 3); não se usa pela mochila | jogando: pódio de corrida valendo e 1ª vitória em etapas dos ginásios (8.6); **nunca por Ouro** | não |
 | Acelerador de cruza · vaga extra de estábulo (até 3) · redefinir cruzas · mudar aparência | — | não | sim |
 
 - **Mochila:** até 99 de cada item; a Rédea nova tem o teto dela, 999. Fica na aba **Loja**, parte Mochila, com o botão
   Usar; Torrão e Estrela também se usam na ficha do cavalo (aba Status), Manual e Cupom na aba Skills.
 - **Loja de itens:** só Ouro, e nunca gasta o Ouro guardado para a entrada da sala aberta. Ordem fixa: Torrão, Manual,
   Cupom, Estrela. O limite do dia volta a zero quando o dia muda; o da Estrela conta 7 dias desde a última compra.
+- **Pergaminho de técnica:** só se ganha jogando. Cai no pódio de corrida **valendo** (nunca em treino), sorteado pela
+  seed da sala na liquidação do prêmio, e vem no prêmio da 1ª vitória de algumas etapas dos ginásios (a revanche não dá).
+  Nunca na loja, nunca na diária, nunca por Gemas. É gasto, com Ouro, só ao subir rank, na aba Skills. Chances, quantidades
+  e custo de cada rank: wiki (Skills, "Rank das skills").
 - **Cupom e Manual** não se usam no cavalo ativo com a sala aberta, e o sorteio sai da seed do save (recarregar a
-  página não muda o resultado). A skill de tipo nunca troca. O aprendizado por nível continua com 8% por nível (11% com a Insígnia da Capoeira, 8.6).
+  página não muda o resultado). A skill de tipo nunca troca. A skill que entra fica no rank I; no Cupom, o rank da que
+  sai é perdido (a confirmação avisa). O aprendizado por nível continua com 8% por nível (11% com a Insígnia da Capoeira, 8.6).
 
 Gemas também caem de graça, em pouca quantidade, por missões.
 
@@ -314,7 +331,7 @@ Spec e medições: `docs/superpowers/specs/2026-11-12-crescimento-livre-design.m
   melhor não basta para vencer o bot da sua liga. O botão preenche o rascunho com todos os pontos que
   sobram; o jogador ainda confirma. Os grupos +1, +5 e +10 e o botão somem quando nenhum ponto cabe.
 - **Poder sem equipamento:** `2,5·VEL + 2,0·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR`, mais 14 por
-  peso de gatilho de skill, 20·(nível − 1)/49 e 28·ordem da raridade/4. Ligas: Bronze 0 · Prata 710 · Ouro 800 ·
+  peso de gatilho de skill × o fator do rank dela, 20·(nível − 1)/49 e 28·ordem da raridade/4. Ligas: Bronze 0 · Prata 710 · Ouro 800 ·
   Platina 890 · Diamante 980 · Lenda 1070.
 - **Redistribuir:** a primeira é grátis em cada cavalo; as seguintes usam a Rédea nova (8.2), que vem no 7º
   dia da recompensa diária (8.2a) e da 1ª vitória sobre cada líder de ginásio (8.6) e, depois, das missões; **nunca por Ouro**. A ativa não
@@ -323,7 +340,7 @@ Spec e medições: `docs/superpowers/specs/2026-11-12-crescimento-livre-design.m
 - **Save v6:** a migração devolve todos os pontos (aviso único no Estábulo), dá a redistribuição grátis a
   cada cavalo, zera as Rédeas e guarda peças e Pedras. A sala aberta continua: mantém seed, mapa, nomes
   e sedas, e o Poder dela segue a regra do retrato; os bots podem mudar de nível.
-- **Explicações na tela:** cada status, nota, estrela, raridade, skill de tipo, Poder, liga, clima, piso
+- **Explicações na tela:** cada status, nota, estrela, raridade, skill de tipo, rank das skills, Poder, liga, clima, piso
   e Dado ganham uma explicação curta (mouse no computador, toque no celular); o texto é o mesmo do wiki.
 
 ### 8.6 Ginásios (Expedição; implementados em 2026-11-18; online no bloco 7)
@@ -344,7 +361,9 @@ ninguém jogou ainda.
   | Soldado 4 | 2 | 16 | 50 de Ouro | 200 de Ouro e 1 Manual de doma |
   | Líder | 3 | 20 | 100 de Ouro | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a insígnia |
 
-  Uma trilha inteira dá 960 de Ouro e custa 240 de entrada, se vencida de primeira.
+  Uma trilha inteira dá 960 de Ouro e custa 240 de entrada, se vencida de primeira. As etapas do Soldado 2, do Soldado 4
+  e do líder também dão **Pergaminhos de técnica** na 1ª vitória (quantos: wiki); a revanche não dá. As skills de vaga dos
+  oponentes têm rank fixo por etapa, sem sorteio (hoje os cavalos-base deles não têm skill de vaga).
 - **Os cavalos do adversário** são fixos e não acompanham o jogador: todos são o cavalo inicial do elemento (Brasa, Maré
   ou Ipê), Comuns de 2 estrelas, no nível da etapa, com os pontos distribuídos como os dos bots. No Remanso, um cavalo do
   soldado 4 e o do meio do líder têm 3 estrelas: assim os três ginásios ficam igualmente difíceis.
@@ -369,9 +388,9 @@ ninguém jogou ainda.
 
   | Vitória | Distância na chegada | Fôlego perdido |
   |---|---|---|
-  | Apertada | menos de 1 m | 25% |
-  | Normal | de 1 m a menos de 8 m | 15% |
-  | Folgada | 8 m ou mais | 5% |
+  | Apertada | menos de 4 m | 25% |
+  | Normal | de 4 m a menos de 12 m | 15% |
+  | Folgada | 12 m ou mais | 5% |
 
   Os descontos somam a cada vitória seguida, até no máximo 50% do fôlego.
 - **Ponto fraco do ginásio:** Água vence Fogo, Fogo vence Grama e Grama vence Água. Num duelo de ginásio, o cavalo cujo
@@ -415,6 +434,18 @@ ninguém jogou ainda.
 treino e gastos de Ouro · 5. Tempo e estábulo ativo (cruza com relógio, circuito, aluguel, missões,
 tela de cruza com os dois pais e a faixa do potro) · 6. Loja de Gemas (sem compra real no teste
 fechado) · 7. Online.
+
+## 8a. Arte (direção aprovada em 2026-11-20)
+
+Fonte da verdade da arte: `docs/arte/guia.md` (grade de pixel, escala inteira, paleta Resurrect 64, fonte Galmuri,
+texto na pista, movimento e orçamento de desempenho). Plano em etapas: `docs/superpowers/plans/2026-11-20-direcao-de-arte.md`.
+Assets prontos e aprovados (ainda fora do jogo; a integração é a parte de código das etapas 1, 2, 4, 5, 6 e 7):
+- **Corrida:** 5 regiões com camadas em paralaxe (`prototype/assets/arte/<regiao>/`), cavalos 1:1, câmera de 12 px/m.
+- **Ícones:** 34 de 24×24 e 40 de 16×16 (`prototype/assets/arte/icones/`).
+- **Ginásios:** 15 treinadores em corpo de ~40 px e busto 64×64, 3 arenas abertas 256×160 para a cena do desafio.
+- **Telas:** cena 256×160 no topo de cada aba (no Estábulo, com o cavalo ativo) e o mapa de cada trilha de ginásio.
+- **Marca:** letreiro desenhado em código, emblema, ícone do app 512, destaque do Play 1024×500 (`prototype/assets/arte/marca/`).
+Créditos e declaração de IA: `docs/arte/creditos.md` e `docs/arte/declaracao-ia.md`.
 
 ## 9+. Seções pendentes
 

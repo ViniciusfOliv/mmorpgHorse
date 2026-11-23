@@ -96,7 +96,7 @@ const diariaLinha = (prox, ciclos = 0) => '<section class="caixa diaria diaria--
 // ---- ginásios da Expedição: o markup do ginasioCartaoHtml, trilhaEtapaHtml, mountRowHtml (com as opções do time) e
 // renderEntreDuelos do game.js; nomes, números e textos do catálogo (GameData.GYMS, GYM) montados como o game.js monta ----
 // o ícone da insígnia como o iconeHtml do game.js (o mesmo PNG que o build embute em window.__ICONES)
-const insigniaSrc = (id) => 'data:image/png;base64,' + readFileSync(new URL(`../assets/icons/${G.GYMS[id].insignia.icone}.png`, import.meta.url)).toString('base64');
+const insigniaSrc = (id) => 'data:image/png;base64,' + readFileSync(new URL(`../assets/arte/icones/${G.GYMS[id].insignia.icone}.png`, import.meta.url)).toString('base64');
 const insigniaIcone = (id) => `<img class="icone icone--${esc(G.GYMS[id].insignia.icone)} icone--32" src="${insigniaSrc(id)}" alt="" width="32" height="32">`;
 const elNome = (el) => G.ELEMENTS[el].name;
 const elHtml = (el) => `<span class="el el--${esc(el)}">${esc(elNome(el))}</span>`;
@@ -386,13 +386,13 @@ function pecas(lista) {
 // layout próprio da folha: só colunas, legendas e a ampliação das peças; os componentes usam o CSS do jogo
 const ESTILO_FOLHA = `
 .folha { max-width: 1200px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
-.folha h1.folha-tit { font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; margin: 0 0 8px; }
-.folha-intro { margin: 0 0 16px; color: var(--texto-2); font-size: var(--t-s); }
+.folha h1.folha-tit { font-family: var(--fonte-display); font-size: var(--t-m); line-height: var(--lh-m); margin: 0 0 8px; }
+.folha-intro { margin: 0 0 16px; color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); }
 .comp { margin: 0 0 32px; }
-.comp-tit { font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; margin: 0 0 4px; }
-.comp-nota { margin: 0 0 12px; color: var(--texto-2); font-size: var(--t-s); }
+.comp-tit { font-family: var(--fonte-display); font-size: var(--t-m); line-height: var(--lh-m); margin: 0 0 4px; }
+.comp-nota { margin: 0 0 12px; color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); }
 .estado { display: grid; gap: 6px; margin: 0 0 16px; min-width: 0; }
-.estado-rot { color: var(--texto-3); font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.08em; }
+.estado-rot { color: var(--texto-3); font-family: var(--fonte-9); font-size: var(--t-xs); text-transform: uppercase; letter-spacing: var(--px); }
 /* saldo e retrato no tamanho do conteúdo, como no jogo (a grade esticaria); o retrato com folga para a moldura */
 .estado > .saldo, .estado > .retrato-moldura { justify-self: start; }
 .estado > .retrato-moldura { margin: 6px; }
@@ -409,7 +409,7 @@ const ESTILO_FOLHA = `
 .peca { margin: 0; padding: 8px; background: var(--painel-2); min-width: 0; }
 .peca-caixa { display: flex; align-items: center; justify-content: center; min-height: 48px; margin-bottom: 6px; background: var(--noite-2); padding: 8px; overflow: hidden; }
 .peca-caixa img { image-rendering: pixelated; max-width: none; }
-.peca figcaption { font-size: var(--t-s); word-break: break-word; }
+.peca figcaption { font-family: var(--fonte-9); font-size: var(--t-s); word-break: break-word; }
 .peca small { display: block; color: var(--texto-3); }
 @media (min-width: 900px) {
   .estado-par { display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start; }
@@ -430,6 +430,16 @@ export function htmlFolhaInterface({ estilo, pecas: lista }) {
 ${estilo}
 ${ESTILO_FOLHA}
 </style>
+<script>
+// a mesma grade de pixel do jogo (game.js, aplicaGrade): --px = s / densidade, com s = floor(largura da coluna / 240)
+(function () {
+  function grade() {
+    var d = Math.max(1, window.devicePixelRatio || 1), s = Math.max(1, Math.min(Math.floor(Math.min(window.innerWidth || 390, 520) * d / 240), Math.floor((window.innerHeight || 844) * d / 300)));
+    document.documentElement.style.setProperty('--px', (s / d) + 'px');
+  }
+  grade(); window.addEventListener('resize', grade);
+})();
+</script>
 </head>
 <body>
 <main class="folha">
