@@ -2,6 +2,26 @@
 
 _Atualizado em 2026-11-23._
 
+**Em andamento (2026-11-23): animação ambiente, entrega 1 (amostra)**, no branch `claude/animacao-ambiente` (frente 1 de 4
+das visuais; depois vêm o mapa dos ginásios, a tela inicial e o inventário). Pedido do Vinicius: nenhuma imagem parada
+(vulcão em erupção, placas ao vento, folhas, pássaros, cavalos com idle natural), qualidade sempre. **Amostra publicada**
+em https://claude.ai/artifact/2azaDeDRV77ZhvYCuhQNmz (`prototype/arte/animacao-amostra.html`, gerada por
+`node prototype/tools/arte-animacao-build.mjs` a partir de `prototype/arte/animacao.html` + `animacao.js`; não toca em
+`src/` nem `dist/`). Quatro cenas, cada uma "hoje" (parada) ao lado da animada, com medidor de custo por camada
+(liga/desliga): **Litoral** (mar e rio por ciclo de cor, farol, veleiros, coqueiros e capim que dobram com o vento,
+torcida, bandeirolas, placa de madeira que balança e gira, biruta, gaivotas, areia, cavalos em idle na largada),
+**Fornalha** (a arena gerada não tem vulcão: o pico da esquerda virou vulcão por código; fosso e encostas de lava, ar
+quente, braseiros, emblemas, brasas), **Expedição** (vulcão, rio, placas que giram no poste, capim, pinheiros, nuvens
+finas, pássaros, folhas) e **Cavalos** (idle em camadas no Haras: respiração, piscar, cauda, orelha, cabeça, crina ao
+vento; botões para disparar). Tudo por código, custo de crédito zero, RNG só cosmética (mulberry32 de semente fixa, fora
+da seed). Custo medido no contêiner: 0,3–0,6 ms por quadro de animação (≈ 1,2–1,6 ms num celular médio pela régua ×4 do
+teste de engine; orçamento 2 ms), ≤ 160 chamadas de desenho e ≤ 90 partículas. **Piloto pago preparado, não rodado**:
+`prototype/tools/arte-animacao-piloto.mjs` (dry-run padrão; 6 gerações do PixelLab `animate-with-text-v3` no molde
+padrão-lisa: comer ×2, cavar ×2 em 8 quadros, cauda e respiração em 4), esperando a confirmação explícita do Vinicius.
+PixelLab em 915/2000. **Próximo:** retorno do Vinicius na amostra (e o sim/não do piloto); depois a spec de todas as
+imagens (entrega 2) em `docs/superpowers/specs/`. O olho de cada molde deve virar âncora no JSON (a busca automática
+falha no robusto-folhas; na amostra está à mão).
+
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
 aparelho-alvo ficar abaixo de 45 FPS no 1% low até em escala 1×). Steam no escopo (Electron + steamworks.js). Antes do
 lançamento: rodada longa travada em 60 FPS no celular e bateria num Android fraco.

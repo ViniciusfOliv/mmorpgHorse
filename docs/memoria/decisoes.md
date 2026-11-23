@@ -3,6 +3,22 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — Animação ambiente, amostra (entrega 1)
+- **Animação ambiente por código primeiro, PixelLab só onde o código não fica natural** — ciclo de cor (mar, rio, lava,
+  brilhos), deformação por pixel inteiro (capim, folhas, placas, torcida) e partículas na paleta custam zero de arte e
+  cabem no orçamento; comer e cavar (a cabeça até o chão, a pata no ar) ficam para o piloto pago, que espera confirmação.
+- **Um vento cosmético só, com rajadas que atravessam a cena da esquerda para a direita** — capim, coqueiros,
+  bandeirolas, biruta, placa e poeira reagem à mesma função, em ordem: o movimento parece um vento, não vários loops.
+- **No máximo uma atualização pesada por quadro (agenda) e imagem achatada composta num tique de 12 q/s** — o pico do
+  quadro fica no custo de uma só (de 6,8 ms para ≤ 0,8 ms no contêiner); 1–2 quadros de atraso não se veem.
+- **Idle do cavalo montado do mapa de papéis do molde** — respiração (barriga 1 px), piscar, cauda, orelha e cabeça
+  saem das âncoras e dos papéis, para qualquer pelagem; o olho precisa virar âncora no JSON de cada molde (a busca
+  automática não separa o olho das linhas da cara do robusto-folhas).
+- **Na Fornalha, o pico da esquerda vira vulcão por código** (cratera, fios de lava, fumaça, bombas) — a arena gerada
+  não tem vulcão; dá para desligar e comparar, e o `/v2/vfx` fica de reserva se o Vinicius não gostar.
+- **Na amostra do Litoral a arquibancada fica mais à direita (168 em vez de 60)** — na largada ela cobre o mar; só na
+  amostra, para o mar e o farol aparecerem nas duas versões.
+
 ## 2026-11-22 — Integração da arte, etapa 8 (créditos e limpeza): a direção de arte fecha
 - **Créditos no Perfil** (botão "Créditos" na seção "Sobre o jogo"): quem fez o jogo e a arte, a fonte e a paleta, com o
   texto de `docs/arte/creditos.md`; "Licença da fonte" abre o texto inteiro da SIL OFL 1.1 (`window.__OFL`, do
