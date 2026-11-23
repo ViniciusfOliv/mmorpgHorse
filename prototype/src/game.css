@@ -1106,6 +1106,9 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 /* o selo "Ativa" da linha: uma plaquinha presa na borda de cima, sobre o canto da moldura do retrato (não toma a largura
    do texto); os 16px entre as linhas a deixam longe da sombra da linha de cima */
 .montaria-linha .badge-ativa { position: absolute; z-index: 2; top: -8px; left: 18px; width: 48px; text-align: center; font-family: var(--fonte-9); font-size: var(--t-s); padding: 4px 0 3px; }
+/* o símbolo do sexo ao lado do nome (ajustes 1): o ícone 16×16 1:1 na grade, colado ao nome, sem quebrar dele */
+.sexo-icone { display: inline-flex; vertical-align: middle; margin-left: calc(4 * var(--px)); line-height: 0; text-shadow: none; }
+.sexo-icone .icone { margin: 0; }
 .montaria-linha-poder { color: var(--texto-2); white-space: nowrap; }
 .montaria-linha-poder b { color: var(--texto); }
 /* a seta: o desenho ocupa as colunas 2 a 5 das 8 do svg; as margens deixam 6px entre o texto e ela e 8px até a borda */

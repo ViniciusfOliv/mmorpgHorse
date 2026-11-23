@@ -8602,17 +8602,40 @@ try {
           raw.nextUid = 3; raw.stableSlots = 3
         })
         const est = await confereTela(pg, tag + ' estábulo')
-        // sexo e Corcel saíram da linha do Estábulo (3b §4) e da cabeça da ficha (3b §5): os ícones e o texto ao lado deles
-        // são conferidos na aba Ficha da m1 (Macho, Corcel) e da m2 (Fêmea, Corcel), abaixo
+        // o Corcel saiu da linha do Estábulo (3b §4) e da cabeça da ficha (3b §5): o ícone e o texto ao lado dele são
+        // conferidos na aba Ficha da m1 (Macho, Corcel) e da m2 (Fêmea, Corcel), abaixo. O símbolo do sexo voltou ao lado do
+        // nome (ajustes 1, 2026-11-23): ícone decorativo num <span role="img"> com "macho"/"fêmea", e o nome acessível da
+        // linha (o aria-label do botão) diz o sexo
         // (etapa 4: a medalha de raridade, de 24 px, fica só na ficha e na escolha inicial; a lista leva só o nome)
-        espera(est, 'estábulo', ['ui-perfil', 'ui-estrela', 'ui-estrela-vazia'])
+        espera(est, 'estábulo', ['ui-perfil', 'ui-estrela', 'ui-estrela-vazia', 'ui-macho', 'ui-femea'])
+        const sexoLinhas = await pg.evaluate(() => Array.prototype.map.call(document.querySelectorAll('button.montaria-linha'), (b) => {
+          const s = b.querySelector('.montaria-linha-nome .sexo-icone')
+          return { id: b.getAttribute('data-id'), rot: b.getAttribute('aria-label'), sexo: s && s.getAttribute('aria-label'), role: s && s.getAttribute('role') }
+        }))
+        const sexoEsperado = { m1: 'macho', m2: 'fêmea' }
+        for (const l of sexoLinhas) {
+          const e = sexoEsperado[l.id]
+          if (!e) continue
+          if (l.sexo !== e || l.role !== 'img' || !new RegExp(', ' + e + ',').test(l.rot || '')) problems.push(`${tag} estábulo: símbolo do sexo da linha ${l.id} ${JSON.stringify(l)} (esperado "${e}")`)
+        }
+        if (sexoLinhas.filter((l) => sexoEsperado[l.id]).length !== 2) problems.push(`${tag} estábulo: linhas m1/m2 não achadas ${JSON.stringify(sexoLinhas)}`)
+        // a cabeça da ficha: o símbolo ao lado do nome, dentro do h1 (o leitor de tela lê "Brasa, macho, #1")
+        const sexoCabeca = () => pg.evaluate(() => {
+          const s = document.querySelector('#t-montaria .montaria-nome .sexo-icone')
+          const n = document.querySelector('#t-montaria .montaria-nome')
+          if (!s || !n) return null
+          const a = s.getBoundingClientRect(), b = n.firstChild && n.firstChild.nodeType === 3 ? (() => { const r = document.createRange(); r.selectNodeContents(n.firstChild); return r.getBoundingClientRect() })() : null
+          return { sexo: s.getAttribute('aria-label'), role: s.getAttribute('role'), img: !!s.querySelector('img.icone'), junto: !!b && Math.abs(a.left - b.right) < 16 && Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) < 12 }
+        })
         const fichaTxt = async () => ((await pg.locator('.montaria-ficha').textContent()) || '').replace(/\s+/g, ' ')
         const rotPerfil = await pg.locator('.app-perfil').getAttribute('aria-label')
         if (rotPerfil !== 'Perfil') problems.push(`${tag} estábulo: botão do Perfil com aria-label "${rotPerfil}"`)
         // Montaria m1: aba Status (os 7 status) e aba Skills (ícones de 32 px)
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
-        espera(await confereTela(pg, tag + ' montaria-status'), 'montaria-status', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-']))
+        espera(await confereTela(pg, tag + ' montaria-status'), 'montaria-status', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-', 'ui-macho']))
+        const sc1 = await sexoCabeca()
+        if (!sc1 || sc1.sexo !== 'macho' || sc1.role !== 'img' || !sc1.junto || (ICONES.includes('ui-macho') && !sc1.img)) problems.push(`${tag} ficha m1: símbolo do sexo na cabeça ${JSON.stringify(sc1)}`)
         await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
         espera(await confereTela(pg, tag + ' montaria-ficha'), 'montaria-ficha', ['ui-corcel', 'ui-macho'])
         const txt1 = await fichaTxt()
@@ -8623,7 +8646,9 @@ try {
             await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()
             await pg.waitForSelector('#t-montaria')
             // a aba Status da m2 (a ficha abre nela): as regras gerais da tela e os 7 status e a liga, como na m1
-            espera(await confereTela(pg, tag + ' montaria-status m2'), 'montaria-status m2', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-']))
+            espera(await confereTela(pg, tag + ' montaria-status m2'), 'montaria-status m2', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-', 'ui-femea']))
+            const sc2 = await sexoCabeca()
+            if (!sc2 || sc2.sexo !== 'fêmea' || sc2.role !== 'img' || !sc2.junto || (ICONES.includes('ui-femea') && !sc2.img)) problems.push(`${tag} ficha m2: símbolo do sexo na cabeça ${JSON.stringify(sc2)}`)
             await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
             espera(await confereTela(pg, tag + ' montaria-ficha m2'), 'montaria-ficha m2', ['ui-femea', 'ui-corcel'])
             const txt2 = await fichaTxt()
@@ -10974,11 +10999,12 @@ try {
         if (!m) continue
         const ativa = m.uid === s.activeId, num = m.uid.replace(/\D+/g, '')
         const pts = podeComprar(m)
-        const rot = `${m.name} #${num}, nível ${m.level}${ativa ? ', ativa' : ''}${pts ? `, ${pts} ${pts === 1 ? 'ponto' : 'pontos'} para distribuir` : ''}. Abrir ficha.`
+        const rot = `${m.name} #${num}, ${m.sex === 'f' ? 'fêmea' : 'macho'}, nível ${m.level}${ativa ? ', ativa' : ''}${pts ? `, ${pts} ${pts === 1 ? 'ponto' : 'pontos'} para distribuir` : ''}. Abrir ficha.`
         if (l.tag !== 'BUTTON' || l.tipo !== 'button' || l.acao !== 'montaria') problems.push(`${label} ${tag}: linha de ${m.uid} não é um <button type="button" data-acao="montaria"> (${l.tag} ${l.tipo} ${l.acao})`)
         if (l.rotulo !== rot) problems.push(`${label} ${tag}: aria-label da linha de ${m.uid} "${l.rotulo}" (esperado "${rot}")`)
         if (l.ativa !== ativa || l.selosAtiva !== (ativa ? 1 : 0)) problems.push(`${label} ${tag}: linha de ${m.uid} com destaque ${l.ativa} e ${l.selosAtiva} selo(s) "Ativa" (ativa: ${ativa})`)
-        // à vista: nome e #N, estrelas, raridade, tipo e Poder (sem equipamento); fora da linha: sexo, cruzas, Corcel e XP (3b §4)
+        // à vista: nome e #N, estrelas, raridade, tipo e Poder (sem equipamento); fora da linha: cruzas, Corcel e XP (3b §4); o
+        // sexo só pelo símbolo ao lado do nome (ajustes 1), sem a palavra
         const visiveis = [m.name, '#' + num, G.RARITIES[m.rarity].name, G.ELEMENTS[m.element].name, 'Poder ' + S.powerRating(m)]
         const faltam = visiveis.filter((t) => !l.txt.includes(t))
         if (faltam.length || l.estrelas !== 1) problems.push(`${label} ${tag}: linha de ${m.uid} sem ${JSON.stringify(faltam)}${l.estrelas !== 1 ? ' e sem as estrelas' : ''}: "${l.txt}"`)

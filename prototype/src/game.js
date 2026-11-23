@@ -451,6 +451,14 @@
   function sexoHtml(sexo) {
     return sexo === 'f' ? iconeHtml('ui-femea', '♀', 16) + ' Fêmea' : iconeHtml('ui-macho', '♂', 16) + ' Macho';
   }
+  // o símbolo do sexo ao lado do nome (Estábulo e cabeça da ficha; ajustes 1, 2026-11-23): o ícone 16×16 decorativo num
+  // <span role="img"> com "macho"/"fêmea" (sem o arquivo, o ♂/♀ de reserva, também com o texto acessível)
+  function sexoNomeTxt(sexo) { return sexo === 'f' ? 'fêmea' : 'macho'; }
+  function sexoIconeHtml(sexo) {
+    var f = sexo === 'f';
+    return '<span class="sexo-icone sexo-icone--' + (f ? 'f' : 'm') + '" role="img" aria-label="' + sexoNomeTxt(sexo) + '" title="' + (f ? 'Fêmea' : 'Macho') + '">' +
+      (f ? iconeHtml('ui-femea', '♀', 16) : iconeHtml('ui-macho', '♂', 16)) + '</span>';
+  }
   function corcelHtml() { return iconeHtml('ui-corcel', '⚑', 16) + ' Corcel'; }
   // skill de vaga (sk-<id>) ou de tipo (sk-tipo-<elemento>); reserva: o selo do elemento da skill
   function skillIcone(id, tam) {
@@ -2791,12 +2799,12 @@
   function mountRowHtml(m, isActive, o) {
     var n = uidNum(m.uid);
     var pq = pontosQueCabem(m);
-    var rotulo = m.name + ' #' + n + ', nível ' + m.level + (isActive ? ', ativa' : '') +
+    var rotulo = m.name + ' #' + n + ', ' + sexoNomeTxt(m.sex) + ', nível ' + m.level + (isActive ? ', ativa' : '') +
       (pq > 0 ? ', ' + pq + (pq === 1 ? ' ponto' : ' pontos') + ' para distribuir' : '') + '. ' + (o ? o.fim : 'Abrir ficha.');
     return '<button type="button" class="montaria-linha' + (isActive ? ' montaria--ativa' : '') + '" data-acao="' + (o ? o.acao : 'montaria') + '" data-id="' + esc(m.uid) +
         '" aria-label="' + esc(rotulo) + '"' + (o ? indisponivel(o.motivo) : '') + (o && o.pressed != null ? ' aria-pressed="' + !!o.pressed + '"' : '') + '>' +
       '<span class="montaria-linha-retrato" aria-hidden="true">' + portraitHtml(m, { tamanho: 'pequeno', selo: true, pontos: pq }) + '</span>' +
-      '<span class="montaria-linha-nome">' + esc(m.name) + '<small>#' + esc(n) + '</small></span>' +
+      '<span class="montaria-linha-nome">' + esc(m.name) + sexoIconeHtml(m.sex) + '<small>#' + esc(n) + '</small></span>' +
       '<span class="montaria-linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') + '</span>' +
       '<span class="montaria-linha-meta">' + elementHtml(m.element) +
@@ -5218,7 +5226,7 @@
     var cabeca = '<article class="caixa montaria-cabeca" aria-label="Montaria">' +
       '<div class="retrato-palco">' + portraitHtml(m, { tamanho: 'grande', selo: true, pontos: pontosQueCabem(m) }) + '</div>' +
       '<div class="cavalo-info">' +
-        '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco><span class="montaria-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></span>' +
+        '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco><span class="montaria-nome">' + esc(m.name) + sexoIconeHtml(m.sex) + ' <small>#' + esc(uidNum(m.uid)) + '</small></span>' +
           (isActive ? ' <span class="badge-ativa">Ativa</span>' : '') + '</h1>' +   // o espaço: o leitor de tela lê "Brasa #1 Ativa"
         '<div class="linha-meta">' + rarityHtml(m.rarity, true) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) + '</div>' +
         '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
