@@ -3,6 +3,17 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — Próximas frentes visuais, na ordem do Vinicius
+- **Ordem:** 1) animação ambiente (cenários e cavalos com movimento), 2) mapa-múndi e caminho dos ginásios, 3) tela
+  inicial, 4) inventário — recomendação da coordenação, aprovada ("pode seguir na ordem que sugeriu"). Base: a pesquisa
+  em `docs/arte/referencias-2026-11-23.md`.
+- **Qualidade sempre, tudo natural e fluido; avisar se for preciso outro programa ou engine** (Vinicius). Avaliação da
+  coordenação: a web aguenta (teste de engine); o Aseprite só agrega com retoque manual, que o fluxo só com IA não tem
+  — fica como opção se algum quadro precisar.
+- **Cada frente começa com uma amostra jogável para o Vinicius ver**, depois spec, plano e implementação. A animação
+  ambiente está no chat próprio (`claude/animacao-ambiente`); os ajustes do lote 1 (câmera, skills resumidas, gênero,
+  selvagens escondidos) em `claude/ajustes-1`.
+
 ## 2026-11-23 — AFK: revisão do Vinicius (spec e plano atualizados)
 - **Treinar pelo ginásio:** Expedição → ginásio → os oponentes já vencidos com "Treinar (AFK)".
 - **Drop exclusivo por ginásio pesa de verdade:** a peça Rara (e a Lendária) do conjunto só se forja com o incomum e os
