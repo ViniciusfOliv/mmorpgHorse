@@ -373,6 +373,28 @@ Build de teste desta branch (modo DEV, artefato novo; os oficiais não foram toc
   lugar: 9 e 249); o teto de `fillRect` por quadro foi de 4.500 para 4.700 (mediu 4.523) e a altura de referência da aba
   Skills de 1.426 para 1.551 px (a interface mudou de propósito).
 
+## 2026-11-19 — O jogo também vai para a Steam (decisão do Vinicius)
+- **Steam entra no escopo, junto com web e Google Play** — escolha do Vinicius. Caminho recomendado: a mesma base web
+  num build Electron + steamworks.js (é o que jogos em JS como Vampire Survivors e CrossCode fazem no PC). Comparação
+  com Defold, LÖVE, GameMaker, MonoGame/FNA, Heaps, Godot e Unity em `docs/teste-engine.md` §8: todos exigiriam
+  reescrever o cliente e portar o `sim.js`, e nenhum ganharia visual no aparelho medido. Se consoles entrarem no
+  escopo, planejar uma versão nativa só do cliente depois do lançamento, como Vampire Survivors fez com a Unity. O que
+  a Steam pede da base web (paisagem, controle, overlay, compras pela Steam) ficou no checklist do `docs/cronograma.md`.
+
+## 2026-11-19 — Teste de engine: fica web (o Vinicius pode vetar)
+- **A base web continua: não migrar para Godot** — o pior caso do lançamento (12 cavalos com clima, partículas,
+  explosões de skill, parallax, câmera com zoom e tremida) rodou no celular do Vinicius, na WebView do app do Claude, a
+  119,6 FPS numa tela de 120 Hz. O 1% low foi de 82,4, o p99 de 8,5 ms e o JS de 3,2 ms por quadro. O critério fixado
+  antes do teste era ≥ 55 no 1% low. Na resolução nativa e com 20 cavalos o resultado foi o mesmo. O Godot custaria 2 a
+  4 meses, o artefato como meio de teste e o risco de a corrida do cliente divergir do `sim.js` do servidor. Relatório
+  em `docs/teste-engine.md`.
+- **A corrida trava em 60 FPS em tela de 120 Hz, com um acumulador no ritmo da tela** (o do spike v3) — o limitador
+  simples (pular a batida que chega antes de 13 ms) gerou quadros de 25 ms e reprovou a fase 2 sem o jogo atrasar nada.
+- **Antes do lançamento: uma rodada longa (60 s, travada em 60) no celular e a bateria num Android fraco** — a primeira
+  rodada de 60 s teve 4,5% de quadros acima de 20 ms, e a bateria não repetiu isso. Se um aparelho fraco não passar, as
+  alavancas, sem reescrita, são: escala 3× ou 2×, menos camadas de clima em tela cheia e um desenhador WebGL2 da pista.
+  O Godot só volta se o aparelho-alvo ficar abaixo de 45 no 1% low até em escala 1×.
+
 ## 2026-11-19 — Qualidade primeiro, teste de engine e skills com 100% (decisões do Vinicius)
 - **A qualidade vem sempre primeiro: se Godot (ou Unity) for melhor em visual, FPS e jogabilidade, migramos** — pedido
   do Vinicius. Unity foi descartada na análise (pesada para 2D pixel art, licença, depende do editor, não dá para
@@ -1133,3 +1155,9 @@ Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, 
 - **Pilares do GDD §2 aprovados** — corrida automática por seed, duas moedas (Gemas nunca viram Ouro), PVP de 4 a 8 com pote, ligas por Poder.
 - **Nome do projeto "MMORPG Horse"; título do jogo "Galope Elemental"** (provisório até 2026-11-10, quando virou definitivo).
 - **2026-11-13 · Explicações curtas ("ⓘ") em `GameData.HELP`; `STATS[k].desc` passa a ser o mesmo texto · o jogo e o wiki mostram uma frase só por conceito; no toque o texto abre embaixo do rótulo (`aria-expanded`, `role="note"`), sem re-renderizar a tela.**
+- **2026-11-23 · A interface em HTML passa da Galmuri para a Nunito (SemiBold no texto, ExtraBold nos títulos), com os painéis no tom azul da Resurrect 64 · o Vinicius achou a Galmuri com cara de "coisa antiga" e escolheu "Nunito + azul" entre 5 variantes; a Galmuri continua no canvas da corrida (atlas de glifos), onde o pixel 1:1 importa.**
+- **2026-11-23 · O ícone de Força passa a 16×16 (redesenhado da versão Pro de 24) · os 7 status no mesmo tamanho; o braço de 24 desalinhava a linha.**
+- **2026-11-23 · Cenas das abas num painel com a moldura das caixas; fundo da página em pontilhado discreto (eram tábuas) · a cena solta parecia deslocada do fundo, e as tábuas no azul pareciam azulejo; escolha do Vinicius numa prévia com 3 fundos.**
+- **2026-11-23 · Câmera da corrida de 4 a 12 px/m, enquadrando o jogador e os rivais a até 45 m, com a escala e o deslocamento suaves; o cenário rola pelo que a câmera andou (sem salto no zoom) · a 12 px/m fixos os cavalos saíam logo da tela e a disputa sumia. Só apresentação: a simulação não muda.**
+- **2026-11-23 · A seta de quem está fora da tela volta a mostrar os metros até o jogador ("+12 m"/"–8 m") · a etapa 2.4 tirou de propósito (guia: "sem metros"), mas sem eles não dava para saber quão longe estava a disputa; pedido do Vinicius.**
+- **2026-11-23 · O nome de autor nos créditos fica "Vinicius" · confirmado pelo Vinicius; era o último pendente dos créditos antes de publicar.**

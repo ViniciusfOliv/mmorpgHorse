@@ -1,0 +1,81 @@
+/* Layout: uma coluna (até 760px); a pista sangra até a borda no celular; medidor e controles logo abaixo dela.
+   Mundo do jogo (estábulo à noite, placar dourado): um tema só, escuro, como o jogo. */
+:root {
+  color-scheme: dark;
+  --noite: #0f1c17;
+  --painel: #16271f;
+  --painel-2: #1e3329;
+  --linha: #335446;
+  --sombra: #060d0a;
+  --texto: #f1e9d4;
+  --texto-2: #b3c2b2;
+  --ouro: #f2c230;
+  --tinta: #1a1405;
+  --ganho: #7be07a;
+  --perda: #ff6b5e;
+  --foco: #62e6ff;
+  --fonte-display: 'Press Start 2P', ui-monospace, monospace;
+  --fonte-ui: 'Jersey 10', system-ui, sans-serif;
+  --fonte-num: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+html, body { background: var(--noite); color: var(--texto); }
+body { margin: 0; font-family: var(--fonte-ui); font-size: 20px; line-height: 1.25; }
+.spike {
+  max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px;
+  padding-block: 12px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1 { font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; margin: 0; color: var(--ouro); text-wrap: balance; }
+h2 { font-family: var(--fonte-display); font-size: 8px; line-height: 2; margin: 0; color: var(--ouro); letter-spacing: 0.04em; }
+.sub { margin: 4px 0 0; color: var(--texto-2); max-width: 62ch; }
+.sub b { color: var(--texto); font-weight: 400; }
+
+/* a pista ocupa a largura toda no celular (sai do recuo lateral) */
+.palco { margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); background: var(--sombra); }
+@media (min-width: 792px) { .palco { margin-left: 0; margin-right: 0; } }
+#tela { display: block; width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+.medidor { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; background: var(--sombra); border: 2px solid var(--sombra); }
+.m { background: var(--painel); padding: 4px 6px; display: flex; flex-direction: column; min-width: 0; }
+.m-r { font-size: 16px; color: var(--texto-2); }
+.m-v { font-family: var(--fonte-num); font-size: 14px; font-variant-numeric: tabular-nums; color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-v.bom { color: var(--ganho); } .m-v.ruim { color: var(--perda); } .m-v.meio { color: var(--ouro); }
+
+/* faixa de ordem: reescrita por innerHTML quando a ordem muda, como a do jogo */
+.ordem { list-style: none; margin: 0; padding: 4px; display: flex; flex-wrap: wrap; gap: 4px; background: var(--painel); border: 2px solid var(--sombra); min-height: 28px; }
+.ordem li { display: flex; align-items: center; gap: 3px; font-family: var(--fonte-num); font-size: 12px; color: var(--texto-2); }
+.ordem .chip { display: inline-block; min-width: 16px; padding: 1px 3px; text-align: center; color: var(--tinta); border: 1px solid var(--sombra); }
+.ordem li.voce .chip { outline: 2px solid var(--ouro); }
+.vizinhos { margin: 0; color: var(--texto-2); min-height: 1.25em; }
+
+.acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+button {
+  font-family: var(--fonte-ui); font-size: 20px; line-height: 1; color: var(--texto); background: var(--painel-2);
+  border: 2px solid var(--linha); padding: 8px 12px; cursor: pointer; min-height: 40px;
+}
+button:hover { border-color: var(--texto-2); }
+button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primario { background: var(--ouro); color: var(--tinta); border-color: var(--sombra); }
+.estado { color: var(--texto-2); }
+
+.controles { display: flex; flex-direction: column; gap: 8px; background: var(--painel); border: 2px solid var(--sombra); padding: 10px; }
+.grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.g-r { min-width: 72px; color: var(--texto-2); }
+.seg, .liga { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg button, .liga button { font-size: 18px; padding: 6px 10px; min-height: 36px; }
+.seg button[aria-pressed="true"] { background: var(--ouro); color: var(--tinta); border-color: var(--sombra); }
+.liga button[aria-pressed="true"] { border-color: var(--ganho); color: var(--ganho); }
+.liga button[aria-pressed="false"] { color: var(--texto-2); text-decoration: line-through; }
+.nota { margin: 0; font-size: 17px; color: var(--texto-2); max-width: 70ch; }
+.nota b { color: var(--texto); font-weight: 400; }
+
+.resumo { display: flex; flex-direction: column; gap: 8px; }
+textarea {
+  width: 100%; box-sizing: border-box; font-family: var(--fonte-num); font-size: 12px; line-height: 1.4;
+  color: var(--texto); background: var(--painel); border: 2px solid var(--sombra); padding: 8px; resize: vertical;
+}
+textarea:focus-visible { outline: 2px solid var(--foco); }
+@media (max-width: 420px) { .medidor { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }

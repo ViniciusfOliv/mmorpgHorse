@@ -75,7 +75,9 @@
   var TELA_S_MIN = 30, TELA_S_MAX = 51;
   // câmera da corrida e cadência do galope (guia §8a, etapa 2.4 da direção de arte): 12 px de arte por metro (o chão a
   // 16 m/s passa a ~190 px/s) e 14 quadros por segundo no ciclo de 6 do código = 21 no ciclo de 9 do molde, a 17 m/s
-  var PPM_ARTE = 12, GALOPE_QPS = 14;
+  // câmera da corrida: de PPM_MIN a PPM_ARTE pixels de arte por metro (refino de 2026-11-23: a câmera enquadra o jogador e
+  // os rivais a até CAM_GRUPO_M dele; o 12 fixo deixava a disputa fora da tela)
+  var PPM_ARTE = 12, PPM_MIN = 4, CAM_GRUPO_M = 45, GALOPE_QPS = 14;
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala dos retratos (portraitHtml sem opts.tamanho)
@@ -2603,9 +2605,9 @@
         '<button type="button" class="btn" data-acao="perfil-creditos" data-id="creditos">Créditos</button></section>' +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
   }
-  // Créditos (etapa 8 da direção de arte; texto de docs/arte/creditos.md): quem fez o jogo e a arte, a fonte e a paleta. A
-  // licença da Galmuri (SIL OFL 1.1) tem de acompanhar a fonte, que o jogo embute: o botão "Licença da fonte" mostra o
-  // texto inteiro (window.__OFL, embutido pelo build) num painel que rola. Uma vista do Perfil (ui.perfilVer): o "Voltar"
+  // Créditos (etapa 8 da direção de arte; texto de docs/arte/creditos.md): quem fez o jogo e a arte, as fontes e a paleta.
+  // As licenças da Nunito e da Galmuri (SIL OFL 1.1) têm de acompanhar as fontes, que o jogo embute: o botão "Licenças das
+  // fontes" mostra o texto inteiro (window.__OFL, embutido pelo build) num painel que rola. Uma vista do Perfil (ui.perfilVer): o "Voltar"
   // e o voltar do aparelho levam de volta ao Perfil, com o foco no botão "Créditos".
   function renderCreditos() {
     var ofl = typeof window.__OFL === 'string' ? window.__OFL : '';
@@ -2617,10 +2619,12 @@
       '<section class="caixa creditos" aria-labelledby="t-cred-arte"><h2 class="titulo" id="t-cred-arte">Arte</h2>' +
         '<p>Direção de arte, acabamento e composição por código.</p>' +
         '<p>Arte gerada com ajuda de IA (PixelLab, Retro Diffusion), escolhida e acabada à mão. Nada é gerado por IA durante o jogo.</p></section>' +
-      '<section class="caixa creditos" aria-labelledby="t-cred-fonte"><h2 class="titulo" id="t-cred-fonte">Fonte</h2>' +
-        '<p>Galmuri, de Lee Minseo — SIL Open Font License 1.1.</p>' +
-        (ofl ? '<button type="button" class="btn" data-acao="creditos-licenca" aria-expanded="' + !!ui.licencaAberta + '" aria-controls="licenca-fonte">Licença da fonte</button>' +
-          (ui.licencaAberta ? '<pre class="licenca" id="licenca-fonte" tabindex="0" aria-label="Licença da fonte Galmuri">' + esc(ofl) + '</pre>' : '') : '') +
+      '<section class="caixa creditos" aria-labelledby="t-cred-fonte"><h2 class="titulo" id="t-cred-fonte">Fontes</h2>' +
+        '<p>Nunito, de The Nunito Project (Vernon Adams e colaboradores), na interface.</p>' +
+        '<p>Galmuri, de Lee Minseo, no texto da corrida.</p>' +
+        '<p>As duas sob a SIL Open Font License 1.1.</p>' +
+        (ofl ? '<button type="button" class="btn" data-acao="creditos-licenca" aria-expanded="' + !!ui.licencaAberta + '" aria-controls="licenca-fonte">Licenças das fontes</button>' +
+          (ui.licencaAberta ? '<pre class="licenca" id="licenca-fonte" tabindex="0" aria-label="Licenças das fontes Nunito e Galmuri">' + esc(ofl) + '</pre>' : '') : '') +
       '</section>' +
       '<section class="caixa creditos" aria-labelledby="t-cred-paleta"><h2 class="titulo" id="t-cred-paleta">Paleta</h2>' +
         '<p>Resurrect 64, de Kerrie Lake (Lospec).</p></section>' +
@@ -2858,9 +2862,9 @@
 
   // Aba Estábulo: o cartão da recompensa diária e a lista de montarias
   function renderEstabulo() {
-    return '<section class="tela" aria-labelledby="t-estabulo">' + cenaAbaHtml('estabulo') +
+    return '<section class="tela" aria-labelledby="t-estabulo">' + cenaAbaHtml('estabulo',
       '<h1 class="titulo titulo--tela" id="t-estabulo" tabindex="-1" data-foco>Estábulo <span class="nota">' +
-        state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>' + noticeHtml() +
+        state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>') + noticeHtml() +
       diariaCartaoHtml() + montariasHtml() +
       '</section>';
   }
@@ -2994,8 +2998,8 @@
         elementHtml(w.element) +
         '<span class="nota">' + esc(w.habitat || '') + '</span></div>';
     }).join('');
-    return '<section class="tela" aria-labelledby="t-expedicao">' + cenaAbaHtml('expedicao') +
-      '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>' +
+    return '<section class="tela" aria-labelledby="t-expedicao">' +
+      cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
@@ -3419,10 +3423,18 @@
     return im.complete && im.naturalWidth ? im : null;
   }
   function temTela(tipo, id) { var m = window.__TELAS; return !!(m && m[tipo] && hasOwn(m[tipo], id) && typeof m[tipo][id] === 'string'); }
-  function cenaAbaHtml(aba) { return temTela('cenas', aba) ? '<canvas class="cena-aba" data-cena-aba="' + aba + '" aria-hidden="true"></canvas>' : ''; }
+  // a cena da aba e a placa do título juntas num painel com moldura (refino de 2026-11-23, escolha do Vinicius: a cena solta
+  // parecia deslocada do fundo); sem a arte, só o título
+  function cenaAbaHtml(aba, titulo) {
+    return temTela('cenas', aba) ? '<div class="caixa cena-painel"><canvas class="cena-aba" data-cena-aba="' + aba + '" aria-hidden="true"></canvas>' + titulo + '</div>' : titulo;
+  }
   // a largura (pixels de arte) que cabe no pai do canvas, até a da arte, e o corte de cada lado
   function larguraTela(cv) {
-    var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), pai = cv.parentElement ? cv.parentElement.clientWidth : 0;
+    var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), el = cv.parentElement, pai = 0;
+    if (el) {   // a largura do miolo do pai (o clientWidth conta o recuo: no painel da cena, 4 px de cada lado)
+      var cs = getComputedStyle(el);
+      pai = el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    }
     var W = Math.max(160, Math.min(TELA_W, pai ? Math.floor(pai * r / kG) : TELA_W));
     return { W: W, ox: Math.floor((TELA_W - W) / 2) };
   }
@@ -4589,7 +4601,7 @@
 
   function renderHaras() {
     var H = harasNormalize();
-    var head = cenaAbaHtml('haras') + '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' + noticeHtml();
+    var head = cenaAbaHtml('haras', '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>') + noticeHtml();
     var foal = H.result ? mountByUid(H.result) : null;
     if (foal) return '<section class="tela" aria-labelledby="t-haras">' + head + harasResultHtml(foal) + '</section>';
 
@@ -5304,7 +5316,7 @@
   }
   function renderLoja() {
     if (!LOJA_PARTES.some(function (a) { return a.id === ui.lojaParte; })) ui.lojaParte = 'comprar';
-    var head = cenaAbaHtml('loja') + '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
+    var head = cenaAbaHtml('loja', '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>');
     var partes = '<div class="subabas" role="group" aria-label="Partes da loja">' + LOJA_PARTES.map(function (a) {
       return '<button type="button" class="btn opcao opcao--centro" data-acao="loja-parte" data-id="' + esc(a.id) + '" aria-pressed="' + (ui.lojaParte === a.id) + '">' + esc(a.rotulo) + '</button>';
     }).join('') + '</div>';
@@ -6286,7 +6298,8 @@
       cv.style.height = (self.H * sTela / r) + 'px';
       palco.style.height = (self.H * sTela / r) + 'px';
       vctx.imageSmoothingEnabled = false;
-      self.ppmArt = PPM_ARTE;   // guia §8a: 12 px de arte por metro (era 2 a 2,5)
+      // guia §8a: 12 px de arte por metro de perto (era 2 a 2,5); a câmera que enquadra muda o self.ppmArt a cada quadro
+      if (!self.ppmArt) self.ppmArt = PPM_ARTE;
       // a narração ocupa a altura que sobrar (campos pequenos): nada de faixa vazia sob os botões. Só aqui (no
       // redimensionar) a altura dela muda: durante a corrida, a faixa de ordem e a narração têm altura fixa
       if (!baixa && hud.feed && getComputedStyle(hud.feed).display !== 'none') {
@@ -6564,16 +6577,46 @@
       FX.drawMiniMap(ctx, mapa, st.pos, silksCores, me, { x: mc.x, y: mc.y, w: mc.w, h: mc.h, P: self.S, piso: pisoCor });
     }
 
+    // câmera que enquadra a disputa (refino de 2026-11-23, escolha do Vinicius): o jogador e os rivais a até CAM_GRUPO_M
+    // metros dele cabem na tela, com a escala entre PPM_MIN e PPM_ARTE px de arte por metro (os cavalos continuam 1:1; só
+    // as distâncias encolhem). A escala e o deslocamento em relação ao jogador andam suaves (meia-vida ~0,3 s), para a
+    // câmera não pular quando alguém entra ou sai do grupo. Só apresentação: nada aqui volta para a simulação.
+    // Devolve a câmera (metro da borda esquerda) e grava self.ppmArt.
+    function enquadra(st, p, Wa) {
+      var lo = p, hi = p;
+      for (var j = 0; j < n; j++) {
+        if (j === me || Math.abs(st.pos[j] - p) > CAM_GRUPO_M) continue;
+        lo = Math.min(lo, st.pos[j]); hi = Math.max(hi, st.pos[j]);
+      }
+      // o grupo inteiro (focinhos de lo a hi, e o corpo e a cauda de ~50 px atrás de cada um) com folga dos lados
+      var alvo = clamp((Wa - 80) / Math.max(0.01, hi - lo), PPM_MIN, PPM_ARTE);
+      var agora = self.tReal, dtc = self.camT == null ? 1 : clamp(agora - self.camT, 0, 0.25);
+      self.camT = agora;
+      var kS = 1 - Math.exp(-dtc * 2.3);
+      self.ppmArt = self.camT0 ? Math.exp(Math.log(self.ppmArt) + (Math.log(alvo) - Math.log(self.ppmArt)) * kS) : alvo;
+      var ppmA = self.ppmArt, visM = Wa / ppmA;
+      // o meio do grupo (o meio do corpo fica ~20 px atrás do focinho) no meio da tela; o jogador sempre inteiro na tela
+      // (focinho a 64 px ou mais da esquerda, com o corpo e a cauda, e a 16 px ou mais da direita, com a cabeça)
+      var off = (lo + hi) / 2 - p - (Wa / 2 + 20) / ppmA;
+      off = clamp(off, -(Wa - 16) / ppmA, -64 / ppmA);
+      self.camOff = self.camT0 ? self.camOff + (off - self.camOff) * kS : off;
+      self.camT0 = true;
+      // na largada (todos juntos) a linha fica a 30 % da tela, como antes
+      return Math.max(-0.3 * visM, p + clamp(self.camOff, -(Wa - 16) / ppmA, -64 / ppmA));
+    }
+
     function draw(st, order) {
       var S = self.S, W = self.W, H = self.H, lay = self.lay;
+      var p = st.pos[me];
+      var follow = enquadra(st, p, W / S);
       var ppm = self.ppmArt * S;
       var visM = W / ppm;
-      var p = st.pos[me];
-      // câmera sem atraso: o focinho do jogador fica perto de 48% da largura (rivais à frente visíveis)
-      var follow = Math.max(-0.3 * visM, p - 0.48 * visM);
       var lineX = (D - follow) / visM;
       self.finishCam = self.phase === 'corrida' && self.simT > tWin - 1.1 && self.simT < tWin + 0.7 && p < D - 2 && (lineX > 0.95 || lineX < 0.08);
       var cam = self.finishCam ? D - 0.62 * visM : follow;
+      // o cenário rola pelo que a câmera andou na escala de agora (sem salto quando a escala muda)
+      self.camPx = self.camAnt == null ? cam * ppm : self.camPx + (cam - self.camAnt) * ppm;
+      self.camAnt = cam;
       // o arco das curvas é preso à tela (RaceFx.curveOffsetTela): o meio da tela e a meia largura, em metros
       self.camTela = { c: cam + visM / 2, meia: visM / 2 };
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
@@ -6583,7 +6626,7 @@
       // em reduced nada congela: o cenário (nuvens, torcida, bandeiras, grama) anda a 40 % e a natureza
       // (fx.js) recebe o tempo real com a marca reduced (chuva a 40 %, metade dos pingos, sem relâmpago)
       SP.drawTrack(ctx, {
-        width: W, height: H, cameraX: cam, pxPerMeter: ppm, lanes: n, laneTop: laneTop, laneH: laneH,
+        width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: self.camPx, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
         t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
         curveScale: lay.arcoK, regiao: regiaoDaPista(L)
@@ -6592,7 +6635,7 @@
       // relevo das subidas e o arco das curvas (os respingos e o calor ficam no chão levantado)
       var natO = {
         weather: clima, wind: self.wind, t: tr, W: W, H: H, P: S, laneTop: laneTop, trackBottom: laneTop + n * laneH,
-        reduced: red, seed: L.seed, cam: cam * ppm, camada: 'tras', surface: L.cond.surface,
+        reduced: red, seed: L.seed, cam: self.camPx, camada: 'tras', surface: L.cond.surface,
         paleta: !!SP.regiaoPronta(regiaoDaPista(L)),   // cenário da região: o clima já está na paleta, sem véus translúcidos
         lift: hills.length || curves.length ? function (px) { var m = cam + px / ppm; return (SP.hillLiftAt(m, hills, lay.maxLift) + arcoArt(m)) * S; } : null
       };
@@ -6622,8 +6665,9 @@
         var caixaCav = SP.horseBox(x, y, cavalo);
         if (j === me) self.playerRect = { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, W: W, H: H };
         // fora da tela: a seta (layoutTags) com o meio na altura do corpo do cavalo
-        if (caixaCav.x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 20 * S }); continue; }
-        if (caixaCav.x + caixaCav.w < 2 * S) { tagsL.push({ j: j, y: feetY - 20 * S }); continue; }
+        var dmJ = j === me ? null : st.pos[j] - p;   // a distância até o jogador (a seta dele mesmo, na foto de chegada, vai sem)
+        if (caixaCav.x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 20 * S, dm: dmJ }); continue; }
+        if (caixaCav.x + caixaCav.w < 2 * S) { tagsL.push({ j: j, y: feetY - 20 * S, dm: dmJ }); continue; }
         // aura da skill de tipo enquanto o cavalo está no terço dela (antes do anel e do cavalo: não cobre nada);
         // relógio = segundos de apresentação (simT / ts), deslocado por raia
         if (self.phase !== 'contagem' && FX.typeZone(tipoTerco[j], st.pos[j]) != null &&
@@ -6813,6 +6857,17 @@
           if (ruim) {
             var tras = { x: ruim.x - r.w - 2, y: r.y, w: r.w, h: r.h };
             if (tras.x >= 0 && !todos.some(function (ob) { return bate(tras, ob); })) r.x = tras.x;
+            else {
+              // com a câmera afastada (o pelotão junto em pouca tela) a frente e o atrás podem estar tomados: o lugar livre
+              // da faixa da raia mais perto de onde o balão queria ficar
+              var melhor = null;
+              for (var cxb = 0; cxb <= lay.artW - r.w; cxb += 2) {
+                var tenta = { x: cxb, y: r.y, w: r.w, h: r.h };
+                if (todos.some(function (ob) { return bate(tenta, ob); })) continue;
+                if (melhor == null || Math.abs(cxb - bx) < Math.abs(melhor - bx)) melhor = cxb;
+              }
+              if (melhor != null) r.x = melhor;
+            }
           }
           // preso à borda, um balão mais velho pode voltar para cima do anterior do mesmo cavalo (e cobrir o fim do nome
           // no de texto): então ele e os mais velhos ficam de fora
@@ -6921,10 +6976,11 @@
       });
     }
 
-    // quem está fora da tela vira uma seta de 5 × 9 na borda, na altura da raia, na cor da seda e sem metros (guia §8;
-    // etapa 2.4: com a câmera a 12 px/m quase sempre há alguém fora). topo (opcional) = a primeira linha livre abaixo de
-    // uma faixa no alto da pista; obst = caixas que a seta não cobre (uma faixa no pé da pista): ela sobe para cima da
-    // caixa. Anota as caixas em _stats.caixasEtiquetas
+    // quem está fora da tela vira uma seta de 5 × 9 na borda, na altura da raia, na cor da seda (guia §8), com a distância
+    // até o jogador ao lado, do lado de dentro ("+12 m" à frente, "–8 m" atrás, Galmuri7; refino de 2026-11-23, escolha do
+    // Vinicius: a placa de metros tinha saído na etapa 2.4). topo (opcional) = a primeira linha livre abaixo de uma faixa
+    // no alto da pista; obst = caixas que a seta e a distância não cobrem (uma faixa no pé da pista): sobem para cima da
+    // caixa. Anota as caixas (seta + distância) em _stats.caixasEtiquetas
     var SETA_W = 5, SETA_H = 9;
     function layoutTags(tags, right, topo, obst) {
       if (!tags.length) return;
@@ -6932,13 +6988,19 @@
       tags.forEach(function (t) {
         var y = clamp(Math.round(t.y / self.S), minY, lay.artH - SETA_H - 1);
         var ax = right ? lay.artW - SETA_W - 1 : 1, i, cx;
+        var dm = t.dm == null ? null : Math.round(t.dm);
+        var dTxt = dm == null ? '' : (dm > 0 ? '+' : dm < 0 ? '\u2013' : '') + Math.abs(dm) + ' m';
+        var dw = dTxt ? tw(dTxt, 'g7') + 4 : 0, dx = right ? ax - 1 - dw : ax + SETA_W + 1;
+        var bx = right ? dx : ax, bw = SETA_W + (dw ? dw + 1 : 0);
         (obst || []).forEach(function (b) {
-          if (b && ax < b.x + b.w && ax + SETA_W > b.x && y < b.y + b.h && y + SETA_H > b.y) y = b.y - SETA_H - 1;
+          if (b && bx < b.x + b.w && bx + bw > b.x && y < b.y + b.h && y + SETA_H > b.y) y = b.y - SETA_H - 1;
         });
         // contorno escuro e o miolo na cor da seda; a ponta para o lado de fora da tela
         for (i = 0; i < 5; i++) { cx = right ? ax + i : ax + 4 - i; box(cx, y + i, 1, SETA_H - 2 * i, C.tinta); }
         for (i = 0; i < 4; i++) { cx = right ? ax + i : ax + 4 - i; box(cx, y + 1 + i, 1, SETA_H - 2 - 2 * i, L.racers[t.j].silks); }
-        FX._stats.caixasEtiquetas.push({ racer: t.j, x: ax, y: y, w: SETA_W, h: SETA_H });
+        // a distância numa plaquinha escura da altura da seta, encostada nela
+        if (dw) { box(dx, y, dw, SETA_H, C.painel, C.sombra); text(dTxt, dx + 2, y + 1, C.texto, 'g7'); }
+        FX._stats.caixasEtiquetas.push({ racer: t.j, x: bx, y: y, w: bw, h: SETA_H, metros: dTxt });
       });
     }
 

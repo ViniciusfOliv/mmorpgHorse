@@ -17,6 +17,7 @@ const A = path.join(RAIZ, 'prototype', 'assets');
 const PRO = path.join(A, 'arte', 'icones24pro');
 const SAIDA = path.join(A, 'arte', 'icones');
 
+// (a st-forca do Pro, '00', saiu em 2026-11-23: os status ficam todos em 16 × 16, ver icones16-mapas.mjs)
 // escolhas do Vinicius (2026-11-20: cavalo, liga e sela) e as da direção de arte nos lotes complexos (aprovação na folha)
 export const ESCOLHAS_PRO = {
   'aba-estabulo': '00', 'liga-ouro': '00', 'slot-sela': '19',
@@ -24,7 +25,7 @@ export const ESCOLHAS_PRO = {
   'ins-fogo': '00', 'ins-agua': '00', 'ins-grama': '38', 'rar-raro': '00', 'podio-1': '01',
   'sk-canto-da-iara': '37', 'sk-casco-firme': '16', 'sk-chama-final': '04', 'sk-folego-de-montanha': '29',
   'sk-nascente': '12', 'sk-nevoa-amiga': '09', 'sk-pe-na-chuva': '72', 'sk-sol-a-pino': '00',
-  'st-forca': '00', 'sk-tipo-grama': '03', 'sk-drift': '13',
+  'sk-tipo-grama': '03', 'sk-drift': '13',
 };
 // rampas (claro → escuro) da Resurrect 64 para a troca de cor
 const RAMPAS = {

@@ -2811,7 +2811,7 @@ test('lerTokens: só os hex do primeiro :root, em #rrggbb minúsculo', () => {
   assert.strictEqual(TOK['--sombra'], '#2e222f');
 });
 test('os 4 tokens novos estão no :root', () => {
-  assert.strictEqual(TOK['--linha-luz'], '#92a984');
+  assert.strictEqual(TOK['--linha-luz'], '#8fd3ff');
   assert.strictEqual(TOK['--ouro-medio'], '#f79617');
   assert.strictEqual(TOK['--prego'], '#9babb2');
   assert.strictEqual(TOK['--prego-luz'], '#ffffff');
@@ -2897,13 +2897,14 @@ test('cssArte: uma propriedade --arte-<nome> por peça e determinístico', () =>
   assert.ok(a.startsWith(':root {'));
 });
 const FONTES = await IA.cssFontes(PROTO);
-test('cssFontes: as quatro Galmuri embutidas em TTF, sem rede', () => {
+test('cssFontes: as duas Nunito embutidas em WOFF2, sem rede (a Galmuri só no atlas do canvas)', () => {
   const faces = FONTES.match(/@font-face\s*\{[^}]*\}/g) || [];
-  assert.strictEqual(faces.length, 4);
-  for (const fam of ["'Galmuri11 Bold'", "'Galmuri11'", "'Galmuri9'", "'Galmuri7'"]) {
+  assert.strictEqual(faces.length, 2);
+  assert.ok(!/Galmuri/.test(FONTES));
+  for (const fam of ["'Nunito ExtraBold'", "'Nunito'"]) {
     const face = faces.find(x => x.includes('font-family: ' + fam + ';'));
     assert.ok(face, fam);
-    assert.ok(face.includes('data:font/ttf;base64,') && !/https?:/.test(face), fam + ': só data:, sem URL de rede');
+    assert.ok(face.includes('data:font/woff2;base64,') && !/https?:/.test(face), fam + ': só data:, sem URL de rede');
     assert.ok(/font-display:\s*block/.test(face) && /font-weight:\s*400/.test(face) && /font-style:\s*normal/.test(face), fam);
   }
 });

@@ -1160,17 +1160,19 @@ try {
       await pg.waitForSelector('#t-perfil')
       await pg.locator('[data-acao="perfil-creditos"]').click()
       await pg.waitForSelector('#t-creditos')
-      const ofl = (await readFile(join(ROOT, 'assets', 'fontes', 'OFL-galmuri.txt'), 'utf8')).replace(/\s+/g, ' ').trim()
+      // as duas licenças, na ordem do build: Nunito (a interface) e Galmuri (o texto da corrida)
+      const lic = async (n) => readFile(join(ROOT, 'assets', 'fontes', 'OFL-' + n + '.txt'), 'utf8')
+      const ofl = ('Nunito ' + await lic('nunito') + ' — — — Galmuri ' + await lic('galmuri')).replace(/\s+/g, ' ').trim()
       const a = await pg.evaluate(() => ({ foco: document.activeElement && document.activeElement.id, txt: document.querySelector('#tela').textContent.replace(/\s+/g, ' '),
         logo: !!document.querySelector('#tela .creditos img.logo-img[alt="Galope Elemental"]'), exp: document.querySelector('[data-acao="creditos-licenca"]').getAttribute('aria-expanded'), pre: !!document.querySelector('#licenca-fonte') }))
       if (a.foco !== 't-creditos') problems.push(`${label}: foco em ${a.foco} (esperado o título)`)
-      for (const t of ['Arte', 'Fonte', 'Paleta', 'Galmuri, de Lee Minseo', 'SIL Open Font License 1.1', 'Resurrect 64, de Kerrie Lake', 'PixelLab', 'Retro Diffusion', 'Nada é gerado por IA durante o jogo'])
+      for (const t of ['Arte', 'Fontes', 'Paleta', 'Nunito, de The Nunito Project', 'Galmuri, de Lee Minseo', 'SIL Open Font License 1.1', 'Resurrect 64, de Kerrie Lake', 'PixelLab', 'Retro Diffusion', 'Nada é gerado por IA durante o jogo'])
         if (!a.txt.includes(t)) problems.push(`${label}: falta "${t}"`)
       if (!a.logo || a.exp !== 'false' || a.pre) problems.push(`${label}: estado inicial ${JSON.stringify({ logo: a.logo, exp: a.exp, pre: a.pre })}`)
       await pg.locator('[data-acao="creditos-licenca"]').click()
       const b = await pg.evaluate(() => { const p = document.querySelector('#licenca-fonte'); return p && { txt: p.textContent.replace(/\s+/g, ' ').trim(), rola: p.scrollHeight > p.clientHeight, ov: getComputedStyle(p).overflowY,
         exp: document.querySelector('[data-acao="creditos-licenca"]').getAttribute('aria-expanded'), foco: document.activeElement && document.activeElement.getAttribute('data-acao') } })
-      if (!b || b.txt !== ofl) problems.push(`${label}: a licença aberta não é o texto inteiro da OFL (${b && b.txt.length} de ${ofl.length} caracteres)`)
+      if (!b || b.txt !== ofl) problems.push(`${label}: a licença aberta não é o texto inteiro das duas OFL (${b && b.txt.length} de ${ofl.length} caracteres)`)
       else if (!b.rola || b.ov !== 'auto' || b.exp !== 'true' || b.foco !== 'creditos-licenca') problems.push(`${label}: painel da licença ${JSON.stringify({ rola: b.rola, ov: b.ov, exp: b.exp, foco: b.foco })}`)
       await checkOverflow(pg, label)
       await pg.locator('[data-acao="perfil-voltar"]').click()
@@ -9921,26 +9923,26 @@ try {
       if (fora.length) problems.push(`acabamento (${tag}): o texto sai da placa do título (${fora.join(', ')})`)
     }
     // ---- Tarefa 4: botões, abas, barras, selos, ⓘ e fonte display ----
-    // Galmuri só no tamanho nativo (guia de arte §6, etapa 1a): todo elemento visível com texto próprio numa Galmuri tem
-    // font-size = tamanho nativo × --px (11 e 11 Bold: 12; 9: 10; 7: 8), e o --px é s / densidade com s inteiro
+    // a interface em Nunito (guia de arte §6; refino de 2026-11-23, era a Galmuri): todo elemento visível com texto próprio
+    // numa das duas faces embutidas, num tamanho da escala (--t-*: 12, 10 ou 8 × --px), e o --px é s / densidade com s inteiro
     const displayNaEscala = async (pg, tag) => {
       const r = await pg.evaluate(() => {
         const nome = (e) => e.tagName.toLowerCase() + (typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\s+/).join('.') : '')
         const px = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px')), s = px * Math.max(1, window.devicePixelRatio || 1)
-        const NATIVO = { Galmuri11: 12, 'Galmuri11 Bold': 12, Galmuri9: 10, Galmuri7: 8 }
+        const FACES = ['Nunito', 'Nunito ExtraBold'], ESCALA = [12, 10, 8]
         const out = new Set()
         for (const e of document.querySelectorAll('body *')) {
           if (!(e.offsetWidth || e.offsetHeight)) continue
           if (![...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue
           if (e.closest('[aria-hidden="true"]')) continue   // ícones (o emoji de reserva) não são texto
           const cs = getComputedStyle(e), fam = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim()
-          if (!(fam in NATIVO)) { out.add(nome(e) + ' fora da Galmuri (' + fam + ')'); continue }
-          if (Math.abs(parseFloat(cs.fontSize) - NATIVO[fam] * px) > 0.02) out.add((e.parentElement ? nome(e.parentElement) + ' > ' : '') + nome(e) + ' ' + fam + ' ' + cs.fontSize)
+          if (!FACES.includes(fam)) { out.add(nome(e) + ' fora da Nunito (' + fam + ')'); continue }
+          if (!ESCALA.some((t) => Math.abs(parseFloat(cs.fontSize) - t * px) <= 0.02)) out.add((e.parentElement ? nome(e.parentElement) + ' > ' : '') + nome(e) + ' ' + fam + ' ' + cs.fontSize)
         }
         return { s, ruins: [...out].slice(0, 10) }
       })
       if (Math.abs(r.s - Math.round(r.s)) > 0.001) problems.push(`acabamento (${tag}): --px × densidade = ${r.s}, não é inteiro`)
-      if (r.ruins.length) problems.push(`acabamento (${tag}): Galmuri fora do tamanho nativo em ${r.ruins.join(', ')}`)
+      if (r.ruins.length) problems.push(`acabamento (${tag}): texto fora da Nunito ou da escala --t-* em ${r.ruins.join(', ')}`)
     }
     // ⓘ desenhado (spec §4.13): sem o caractere no texto; o ::before de 14x14 px com --arte-ajuda (aberto: --arte-ajuda-ativa).
     // O mouse sai de cima antes (com o mouse em cima, a peça é a ativa).
@@ -10051,17 +10053,17 @@ try {
       else if (r.ruins.length) problems.push(`acabamento (${tag}): ${sel} sem o contorno --sombra${comClip ? ' ou sem o canto recortado (clip-path)' : ''}: ${r.ruins.join(', ')}`)
     }
     {
-      // fontes sem rede: os @font-face levam as Galmuri embutidas em data:
+      // fontes sem rede: os @font-face levam as duas Nunito embutidas em data:
       const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-fontes', { bloquear: ['**/fonts.googleapis.com/**', '**/fonts.gstatic.com/**'] })
       try {
         await pg.waitForSelector('.inicial')
         const r = await pg.evaluate(async () => {
           await document.fonts.ready
           const carregadas = [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/["']/g, ''))
-          return { ok: ['Galmuri11 Bold', 'Galmuri11', 'Galmuri9', 'Galmuri7'].every((f) => document.fonts.check('12px "' + f + '"')), carregadas }
+          return { ok: ['Nunito ExtraBold', 'Nunito'].every((f) => document.fonts.check('12px "' + f + '"')), carregadas }
         })
-        if (!r.ok) problems.push(`acabamento: document.fonts.check das Galmuri sem rede falhou`)
-        for (const fam of ['Galmuri11 Bold', 'Galmuri11', 'Galmuri9']) if (!r.carregadas.includes(fam)) problems.push(`acabamento: a face "${fam}" não ficou loaded sem rede (${JSON.stringify(r.carregadas)})`)
+        if (!r.ok) problems.push(`acabamento: document.fonts.check das Nunito sem rede falhou`)
+        for (const fam of ['Nunito ExtraBold', 'Nunito']) if (!r.carregadas.includes(fam)) problems.push(`acabamento: a face "${fam}" não ficou loaded sem rede (${JSON.stringify(r.carregadas)})`)
         await semBorderImage(pg, 'inicial')
         // tela inicial: display na escala, ⓘ desenhado (fechado e aberto) e contraste
         await displayNaEscala(pg, 'inicial')
