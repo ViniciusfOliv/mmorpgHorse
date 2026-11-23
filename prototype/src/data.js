@@ -662,7 +662,9 @@
     ],
     liberaApos: 50,
     vagaPreco: [0, 1000, 3000, 8000, 20000],
-    offlineMin: 480, offlineTetoMin: 720, amostra: 400,
+    // amostra: 1.600 (a spec partia de 400; com 400 só 25 de 30 configurações ficavam a menos de 3 p.p. da referência,
+    // e a meta E3 pede 95%; 1.600 duelos levam ~1 s num computador, em fatias)
+    offlineMin: 480, offlineTetoMin: 720, amostra: 1600,
     // Ganho por corrida (§5.3): xp = round(xpBase × (1 + xpPorEtapa × etapa) × mult); ouro = ouro[etapa] × mult
     // (etapa 0–4: Soldado 1 ao líder). Na derrota: a fração do XP e do material comum (para baixo), sem raros nem Ouro.
     xpBase: 40, xpPorEtapa: 0.15, ouro: [2, 3, 4, 5, 8],

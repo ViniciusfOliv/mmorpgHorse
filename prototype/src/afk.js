@@ -33,6 +33,15 @@
  *   Peça (rng própria, só se caiu): 1) o slot (uniforme); 2) na solta, Mágica se < magica; depois as linhas
  *     (Gear.sortearLinhas). Rara e Lendária são do conjunto do ginásio. Devolve { id, linhas }.
  *   O AFK nunca dá Torrão, Estrela, Rédea, Manual, Cupom, Pergaminho de técnica, Selo, insígnia nem prêmio de ginásio.
+ * CHANCE MEDIDA (para o offline): chaveConfig(cavalo, faseId) é um texto que muda quando muda o que mexe na corrida
+ *   (elemento, raridade, genética, nível, estrelas, pontos, torrões, skills, ranks, peças) ou a fase. medirPasso avança
+ *   a medição em n duelos sem quadros: o duelo i (0, 1, …) usa a seed hash2(hash2(hashTexto(chave), SAL_MEDIDA), i) —
+ *   própria da configuração, não do save — contra o oponente i do rodízio. estado = { chave, feitos, vitorias,
+ *   somaDuracao }; completo com feitos === GameData.AFK.amostra. medida(estado) -> { p, duracaoS } | null (incompleta).
+ * OFFLINE: minutos = clamp(agoraMin − vaga.inicioMin, 0, limite); corridas = floor(minutos × 60 / duração média); a
+ *   corrida k usa a mesma seedCorrida que a corrida ao vivo de contador vaga.contador + k usaria; vence se
+ *   mulberry32(hash2(seedCorrida, 0x0FF1))() < p; o prêmio é o premio() de sempre. Sem medida completa: 0 corridas.
+ *   limiteOffline(aveiaMin, bestiarioMin) = min(offlineTetoMin, offlineMin + aveia + bestiário).
  * VAGAS: até GameData.AFK.vagaPreco.length (5); a de índice k custa vagaPreco[k] de Ouro livre (fora do reservado da
  *   sala aberta; quem chama passa o Ouro livre).
  */
@@ -46,7 +55,7 @@
   var GR = node ? require('./gear.js') : root.Gear;
 
   var K = G.AFK;
-  var SAL = 0x41460000, SAL_DROP = 0xD209, SAL_PECA = 0x9ECA;
+  var SAL = 0x41460000, SAL_DROP = 0xD209, SAL_PECA = 0x9ECA, SAL_OFF = 0x0FF1, SAL_MEDIDA = 0x4D45;
   var BONUS_TIPOS = ['material', 'xp', 'raro', 'trofeu', 'ouro'];
 
   function temChave(o, k) { return !!o && Object.prototype.hasOwnProperty.call(o, k); }
@@ -204,6 +213,82 @@
   }
 
   // ---------------------------------------------------------------------------------------------
+  // Chance medida e offline
+  // ---------------------------------------------------------------------------------------------
+  function hashTexto(t) {   // FNV-1a de 32 bits
+    var h = 0x811C9DC5;
+    for (var i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h >>> 0;
+  }
+  var CAMPOS_CHAVE = ['element', 'rarity', 'grau', 'level', 'torroes'];
+  function chaveConfig(cavalo, id) {
+    if (!objeto(cavalo) || !fase(id)) return null;
+    var partes = [S.VERSION, id];
+    CAMPOS_CHAVE.forEach(function (c) { partes.push(cavalo[c] == null ? '' : String(cavalo[c])); });
+    ['potential', 'alloc'].forEach(function (c) {
+      var o = objeto(cavalo[c]) || {};
+      partes.push(G.STAT_KEYS.map(function (k) { return o[k] == null ? 0 : o[k]; }).join(','));
+    });
+    var sk = Array.isArray(cavalo.skills) ? cavalo.skills : [], rk = objeto(cavalo.skillRanks) || {};
+    partes.push(sk.map(function (s) { return s + '=' + (rk[s] == null ? 1 : rk[s]); }).join(','));
+    return partes.join('|');
+  }
+  function amostraDe(opts) { var o = objeto(opts) || {}; return inteiro(o.amostra) && o.amostra > 0 ? o.amostra : K.amostra; }
+  function estadoOk(e, chave, total) {
+    return objeto(e) && e.chave === chave && inteiro(e.feitos) && e.feitos >= 0 && e.feitos <= total && inteiro(e.vitorias) && e.vitorias >= 0 &&
+      e.vitorias <= e.feitos && typeof e.somaDuracao === 'number' && isFinite(e.somaDuracao) && e.somaDuracao >= 0;
+  }
+  // opts (só para as ferramentas de balanço): { amostra: outro tamanho, sal: outra série de seeds }.
+  function medirPasso(estado, cavalo, id, n, opts) {
+    var chave = chaveConfig(cavalo, id);
+    if (chave === null || (cavalo.skills != null && !Array.isArray(cavalo.skills))) return null;
+    var total = amostraDe(opts), o = objeto(opts) || {};
+    var e = estadoOk(estado, chave, total) ? { chave: chave, feitos: estado.feitos, vitorias: estado.vitorias, somaDuracao: estado.somaDuracao }
+      : { chave: chave, feitos: 0, vitorias: 0, somaDuracao: 0 };
+    var base = S.hash2(hashTexto(chave), SAL_MEDIDA + (inteiro(o.sal) && o.sal > 0 ? o.sal : 0)), f = fase(id), pista = G.GYMS[f.gymId].pista;
+    var ate = Math.min(total, e.feitos + (inteiro(n) && n > 0 ? n : 0));
+    for (var i = e.feitos; i < ate; i++) {
+      var res = S.simulate(GY.dueloCfg(cavalo, oponente(id, i), S.hash2(base, i), { pista: pista }));
+      if (res.finishOrder[0] === 0) e.vitorias++;
+      var t0 = res.finishTimes[0], t1 = res.finishTimes[1];
+      e.somaDuracao += Math.max(isFinite(t0) ? t0 : 0, isFinite(t1) ? t1 : 0);
+    }
+    e.feitos = ate;
+    e.somaDuracao = Math.round(e.somaDuracao * 10) / 10;
+    return e;
+  }
+  function medidaPronta(estado, opts) { return !!objeto(estado) && typeof estado.chave === 'string' && estadoOk(estado, estado.chave, amostraDe(opts)) && estado.feitos === amostraDe(opts); }
+  function medida(estado, opts) {
+    if (!medidaPronta(estado, opts)) return null;
+    return { p: estado.vitorias / estado.feitos, duracaoS: Math.round(estado.somaDuracao / estado.feitos * 10) / 10 };
+  }
+  function minutosOk(x) { return typeof x === 'number' && isFinite(x) && x > 0 ? x : 0; }
+  function limiteOffline(aveiaMin, bestiarioMin) { return Math.min(K.offlineTetoMin, K.offlineMin + minutosOk(aveiaMin) + minutosOk(bestiarioMin)); }
+  function offlineVenceu(seed, p) { return S.mulberry32(S.hash2(seed, SAL_OFF))() < p; }
+  // vaga = { uid, faseId, inicioMin, contador }; med = { p, duracaoS } (a medida completa); idx = o número da vaga (0–4).
+  // -> { minutos, corridas, vitorias, xp, ouro, itens, pedras, pecas, contador (o novo) }
+  function offline(vaga, agoraMin, med, seedBase, bonus, limiteMin, idx) {
+    var v = objeto(vaga) || {}, m = objeto(med) || {};
+    var out = { minutos: 0, corridas: 0, vitorias: 0, xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: [], contador: inteiro(v.contador) && v.contador >= 0 ? v.contador : 0 };
+    if (!v.uid || !fase(v.faseId) || !inteiro(v.contador) || v.contador < 0 || !vagaOk(idx == null ? 0 : idx)) return out;
+    if (typeof v.inicioMin !== 'number' || !isFinite(v.inicioMin) || typeof agoraMin !== 'number' || !isFinite(agoraMin)) return out;
+    if (typeof seedBase !== 'number' || !isFinite(seedBase)) return out;
+    if (!(typeof m.p === 'number' && m.p >= 0 && m.p <= 1) || !(typeof m.duracaoS === 'number' && isFinite(m.duracaoS) && m.duracaoS > 0)) return out;
+    var limite = Math.min(K.offlineTetoMin, minutosOk(limiteMin));
+    out.minutos = Math.max(0, Math.min(limite, agoraMin - v.inicioMin));
+    out.corridas = Math.floor(out.minutos * 60 / m.duracaoS + 1e-9);
+    for (var k = 0; k < out.corridas; k++) {
+      var seed = seedCorrida(seedBase, idx == null ? 0 : idx, v.contador + k), venceu = offlineVenceu(seed, m.p), p = premio(v.faseId, venceu, seed, bonus);
+      if (venceu) out.vitorias++;
+      out.xp += p.xp; out.ouro += p.ouro; out.pedras += p.pedras;
+      for (var id in p.itens) if (temChave(p.itens, id)) out.itens[id] = (out.itens[id] || 0) + p.itens[id];
+      for (var q = 0; q < p.pecas.length; q++) out.pecas.push(p.pecas[q]);
+    }
+    out.contador = v.contador + out.corridas;
+    return out;
+  }
+
+  // ---------------------------------------------------------------------------------------------
   // Vagas
   // ---------------------------------------------------------------------------------------------
   function podeComprarVaga(qtdAtual, ouroLivre) {
@@ -226,6 +311,13 @@
     seedCorrida: seedCorrida,
     premio: premio,
     correr: correr,
+    chaveConfig: chaveConfig,
+    medirPasso: medirPasso,
+    medidaPronta: medidaPronta,
+    medida: medida,
+    limiteOffline: limiteOffline,
+    offlineVenceu: offlineVenceu,
+    offline: offline,
     podeComprarVaga: podeComprarVaga
   };
 

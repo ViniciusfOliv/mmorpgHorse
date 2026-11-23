@@ -3,6 +3,31 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — AFK, execução do bloco A (decisões do construtor; o design não muda)
+- **`faseId` usa o id do ginásio do catálogo** (`fogo:2:dificil`, e não `fornalha:2:dificil` como no exemplo do plano):
+  é o id que o `GameData.GYMS` e o progresso do save já usam.
+- **A vantagem de elemento do AFK é a do ginásio (`GYM.vantagem`, hoje 4%)**, e não um número próprio: a spec diz "nas
+  regras do duelo de ginásio" e cita 3%, que era o valor antigo; a corrida AFK chama o mesmo `Ginasio.dueloCfg`.
+- **Amostra da chance medida: 1.600 duelos (a spec partia de 400).** Medido em 30 configurações contra 5.000 duelos: com
+  400, só 25 ficam a menos de 3 p.p. (a conta do desvio de uma proporção dá o mesmo: ±2,5 p.p. perto de 50%); com 1.200,
+  29; com 1.600, as 30. A meta E3 pede 95%. 1.600 duelos levam ~1 s num computador, feitos em fatias.
+- **Peça solta (Comum ou Mágica) só cai na Normal**, Rara na Difícil (1%) e na Lendária (2%), Lendária só na Lendária
+  (0,2%): a leitura literal da tabela do §5.4. Das soltas, 30% saem Mágicas (número de partida, `drops.peca.normal.magica`).
+- **"Drop raro" (bônus das peças e do bestiário) multiplica incomum, Pedra, peça e comida**, como na lista do §5.7; o
+  Pergaminho de reforja e o troféu ficam fora (o troféu tem o bônus dele). O teto de 60% do incomum vale antes do bônus.
+- **Quantidade com fração (bônus de material e de Ouro):** a parte inteira e mais 1 com chance igual à fração, pela seed
+  — o valor esperado fica exato, e +3% de Ouro vale alguma coisa mesmo com 2 de Ouro por vitória.
+- **Na derrota, o material é `floor(quantidade × 25%)`**, como a spec manda: na Normal isso é sempre 0 (1 a 3 × 25%), na
+  Difícil 0 a 1 e na Lendária 1 a 3.
+- **A Pedra Negra que cai não é item da mochila:** vai para o saldo de Pedras que o save já tem (`pedras` no prêmio).
+- **Troféus:** `trofeu-<ginásio>-<etapa>`, com o nome "<objeto> do <oponente>" (os 15 objetos em `GameData.AFK.trofeus`).
+- **Os itens do AFK entram em `GameData.ITEMS` com `grupo`**; `GameData.ITENS_USO` lista os seis de antes (as telas e os
+  testes que enumeravam o catálogo passaram a usar essa lista).
+- **Seed da corrida AFK: `hash2(hash2(seedBase, 0x41460000 + vaga), contador)`**; o offline decide a corrida k com a
+  mesma seed que a corrida ao vivo de mesmo contador usaria (o contador segue de onde parou).
+- **Os oponentes dos ginásios não têm skill de vaga hoje** (são os iniciais): o rank 3 e o rank 5 da Difícil e da
+  Lendária ficam prontos, mas só o nível (e, no bloco B, as peças) deixa essas dificuldades mais fortes.
+
 ## 2026-11-23 — AFK: revisão do Vinicius (spec e plano atualizados)
 - **Treinar pelo ginásio:** Expedição → ginásio → os oponentes já vencidos com "Treinar (AFK)".
 - **Drop exclusivo por ginásio pesa de verdade:** a peça Rara (e a Lendária) do conjunto só se forja com o incomum e os

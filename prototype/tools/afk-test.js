@@ -19,7 +19,7 @@ function progCom(etapas) { var o = {}; G.GYM_ORDER.forEach(function (id) { o[id]
 function cav(base, level, grau) { var h = GY.cavalo({ base: base, level: level, grau: grau || 2 }); h.uid = 'c-' + base + '-' + level; return h; }
 
 section('fases, dificuldades e vagas');
-test('GameData.AFK: três dificuldades, liberação em 50 vitórias, preço das 5 vagas, limites do offline e amostra de 400', function () {
+test('GameData.AFK: três dificuldades, liberação em 50 vitórias, preço das 5 vagas, limites do offline e amostra de 1.600', function () {
   var K = G.AFK;
   assert.deepStrictEqual(K.difs.map(function (d) { return d.id; }), ['normal', 'dificil', 'lendaria']);
   assert.deepStrictEqual(K.difs.map(function (d) { return d.mult; }), [1, 2, 4]);
@@ -30,7 +30,7 @@ test('GameData.AFK: três dificuldades, liberação em 50 vitórias, preço das 
   assert.deepStrictEqual(K.difs[2].pecas, { rar: 'raro', plus: 5, doConjunto: true });
   assert.strictEqual(K.liberaApos, 50);
   assert.deepStrictEqual(K.vagaPreco, [0, 1000, 3000, 8000, 20000]);
-  assert.strictEqual(K.offlineMin, 480); assert.strictEqual(K.offlineTetoMin, 720); assert.strictEqual(K.amostra, 400);
+  assert.strictEqual(K.offlineMin, 480); assert.strictEqual(K.offlineTetoMin, 720); assert.strictEqual(K.amostra, 1600);
 });
 test('faseId e fase: ida e volta nas 45 fases; id estragado devolve null', function () {
   var n = 0;
@@ -314,6 +314,131 @@ test('material e incomum de um ginásio nunca caem em outro; o troféu é o do o
       assert.ok(c.ids[M.comuns[0]] > 0 && c.ids[M.comuns[1]] > 0 && c.ids[M.incomum] > 0, g + ' ' + e + ': os três materiais caem');
     }
   });
+});
+
+section('chance medida e offline');
+function medir(h, f, opts) { var e = null; do { e = A.medirPasso(e, h, f, 400, opts); } while (!A.medidaPronta(e, opts)); return e; }
+test('chaveConfig muda com nível, pontos, skills, ranks, estrelas, torrões e fase; não muda com nome, uid nem XP', function () {
+  var h = cav('mare', 20); h.skills = ['arranque']; h.skillRanks = { arranque: 2 };
+  var k = A.chaveConfig(h, 'fogo:1:normal');
+  assert.strictEqual(typeof k, 'string'); assert.strictEqual(A.chaveConfig(JSON.parse(JSON.stringify(h)), 'fogo:1:normal'), k);
+  function muda(fn, f) { var c = JSON.parse(JSON.stringify(h)); fn(c); return A.chaveConfig(c, f || 'fogo:1:normal') !== k; }
+  assert.ok(muda(function (c) { c.level = 21; }), 'nível');
+  assert.ok(muda(function (c) { c.alloc.vel += 1; }), 'pontos');
+  assert.ok(muda(function (c) { c.skills = ['sprint']; c.skillRanks = { sprint: 2 }; }), 'skills');
+  assert.ok(muda(function (c) { c.skillRanks.arranque = 3; }), 'ranks');
+  assert.ok(muda(function (c) { c.grau = 3; }), 'estrelas');
+  assert.ok(muda(function (c) { c.torroes = 2; }), 'torrões');
+  assert.ok(muda(function (c) { c.potential.vel = (c.potential.vel + 1) % 32; }), 'genética');
+  assert.ok(muda(function () {}, 'fogo:1:dificil'), 'dificuldade'); assert.ok(muda(function () {}, 'agua:1:normal'), 'ginásio');
+  assert.ok(!muda(function (c) { c.name = 'Outro'; c.uid = 'zz'; c.xp = 999; c.breedLeft = 0; }), 'nome, uid e XP não mexem na corrida');
+  assert.strictEqual(A.chaveConfig(null, 'fogo:1:normal'), null); assert.strictEqual(A.chaveConfig(h, 'lixo'), null);
+});
+test('medirPasso: avança em fatias até a amostra, sem passar; mesma configuração dá a mesma medida; outra configuração recomeça', function () {
+  var h = congela(cav('ipe', 16)), f = 'agua:3:normal', N = G.AFK.amostra;
+  var e = A.medirPasso(null, h, f, 10);
+  assert.strictEqual(e.feitos, 10); assert.strictEqual(e.chave, A.chaveConfig(h, f)); assert.ok(e.vitorias >= 0 && e.vitorias <= 10 && e.somaDuracao > 400);
+  assert.strictEqual(A.medidaPronta(e), false); assert.strictEqual(A.medida(e), null, 'incompleta não vale');
+  var e2 = A.medirPasso(e, h, f, 7); assert.strictEqual(e2.feitos, 17); assert.strictEqual(e.feitos, 10, 'não muta a entrada');
+  var fim = A.medirPasso(e2, h, f, 99999);
+  assert.strictEqual(fim.feitos, N); assert.strictEqual(A.medidaPronta(fim), true);
+  assert.deepStrictEqual(A.medirPasso(fim, h, f, 50), fim, 'completa: não anda mais');
+  var deUma = medir(h, f);
+  assert.deepStrictEqual(deUma, fim, 'em fatias de 10, 7 e o resto ou de 400 em 400: a mesma medida');
+  var m = A.medida(fim);
+  assert.ok(m.p > 0 && m.p < 1 && Math.abs(m.p - fim.vitorias / N) < 1e-12); assert.ok(m.duracaoS > 55 && m.duracaoS < 95, 'duração média de um duelo: ' + m.duracaoS);
+  // outra configuração (o cavalo subiu de nível): recomeça do zero
+  var h2 = cav('ipe', 17), r = A.medirPasso(fim, h2, f, 5);
+  assert.strictEqual(r.feitos, 5); assert.strictEqual(r.chave, A.chaveConfig(h2, f));
+  // estado estragado recomeça; entrada inválida devolve null
+  ['x', {}, { chave: fim.chave, feitos: -1, vitorias: 0, somaDuracao: 0 }, { chave: fim.chave, feitos: 5, vitorias: 9, somaDuracao: 1 }, { chave: fim.chave, feitos: 1.5, vitorias: 0, somaDuracao: 1 }].forEach(function (x, i) {
+    assert.strictEqual(A.medirPasso(x, h, f, 3).feitos, 3, 'estragado ' + i);
+  });
+  assert.strictEqual(A.medirPasso(null, h, 'lixo', 3), null); assert.strictEqual(A.medirPasso(null, null, f, 3), null);
+  assert.strictEqual(A.medirPasso(null, h, f, 0).feitos, 0);
+  // a medição usa seeds próprias da configuração: não depende do save nem do contador da vaga
+  assert.notStrictEqual(medir(cav('ipe', 30), f).vitorias, fim.vitorias);
+});
+test('E3 rápido: em 10 configurações, p com a amostra fica a menos de 3 p.p. do p com 3.000 em pelo menos 9', function () {
+  var ok = 0, linhas = [];
+  for (var i = 0; i < 10; i++) {
+    var d = ['normal', 'dificil', 'lendaria'][i % 3], e = (i * 2) % 5, g = G.GYM_ORDER[(i * 7) % 3], f = A.fase(g + ':' + e + ':' + d);
+    var h = cav(['brasa', 'mare', 'ipe'][(i + 1) % 3], Math.max(1, Math.min(50, f.nivel + [-3, 0, 2, 5, -1][i % 5])), 2 + (i % 2));
+    var p = A.medida(medir(h, f.id)).p, REF = { amostra: 3000, sal: 1 }, ref = A.medida(medir(h, f.id, REF), REF).p;
+    if (Math.abs(p - ref) < 0.03) ok++;
+    linhas.push(f.id + ' ' + p.toFixed(3) + ' × ' + ref.toFixed(3));
+  }
+  assert.ok(ok >= 9, ok + ' de 10: ' + linhas.join('; '));
+});
+function vagaDe(o) { return Object.assign({ uid: 'm1', faseId: 'fogo:2:normal', inicioMin: 1000, contador: 40 }, o || {}); }
+var MED = { p: 0.5, duracaoS: 75 };
+test('offline: minutos ÷ duração média, para baixo; cada corrida um número da seed contra p; cada vitória rola os drops como ao vivo', function () {
+  var v = vagaDe(), r = A.offline(v, 1000 + 120, MED, 777, BONUS0, 480, 2);
+  assert.strictEqual(r.minutos, 120); assert.strictEqual(r.corridas, Math.floor(120 * 60 / 75)); assert.strictEqual(r.contador, 40 + r.corridas);
+  assert.ok(r.vitorias > 30 && r.vitorias < 66, 'perto da metade de 96: ' + r.vitorias);
+  // refaz corrida a corrida pela regra
+  var xp = 0, ouro = 0, vit = 0, itens = {}, pedras = 0, pecas = [];
+  for (var k = 0; k < r.corridas; k++) {
+    var sd = A.seedCorrida(777, 2, 40 + k), venceu = A.offlineVenceu(sd, MED.p), p = A.premio(v.faseId, venceu, sd, BONUS0);
+    vit += venceu ? 1 : 0; xp += p.xp; ouro += p.ouro; pedras += p.pedras; pecas = pecas.concat(p.pecas);
+    Object.keys(p.itens).forEach(function (id) { itens[id] = (itens[id] || 0) + p.itens[id]; });
+  }
+  assert.strictEqual(r.vitorias, vit); assert.strictEqual(r.xp, xp); assert.strictEqual(r.ouro, ouro); assert.strictEqual(r.pedras, pedras);
+  assert.deepStrictEqual(r.itens, itens); assert.deepStrictEqual(r.pecas, pecas);
+  // as seeds do offline são as mesmas das corridas ao vivo que a vaga faria (o contador segue de onde parou)
+  assert.strictEqual(A.seedCorrida(777, 2, 40), A.correr(cav('mare', 12), v.faseId, 777, 40, BONUS0, { vaga: 2 }).cfg.seed);
+  // p 0 nunca vence, p 1 sempre
+  assert.strictEqual(A.offline(v, 1120, { p: 0, duracaoS: 75 }, 777, BONUS0, 480, 2).vitorias, 0);
+  assert.strictEqual(A.offline(v, 1120, { p: 1, duracaoS: 75 }, 777, BONUS0, 480, 2).vitorias, 96);
+});
+test('offline é determinístico e não muta a vaga', function () {
+  var v = congela(vagaDe()), a = A.offline(v, 1300, MED, 5, { material: 0.2, xp: 0.1, raro: 0.3, trofeu: 0.5, ouro: 0.1 }, 480, 0);
+  assert.deepStrictEqual(a, A.offline(v, 1300, MED, 5, { material: 0.2, xp: 0.1, raro: 0.3, trofeu: 0.5, ouro: 0.1 }, 480, 0));
+  assert.notDeepStrictEqual(a.itens, A.offline(v, 1300, MED, 6, BONUS0, 480, 0).itens);
+});
+test('agora antes do início dá 0 corridas, sem ganho negativo e sem erro (Foco 2)', function () {
+  [999, 0, -5000].forEach(function (agora) {
+    var r = A.offline(vagaDe(), agora, MED, 1, BONUS0, 480, 0);
+    assert.deepStrictEqual(r, { minutos: 0, corridas: 0, vitorias: 0, xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: [], contador: 40 });
+  });
+  assert.strictEqual(A.offline(vagaDe(), 1000, MED, 1, BONUS0, 480, 0).corridas, 0, 'agora igual ao início');
+  assert.strictEqual(A.offline(vagaDe(), 1001, MED, 1, BONUS0, 480, 0).corridas, 0, '1 minuto não dá uma corrida de 75 s');
+  assert.strictEqual(A.offline(vagaDe(), 1002, MED, 1, BONUS0, 480, 0).corridas, 1);
+});
+test('3 dias fora conta só o limite (Foco 1)', function () {
+  var r = A.offline(vagaDe(), 1000 + 3 * 24 * 60, MED, 1, BONUS0, 480, 0);
+  assert.strictEqual(r.minutos, 480); assert.strictEqual(r.corridas, Math.floor(480 * 60 / 75));
+  assert.strictEqual(A.offline(vagaDe(), 1000 + 3 * 24 * 60, MED, 1, BONUS0, 99999, 0).minutos, G.AFK.offlineTetoMin, 'limite pedido acima do teto: vale o teto');
+});
+test('limite com Aveia e bestiário nunca passa de 720 min', function () {
+  assert.strictEqual(A.limiteOffline(0, 0), 480); assert.strictEqual(A.limiteOffline(60, 0), 540); assert.strictEqual(A.limiteOffline(60, 120), 660);
+  assert.strictEqual(A.limiteOffline(180, 180), 720); assert.strictEqual(A.limiteOffline(99999, 99999), 720);
+  assert.strictEqual(A.limiteOffline(-50, 'x'), 480); assert.strictEqual(A.limiteOffline(NaN, null), 480); assert.strictEqual(A.limiteOffline(), 480);
+});
+test('offline sem medida completa, com vaga vazia ou entrada estragada: 0 corridas', function () {
+  var zero = function (r) { assert.strictEqual(r.corridas, 0); assert.strictEqual(r.xp, 0); assert.deepStrictEqual(r.itens, {}); };
+  [null, {}, { p: 0.5 }, { p: NaN, duracaoS: 75 }, { p: 2, duracaoS: 75 }, { p: 0.5, duracaoS: 0 }, { p: 0.5, duracaoS: -3 }].forEach(function (m) { zero(A.offline(vagaDe(), 2000, m, 1, BONUS0, 480, 0)); });
+  zero(A.offline(vagaDe({ uid: null }), 2000, MED, 1, BONUS0, 480, 0)); zero(A.offline(vagaDe({ faseId: 'lixo' }), 2000, MED, 1, BONUS0, 480, 0));
+  zero(A.offline(vagaDe({ inicioMin: 'x' }), 2000, MED, 1, BONUS0, 480, 0)); zero(A.offline(vagaDe({ contador: -1 }), 2000, MED, 1, BONUS0, 480, 0));
+  zero(A.offline(null, 2000, MED, 1, BONUS0, 480, 0)); zero(A.offline(vagaDe(), NaN, MED, 1, BONUS0, 480, 0)); zero(A.offline(vagaDe(), 2000, MED, 1, BONUS0, 480, 7));
+  zero(A.offline(vagaDe(), 2000, MED, 1, BONUS0, -10, 0));
+});
+test('offline de 8 h com p de 0,5 roda em menos de 200 ms no Node; o de 12 h com corridas de 55 s também', function () {
+  var t = process.hrtime.bigint();
+  var r = A.offline(vagaDe(), 1000 + 480, MED, 31, BONUS0, 480, 0), r2 = A.offline(vagaDe({ faseId: 'agua:4:lendaria' }), 1000 + 720, { p: 0.5, duracaoS: 55 }, 31, BONUS0, 720, 4);
+  var ms = Number(process.hrtime.bigint() - t) / 1e6;
+  assert.strictEqual(r.corridas, 384); assert.strictEqual(r2.corridas, 785);
+  assert.ok(ms < 200, ms.toFixed(1) + ' ms');
+});
+test('offline rende, em média, o mesmo que ao vivo com o mesmo p (o ganho esperado é o mesmo nos dois modos)', function () {
+  // 40 períodos de 8 h com p medido contra as corridas de verdade do mesmo cavalo (800 ao vivo)
+  var h = cav('mare', 22), f = 'fogo:4:normal', m = A.medida(medir(h, f));
+  var vivoXp = 0, vivoMat = 0, n = 800;
+  for (var c = 0; c < n; c++) { var r = A.correr(h, f, 2024, c, BONUS0); vivoXp += r.xp; vivoMat += (r.itens.carvao || 0) + (r.itens['ferro-bruto'] || 0); }
+  var offXp = 0, offMat = 0, offN = 0;
+  for (var k = 0; k < 40; k++) { var o = A.offline(vagaDe({ faseId: f, contador: 0 }), 1480, m, 9000 + k, BONUS0, 480, 0); offXp += o.xp; offMat += (o.itens.carvao || 0) + (o.itens['ferro-bruto'] || 0); offN += o.corridas; }
+  assert.ok(Math.abs(offXp / offN - vivoXp / n) / (vivoXp / n) < 0.05, 'XP por corrida: offline ' + (offXp / offN).toFixed(1) + ' × ao vivo ' + (vivoXp / n).toFixed(1));
+  assert.ok(Math.abs(offMat / offN - vivoMat / n) / (vivoMat / n) < 0.06, 'material por corrida: offline ' + (offMat / offN).toFixed(2) + ' × ao vivo ' + (vivoMat / n).toFixed(2));
 });
 
 section('pureza');
