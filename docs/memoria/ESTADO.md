@@ -1,6 +1,11 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-20._
+_Atualizado em 2026-11-23._
+
+**Próxima frente (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE.** Spec
+`docs/superpowers/specs/2026-11-23-afk-drops-design.md` e plano `docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B)
+aprovados pelo Vinicius; a implementação parte da `main` (que já tem as skills com ranks e a direção de arte). O rancho
+ficou só como ideia.
 
 **Em andamento (2026-11-21):** as **skills com 100% de ativação e ranks**, com a Garra também sem falhar, **entraram na
 `main` em 2026-11-21** (pedido do Vinicius; seção própria abaixo) e os três artefatos oficiais foram republicados; o teste de engine web × Godot 4 num chat próprio
