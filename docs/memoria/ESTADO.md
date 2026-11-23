@@ -1,6 +1,10 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-20._
+_Atualizado em 2026-11-23._
+
+**Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
+aparelho-alvo ficar abaixo de 45 FPS no 1% low até em escala 1×). Steam no escopo (Electron + steamworks.js). Antes do
+lançamento: rodada longa travada em 60 FPS no celular e bateria num Android fraco.
 
 **Em andamento (2026-11-21):** as **skills com 100% de ativação e ranks**, com a Garra também sem falhar, **entraram na
 `main` em 2026-11-21** (pedido do Vinicius; seção própria abaixo) e os três artefatos oficiais foram republicados; o teste de engine web × Godot 4 num chat próprio
@@ -387,6 +391,20 @@ Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/sup
   Garra sem falhar; os três oficiais não foram tocados).
 
 ## Em andamento
+- **Teste de engine, web × Godot 4 (spike de 2026-11-19, branch `claude/teste-engine`, fora da `main`): resultado,
+  fica web.** Relatório em `docs/teste-engine.md`; decisão em `decisoes.md` (o Vinicius pode vetar). Página de carga em
+  `prototype/spike/` (descartável, fora do `check.sh` e do build), publicada como artefato:
+  https://claude.ai/artifact/UvJifXrNdRyHJngmAaJHTm (`prototype/spike/engine.html`, gerado por
+  `node prototype/spike/gerar-engine.mjs`; bateria no contêiner: `node prototype/spike/medir-engine.mjs`).
+  - No celular do Vinicius, na WebView do app do Claude, o pior caso fez 119,6 FPS a 120 Hz, com 1% low de 82,4 e
+    JS de 3,2 ms.
+  - A fase "travada em 60" reprovou por defeito do limitador do spike, corrigido na v3.
+  - **Falta:** uma rodada longa (Rodada livre de 60 s, limite 60 FPS, v3) no celular e a bateria num Android fraco antes
+    do lançamento.
+  - **No jogo, quando for a hora:** travar a corrida em 60 FPS com o acumulador do spike.
+  - Aparelho do Vinicius: Galaxy S24 FE. A rodada longa estava sendo feita por ele em 2026-11-19.
+  - **Steam no escopo (2026-11-19):** caminho Electron + steamworks.js sobre a mesma base web; comparação de motores
+    com jogos de referência no §8 do relatório; itens novos no checklist da Steam no `docs/cronograma.md`.
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do
   Vinicius):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos na `main`, 4 por vez, e os 8
   com medição de tempo depois, um por vez; com os ginásios são 71 blocos, 9 deles em série). A verificação caiu de ~16 para ~8 min (hoje, com os ginásios, ~10 min). A meta de ~5 min não fechou: o que
@@ -499,6 +517,9 @@ Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/sup
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
+- **Teste de engine:** decidido, fica web. Falta a rodada longa no celular (60 s travada em 60, spike v3) e, perto do
+  lançamento, a bateria num Android fraco (checklist do empacotamento). Travar a corrida em 60 FPS no `game.js` leva
+  ½ dia e pode entrar com o bloco de empacotamento.
 - **Frente de itens (na `main`):** o Vinicius joga nos artefatos oficiais e decide a lista "A confirmar com o Vinicius
   (gosto, itens)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Pedidos de 2026-11-18 (na `main` desde o mesmo dia):** feitos: a corrida 50% mais longa na tela; na aba Skills da
