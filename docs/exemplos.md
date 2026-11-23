@@ -153,7 +153,7 @@ entre os cavalos, não entre os ginásios); no do Remanso, um cavalo ★★★ n
 níveis (4/8/12/16/20), os descontos do cansaço, o teto e o XP não mudaram. Um desafio do líder tem ~4,7 duelos e
 leva ~6 min de corrida.
 
-## 5b. Corrida AFK (metas E1 a E5, 2026-11-23)
+## 5b. Corrida AFK (metas E1 a E6, 2026-11-23)
 
 Spec: `docs/superpowers/specs/2026-11-23-afk-drops-design.md` §7. Medido pelo `balance.js` completo (a seção sozinha:
 `node prototype/tools/balance.js --afk`, ~45 s). Cavalo típico das metas E1 e E2: Raro ★★, genética 16 em tudo, build dos
@@ -171,7 +171,28 @@ nível (10, 20, 35, 50) × elemento do cavalo × ginásio (36 casos).
 | E3 o que o offline sorteia ÷ o valor esperado pela tabela (198.552 corridas) | 1,00 | 0,97–1,03 |
 | E5 determinismo (corridas, offline de 8 h, medição em fatias) e nada de `Math.random` nem relógio | sim | — |
 
-A E4 (peças) e a E6 (reforja) entram com o bloco B.
+**Bloco B (2026-11-23, `balance.js` completo: 380 metas, todas passam).** Com as peças no treino (os oponentes da
+Difícil com 5 Mágicas +3 e os da Lendária com 5 Raras +5 do conjunto), os números da tabela acima mudaram um pouco:
+
+| Meta | Medido | Faixa |
+|---|---|---|
+| E1 Ouro do AFK por hora, níveis 10 / 20 / 35 / 50; teto absoluto | 132,1 / 294,1 / 360,6 / 369,2; 370,4 | < 450 |
+| E2 casos em que a fase de maior ganho é a mais difícil liberada | 10 de 36 (27,8%) | até 50% |
+| E2 casos em que fica 1 ou 2 degraus abaixo (informação) | 10 de 36 (27,8%); 3 ou mais abaixo: 16 | a meta pede ≥ 50% |
+| E3 chance medida a menos de 3 p.p. da referência | 45 de 45; a pior, 2,50 p.p. | ≥ 95% |
+| E3 offline ÷ ao vivo; sorteado ÷ esperado | 1,00; 1,01 | 0,97–1,03 |
+| E4 nível 45 com 5 Raras +7 do conjunto contra o líder na Lendária (Fornalha / Remanso / Capoeira) | 55,3% / 51,7% / 56,9% | 40–60% |
+| E4 o mesmo cavalo sem peças | 22,1% / 26,6% / 23,5% | 15–35% |
+| E6 reforja, 10.000 por raridade: cada tipo (Mágico 20%, Raro 25%, Lendário 33,3%) | o mais longe, 0,7 p.p. | ± 1 p.p. |
+| E6 valor fora da faixa; com Selo, tipo trocado ou valor abaixo da metade | 0; 0 | 0 |
+
+- **E4, o que a calibração mudou:** o principal das peças passou a 0,75 · 1 · 1,25 · 1,75 (Comum a Lendário) e a
+  melhoria a +0,2 por nível (eram 2 · 2 · 3 · 4 e +0,5, do tempo em que a peça valia no PVP). Com os valores antigos o
+  cavalo com 5 Raras +7 ganhava quase sempre. O status é inteiro: a soma das peças de um slot é arredondada, então os
+  degraus são de 1 ponto (5 Raras +7 = +2,65 → +3 por status; as 5 Raras +5 do líder = +2,25 → +2).
+- **E2, segunda parte:** continua sem fechar e piorou (de 44% para 28%): com as peças, a Difícil e a Lendária ficaram mais
+  duras para o cavalo típico da medição, que corre **sem peças**, e a fase que mais rende cai 3 ou mais degraus abaixo
+  em 16 casos. Fica como informação; a primeira parte ("não é sempre a mais difícil") é a que confere.
 
 **O que a calibração mudou** (números de partida):
 - **Ouro por vitória: 0,3 · 0,45 · 0,6 · 0,75 · 1,2** (Soldado 1 ao líder, × dificuldade; a spec partia de 2 · 3 · 4 · 5 · 8).

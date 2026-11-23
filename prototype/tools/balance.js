@@ -1590,7 +1590,7 @@ function reportAfk(R) {
     }
     var esp = 100 / livres.length;
     log('| ' + G.RARITIES[rar].name + ' | ' + livres.length + ' | ' + esp.toFixed(1) + '% | ' + livres.map(function (t) { return t + ' ' + (100 * conta[t] / N_E6).toFixed(1) + '%'; }).join(' · ') + ' | ' + fora + ' | ' + trocou + ' | ' + baixo + ' |');
-    livres.forEach(function (t) { check('E6', 'Reforja ' + G.RARITIES[rar].name + ': tipo "' + t + '" na proporção esperada (' + esp.toFixed(1) + '% ± 1 p.p.)', 100 * conta[t] / N_E6, esp - 1, esp + 1); });
+    livres.forEach(function (t) { check('E6', 'Reforja ' + G.RARITIES[rar].name + ': tipo "' + t + '" na proporção esperada (' + esp.toFixed(1) + '% ± 1 p.p.)', 100 * conta[t] / N_E6, +(esp - 1).toFixed(1), +(esp + 1).toFixed(1)); });
     checkBool('E6', 'Reforja ' + G.RARITIES[rar].name + ': valor sempre dentro da faixa, as outras linhas intactas e o rerolls + 1', fora === 0 && mudo === 0);
     checkBool('E6', 'Reforja ' + G.RARITIES[rar].name + ' com Selo: sempre o mesmo tipo e o valor na metade de cima', trocou === 0 && baixo === 0);
   });
