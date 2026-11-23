@@ -14,8 +14,9 @@ tamanho do nome mais largo) e a Força virou 16×16 como os outros status (eea20
 (3–4) **Cenas das abas num painel com moldura** e **fundo pontilhado** no lugar das tábuas (escolha do Vinicius numa prévia
 com 3 fundos; 0f95be2). (5) **Câmera que enquadra a disputa** (4 a 12 px/m, suave, o jogador e os rivais a até 45 m) e
 **seta + metros** ("+12 m"/"–8 m") para quem está fora da tela — a placa de metros tinha saído na etapa 2.4 de propósito
-(o guia dizia "sem metros"), e voltou a pedido. Falta: `check.sh` completo, capturas oficiais (`ui-test.mjs`) e
-republicar o DEV do ramo.
+(o guia dizia "sem metros"), e voltou a pedido (37559a4). `check.sh` completo OK (74 blocos), capturas oficiais
+regeneradas (536e54f) e DEV do ramo republicado (versão 8). Próximo: o Vinicius jogar e dizer se sobe para a `main` e
+republica os oficiais.
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
