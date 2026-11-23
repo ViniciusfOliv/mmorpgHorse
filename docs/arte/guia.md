@@ -172,15 +172,20 @@ Todo o resto sai da pista:
   lugar na chegada). O céu não tem jogo; a faixa do Dado nunca desce para as raias.
 - **Abaixo da pista** (HTML): ordem dos corredores, distâncias, narração.
 - **No cenário**: placas de distância e "CURVA" são objetos pintados na cerca de trás, não etiquetas flutuantes.
-- **Fora da tela**: quem sai pela borda vira uma seta de 8 px na borda, na altura da raia, com a cor da seda; sem
-  número de metros.
+- **Fora da tela**: quem sai pela borda vira uma seta de 5 × 9 na borda, na altura da raia, com a cor da seda, e ao
+  lado dela a distância até o jogador ("+12 m" à frente, "–8 m" atrás, Galmuri7 numa plaquinha escura). Refino de
+  2026-11-23, pedido do Vinicius: sem os metros não dava para saber quão longe estava a disputa.
 
 Efeitos: desenhados em pixels de arte, com cores da paleta e quadros inteiros (sem rotação nem escala suave), presos à
 grade. Partículas são retângulos de 1 a 2 px. Nada de `Math.random` (hashes da seed e do tempo, como hoje).
 
 ## 8a. Movimento da corrida
 
-- **Escala visual da câmera: 12 px de arte por metro** (a do jogo hoje é 2 a 2,5). A 16 m/s o chão passa a ~190 px/s,
+- **Câmera que enquadra a disputa** (refino de 2026-11-23, escolha do Vinicius): a escala vai de **12 px de arte por
+  metro** (de perto, com o pelotão junto) a **4 px/m**, para caber o jogador e os rivais a até 45 m dele; muda suave
+  (meia-vida de ~0,3 s), os cavalos seguem 1:1 e só as distâncias encolhem. O cenário rola pelo que a câmera andou na
+  escala do quadro (sem salto quando a escala muda). Abaixo, a conta de 12 px/m, que vale de perto:
+- **Escala visual de perto: 12 px de arte por metro** (a do jogo era 2 a 2,5). A 16 m/s o chão passa a ~190 px/s,
   quase uma tela por segundo: os cavalos parecem em velocidade máxima e o cenário passa rápido. Só a tela muda: a pista
   continua com os mesmos metros e a corrida com o mesmo tempo (pedido do Vinicius, 2026-11-20).
 - **Galope a ~2,3 passadas por segundo**: 21 quadros por segundo no ciclo de 9 do molde (x2 dobra os dois).
