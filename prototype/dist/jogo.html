@@ -6273,7 +6273,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // Estado do save
   // ---------------------------------------------------------------------------------------------
   // vaga vazia: sem início (0), para o save saneado ser o mesmo em qualquer hora; o início é posto quando um cavalo entra
-  function vagaVazia(contador) { return { uid: null, faseId: null, inicioMin: 0, contador: contador || 0, medida: null, ultima: null }; }
+  // vaga vazia: o contador e o RELÓGIO ficam (inicioMin = até onde o treino da vaga já foi contado: tirar o cavalo e pôr
+  // de novo não adianta a corrida seguinte); vaga que nunca teve cavalo: 0
+  function relogioOk(x) { return typeof x === 'number' && isFinite(x) && x > 0 ? x : 0; }
+  function vagaVazia(contador, inicioMin) { return { uid: null, faseId: null, inicioMin: relogioOk(inicioMin), contador: contador || 0, medida: null, ultima: null }; }
   // ctx = { uids: [uid dos cavalos que existem], progresso (dos ginásios), agoraMin }
   function sanear(bruto, ctx) {
     var s = objeto(bruto) || {}, c = objeto(ctx) || {}, uids = Array.isArray(c.uids) ? c.uids : [];
@@ -6289,7 +6292,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var contador = inteiro(b.contador) && b.contador >= 0 ? Math.min(b.contador, CONT_MAX) : 0;
       var inicio = typeof b.inicioMin === 'number' && isFinite(b.inicioMin) ? b.inicioMin : agora;
       var ok = typeof b.uid === 'string' && uids.indexOf(b.uid) >= 0 && !usados[b.uid] && livres.indexOf(b.faseId) >= 0;
-      if (!ok) { out.vagas.push(vagaVazia(contador)); return; }
+      if (!ok) { out.vagas.push(vagaVazia(contador, b.inicioMin)); return; }
       usados[b.uid] = true;
       var med = objeto(b.medida) && typeof b.medida.chave === 'string' && estadoOk(b.medida, b.medida.chave, K.amostra)
         ? { chave: b.medida.chave, feitos: b.medida.feitos, vitorias: b.medida.vitorias, somaDuracao: b.medida.somaDuracao } : null;
@@ -6299,10 +6302,32 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     out.xpCounter = qtdOk(s.xpCounter, CONT_MAX);
     return out;
   }
-  // a última chance completa da vaga ({ p, duracaoS }): o offline usa esta enquanto uma medida nova não termina
+  // a última chance completa da vaga ({ p, duracaoS, chave: a configuração medida }): o offline parte desta enquanto uma
+  // medida nova não termina (chanceOffline)
   function ultimaOk(u) {
     return objeto(u) && typeof u.p === 'number' && u.p >= 0 && u.p <= 1 && typeof u.duracaoS === 'number' && isFinite(u.duracaoS) && u.duracaoS > 0
-      ? { p: u.p, duracaoS: u.duracaoS } : null;
+      ? { p: u.p, duracaoS: u.duracaoS, chave: typeof u.chave === 'string' ? u.chave : null } : null;
+  }
+  // A chance que o offline usa para a vaga com o cavalo como está AGORA: a última completa, se é da configuração de
+  // agora; se a configuração mudou (peça trocada, nível, skill) e a medida nova não terminou, o MENOR entre a chance
+  // antiga e a parcial da medida em curso (0 sem amostra): tirar as peças boas de um cavalo não deixa a chance delas
+  // valendo. -> { p, duracaoS } | null (sem última completa: a vaga não rende fora da tela)
+  function chanceOffline(vaga, cavalo) {
+    var u = objeto(vaga) ? ultimaOk(vaga.ultima) : null;
+    if (!u || !objeto(cavalo) || !fase(vaga.faseId)) return null;
+    var chave = chaveConfig(cavalo, vaga.faseId);
+    if (u.chave === chave) return { p: u.p, duracaoS: u.duracaoS };
+    var m = vaga.medida, parcial = objeto(m) && m.chave === chave && estadoOk(m, chave, K.amostra) && m.feitos > 0 ? m.vitorias / m.feitos : 0;
+    return { p: Math.min(u.p, parcial), duracaoS: u.duracaoS };
+  }
+  // O relógio da vaga depois de um acerto offline: anda só o tempo das corridas contadas (o resto, menos de um duelo,
+  // continua valendo para a próxima); se o período passou do limite offline, vem para agora (o excedente não rende).
+  function relogioAposOffline(inicioMin, agoraMin, corridas, duracaoS, limiteMin) {
+    if (typeof inicioMin !== 'number' || !isFinite(inicioMin) || typeof agoraMin !== 'number' || !isFinite(agoraMin)) return relogioOk(agoraMin);
+    if (agoraMin <= inicioMin) return inicioMin;
+    var limite = Math.min(K.offlineTetoMin, minutosOk(limiteMin));
+    if (agoraMin - inicioMin > limite || !(inteiro(corridas) && corridas >= 0) || !(typeof duracaoS === 'number' && isFinite(duracaoS) && duracaoS > 0)) return agoraMin;
+    return Math.min(agoraMin, inicioMin + corridas * duracaoS / 60);
   }
   function copiaAfk(afk) { return JSON.parse(JSON.stringify(afk)); }
   // Avança a medida da vaga em n duelos (o cavalo dela, como está agora). Completa: grava vaga.ultima. Vaga vazia, ou
@@ -6313,11 +6338,12 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var e = medirPasso(vaga.medida, cavalo, vaga.faseId, n);
     if (!e) return vaga;
     var out = { uid: vaga.uid, faseId: vaga.faseId, inicioMin: vaga.inicioMin, contador: vaga.contador, medida: e, ultima: ultimaOk(vaga.ultima) };
-    if (medidaPronta(e)) out.ultima = medida(e);
+    if (medidaPronta(e)) { out.ultima = medida(e); out.ultima.chave = e.chave; }
     return out;
   }
   function plural(n, um, varios) { return n === 1 ? um : varios; }
-  // Põe o cavalo `uid` na vaga idx, na fase dada (ctx como no sanear). O relógio da vaga começa em ctx.agoraMin; a medida
+  // Põe o cavalo `uid` na vaga idx, na fase dada (ctx como no sanear). O relógio da vaga é o maior entre ctx.agoraMin, o
+  // que a vaga já tinha e o da vaga de onde o cavalo veio (trocar de vaga ou de cavalo nunca adianta uma corrida); a medida
   // e a última chance zeram (a configuração é outra); o contador fica. O cavalo sai da vaga em que estava.
   // -> { ok: true, afk } | { ok: false, motivo }
   function ocupar(afk, idx, uid, id, ctx) {
@@ -6337,15 +6363,21 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       return { ok: false, motivo: 'Essa fase ainda não está liberada.' };
     }
     var out = copiaAfk(afk);
-    out.vagas.forEach(function (v, i) { if (v.uid === uid) out.vagas[i] = vagaVazia(v.contador); });
-    out.vagas[idx] = { uid: uid, faseId: id, inicioMin: typeof c.agoraMin === 'number' && isFinite(c.agoraMin) ? c.agoraMin : 0, contador: afk.vagas[idx].contador, medida: null, ultima: null };
+    // o relógio nunca volta: o da vaga de destino, o da vaga de onde o cavalo veio (vai junto com ele) e agora — o maior
+    var relogio = Math.max(relogioOk(c.agoraMin), relogioOk(afk.vagas[idx].inicioMin));
+    out.vagas.forEach(function (v, i) {
+      if (v.uid !== uid) return;
+      relogio = Math.max(relogio, relogioOk(v.inicioMin));
+      out.vagas[i] = vagaVazia(v.contador, v.inicioMin);
+    });
+    out.vagas[idx] = { uid: uid, faseId: id, inicioMin: relogio, contador: afk.vagas[idx].contador, medida: null, ultima: null };
     return { ok: true, afk: out };
   }
-  // -> o afk com a vaga idx vazia (o contador fica) | null
+  // -> o afk com a vaga idx vazia (o contador e o relógio ficam) | null
   function esvaziar(afk, idx) {
     if (!objeto(afk) || !Array.isArray(afk.vagas) || !inteiro(idx) || idx < 0 || idx >= afk.vagas.length) return null;
     var out = copiaAfk(afk);
-    out.vagas[idx] = vagaVazia(afk.vagas[idx].contador);
+    out.vagas[idx] = vagaVazia(afk.vagas[idx].contador, afk.vagas[idx].inicioMin);
     return out;
   }
   // -> o afk com mais uma vaga vazia | null (já no máximo). O Ouro é de quem chama (podeComprarVaga).
@@ -6418,6 +6450,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     esvaziar: esvaziar,
     comprarVaga: comprarVaga,
     aposOffline: aposOffline,
+    chanceOffline: chanceOffline,
+    relogioAposOffline: relogioAposOffline,
     podeComprarVaga: podeComprarVaga
   };
 
@@ -6441,6 +6475,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
  *     trofeu — troféus de qualquer oponente do ginásio; sai primeiro do que o jogador tem mais (empate: a etapa menor).
  *     selo   — Selos do campeão (mochila.selo).
  *     ouro   — Ouro LIVRE (quem chama passa o Ouro fora do reservado da sala aberta).
+ *   Receita com qualquerGinasio (o Pergaminho de reforja): os materiais comuns somados de TODOS os ginásios e o incomum
+ *   de qualquer um, gastos um a um do que o jogador tem mais (empate: a ordem do catálogo); o ginásio escolhido não importa.
  *   Peça Comum e Mágica: solta (sem conjunto), do slot escolhido. Rara e Lendária: do conjunto do ginásio
  *   (GameData.AFK.materiais[gymId].conjunto: Fornalha → Sol, Remanso → Chuva, Capoeira → Névoa). Pedra e Pergaminho
  *   não usam slot. Nada disso é sorteado: slot, raridade e conjunto saem como escolhidos.
@@ -6486,11 +6522,33 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return tem(G.GEAR, id) ? id : null;
   }
 
+  // receita com qualquerGinasio (o Pergaminho de reforja): os materiais comuns SOMADOS de todos os ginásios e o incomum
+  // de qualquer um; gasta primeiro do que o jogador tem mais (empate: a ordem do catálogo), um a um
+  function gastoLivre(R, mochila) {
+    var comuns = [], incs = [], itens = {};
+    G.GYM_ORDER.forEach(function (g) { comuns = comuns.concat(G.AFK.materiais[g].comuns); incs.push(G.AFK.materiais[g].incomum); });
+    function tira(ids, n, falta) {
+      var resta = {}, total = 0;
+      ids.forEach(function (id) { resta[id] = qtd(mochila, id); total += resta[id]; });
+      if (total < n) return falta + ' (precisa de ' + n + ', tem ' + total + ')';
+      for (var k = 0; k < n; k++) {
+        var melhor = null;
+        for (var j = 0; j < ids.length; j++) if (resta[ids[j]] > 0 && (melhor === null || resta[ids[j]] > resta[melhor])) melhor = ids[j];
+        resta[melhor] -= 1;
+        itens[melhor] = (itens[melhor] || 0) + 1;
+      }
+      return null;
+    }
+    var m = tira(comuns, R.mat || 0, 'Faltam materiais de qualquer ginásio') || tira(incs, R.inc || 0, 'Falta material incomum de qualquer ginásio');
+    return m ? { motivo: m } : { itens: itens };
+  }
+
   // o que a receita gasta da mochila: { itens: { id: n } } ou { motivo }
   function gastoDe(rec, gymId, mochila) {
     var R = receita(rec), M = ginasio(gymId);
     if (!R || !M) return { motivo: 'Receita inválida' };
     var itens = {};
+    if (R.qualquerGinasio) return gastoLivre(R, mochila);
     var a = M.comuns[0], b = M.comuns[1], qa = qtd(mochila, a), qb = qtd(mochila, b), mat = R.mat || 0;
     if (qa + qb < mat) {
       return { motivo: 'Faltam materiais: ' + I[a].name + ' e ' + I[b].name + ' (precisa de ' + mat + ', tem ' + (qa + qb) + ')' };
@@ -14509,12 +14567,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var antes = clone(state), limite = afkLimite(), semAveia = limite - state.afk.aveiaMin, usouAveia = false;
     var R = { minutos: 0, corridas: 0, vitorias: 0, xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: 0, vagas: 0, semMedida: 0, noLimite: false };
     for (var i = 0; i < state.afk.vagas.length; i++) {
-      var v = state.afk.vagas[i];
+      var v = state.afk.vagas[i], relogio = agora;
       if (!parada(v, i)) continue;
       if (!afkPresa(v)) {
         var gap = agora - v.inicioMin;
-        if (v.ultima) {
-          var off = AF.offline(v, agora, v.ultima, state.seedBase, afkBonus(v.uid), limite, i);
+        var mv = mountByUid(v.uid), ch = mv ? AF.chanceOffline(v, afkCavalo(mv)) : null;   // a chance da configuração de agora
+        if (ch) {
+          var off = AF.offline(v, agora, ch, state.seedBase, afkBonus(v.uid), limite, i);
+          // o relógio anda só o tempo das corridas contadas (o resto vale para a próxima); passou do limite: vem para agora
+          relogio = AF.relogioAposOffline(v.inicioMin, agora, off.corridas, ch.duracaoS, limite);
           if (off.corridas > 0) {
             state.afk = AF.creditar(state.afk, i, off);
             R.vagas += 1; R.corridas += off.corridas; R.vitorias += off.vitorias; R.xp += off.xp; R.ouro += off.ouro; R.pedras += off.pedras; R.pecas += off.pecas.length;
@@ -14525,7 +14586,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         if (gap > limite) R.noLimite = true;
         R.minutos = Math.max(R.minutos, Math.min(gap, limite));
       }
-      state.afk.vagas[i].inicioMin = agora;
+      state.afk.vagas[i].inicioMin = relogio;
       delete U.vivo[i];
     }
     if (usouAveia) state.afk = AF.aposOffline(state.afk);
@@ -14699,6 +14760,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var i = (de + k) % n, v = state.afk.vagas[i];
       if (i !== de && v.uid && !afkPresa(v)) { window.clearTimeout(afkEsperaTimer); U.ver = null; afkAssiste(i); return; }
     }
+  }
+  // A aba voltou a ficar visível com uma vaga sendo assistida: se o relógio dela ficou para trás (a aba escondida, o
+  // celular dormindo), sai da corrida assistida para o acerto offline (afkTick → afkAcerto) contar também essa vaga.
+  function afkVoltou() {
+    var U = ui.afk, ver = U && U.ver;
+    if (!state || saveBloqueado || !ver || ui.screen !== 'corrida') return;
+    var v = state.afk.vagas[ver.idx];
+    if (v && v.uid && !afkPresa(v) && agoraMin() - v.inicioMin >= AFK_PARADA_MIN) afkSai();
   }
   // Abre a tela do treino (da Expedição, da trilha, do começo do jogo): confere o save, acerta o tempo parado e guarda o
   // resumo de uma parada longa.
@@ -15030,8 +15099,13 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   }
   function forjaCustoTxt(rec, g) {
     var R = GD.FORJA[rec], M = GD.AFK.materiais[g], p = [];
-    p.push(R.mat + ' materiais (' + GD.ITEMS[M.comuns[0]].name + ' + ' + GD.ITEMS[M.comuns[1]].name + ')');
-    if (R.inc) p.push(itemQtdTxt(M.incomum, R.inc));
+    if (R.qualquerGinasio) {
+      p.push(R.mat + ' materiais de qualquer ginásio');
+      if (R.inc) p.push(R.inc + (R.inc === 1 ? ' material incomum' : ' materiais incomuns') + ' de qualquer ginásio');
+    } else {
+      p.push(R.mat + ' materiais (' + GD.ITEMS[M.comuns[0]].name + ' + ' + GD.ITEMS[M.comuns[1]].name + ')');
+      if (R.inc) p.push(itemQtdTxt(M.incomum, R.inc));
+    }
     if (R.trofeu) p.push(R.trofeu + (R.trofeu === 1 ? ' troféu' : ' troféus') + ' ' + GD.GYMS[g].name.replace(/^Ginásio /, ''));
     if (R.selo) p.push(itemQtdTxt('selo', R.selo));
     p.push(fmt(R.ouro) + ' de Ouro');
@@ -19201,7 +19275,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // a aba voltou a ficar visível (o jogo ficou aberto de um dia para o outro): se o dia virou, a tela é desenhada de novo
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'visible' && diaVirou()) redesenhaDia();
-      if (document.visibilityState === 'visible') afkTick();   // o treino AFK: o tempo com a aba escondida é acertado na volta
+      if (document.visibilityState === 'visible') { afkVoltou(); afkTick(); }   // o treino AFK: o tempo com a aba escondida é acertado na volta
     });
     
   }

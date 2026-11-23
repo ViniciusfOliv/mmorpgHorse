@@ -3,6 +3,26 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — AFK: correções da revisão da coordenação e merge da `main`
+- **Relógio da vaga (defeito grave corrigido):** "Tirar" + "Começar treino" largava e creditava outra corrida na hora.
+  Agora a vaga vazia **guarda o relógio** (`inicioMin`), `Afk.ocupar` usa o maior entre agora, o relógio da vaga de
+  destino e o da vaga de onde o cavalo veio, e o `sanear` não zera o relógio da vaga vazia.
+- **Chance do offline com a configuração trocada:** `ultima` guarda a `chave` medida; se o cavalo mudou (peça, nível,
+  skill) e a medida nova não terminou, o offline usa o **menor** entre a chance antiga e a parcial da medida em curso (0
+  sem amostra) — `Afk.chanceOffline`. Um conjunto de peças não vale mais em várias vagas offline.
+- **Acerto offline não perde o resto:** o relógio anda só o tempo das corridas contadas (`Afk.relogioAposOffline`); só
+  quando o período passa do limite offline ele vem para agora.
+- **Vaga assistida com a aba escondida:** ao voltar à aba, a corrida assistida fecha e o tempo dela entra no acerto.
+- **Pergaminho de reforja na forja:** aceita os 15 materiais **somados de qualquer ginásio** e o incomum de qualquer um
+  (flag `qualquerGinasio`), gastando primeiro do que o jogador tem mais — como a spec diz (decisão da coordenação).
+- **Reforja sem Selo pode sortear de novo o mesmo tipo da linha rerrolada**; só não repete o das outras linhas
+  (confirmado pela coordenação).
+- **Merge da `main` (29f65fd) no `claude/afk`:** a arte da `main` manda no visual (Nunito, painéis azuis, moldura); as
+  telas do AFK, da forja e das peças usam as mesmas classes e tokens e se adaptaram sem mudança de regra. Conflitos só em
+  `ESTADO.md` (ficaram os dois registros), `dist/` (regenerado) e capturas (regeneradas).
+- Números calibrados já registrados: amostra 2.400 e Ouro × 0,15 (bloco A, abaixo e `docs/exemplos.md` §5b); `main`
+  0,75 · 1 · 1,25 · 1,75 e `plusStep` 0,2 (bloco B, abaixo e §5b).
+
 ## 2026-11-23 — AFK, execução do bloco B (decisões do construtor; o design não muda)
 - **Principal das peças recalibrado para o PVE (meta E4):** Comum 0,75 · Mágico 1 · Raro 1,25 · Lendário 1,75, e +0,2 por
   nível de melhoria (eram 2 · 2 · 3 · 4 e +0,5 quando a peça valia no PVP). O status é inteiro, então a soma das peças é

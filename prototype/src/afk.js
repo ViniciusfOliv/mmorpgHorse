@@ -465,7 +465,10 @@
   // Estado do save
   // ---------------------------------------------------------------------------------------------
   // vaga vazia: sem início (0), para o save saneado ser o mesmo em qualquer hora; o início é posto quando um cavalo entra
-  function vagaVazia(contador) { return { uid: null, faseId: null, inicioMin: 0, contador: contador || 0, medida: null, ultima: null }; }
+  // vaga vazia: o contador e o RELÓGIO ficam (inicioMin = até onde o treino da vaga já foi contado: tirar o cavalo e pôr
+  // de novo não adianta a corrida seguinte); vaga que nunca teve cavalo: 0
+  function relogioOk(x) { return typeof x === 'number' && isFinite(x) && x > 0 ? x : 0; }
+  function vagaVazia(contador, inicioMin) { return { uid: null, faseId: null, inicioMin: relogioOk(inicioMin), contador: contador || 0, medida: null, ultima: null }; }
   // ctx = { uids: [uid dos cavalos que existem], progresso (dos ginásios), agoraMin }
   function sanear(bruto, ctx) {
     var s = objeto(bruto) || {}, c = objeto(ctx) || {}, uids = Array.isArray(c.uids) ? c.uids : [];
@@ -481,7 +484,7 @@
       var contador = inteiro(b.contador) && b.contador >= 0 ? Math.min(b.contador, CONT_MAX) : 0;
       var inicio = typeof b.inicioMin === 'number' && isFinite(b.inicioMin) ? b.inicioMin : agora;
       var ok = typeof b.uid === 'string' && uids.indexOf(b.uid) >= 0 && !usados[b.uid] && livres.indexOf(b.faseId) >= 0;
-      if (!ok) { out.vagas.push(vagaVazia(contador)); return; }
+      if (!ok) { out.vagas.push(vagaVazia(contador, b.inicioMin)); return; }
       usados[b.uid] = true;
       var med = objeto(b.medida) && typeof b.medida.chave === 'string' && estadoOk(b.medida, b.medida.chave, K.amostra)
         ? { chave: b.medida.chave, feitos: b.medida.feitos, vitorias: b.medida.vitorias, somaDuracao: b.medida.somaDuracao } : null;
@@ -491,10 +494,32 @@
     out.xpCounter = qtdOk(s.xpCounter, CONT_MAX);
     return out;
   }
-  // a última chance completa da vaga ({ p, duracaoS }): o offline usa esta enquanto uma medida nova não termina
+  // a última chance completa da vaga ({ p, duracaoS, chave: a configuração medida }): o offline parte desta enquanto uma
+  // medida nova não termina (chanceOffline)
   function ultimaOk(u) {
     return objeto(u) && typeof u.p === 'number' && u.p >= 0 && u.p <= 1 && typeof u.duracaoS === 'number' && isFinite(u.duracaoS) && u.duracaoS > 0
-      ? { p: u.p, duracaoS: u.duracaoS } : null;
+      ? { p: u.p, duracaoS: u.duracaoS, chave: typeof u.chave === 'string' ? u.chave : null } : null;
+  }
+  // A chance que o offline usa para a vaga com o cavalo como está AGORA: a última completa, se é da configuração de
+  // agora; se a configuração mudou (peça trocada, nível, skill) e a medida nova não terminou, o MENOR entre a chance
+  // antiga e a parcial da medida em curso (0 sem amostra): tirar as peças boas de um cavalo não deixa a chance delas
+  // valendo. -> { p, duracaoS } | null (sem última completa: a vaga não rende fora da tela)
+  function chanceOffline(vaga, cavalo) {
+    var u = objeto(vaga) ? ultimaOk(vaga.ultima) : null;
+    if (!u || !objeto(cavalo) || !fase(vaga.faseId)) return null;
+    var chave = chaveConfig(cavalo, vaga.faseId);
+    if (u.chave === chave) return { p: u.p, duracaoS: u.duracaoS };
+    var m = vaga.medida, parcial = objeto(m) && m.chave === chave && estadoOk(m, chave, K.amostra) && m.feitos > 0 ? m.vitorias / m.feitos : 0;
+    return { p: Math.min(u.p, parcial), duracaoS: u.duracaoS };
+  }
+  // O relógio da vaga depois de um acerto offline: anda só o tempo das corridas contadas (o resto, menos de um duelo,
+  // continua valendo para a próxima); se o período passou do limite offline, vem para agora (o excedente não rende).
+  function relogioAposOffline(inicioMin, agoraMin, corridas, duracaoS, limiteMin) {
+    if (typeof inicioMin !== 'number' || !isFinite(inicioMin) || typeof agoraMin !== 'number' || !isFinite(agoraMin)) return relogioOk(agoraMin);
+    if (agoraMin <= inicioMin) return inicioMin;
+    var limite = Math.min(K.offlineTetoMin, minutosOk(limiteMin));
+    if (agoraMin - inicioMin > limite || !(inteiro(corridas) && corridas >= 0) || !(typeof duracaoS === 'number' && isFinite(duracaoS) && duracaoS > 0)) return agoraMin;
+    return Math.min(agoraMin, inicioMin + corridas * duracaoS / 60);
   }
   function copiaAfk(afk) { return JSON.parse(JSON.stringify(afk)); }
   // Avança a medida da vaga em n duelos (o cavalo dela, como está agora). Completa: grava vaga.ultima. Vaga vazia, ou
@@ -505,11 +530,12 @@
     var e = medirPasso(vaga.medida, cavalo, vaga.faseId, n);
     if (!e) return vaga;
     var out = { uid: vaga.uid, faseId: vaga.faseId, inicioMin: vaga.inicioMin, contador: vaga.contador, medida: e, ultima: ultimaOk(vaga.ultima) };
-    if (medidaPronta(e)) out.ultima = medida(e);
+    if (medidaPronta(e)) { out.ultima = medida(e); out.ultima.chave = e.chave; }
     return out;
   }
   function plural(n, um, varios) { return n === 1 ? um : varios; }
-  // Põe o cavalo `uid` na vaga idx, na fase dada (ctx como no sanear). O relógio da vaga começa em ctx.agoraMin; a medida
+  // Põe o cavalo `uid` na vaga idx, na fase dada (ctx como no sanear). O relógio da vaga é o maior entre ctx.agoraMin, o
+  // que a vaga já tinha e o da vaga de onde o cavalo veio (trocar de vaga ou de cavalo nunca adianta uma corrida); a medida
   // e a última chance zeram (a configuração é outra); o contador fica. O cavalo sai da vaga em que estava.
   // -> { ok: true, afk } | { ok: false, motivo }
   function ocupar(afk, idx, uid, id, ctx) {
@@ -529,15 +555,21 @@
       return { ok: false, motivo: 'Essa fase ainda não está liberada.' };
     }
     var out = copiaAfk(afk);
-    out.vagas.forEach(function (v, i) { if (v.uid === uid) out.vagas[i] = vagaVazia(v.contador); });
-    out.vagas[idx] = { uid: uid, faseId: id, inicioMin: typeof c.agoraMin === 'number' && isFinite(c.agoraMin) ? c.agoraMin : 0, contador: afk.vagas[idx].contador, medida: null, ultima: null };
+    // o relógio nunca volta: o da vaga de destino, o da vaga de onde o cavalo veio (vai junto com ele) e agora — o maior
+    var relogio = Math.max(relogioOk(c.agoraMin), relogioOk(afk.vagas[idx].inicioMin));
+    out.vagas.forEach(function (v, i) {
+      if (v.uid !== uid) return;
+      relogio = Math.max(relogio, relogioOk(v.inicioMin));
+      out.vagas[i] = vagaVazia(v.contador, v.inicioMin);
+    });
+    out.vagas[idx] = { uid: uid, faseId: id, inicioMin: relogio, contador: afk.vagas[idx].contador, medida: null, ultima: null };
     return { ok: true, afk: out };
   }
-  // -> o afk com a vaga idx vazia (o contador fica) | null
+  // -> o afk com a vaga idx vazia (o contador e o relógio ficam) | null
   function esvaziar(afk, idx) {
     if (!objeto(afk) || !Array.isArray(afk.vagas) || !inteiro(idx) || idx < 0 || idx >= afk.vagas.length) return null;
     var out = copiaAfk(afk);
-    out.vagas[idx] = vagaVazia(afk.vagas[idx].contador);
+    out.vagas[idx] = vagaVazia(afk.vagas[idx].contador, afk.vagas[idx].inicioMin);
     return out;
   }
   // -> o afk com mais uma vaga vazia | null (já no máximo). O Ouro é de quem chama (podeComprarVaga).
@@ -610,6 +642,8 @@
     esvaziar: esvaziar,
     comprarVaga: comprarVaga,
     aposOffline: aposOffline,
+    chanceOffline: chanceOffline,
+    relogioAposOffline: relogioAposOffline,
     podeComprarVaga: podeComprarVaga
   };
 

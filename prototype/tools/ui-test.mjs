@@ -1307,6 +1307,31 @@ try {
       const cAss = (await afkEst(pg)).afk.vagas[0].contador
       await pg.locator('#btn-pular').click(); await pg.waitForSelector('#t-afk')
       if ((await afkEst(pg)).afk.vagas[0].contador !== cAss) problems.push(`${label}: sair de assistir mudou o contador (pular não pode adiantar o treino)`)
+      // 7b. tirar o cavalo e pôr de novo não adianta a corrida seguinte: o relógio fica na vaga (5 vezes seguidas, 0 corridas a mais)
+      await pg.waitForFunction(() => { const g = window.__galope, v = g.state.afk.vagas[0]; return !!v.uid && v.inicioMin > g.agoraMin() + 0.3 }, null, { timeout: 8000 }).catch(() => problems.push(`${label}: a vaga 1 não está com uma corrida em curso para o teste do relógio`))
+      const antesTroca = (await afkEst(pg)).afk.vagas[0]
+      for (let k = 0; k < 5; k++) {
+        await pg.locator('[data-acao="afk-tirar"][data-id="0"]').click()
+        const vazia = (await afkEst(pg)).afk.vagas[0]
+        if (vazia.uid !== null || vazia.inicioMin !== antesTroca.inicioMin) problems.push(`${label}: "Tirar" não guardou o relógio da vaga ${JSON.stringify(vazia)}`)
+        await pg.locator('[data-acao="afk-escolher"][data-id="0"]').click(); await pg.waitForSelector('#t-afk-escolha')
+        await pg.locator(`[data-acao="afk-esc-fase"][data-id="${antesTroca.faseId.split(':').slice(0, 2).join(':')}"]`).click()
+        await pg.locator(`[data-acao="afk-esc-cavalo"][data-id="${antesTroca.uid}"]`).click()
+        await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
+        await pg.evaluate(() => window.__galope.afkTick())
+      }
+      const depoisTroca = (await afkEst(pg)).afk.vagas[0]
+      if (depoisTroca.contador !== antesTroca.contador || depoisTroca.inicioMin !== antesTroca.inicioMin || depoisTroca.uid !== antesTroca.uid) problems.push(`${label}: tirar e recolocar 5 vezes adiantou o treino ${JSON.stringify({ antes: [antesTroca.contador, antesTroca.inicioMin], depois: [depoisTroca.contador, depoisTroca.inicioMin] })}`)
+      // 7c. assistindo com a aba escondida por 30 min: na volta, a corrida assistida fecha e o tempo dessa vaga também é acertado
+      await afkEsperaMedida(pg, 0)
+      await afkAvanca(pg, 2)
+      await pg.waitForFunction(() => !!window.__galope.ui.afk.vivo[0], null, { timeout: 8000 }).catch(() => {})
+      await pg.locator('[data-acao="afk-assistir"][data-id="0"]').click(); await pg.waitForSelector('#t-corrida')
+      const cVer = (await afkEst(pg)).afk.vagas[0].contador
+      await pg.evaluate(() => { const g = window.__galope; g.state.devMin = (g.state.devMin || 0) + 30; g.afkVoltou(); g.afkTick() })
+      await pg.waitForSelector('#t-afk')
+      const cVolta = (await afkEst(pg)).afk.vagas[0].contador
+      if (!(cVolta - cVer >= 15)) problems.push(`${label}: 30 min com a vaga assistida e a aba escondida renderam ${cVolta - cVer} corridas (esperado umas 23)`)
       // 8. o ativo sai da vaga com a sala aberta: "Na sala", sem corridas, e volta a contar só quando a sala fecha
       await pg.locator('[data-acao="aba"][data-id="correr"]').click(); await pg.waitForSelector('#t-correr')
       await pg.locator('[data-acao="procurar"]').click(); await pg.waitForSelector('#t-largada')

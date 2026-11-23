@@ -1386,7 +1386,7 @@ Tudo o que as vagas rendem cai num **baú único**; "Coletar tudo" passa de uma 
 
 ### Forja
 
-Na aba Expedição. Receitas fixas, **sem chance de falhar**: o jogador escolhe o ginásio (de onde saem os materiais e, na Raro e na Lendário, o conjunto) e o tipo da peça. "Materiais" é a soma dos dois materiais comuns do ginásio, gastos meio a meio; o troféu pode ser de qualquer oponente dele. Só as **linhas de farm** da peça são sorteadas, pela seed do save e pelo contador de forjas, depois de confirmar. Peça forjada não tem preço de venda. O Ouro reservado para a entrada da sala aberta nunca é gasto.
+Na aba Expedição. Receitas fixas, **sem chance de falhar**: o jogador escolhe o ginásio (de onde saem os materiais e, na Raro e na Lendário, o conjunto) e o tipo da peça. "Materiais" é a soma dos dois materiais comuns do ginásio, gastos meio a meio; o troféu pode ser de qualquer oponente dele. O Pergaminho de reforja é a exceção: aceita os materiais comuns **somados de qualquer ginásio** e o incomum de qualquer um (gasta primeiro do que há mais). Só as **linhas de farm** da peça são sorteadas, pela seed do save e pelo contador de forjas, depois de confirmar. Peça forjada não tem preço de venda. O Ouro reservado para a entrada da sala aberta nunca é gasto.
 
 | Forjar | Materiais | Incomum | Troféus | Selo do campeão | Ouro |
 | --- | ---: | ---: | ---: | ---: | ---: |

@@ -3743,12 +3743,15 @@
     var antes = clone(state), limite = afkLimite(), semAveia = limite - state.afk.aveiaMin, usouAveia = false;
     var R = { minutos: 0, corridas: 0, vitorias: 0, xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: 0, vagas: 0, semMedida: 0, noLimite: false };
     for (var i = 0; i < state.afk.vagas.length; i++) {
-      var v = state.afk.vagas[i];
+      var v = state.afk.vagas[i], relogio = agora;
       if (!parada(v, i)) continue;
       if (!afkPresa(v)) {
         var gap = agora - v.inicioMin;
-        if (v.ultima) {
-          var off = AF.offline(v, agora, v.ultima, state.seedBase, afkBonus(v.uid), limite, i);
+        var mv = mountByUid(v.uid), ch = mv ? AF.chanceOffline(v, afkCavalo(mv)) : null;   // a chance da configuração de agora
+        if (ch) {
+          var off = AF.offline(v, agora, ch, state.seedBase, afkBonus(v.uid), limite, i);
+          // o relógio anda só o tempo das corridas contadas (o resto vale para a próxima); passou do limite: vem para agora
+          relogio = AF.relogioAposOffline(v.inicioMin, agora, off.corridas, ch.duracaoS, limite);
           if (off.corridas > 0) {
             state.afk = AF.creditar(state.afk, i, off);
             R.vagas += 1; R.corridas += off.corridas; R.vitorias += off.vitorias; R.xp += off.xp; R.ouro += off.ouro; R.pedras += off.pedras; R.pecas += off.pecas.length;
@@ -3759,7 +3762,7 @@
         if (gap > limite) R.noLimite = true;
         R.minutos = Math.max(R.minutos, Math.min(gap, limite));
       }
-      state.afk.vagas[i].inicioMin = agora;
+      state.afk.vagas[i].inicioMin = relogio;
       delete U.vivo[i];
     }
     if (usouAveia) state.afk = AF.aposOffline(state.afk);
@@ -3933,6 +3936,14 @@
       var i = (de + k) % n, v = state.afk.vagas[i];
       if (i !== de && v.uid && !afkPresa(v)) { window.clearTimeout(afkEsperaTimer); U.ver = null; afkAssiste(i); return; }
     }
+  }
+  // A aba voltou a ficar visível com uma vaga sendo assistida: se o relógio dela ficou para trás (a aba escondida, o
+  // celular dormindo), sai da corrida assistida para o acerto offline (afkTick → afkAcerto) contar também essa vaga.
+  function afkVoltou() {
+    var U = ui.afk, ver = U && U.ver;
+    if (!state || saveBloqueado || !ver || ui.screen !== 'corrida') return;
+    var v = state.afk.vagas[ver.idx];
+    if (v && v.uid && !afkPresa(v) && agoraMin() - v.inicioMin >= AFK_PARADA_MIN) afkSai();
   }
   // Abre a tela do treino (da Expedição, da trilha, do começo do jogo): confere o save, acerta o tempo parado e guarda o
   // resumo de uma parada longa.
@@ -4264,8 +4275,13 @@
   }
   function forjaCustoTxt(rec, g) {
     var R = GD.FORJA[rec], M = GD.AFK.materiais[g], p = [];
-    p.push(R.mat + ' materiais (' + GD.ITEMS[M.comuns[0]].name + ' + ' + GD.ITEMS[M.comuns[1]].name + ')');
-    if (R.inc) p.push(itemQtdTxt(M.incomum, R.inc));
+    if (R.qualquerGinasio) {
+      p.push(R.mat + ' materiais de qualquer ginásio');
+      if (R.inc) p.push(R.inc + (R.inc === 1 ? ' material incomum' : ' materiais incomuns') + ' de qualquer ginásio');
+    } else {
+      p.push(R.mat + ' materiais (' + GD.ITEMS[M.comuns[0]].name + ' + ' + GD.ITEMS[M.comuns[1]].name + ')');
+      if (R.inc) p.push(itemQtdTxt(M.incomum, R.inc));
+    }
     if (R.trofeu) p.push(R.trofeu + (R.trofeu === 1 ? ' troféu' : ' troféus') + ' ' + GD.GYMS[g].name.replace(/^Ginásio /, ''));
     if (R.selo) p.push(itemQtdTxt('selo', R.selo));
     p.push(fmt(R.ouro) + ' de Ouro');
@@ -8437,7 +8453,7 @@
     // a aba voltou a ficar visível (o jogo ficou aberto de um dia para o outro): se o dia virou, a tela é desenhada de novo
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'visible' && diaVirou()) redesenhaDia();
-      if (document.visibilityState === 'visible') afkTick();   // o treino AFK: o tempo com a aba escondida é acertado na volta
+      if (document.visibilityState === 'visible') { afkVoltou(); afkTick(); }   // o treino AFK: o tempo com a aba escondida é acertado na volta
     });
     /*@teste:inicio*/
     // ganchos para testes automatizados (fora do jogo de produção)
@@ -8448,6 +8464,7 @@
       hojeDia: function () { return hojeDia(); },
       agoraMin: function () { return agoraMin(); },
       afkTick: function () { afkTick(); },
+      afkVoltou: function () { afkVoltou(); },
       bonusConta: function () { return bonusConta(); },
       GEAR_ON: GEAR_ON, GEAR_PVP: GEAR_PVP
     };

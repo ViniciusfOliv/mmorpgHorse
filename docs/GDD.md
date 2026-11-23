@@ -243,9 +243,10 @@ conjunto) e o tipo da peça. Só as linhas de farm são sorteadas, pela seed, de
 | Peça Rara do conjunto do ginásio | 60 materiais + 10 incomuns + 1 troféu do ginásio + 800 de Ouro |
 | Peça Lendária do conjunto do ginásio | 120 materiais + 20 incomuns + 3 troféus + **2 Selos do campeão** + 3.000 de Ouro |
 | Pedra Negra | 8 materiais + 30 de Ouro |
-| Pergaminho de reforja | 15 materiais + 1 incomum + 150 de Ouro |
+| Pergaminho de reforja | 15 materiais **de qualquer ginásio** (somados) + 1 incomum de qualquer um + 150 de Ouro |
 
 "Materiais" é a soma dos dois materiais comuns do ginásio (gastos meio a meio); o troféu é de qualquer oponente dele.
+O Pergaminho gasta primeiro do material que o jogador tem mais.
 
 **Reforja.** Na peça, "Reforjar" sorteia de novo **uma linha escolhida** (tipo e valor; o tipo não repete o das outras
 linhas). Gasta 1 **Pergaminho de reforja** e Ouro, que cresce a cada reforja **na mesma peça** e nunca volta: 100 · 150 ·

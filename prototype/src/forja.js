@@ -12,6 +12,8 @@
  *     trofeu — troféus de qualquer oponente do ginásio; sai primeiro do que o jogador tem mais (empate: a etapa menor).
  *     selo   — Selos do campeão (mochila.selo).
  *     ouro   — Ouro LIVRE (quem chama passa o Ouro fora do reservado da sala aberta).
+ *   Receita com qualquerGinasio (o Pergaminho de reforja): os materiais comuns somados de TODOS os ginásios e o incomum
+ *   de qualquer um, gastos um a um do que o jogador tem mais (empate: a ordem do catálogo); o ginásio escolhido não importa.
  *   Peça Comum e Mágica: solta (sem conjunto), do slot escolhido. Rara e Lendária: do conjunto do ginásio
  *   (GameData.AFK.materiais[gymId].conjunto: Fornalha → Sol, Remanso → Chuva, Capoeira → Névoa). Pedra e Pergaminho
  *   não usam slot. Nada disso é sorteado: slot, raridade e conjunto saem como escolhidos.
@@ -57,11 +59,33 @@
     return tem(G.GEAR, id) ? id : null;
   }
 
+  // receita com qualquerGinasio (o Pergaminho de reforja): os materiais comuns SOMADOS de todos os ginásios e o incomum
+  // de qualquer um; gasta primeiro do que o jogador tem mais (empate: a ordem do catálogo), um a um
+  function gastoLivre(R, mochila) {
+    var comuns = [], incs = [], itens = {};
+    G.GYM_ORDER.forEach(function (g) { comuns = comuns.concat(G.AFK.materiais[g].comuns); incs.push(G.AFK.materiais[g].incomum); });
+    function tira(ids, n, falta) {
+      var resta = {}, total = 0;
+      ids.forEach(function (id) { resta[id] = qtd(mochila, id); total += resta[id]; });
+      if (total < n) return falta + ' (precisa de ' + n + ', tem ' + total + ')';
+      for (var k = 0; k < n; k++) {
+        var melhor = null;
+        for (var j = 0; j < ids.length; j++) if (resta[ids[j]] > 0 && (melhor === null || resta[ids[j]] > resta[melhor])) melhor = ids[j];
+        resta[melhor] -= 1;
+        itens[melhor] = (itens[melhor] || 0) + 1;
+      }
+      return null;
+    }
+    var m = tira(comuns, R.mat || 0, 'Faltam materiais de qualquer ginásio') || tira(incs, R.inc || 0, 'Falta material incomum de qualquer ginásio');
+    return m ? { motivo: m } : { itens: itens };
+  }
+
   // o que a receita gasta da mochila: { itens: { id: n } } ou { motivo }
   function gastoDe(rec, gymId, mochila) {
     var R = receita(rec), M = ginasio(gymId);
     if (!R || !M) return { motivo: 'Receita inválida' };
     var itens = {};
+    if (R.qualquerGinasio) return gastoLivre(R, mochila);
     var a = M.comuns[0], b = M.comuns[1], qa = qtd(mochila, a), qb = qtd(mochila, b), mat = R.mat || 0;
     if (qa + qb < mat) {
       return { motivo: 'Faltam materiais: ' + I[a].name + ' e ' + I[b].name + ' (precisa de ' + mat + ', tem ' + (qa + qb) + ')' };

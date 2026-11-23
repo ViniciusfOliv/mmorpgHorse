@@ -582,7 +582,7 @@ test('save com vaga de uid inexistente fica com a vaga vazia; fase ou dificuldad
   var a = A.sanear(bruto, ctx);
   assert.strictEqual(a.vagas.length, 5);
   assert.deepStrictEqual(a.vagas[0], { uid: 'm1', faseId: 'fogo:1:normal', inicioMin: 4000, contador: 12, medida: med, ultima: null });
-  [1, 2, 3, 4].forEach(function (i) { assert.strictEqual(a.vagas[i].uid, null, 'vaga ' + i); assert.strictEqual(a.vagas[i].faseId, null); assert.strictEqual(a.vagas[i].medida, null); assert.strictEqual(a.vagas[i].inicioMin, 0, 'vaga vazia não tem início'); });
+  [1, 2, 3, 4].forEach(function (i) { assert.strictEqual(a.vagas[i].uid, null, 'vaga ' + i); assert.strictEqual(a.vagas[i].faseId, null); assert.strictEqual(a.vagas[i].medida, null); assert.strictEqual(a.vagas[i].inicioMin, bruto.vagas[i].inicioMin, 'vaga que esvazia guarda o relógio'); });
   assert.deepStrictEqual(a.vagas.map(function (v) { return v.contador; }), [12, 7, 3, 5, 2], 'o contador de cada vaga nunca volta');
   // com as 50 vitórias, a Difícil vale
   bruto.vitorias['fogo:0:normal'] = 50;
@@ -672,7 +672,7 @@ test('esvaziar: a vaga fica vazia e o contador fica; comprarVaga acrescenta uma 
   var a = A.ocupar(A.sanear(null, ctxDe()), 0, 'm1', 'fogo:0:normal', ctxDe()).afk;
   a.vagas[0].contador = 31;
   var e = A.esvaziar(congela(a), 0);
-  assert.deepStrictEqual(e.vagas[0], { uid: null, faseId: null, inicioMin: 0, contador: 31, medida: null, ultima: null });
+  assert.deepStrictEqual(e.vagas[0], { uid: null, faseId: null, inicioMin: 6000, contador: 31, medida: null, ultima: null }, 'o contador e o relógio ficam');
   assert.strictEqual(A.esvaziar(a, 4), null);
   var b = a;
   for (var k = 1; k < 5; k++) { b = A.comprarVaga(b); assert.strictEqual(b.vagas.length, k + 1); assert.deepStrictEqual(b.vagas[k], { uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null, ultima: null }); }
@@ -689,7 +689,9 @@ test('coletar com cavalo preso na sala aberta: o XP dele fica no baú, o resto s
 test('a última chance completa fica na vaga até a medida nova terminar; sanear a mantém e joga fora lixo', function () {
   var ctx = ctxDe(), a = A.ocupar(A.sanear(null, ctx), 0, 'm1', 'fogo:0:normal', ctx).afk;
   a.vagas[0].ultima = { p: 0.62, duracaoS: 77.3 };
-  assert.deepStrictEqual(A.sanear(a, ctx).vagas[0].ultima, { p: 0.62, duracaoS: 77.3 });
+  assert.deepStrictEqual(A.sanear(a, ctx).vagas[0].ultima, { p: 0.62, duracaoS: 77.3, chave: null });
+  a.vagas[0].ultima = { p: 0.62, duracaoS: 77.3, chave: 'abc' };
+  assert.deepStrictEqual(A.sanear(a, ctx).vagas[0].ultima, { p: 0.62, duracaoS: 77.3, chave: 'abc' });
   [{ p: 2, duracaoS: 70 }, { p: 0.5, duracaoS: 0 }, { p: 'x', duracaoS: 70 }, 'x', 7, { p: 0.5 }].forEach(function (u, i) {
     a.vagas[0].ultima = u; assert.strictEqual(A.sanear(a, ctx).vagas[0].ultima, null, 'lixo ' + i);
   });
@@ -698,12 +700,92 @@ test('a última chance completa fica na vaga até a medida nova terminar; sanear
   var v1 = A.medirVaga(a.vagas[0], h, 200);
   assert.strictEqual(v1.medida.feitos, 200); assert.strictEqual(v1.ultima, null);
   var v2 = v1; while (!A.medidaPronta(v2.medida)) v2 = A.medirVaga(v2, h, 400);
-  assert.deepStrictEqual(v2.ultima, A.medida(v2.medida)); assert.strictEqual(A.medirVaga(v2, h, 400), v2, 'completa: a mesma vaga, sem trabalho');
+  assert.deepStrictEqual(v2.ultima, Object.assign(A.medida(v2.medida), { chave: A.chaveConfig(h, 'fogo:0:normal') })); assert.strictEqual(A.medirVaga(v2, h, 400), v2, 'completa: a mesma vaga, sem trabalho');
   // o cavalo subiu de nível: a medida recomeça, a última chance (do nível anterior) continua valendo até a nova terminar
   var h2 = cav('mare', 9); h2.uid = h.uid;
   var v3 = A.medirVaga(v2, h2, 100);
   assert.strictEqual(v3.medida.feitos, 100); assert.deepStrictEqual(v3.ultima, v2.ultima);
   assert.strictEqual(A.medirVaga({ uid: null, faseId: null }, h, 10).medida, undefined, 'vaga vazia não mede');
+});
+
+section('relógio da vaga e chance do offline (revisão da coordenação, 2026-11-23)');
+test('tirar e recolocar o cavalo não adianta a corrida: esvaziar guarda o relógio e ocupar usa o maior entre agora e o da vaga', function () {
+  var ctx = ctxDe({ agoraMin: 6000 }), a = A.ocupar(A.sanear(null, ctx), 0, 'm1', 'fogo:0:normal', ctx).afk;
+  // a tela largou uma corrida ao vivo: creditou e levou o relógio ao fim dela (agora + 1,25 min)
+  a.vagas[0].inicioMin = 6001.25; a.vagas[0].contador = 1;
+  // 200 vezes "Tirar" + "Começar treino" no mesmo minuto: o relógio continua no fim da corrida já contada
+  var corridas = 0;
+  for (var k = 0; k < 200; k++) {
+    a = A.esvaziar(a, 0);
+    assert.strictEqual(a.vagas[0].inicioMin, 6001.25, 'vaga vazia guarda o relógio');
+    a = A.ocupar(a, 0, 'm1', 'fogo:0:normal', ctxDe({ agoraMin: 6000.5 })).afk;
+    assert.strictEqual(a.vagas[0].inicioMin, 6001.25, 'recolocar não volta o relógio');
+    if (6000.5 >= a.vagas[0].inicioMin) corridas++;   // a condição de largada da tela (agora ≥ inicioMin)
+  }
+  assert.strictEqual(corridas, 0, 'nenhuma corrida a mais dentro da duração da primeira');
+  // outro cavalo na mesma vaga, e outra fase: o relógio é da vaga
+  assert.strictEqual(A.ocupar(a, 0, 'm2', 'fogo:1:normal', ctxDe({ agoraMin: 6000.6 })).afk.vagas[0].inicioMin, 6001.25);
+  // depois que o tempo passou, o relógio é agora
+  assert.strictEqual(A.ocupar(a, 0, 'm2', 'fogo:1:normal', ctxDe({ agoraMin: 6010 })).afk.vagas[0].inicioMin, 6010);
+  // sanear guarda o relógio da vaga vazia (recarregar não zera) e não inventa um para a que nunca teve cavalo
+  var v = A.sanear(A.esvaziar(a, 0), ctxDe({ agoraMin: 6000.7 })).vagas[0];
+  assert.strictEqual(v.uid, null); assert.strictEqual(v.inicioMin, 6001.25);
+  assert.strictEqual(A.sanear({ vagas: [{ uid: null, inicioMin: 'x' }] }, ctx).vagas[0].inicioMin, 0);
+});
+test('mover o cavalo de vaga leva o relógio junto: vale o maior entre o da origem, o do destino e agora', function () {
+  var ctx = ctxDe({ agoraMin: 6000 }), a = A.comprarVaga(A.sanear(null, ctx));
+  a = A.ocupar(a, 0, 'm1', 'fogo:0:normal', ctx).afk;
+  a.vagas[0].inicioMin = 6001.25;                       // m1 acabou de largar na vaga 1
+  var r = A.ocupar(a, 1, 'm1', 'fogo:0:normal', ctxDe({ agoraMin: 6000.2 })).afk;
+  assert.strictEqual(r.vagas[1].inicioMin, 6001.25, 'o relógio da origem vai com o cavalo');
+  assert.strictEqual(r.vagas[0].uid, null); assert.strictEqual(r.vagas[0].inicioMin, 6001.25, 'e a vaga de origem guarda o dela');
+  // de volta para a vaga 1, e de novo para a 2: nunca antes de 6001,25
+  var r2 = A.ocupar(r, 0, 'm1', 'fogo:0:normal', ctxDe({ agoraMin: 6000.3 })).afk;
+  assert.strictEqual(r2.vagas[0].inicioMin, 6001.25);
+  // destino com relógio mais adiantado que a origem: vale o do destino
+  r.vagas[0].inicioMin = 6005;
+  assert.strictEqual(A.ocupar(r, 0, 'm1', 'fogo:0:normal', ctxDe({ agoraMin: 6000.4 })).afk.vagas[0].inicioMin, 6005);
+});
+test('offline com a configuração trocada: usa o menor entre a chance antiga e a parcial da medida nova (0 sem amostra)', function () {
+  var h = cav('mare', 8), id = 'agua:2:normal', chave = A.chaveConfig(h, id);
+  var vaga = { uid: h.uid, faseId: id, inicioMin: 0, contador: 0, medida: null, ultima: { p: 0.8, duracaoS: 75, chave: chave } };
+  assert.deepStrictEqual(A.chanceOffline(vaga, h), { p: 0.8, duracaoS: 75 }, 'mesma configuração: a última completa');
+  // o cavalo mudou (outro nível; no jogo, uma peça tirada): a chave é outra
+  var h2 = cav('mare', 3); h2.uid = h.uid;
+  var chave2 = A.chaveConfig(h2, id);
+  assert.notStrictEqual(chave2, chave);
+  assert.deepStrictEqual(A.chanceOffline(vaga, h2), { p: 0, duracaoS: 75 }, 'sem amostra da configuração nova: 0');
+  vaga.medida = { chave: chave2, feitos: 200, vitorias: 30, somaDuracao: 150000 };
+  assert.deepStrictEqual(A.chanceOffline(vaga, h2), { p: 0.15, duracaoS: 75 }, 'a parcial, se menor');
+  vaga.medida = { chave: chave2, feitos: 200, vitorias: 190, somaDuracao: 150000 };
+  assert.deepStrictEqual(A.chanceOffline(vaga, h2), { p: 0.8, duracaoS: 75 }, 'a antiga, se menor');
+  vaga.medida = { chave: chave, feitos: 200, vitorias: 190, somaDuracao: 150000 };
+  assert.strictEqual(A.chanceOffline(vaga, h2).p, 0, 'medida de outra configuração não conta');
+  // última de save antigo (sem chave) vale como configuração trocada; sem última, a vaga não rende fora da tela
+  vaga.medida = null; vaga.ultima = { p: 0.8, duracaoS: 75 };
+  assert.strictEqual(A.chanceOffline(vaga, h).p, 0);
+  vaga.ultima = null;
+  assert.strictEqual(A.chanceOffline(vaga, h), null);
+  assert.strictEqual(A.chanceOffline(null, h), null); assert.strictEqual(A.chanceOffline(vaga, null), null);
+  // o offline com a chance 0 só conta derrotas
+  var off = A.offline({ uid: h.uid, faseId: id, inicioMin: 0, contador: 0 }, 60, { p: 0, duracaoS: 75 }, 99, null, 480, 0);
+  assert.strictEqual(off.corridas, 48); assert.strictEqual(off.vitorias, 0);
+});
+test('relógio depois do acerto offline: anda só o tempo das corridas contadas; no limite, vem para agora', function () {
+  // 3 min parados, duelo de 75 s: 2 corridas (2,5 min) e sobram 0,5 min para a próxima
+  assert.strictEqual(A.relogioAposOffline(1000, 1003, 2, 75, 480), 1002.5);
+  // entrar e sair em menos de um duelo: 0 corridas, o relógio não anda (o tempo não se perde)
+  assert.strictEqual(A.relogioAposOffline(1000, 1001, 0, 75, 480), 1000);
+  var t = 1000, n = 0;
+  for (var k = 1; k <= 10; k++) { var agora = 1000 + k; var c = Math.floor((agora - t) * 60 / 75 + 1e-9); n += c; t = A.relogioAposOffline(t, agora, c, 75, 480); }
+  assert.strictEqual(n, 8, '10 visitas de 1 min somam as mesmas 8 corridas de 10 min seguidos');
+  // passou do limite offline: o excedente não rende, o relógio encosta em agora
+  assert.strictEqual(A.relogioAposOffline(1000, 1000 + 481, 384, 75, 480), 1481);
+  assert.strictEqual(A.relogioAposOffline(1000, 1480, 384, 75, 480), 1480);
+  // relógio do aparelho para trás: fica onde estava; lixo: agora
+  assert.strictEqual(A.relogioAposOffline(1000, 990, 0, 75, 480), 1000);
+  assert.strictEqual(A.relogioAposOffline(NaN, 990, 0, 75, 480), 990);
+  assert.strictEqual(A.relogioAposOffline(1000, 1003, 2, 0, 480), 1003);
 });
 
 section('peças no treino AFK (bloco B)');
@@ -820,6 +902,14 @@ test('Pedra Negra e Pergaminho de reforja: sem slot, sem sorteio; o Pergaminho r
   assert.deepStrictEqual(r, { mochila: { fibra: 0, resina: 0 }, ouro: 30, pedra: 1 });
   var q = FJ.forjar('reforja', null, 'fogo', { carvao: 15, 'brasa-viva': 1, 'pergaminho-reforja': 2 });
   assert.deepStrictEqual(q, { mochila: { carvao: 0, 'brasa-viva': 0, 'pergaminho-reforja': 3 }, ouro: 150, item: 'pergaminho-reforja' });
+  // o Pergaminho aceita os 15 materiais somados de qualquer ginásio e o incomum de qualquer um; gasta primeiro do que tem mais
+  var misto = { carvao: 4, junco: 6, resina: 5, 'seiva-antiga': 1 };
+  assert.deepStrictEqual(FJ.pode('reforja', null, 'fogo', misto, 150), { ok: true, gasto: { itens: { carvao: 4, junco: 6, resina: 5, 'seiva-antiga': 1 }, ouro: 150 } });
+  assert.deepStrictEqual(FJ.pode('reforja', null, 'agua', misto, 150).gasto, FJ.pode('reforja', null, 'fogo', misto, 150).gasto, 'o ginásio escolhido não importa');
+  assert.deepStrictEqual(FJ.pode('reforja', null, 'fogo', { carvao: 20, concha: 9, fibra: 2, 'perola-de-rio': 3, 'brasa-viva': 1 }, 150).gasto.itens, { carvao: 13, concha: 2, 'perola-de-rio': 1 });
+  assert.strictEqual(FJ.pode('reforja', null, 'fogo', { carvao: 7, junco: 7, 'brasa-viva': 1 }, 150).motivo, 'Faltam materiais de qualquer ginásio (precisa de 15, tem 14)');
+  assert.strictEqual(FJ.pode('reforja', null, 'fogo', { carvao: 15 }, 150).motivo, 'Falta material incomum de qualquer ginásio (precisa de 1, tem 0)');
+  assert.strictEqual(FJ.pode('pedra', null, 'fogo', { junco: 8 }, 30).ok, false, 'a Pedra continua pedindo os materiais do ginásio escolhido');
   assert.strictEqual(FJ.pode('reforja', null, 'fogo', { carvao: 15, 'brasa-viva': 1, 'pergaminho-reforja': 99 }, 999).ok, false);
 });
 test('receita, slot ou ginásio inválido: pode recusa e forjar devolve null', function () {
