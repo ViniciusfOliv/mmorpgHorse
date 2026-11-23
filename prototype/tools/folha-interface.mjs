@@ -142,15 +142,17 @@ function linhaTime({ uid, base, nivel, contra, ativa = false, pos = 0, motivo = 
   const n = uid.replace(/^m/, ''), v = GN.vantagem(el, contra), ganha = v === 1;
   const vt = v === 1 ? 'Vantagem' : v === -1 ? 'Desvantagem' : '';
   const fim = (vt ? vt + ' contra ' + elNome(contra) + '. ' : '') + (pos ? pos + 'º do time. Toque para tirar.' : motivo || 'Toque para pôr no time.');
-  return `<li><button type="button" class="montaria-linha${ativa ? ' montaria--ativa' : ''}" data-acao="ginasio-time" data-id="${esc(uid)}" aria-label="${esc(nome + ' #' + n + ', nível ' + nivel + (ativa ? ', ativa' : '') + '. ' + fim)}"${indisp(motivo)} aria-pressed="${pos > 0}">` +
+  return `<li><button type="button" class="montaria-linha${ativa ? ' montaria--ativa' : ''}" data-acao="ginasio-time" data-id="${esc(uid)}" aria-label="${esc(nome + ' #' + n + ', ' + (h.sex === 'f' ? 'fêmea' : 'macho') + ', nível ' + nivel + (ativa ? ', ativa' : '') + '. ' + fim)}"${indisp(motivo)} aria-pressed="${pos > 0}">` +
     `<span class="montaria-linha-retrato" aria-hidden="true">${retrato(96, 72, nivel, 0)}</span>` +
-    `<span class="montaria-linha-nome">${esc(nome)}<small>#${esc(n)}</small></span>` +
+    `<span class="montaria-linha-nome">${esc(nome)}${sexoIcone(h.sex)}<small>#${esc(n)}</small></span>` +
     `<span class="montaria-linha-meta"><span class="raridade raridade--comum">Comum</span><span class="estrelas" role="img" aria-label="2 de 3 estrelas">★★☆</span>${ativa ? '<span class="badge-ativa">Ativa</span>' : ''}</span>` +
     `<span class="montaria-linha-meta">${elHtml(el)}<span class="montaria-linha-poder">Poder <b>${poder}</b></span>` +
       (vt ? `<span class="gin-vant gin-vant--${ganha ? 'mais' : 'menos'}">${vt}</span>` : '') + '</span>' +
     ordFix(`<span class="gin-pos" aria-hidden="true">${pos ? pos + 'º' : ''}</span>`) + '</button>' +
     (nota ? `<p class="nota">${esc(nota)}</p>` : '') + '</li>';
 }
+// o símbolo do sexo ao lado do nome (sexoIconeHtml do game.js, ajustes 1): a reserva ♂/♀ em texto (a folha não embute os ícones)
+const sexoIcone = (sexo) => `<span class="sexo-icone sexo-icone--${sexo === 'f' ? 'f' : 'm'}" role="img" aria-label="${sexo === 'f' ? 'fêmea' : 'macho'}" title="${sexo === 'f' ? 'Fêmea' : 'Macho'}">${sexo === 'f' ? '♀' : '♂'}</span>`
 const time = (linhas) => `<section class="caixa" aria-label="Seu time"><ul class="montarias item-escolha gin-time">${linhas}</ul></section>`;
 // o cartão entre dois duelos (renderEntreDuelos), com os textos do ginCartaoTxt
 function cartaoDuelo(id, k, { titulo, saiu, folego, vant }) {
@@ -173,9 +175,9 @@ function secoes() {
   s.push(secao('4.2', 'Painel em destaque', 'Linha da montaria ativa no Estábulo (.montaria-linha.montaria--ativa) e opção escolhida (.opcao[aria-pressed="true"]).',
     estados([
       // a linha do Estábulo, com o markup do mountRowHtml do game.js (selo "Ativa" na borda de cima, retrato pequeno, seta)
-      ['montaria ativa', '<button type="button" class="montaria-linha montaria--ativa" aria-label="Brasa #1, nível 20, ativa. Abrir ficha.">' +
+      ['montaria ativa', '<button type="button" class="montaria-linha montaria--ativa" aria-label="Brasa #1, macho, nível 20, ativa. Abrir ficha.">' +
         '<span class="montaria-linha-retrato" aria-hidden="true">' + retrato(96, 72) + '</span>' +
-        '<span class="montaria-linha-nome">Brasa<small>#1</small></span>' +
+        '<span class="montaria-linha-nome">Brasa' + sexoIcone('m') + '<small>#1</small></span>' +
         '<span class="montaria-linha-meta"><span class="raridade">Comum</span><span class="estrelas" role="img" aria-label="2 de 3 estrelas">★★☆</span><span class="badge-ativa">Ativa</span></span>' +
         '<span class="montaria-linha-meta"><span class="el el--fogo">Fogo</span><span class="montaria-linha-poder">Poder <b>412</b></span></span>' +
         setaSvg() + '</button>'],
