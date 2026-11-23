@@ -15,11 +15,17 @@ quente, braseiros, emblemas, brasas), **Expedição** (vulcão, rio, placas que 
 finas, pássaros, folhas) e **Cavalos** (idle em camadas no Haras: respiração, piscar, cauda, orelha, cabeça, crina ao
 vento; botões para disparar). Tudo por código, custo de crédito zero, RNG só cosmética (mulberry32 de semente fixa, fora
 da seed). Custo medido no contêiner: 0,3–0,6 ms por quadro de animação (≈ 1,2–1,6 ms num celular médio pela régua ×4 do
-teste de engine; orçamento 2 ms), ≤ 160 chamadas de desenho e ≤ 90 partículas. **Piloto pago preparado, não rodado**:
-`prototype/tools/arte-animacao-piloto.mjs` (dry-run padrão; 6 gerações do PixelLab `animate-with-text-v3` no molde
-padrão-lisa: comer ×2, cavar ×2 em 8 quadros, cauda e respiração em 4), esperando a confirmação explícita do Vinicius.
-PixelLab em 915/2000. **Próximo:** retorno do Vinicius na amostra (e o sim/não do piloto); depois a spec de todas as
-imagens (entrega 2) em `docs/superpowers/specs/`. O olho de cada molde deve virar âncora no JSON (a busca automática
+teste de engine; orçamento 2 ms), ≤ 160 chamadas de desenho e ≤ 90 partículas. **Retorno do Vinicius (2026-11-23, pela coordenação):** a versão
+atual está **aprovada como a principal**; pediu uma variante **"mais movimento"** para comparar, feita na mesma página
+(seletor "Atual / Mais movimento" em cada cena: rajada forte que dobra tudo junto, ondas que quebram na mureta, "ola" na
+torcida, revoadas em V, redemoinho de folhas e areia, jorros de lava, bolhas no fosso, corredeira, borboletas, gestos dos
+cavalos a cada 1–3,5 s e o "sacudir a cabeça"); medidas no contêiner (atual / mais): Litoral 0,48/0,47 ms, Fornalha
+0,19/0,27, Expedição 0,25/0,32, Cavalos 0,08/0,21 (≤ 1,3 ms no celular médio; ≤ 270 chamadas, ≤ 140 partículas).
+**Piloto pago rodado** (confirmado pelo Vinicius): 6 gerações do `animate-with-text-v3` no molde padrão-lisa
+(`prototype/tools/arte-animacao-piloto.mjs`; PixelLab 915 → 909), quadros em `prototype/assets/pixellab/idle/`, no
+painel "PixelLab × código" da cena dos cavalos: comer (8102) e cavar (8111) bons e naturais, o que o código não faz;
+cauda e respiração o código já resolve. **Próximo:** a spec de todas as imagens (entrega 2) em `docs/superpowers/specs/`,
+com a versão atual como base e a "mais movimento" como opção, a decidir com o Vinicius na comparação. O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um

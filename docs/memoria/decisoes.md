@@ -16,6 +16,11 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   automática não separa o olho das linhas da cara do robusto-folhas).
 - **Na Fornalha, o pico da esquerda vira vulcão por código** (cratera, fios de lava, fumaça, bombas) — a arena gerada
   não tem vulcão; dá para desligar e comparar, e o `/v2/vfx` fica de reserva se o Vinicius não gostar.
+- **A versão atual é a principal; a "mais movimento" fica como opção para comparar** (Vinicius, 2026-11-23) — as duas
+  na mesma página com um seletor por cena, ambas no orçamento.
+- **Comer e cavar dos cavalos pelo PixelLab, o resto do idle por código** (piloto de 6 gerações, 2026-11-23) — o
+  `animate-with-text-v3` a partir do molde em cores de papel baixa a cabeça até o capim e pateia de forma natural, e os
+  quadros voltam aos papéis (servem a qualquer pelagem); piscar, cauda, orelha, respiração e aceno o código já faz.
 - **Na amostra do Litoral a arquibancada fica mais à direita (168 em vez de 60)** — na largada ela cobre o mar; só na
   amostra, para o mar e o farol aparecerem nas duas versões.
 
