@@ -106,11 +106,10 @@ html, body { height: 100%; margin: 0; }
 html { background: var(--noite); }
 body {
   background-color: var(--noite);
-  /* piso de tábuas do estábulo: linhas de 2px, sem gradiente suave */
-  background-image:
-    linear-gradient(var(--noite-2) 2px, transparent 2px),
-    linear-gradient(90deg, var(--noite-2) 2px, transparent 2px);
-  background-size: 100% 32px, 128px 32px;
+  /* pontilhado discreto (refino de 2026-11-23, escolha do Vinicius; eram as tábuas do estábulo, que no azul pareciam
+     azulejo): um ponto de --noite-2 a cada 6 pixels de arte, na grade */
+  background-image: conic-gradient(at var(--px) var(--px), transparent 75%, var(--noite-2) 0);   /* o quadrante de cima à esquerda: 1 × 1 */
+  background-size: calc(var(--px) * 6) calc(var(--px) * 6);
   color: var(--texto);
   font: 400 var(--t-s)/var(--lh-s) var(--fonte-9);   /* o texto corrido é secundário (guia §6); nomes, botões e títulos pedem o --t-m */
   font-synthesis: none;
@@ -1540,9 +1539,11 @@ img.icone.icone--n24 { width: calc(var(--px) * 24); height: calc(var(--px) * 24)
 
 /* ---------- Etapa 6 da direção de arte: cena no topo das abas e mapa da trilha ---------- */
 /* a cena (256×160 em pixels de arte, 1:1 na grade; o canvas tem o tamanho certo) com a placa do título por cima das
-   últimas 40 linhas (as 24 de baixo já somem em pontilhado) */
+   últimas 40 linhas (as 24 de baixo já somem em pontilhado), as duas num painel com a moldura das caixas (refino de
+   2026-11-23): 4 px de friso em volta, e onde a cena não chega à largura do painel, o --noite-2 */
+.cena-painel { padding: 4px; gap: 0; background: var(--noite-2); }
 .cena-aba { display: block; margin: 0 auto calc(var(--px) * -40); image-rendering: pixelated; }
-.cena-aba + .titulo--tela { position: relative; }
+.cena-aba + .titulo--tela { position: relative; margin: 0; }
 .trilha-mapa-palco { display: flex; justify-content: center; margin: 0 0 12px; }
 .trilha-mapa { display: block; image-rendering: pixelated; cursor: pointer; box-shadow: 0 0 0 2px var(--sombra); }
 

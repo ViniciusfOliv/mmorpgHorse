@@ -2775,9 +2775,9 @@
 
   // Aba Estábulo: o cartão da recompensa diária e a lista de montarias
   function renderEstabulo() {
-    return '<section class="tela" aria-labelledby="t-estabulo">' + cenaAbaHtml('estabulo') +
+    return '<section class="tela" aria-labelledby="t-estabulo">' + cenaAbaHtml('estabulo',
       '<h1 class="titulo titulo--tela" id="t-estabulo" tabindex="-1" data-foco>Estábulo <span class="nota">' +
-        state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>' + noticeHtml() +
+        state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>') + noticeHtml() +
       diariaCartaoHtml() + montariasHtml() +
       '</section>';
   }
@@ -2911,8 +2911,8 @@
         elementHtml(w.element) +
         '<span class="nota">' + esc(w.habitat || '') + '</span></div>';
     }).join('');
-    return '<section class="tela" aria-labelledby="t-expedicao">' + cenaAbaHtml('expedicao') +
-      '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>' +
+    return '<section class="tela" aria-labelledby="t-expedicao">' +
+      cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
@@ -3333,10 +3333,18 @@
     return im.complete && im.naturalWidth ? im : null;
   }
   function temTela(tipo, id) { var m = window.__TELAS; return !!(m && m[tipo] && hasOwn(m[tipo], id) && typeof m[tipo][id] === 'string'); }
-  function cenaAbaHtml(aba) { return temTela('cenas', aba) ? '<canvas class="cena-aba" data-cena-aba="' + aba + '" aria-hidden="true"></canvas>' : ''; }
+  // a cena da aba e a placa do título juntas num painel com moldura (refino de 2026-11-23, escolha do Vinicius: a cena solta
+  // parecia deslocada do fundo); sem a arte, só o título
+  function cenaAbaHtml(aba, titulo) {
+    return temTela('cenas', aba) ? '<div class="caixa cena-painel"><canvas class="cena-aba" data-cena-aba="' + aba + '" aria-hidden="true"></canvas>' + titulo + '</div>' : titulo;
+  }
   // a largura (pixels de arte) que cabe no pai do canvas, até a da arte, e o corte de cada lado
   function larguraTela(cv) {
-    var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), pai = cv.parentElement ? cv.parentElement.clientWidth : 0;
+    var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), el = cv.parentElement, pai = 0;
+    if (el) {   // a largura do miolo do pai (o clientWidth conta o recuo: no painel da cena, 4 px de cada lado)
+      var cs = getComputedStyle(el);
+      pai = el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    }
     var W = Math.max(160, Math.min(TELA_W, pai ? Math.floor(pai * r / kG) : TELA_W));
     return { W: W, ox: Math.floor((TELA_W - W) / 2) };
   }
@@ -3736,7 +3744,7 @@
 
   function renderHaras() {
     var H = harasNormalize();
-    var head = cenaAbaHtml('haras') + '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' + noticeHtml();
+    var head = cenaAbaHtml('haras', '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>') + noticeHtml();
     var foal = H.result ? mountByUid(H.result) : null;
     if (foal) return '<section class="tela" aria-labelledby="t-haras">' + head + harasResultHtml(foal) + '</section>';
 
@@ -4397,7 +4405,7 @@
   }
   function renderLoja() {
     if (!LOJA_PARTES.some(function (a) { return a.id === ui.lojaParte; })) ui.lojaParte = 'comprar';
-    var head = cenaAbaHtml('loja') + '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
+    var head = cenaAbaHtml('loja', '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>');
     var partes = '<div class="subabas" role="group" aria-label="Partes da loja">' + LOJA_PARTES.map(function (a) {
       return '<button type="button" class="btn opcao opcao--centro" data-acao="loja-parte" data-id="' + esc(a.id) + '" aria-pressed="' + (ui.lojaParte === a.id) + '">' + esc(a.rotulo) + '</button>';
     }).join('') + '</div>';

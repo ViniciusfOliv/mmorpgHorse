@@ -136,11 +136,10 @@ html, body { height: 100%; margin: 0; }
 html { background: var(--noite); }
 body {
   background-color: var(--noite);
-  /* piso de tábuas do estábulo: linhas de 2px, sem gradiente suave */
-  background-image:
-    linear-gradient(var(--noite-2) 2px, transparent 2px),
-    linear-gradient(90deg, var(--noite-2) 2px, transparent 2px);
-  background-size: 100% 32px, 128px 32px;
+  /* pontilhado discreto (refino de 2026-11-23, escolha do Vinicius; eram as tábuas do estábulo, que no azul pareciam
+     azulejo): um ponto de --noite-2 a cada 6 pixels de arte, na grade */
+  background-image: conic-gradient(at var(--px) var(--px), transparent 75%, var(--noite-2) 0);   /* o quadrante de cima à esquerda: 1 × 1 */
+  background-size: calc(var(--px) * 6) calc(var(--px) * 6);
   color: var(--texto);
   font: 400 var(--t-s)/var(--lh-s) var(--fonte-9);   /* o texto corrido é secundário (guia §6); nomes, botões e títulos pedem o --t-m */
   font-synthesis: none;
@@ -1508,9 +1507,11 @@ img.icone.icone--n24 { width: calc(var(--px) * 24); height: calc(var(--px) * 24)
 
 /* ---------- Etapa 6 da direção de arte: cena no topo das abas e mapa da trilha ---------- */
 /* a cena (256×160 em pixels de arte, 1:1 na grade; o canvas tem o tamanho certo) com a placa do título por cima das
-   últimas 40 linhas (as 24 de baixo já somem em pontilhado) */
+   últimas 40 linhas (as 24 de baixo já somem em pontilhado), as duas num painel com a moldura das caixas (refino de
+   2026-11-23): 4 px de friso em volta, e onde a cena não chega à largura do painel, o --noite-2 */
+.cena-painel { padding: 4px; gap: 0; background: var(--noite-2); }
 .cena-aba { display: block; margin: 0 auto calc(var(--px) * -40); image-rendering: pixelated; }
-.cena-aba + .titulo--tela { position: relative; }
+.cena-aba + .titulo--tela { position: relative; margin: 0; }
 .trilha-mapa-palco { display: flex; justify-content: center; margin: 0 0 12px; }
 .trilha-mapa { display: block; image-rendering: pixelated; cursor: pointer; box-shadow: 0 0 0 2px var(--sombra); }
 
@@ -12384,9 +12385,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
 
   // Aba Estábulo: o cartão da recompensa diária e a lista de montarias
   function renderEstabulo() {
-    return '<section class="tela" aria-labelledby="t-estabulo">' + cenaAbaHtml('estabulo') +
+    return '<section class="tela" aria-labelledby="t-estabulo">' + cenaAbaHtml('estabulo',
       '<h1 class="titulo titulo--tela" id="t-estabulo" tabindex="-1" data-foco>Estábulo <span class="nota">' +
-        state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>' + noticeHtml() +
+        state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>') + noticeHtml() +
       diariaCartaoHtml() + montariasHtml() +
       '</section>';
   }
@@ -12520,8 +12521,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         elementHtml(w.element) +
         '<span class="nota">' + esc(w.habitat || '') + '</span></div>';
     }).join('');
-    return '<section class="tela" aria-labelledby="t-expedicao">' + cenaAbaHtml('expedicao') +
-      '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>' +
+    return '<section class="tela" aria-labelledby="t-expedicao">' +
+      cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
@@ -12942,10 +12943,18 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return im.complete && im.naturalWidth ? im : null;
   }
   function temTela(tipo, id) { var m = window.__TELAS; return !!(m && m[tipo] && hasOwn(m[tipo], id) && typeof m[tipo][id] === 'string'); }
-  function cenaAbaHtml(aba) { return temTela('cenas', aba) ? '<canvas class="cena-aba" data-cena-aba="' + aba + '" aria-hidden="true"></canvas>' : ''; }
+  // a cena da aba e a placa do título juntas num painel com moldura (refino de 2026-11-23, escolha do Vinicius: a cena solta
+  // parecia deslocada do fundo); sem a arte, só o título
+  function cenaAbaHtml(aba, titulo) {
+    return temTela('cenas', aba) ? '<div class="caixa cena-painel"><canvas class="cena-aba" data-cena-aba="' + aba + '" aria-hidden="true"></canvas>' + titulo + '</div>' : titulo;
+  }
   // a largura (pixels de arte) que cabe no pai do canvas, até a da arte, e o corte de cada lado
   function larguraTela(cv) {
-    var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), pai = cv.parentElement ? cv.parentElement.clientWidth : 0;
+    var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), el = cv.parentElement, pai = 0;
+    if (el) {   // a largura do miolo do pai (o clientWidth conta o recuo: no painel da cena, 4 px de cada lado)
+      var cs = getComputedStyle(el);
+      pai = el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    }
     var W = Math.max(160, Math.min(TELA_W, pai ? Math.floor(pai * r / kG) : TELA_W));
     return { W: W, ox: Math.floor((TELA_W - W) / 2) };
   }
@@ -13345,7 +13354,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
 
   function renderHaras() {
     var H = harasNormalize();
-    var head = cenaAbaHtml('haras') + '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' + noticeHtml();
+    var head = cenaAbaHtml('haras', '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>') + noticeHtml();
     var foal = H.result ? mountByUid(H.result) : null;
     if (foal) return '<section class="tela" aria-labelledby="t-haras">' + head + harasResultHtml(foal) + '</section>';
 
@@ -14006,7 +14015,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   }
   function renderLoja() {
     if (!LOJA_PARTES.some(function (a) { return a.id === ui.lojaParte; })) ui.lojaParte = 'comprar';
-    var head = cenaAbaHtml('loja') + '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
+    var head = cenaAbaHtml('loja', '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>');
     var partes = '<div class="subabas" role="group" aria-label="Partes da loja">' + LOJA_PARTES.map(function (a) {
       return '<button type="button" class="btn opcao opcao--centro" data-acao="loja-parte" data-id="' + esc(a.id) + '" aria-pressed="' + (ui.lojaParte === a.id) + '">' + esc(a.rotulo) + '</button>';
     }).join('') + '</div>';
