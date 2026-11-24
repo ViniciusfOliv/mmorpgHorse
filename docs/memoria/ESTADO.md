@@ -230,7 +230,13 @@ desafio nova do `mapa.js` fica, com a luz de cena e o clima dos cavalos do `pint
 volta; o `?quadro=` congela o laço vivo novo). O fundo das 3 trilhas anima no jogo; o idle vivo vale nas vistas de frente
 e de costas (`drawHorseMolde`; o `mapa.js` redesenha o cavalo da cena pelo idle, sem o balanço da figura inteira). A
 arena antiga da Fornalha saiu do motor (`CENAS.fornalha`, a entrada `ginasios/fogo` do manifesto e da folha das máscaras;
-a amostra antiga fica sem ela). Nada na `main`: a coordenação leva depois do OK do Vinicius.
+a amostra antiga fica sem ela). Custo da cena do desafio com o idle: `IdleMolde.chave(t)` (chave sem montar o mapa),
+opções fixas por cavalo, consulta a 10 q/s, pré-pintura dos próximos segundos; o idle soma ~0,03 ms por quadro (bloco
+sozinho 0,69 ms; régua 1,2). O bloco `fluxo-capturas-ginasio` foi para a fase em série do `ui-test-paralelo` (mede tempo
+real; em paralelo passava da régua até sem o idle). Com `?quadro=`, o que anda por dt nos mapas segue o relógio.
+`check.sh` completo OK (b203f58e; 83 blocos, 4 por vez + 11 em série); capturas oficiais regeneradas. DEV versão 8;
+jogo de teste novo: https://claude.ai/artifact/6dBBKxNgCobippyXKbVn2c. Nada na `main`: a coordenação leva depois do OK
+do Vinicius.
 Quando os ramos se juntarem: 'frente'/'costas' na condição do `vivo` do `drawHorseMolde`. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
