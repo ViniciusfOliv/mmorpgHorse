@@ -11,6 +11,14 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Inpaint do PixelLab no chão ajuda pouco** (terra escura que parece buraco); o contato por código fica.
 - **Canva só como referência de fundo**: o conector devolve prévias; o tamanho cheio exige exportar no Canva.
 
+## 2026-11-24 — Lote do Meshy: um modelo por molde, a partir dos papéis
+- Cada molde vira um modelo 3D gerado da imagem em cores puras por papel; o render devolve os papéis (formato dos moldes) e
+  o jogo recolore. · A recoloração do jogo continua valendo e o lote cai de ~360 para ~330 créditos para 11 moldes.
+- A crina sai cheia (sem pontas de folha ou chama) a ~54 px; aceito pelo Vinicius ao aprovar seguir com os 10. · O formato
+  da crina vem da malha.
+- Nos moldes, os papéis nem sempre são anatômicos (no esguio-chamas, crina e cauda usam "detalhe" e a manta usa "crina");
+  o render segue os papéis do molde, não a anatomia. · Assim a vista 3D pinta igual ao molde de lado.
+
 ## 2026-11-24 — Cena de desafio, rodada 2 da comparação (versão 10)
 - Meshy 2º cavalo (Ipê robusto) aprovado e feito (30 créditos): o porte sai bem, o estilo da crina não. · Mostrar se dá para
   ter 1 modelo 3D por porte e recolorir. · Conclusão: cor sim (com modelo feito de imagem com cores puras por papel), formato da

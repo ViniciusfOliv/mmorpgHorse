@@ -57,7 +57,12 @@ nascidos de imagem com cores puras por papel, e o formato da crina exige outro m
 1920 × 1080, reduzidos à grade e usados como arenas "Canva 1/2" na cena (créditos do plano). Gemini: a chave nova está
 salva, mas no cabeçalho Authorization; a geração de imagem é só na API nativa, que lê `x-goog-api-key` (401, nada
 cobrado); o Vinicius mudou o cabeçalho e o teste rodou (4 variações, ~US$ 0,155): a cena volta quase igual, com
-sombras de contato um pouco mais marcadas; ganho pequeno. Lote dos 12 cavalos segue não aprovado.
+sombras de contato um pouco mais marcadas; ganho pequeno.
+**Lote do Meshy por molde (opção A, 2026-11-24, confirmado pelo Vinicius aqui):** Ipê refeito a partir do molde em cores
+puras por papel (30 créditos) e, aprovado o resultado, os outros 10 moldes (300 créditos; saldo 405 → 75; 330 dos 360 do
+teto). O render volta cada pixel ao seu papel (formato dos moldes) e a amostra recolore como o jogo (versões 12 e 13).
+Fica de fora o padrao-chamas (a Brasa do 1º teste, que não veio dos papéis; refazer custa 30). **Spec em rascunho:**
+`docs/superpowers/specs/2026-11-24-mapa-ginasios-design.md`, com 4 pendências para o Vinicius (§10). Lote dos 12 cavalos segue não aprovado.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

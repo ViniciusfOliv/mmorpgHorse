@@ -1059,6 +1059,46 @@
       "base": "desafio-bakeoff/meshy-esguio-folhas",
       "creditos_meshy": 30,
       "data": "2026-11-24T12:51:20.691Z"
+    },
+    {
+      "base": "desafio-bakeoff/meshy-esguio-lisa",
+      "creditos_meshy": 30,
+      "data": "2026-11-24T12:52:39.919Z"
+    },
+    {
+      "base": "desafio-bakeoff/meshy-esguio-ondas",
+      "creditos_meshy": 30,
+      "data": "2026-11-24T12:53:49.094Z"
+    },
+    {
+      "base": "desafio-bakeoff/meshy-padrao-folhas",
+      "creditos_meshy": 30,
+      "data": "2026-11-24T12:54:57.690Z"
+    },
+    {
+      "base": "desafio-bakeoff/meshy-padrao-lisa",
+      "creditos_meshy": 30,
+      "data": "2026-11-24T12:56:06.095Z"
+    },
+    {
+      "base": "desafio-bakeoff/meshy-padrao-ondas",
+      "creditos_meshy": 30,
+      "data": "2026-11-24T12:57:35.772Z"
+    },
+    {
+      "base": "desafio-bakeoff/meshy-robusto-chamas",
+      "creditos_meshy": 30,
+      "data": "2026-11-24T12:58:44.046Z"
+    },
+    {
+      "base": "desafio-bakeoff/meshy-robusto-lisa",
+      "creditos_meshy": 30,
+      "data": "2026-11-24T12:59:52.667Z"
+    },
+    {
+      "base": "desafio-bakeoff/meshy-robusto-ondas",
+      "creditos_meshy": 30,
+      "data": "2026-11-24T13:00:50.660Z"
     }
   ]
 }
