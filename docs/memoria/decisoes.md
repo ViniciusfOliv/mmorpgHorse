@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Como usar o PixelLab (pergunta do Vinicius)
+- **Produção pela API v2 com scripts versionados** (dry-run, `--gerar`, `--teto`, `--reprocessar`), com a chave
+  injetada pelo proxy da sessão — não pelo MCP: cada geração fica reprodutível, com custo controlado e registrada em
+  `assets.md` (declaração de IA da Steam). Dentro da API, usar sempre o recurso que der o melhor resultado para cada
+  asset (objetos, animação por referência, VFX, tilesets/mapas), avaliado em piloto pequeno antes do lote. O MCP fica
+  só como opção de exploração local. Chave nunca no código nem na conversa.
+
 ## 2026-11-23 — Próximas frentes visuais, na ordem do Vinicius
 - **Ordem:** 1) animação ambiente (cenários e cavalos com movimento), 2) mapa-múndi e caminho dos ginásios, 3) tela
   inicial, 4) inventário — recomendação da coordenação, aprovada ("pode seguir na ordem que sugeriu"). Base: a pesquisa
