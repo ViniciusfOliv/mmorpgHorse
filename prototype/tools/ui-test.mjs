@@ -9617,8 +9617,11 @@ try {
           else if (!dela.some((d) => d.porte === e.porte)) problems.push(`${onde}: ${fn} de ${e.chave} com porte ${[...new Set(dela.map((d) => d.porte))].join(',')} (esperado ${e.porte})`)
         }
       }
-      const prep = reg.prepararCavalo.map((d) => d.porte).sort().join(','), espPrep = esperados.map((e) => e.porte).sort().join(',')
-      if (prep !== espPrep) problems.push(`${onde}: prepararCavalo com os portes ${prep || '(nenhum)'} (esperado ${espPrep})`)
+      // (uma vez por corredor em cada clima que a corrida mostra: a LUT do clima é pré-assada na largada, Regra 8)
+      const nPrep = reg.prepararCavalo.length, k = esperados.length ? Math.round(nPrep / esperados.length) : 0
+      const prep = reg.prepararCavalo.map((d) => d.porte).sort().join(',')
+      const espPrep = [].concat(...Array.from({ length: Math.max(1, k) }, () => esperados.map((e) => e.porte))).sort().join(',')
+      if (!k || nPrep !== k * esperados.length || prep !== espPrep) problems.push(`${onde}: prepararCavalo com os portes ${prep || '(nenhum)'} (esperado ${esperados.map((e) => e.porte).sort().join(',')}, uma vez por clima)`)
       const pares = [...new Set(reg.anchorsFor.map((d) => d.element + '|' + d.porte))].sort().join(' ')
       const espPares = [...new Set(esperados.map((e) => e.element + '|' + e.porte))].sort().join(' ')
       if (pares !== espPares) problems.push(`${onde}: anchorsFor com ${pares || '(nenhum)'} (esperado ${espPares})`)
