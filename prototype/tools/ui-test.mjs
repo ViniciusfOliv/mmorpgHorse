@@ -6057,6 +6057,45 @@ try {
       else for (const [nome, cor] of [['chão', som.piso], ['sombra projetada', som.S.projetada], ['contato', som.S.contato]]) {
         if (!som.cores[cor]) problems.push(`[${label}] sob os cascos do jogador falta a cor do ${nome} (${cor}); cores: ${JSON.stringify(som.cores)}`)
       }
+      // contato com o chão (Regras 7 e 12): em ~2 s de corrida, a cada quadro, o contato de cada raia vem logo depois do
+      // cavalo dela (atrás do da raia de baixo); o casco do jogador fica coberto por um torrão em parte dos quadros, nunca
+      // em todos; e a patinação do casco de apoio (quanto ele anda na tela além do chão, por troca de quadro do molde),
+      // medida na cadência natural e na "galope casado" do DEV, que tem de ficar em até 1,5 px de arte em média
+      const contato = async (casada) => pg.evaluate(async (cas) => {
+        window.__galope.ui.dev.cadenciaCasada = cas
+        const FX = window.RaceFx, amostras = [], ordemRuim = []
+        await new Promise((ok) => {
+          const t0 = performance.now()
+          const tick = () => {
+            const st = FX._stats, o = st.ordemContato
+            for (let i = 0; i < o.length; i += 2) if (o[i][0] !== 'h' || o[i + 1] !== 'c' + o[i].slice(1)) { ordemRuim.push(o.join(' ')); break }
+            if (st.cascoJogador) amostras.push({ ...st.cascoJogador, xs: st.cascoJogador.xs.slice(), coberto: st.cascoCoberto })
+            if (performance.now() - t0 < 2500) requestAnimationFrame(tick); else ok()
+          }
+          requestAnimationFrame(tick)
+        })
+        const cob = amostras.filter((a) => a.coberto).length
+        // patinação: entre duas trocas de quadro seguidas (q -> q + 1), cada casco do quadro novo que veio de um casco de
+        // apoio do anterior (recuo de 2 a 14 px de arte) anda na tela Δh; o chão anda −Δcam; patina = Δh + Δcam
+        const trocas = []; for (let i = 1; i < amostras.length; i++) if (amostras[i].q !== amostras[i - 1].q) trocas.push(amostras[i])
+        const slips = []
+        for (let i = 1; i < trocas.length; i++) {
+          const a = trocas[i - 1], b = trocas[i], S = b.S
+          if ((a.q + 1) % 9 !== b.q) continue
+          b.xs.forEach((xb) => {
+            const rel = (xx, s) => (xx - s.x) / S
+            const par = a.xs.find((xa) => { const d = rel(xa, a) - rel(xb, b); return d >= 2 && d <= 14 })
+            if (par !== undefined) slips.push(((xb - par) + (b.camPx - a.camPx)) / S)
+          })
+        }
+        const media = slips.length ? slips.reduce((u, v) => u + v, 0) / slips.length : null
+        return { quadros: amostras.length, cobertos: cob, ordemRuim: ordemRuim.slice(0, 2), nOrdemRuim: ordemRuim.length, trocas: trocas.length, slips: slips.length, patinaMedia: media }
+      }, casada)
+      const natural = await contato(false), casada = await contato(true)
+      notes[label + '-contato'] = { natural, casada }
+      if (natural.nOrdemRuim) problems.push(`[${label}] contato da raia fora de ordem (cavalo → contato, raia a raia): ${natural.ordemRuim.join(' | ')}`)
+      if (!natural.quadros || natural.cobertos === 0 || natural.cobertos === natural.quadros) problems.push(`[${label}] casco do jogador coberto pelo contato em ${natural.cobertos} de ${natural.quadros} quadros (esperado em parte, nunca em todos)`)
+      if (casada.slips < 3 || Math.abs(casada.patinaMedia) > 1.5) problems.push(`[${label}] galope casado: o casco de apoio patina ${casada.patinaMedia} px de arte por quadro do molde em média (${casada.slips} medidas; esperado até 1,5)`)
       await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
       await pg.waitForSelector('#t-resultado')
     } catch (e) {

@@ -2815,5 +2815,48 @@ test('figura na cena: a chave do cache leva a cena e o clima; sol e névoa (figu
   });
 });
 
+section('contato com o chão (Regras 7 e 12): passada, pousos, faixa da raia, poeira e tufos');
+test('passadaDe: o casco de apoio recua; passada = a mediana dos recuos; pouso = casco novo que segue de apoio', function () {
+  // casco A pousa em 40 e recua 6 por quadro (40, 34, 28, 22) e sai; casco B pousa em 46 no quadro 3
+  var q = [[40], [34], [28], [22, 46], [40], [34]];
+  var P = SPR.passadaDe(q);
+  assert.strictEqual(P.passada, 6);
+  assert.strictEqual(P.pousa[0], true, 'o 40 do quadro 0 pousa (o 34 do último quadro está à frente dele, não atrás)');
+  assert.strictEqual(P.pousa[3], true, 'o 46 pousa no quadro 3');
+  assert.strictEqual(P.pousa[4], false, 'o 40 do quadro 4 vem do 46 (recuo de 6)');
+  assert.deepStrictEqual(P.pousos[3], [46]);
+});
+test('cascosNoChao: grupos de pixels nas 2 linhas de baixo, com o x do meio', function () {
+  var w = 10, h = 6, idx = new Uint8Array(w * h);
+  idx[5 * w + 1] = 2; idx[5 * w + 2] = 1; idx[4 * w + 7] = 3;
+  assert.deepStrictEqual(SPR.cascosNoChao(idx, w, h, 5), [1.5, 7]);
+});
+test('faixa de contato: presa ao chão, cobre só parte das colunas (torrões de 1 a 3 px)', function () {
+  var com = 0, alts = {};
+  for (var x = 0; x < 512; x++) { var a = SPR.contatoEm(x, 0, 1); if (a) { com++; alts[a] = 1; } }
+  assert.ok(com > 512 * 0.05 && com < 512 * 0.5, 'colunas com torrão: ' + com);
+  var ks = Object.keys(alts);
+  assert.ok(ks.length >= 2 && ks.every(function (k) { return k >= 1 && k <= 3; }), 'alturas de 1 a 3, variadas: ' + ks);
+  assert.strictEqual(SPR.contatoEm(10, 37, 1), SPR.contatoEm(47, 0, 1), 'a câmera rola o padrão junto com o chão');
+  assert.strictEqual(SPR.contatoEm(20, 74, 2), SPR.contatoEm(94, 0, 2), 'na escala 2 também');
+  var c = ctxFalso(); comCanvas(function () { SPR.drawContatoRaia(c, 0, 300, 100, 0, 1, '#cd683d'); });
+  assert.ok(c.imgs.length >= 1 && c.imgs.every(function (im) { return im.args[5] >= 0 && im.args[5] + im.args[7] <= 300; }), 'só na faixa pedida');
+});
+test('poeira do pouso: 2 tons do chão, nasce no pouso e some aos POUSO_S', function () {
+  var c = ctxFalso();
+  assert.strictEqual(FX.drawPoeiraPouso(c, 50, 50, 2, 0.2, '#e6904e', '#fbb954'), 1);
+  assert.ok(c.rects.every(function (r) { return r.cor === '#e6904e' || r.cor === '#fbb954'; }));
+  assert.strictEqual(FX.drawPoeiraPouso(ctxFalso(), 50, 50, 2, FX.POUSO_S, '#e6904e', '#fbb954'), 0, 'depois da vida');
+  assert.strictEqual(FX.drawPoeiraPouso(ctxFalso(), 50, 50, 2, -0.1, '#e6904e'), 0, 'antes de nascer');
+});
+test('tufos na frente dos cascos: determinísticos, só cores da rampa do chão, tapete na linha dos cascos', function () {
+  var a = ctxFalso(), b = ctxFalso();
+  SPR.drawTufosFrente(a, 60, 100, 40, '#e6904e', 2, 1, true); SPR.drawTufosFrente(b, 60, 100, 40, '#e6904e', 2, 1, true);
+  assert.deepStrictEqual(a.rects, b.rects, 'mesma semente, mesmo desenho');
+  var ok = ['#fbb954', '#e6904e', '#cd683d'];
+  assert.ok(a.rects.every(function (r) { return ok.indexOf(r.cor) >= 0; }), 'cores: ' + a.rects.map(function (r) { return r.cor; }));
+  assert.ok(a.rects.some(function (r) { return r.y === 200 && r.w >= 60; }), 'o tapete cobre a linha dos cascos');
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

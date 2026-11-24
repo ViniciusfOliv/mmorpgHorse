@@ -1218,7 +1218,7 @@
     joqueiKeep: null,   // e o jóquei também (padrão e capacete)
     // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
     // (ver a seção "Modo DEV")
-    dev: { aberto: false, ouroInf: true, msg: '', f: null, confirmZerar: false }, devNext: null };
+    dev: { aberto: false, ouroInf: true, cadenciaCasada: false, msg: '', f: null, confirmZerar: false }, devNext: null };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -2220,6 +2220,8 @@
         devSelect('direcao', 'Direção do vento', [['1', '→ Direita'], ['-1', '← Esquerda']], f.direcao) +
         devEntrada('seed', 'Seed', 'type="text" inputmode="numeric" autocomplete="off" placeholder="da sala"', f.seed) +
       '</div>' +
+      // a cadência do galope casada com a rolagem do chão (casco sem patinar; guia de integração, Regra 12), para comparar
+      devCheck('cadencia', 'Galope casado com o chão (casco sem patinar; pernas bem mais rápidas)', ui.dev.cadenciaCasada) +
       '<p class="dev-armado' + (ui.devNext ? ' dev-armado--on' : '') + '" id="dev-armado">' + esc(devResumoArmado(ui.devNext)) + '</p>' +
       '<div class="dev-acoes">' + devBotao('dev-armar', 'Armar', 'btn--ouro') + devBotao('dev-limpar', 'Limpar') + '</div>');
 
@@ -2469,6 +2471,12 @@
     devEl.addEventListener('change', function (e) {
       var k = e.target && e.target.getAttribute ? e.target.getAttribute('data-dev-campo') : null;
       if (!k || !state) return;
+      if (k === 'cadencia') {
+        ui.dev.cadenciaCasada = !!e.target.checked;
+        ui.dev.msg = ui.dev.cadenciaCasada ? 'Galope casado com o chão: vale nas próximas corridas.' : 'Galope na cadência natural.';
+        renderDev();
+        return;
+      }
       if (k === 'ouroinf') {
         ui.dev.ouroInf = !!e.target.checked;
         if (ui.dev.ouroInf) devGrava('Ouro infinito ligado.');
@@ -3513,6 +3521,8 @@
     vis.reduzido = reduced();
     SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
       jockey: false, silks: PLAYER_SILKS, chao: chao, cena: 'estabulo', quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
+    // a palha do chão na frente dos cascos (Regra 7)
+    if (chao) SP.drawTufosFrente(ctx, cx, base, 46, chao, k, 1, true);
   }
   function drawCenaAba(cv) {
     var aba = cv.getAttribute('data-cena-aba'), L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, CENA_ABA_H), k = s.k, ctx = s.ctx;
@@ -3665,10 +3675,14 @@
         chaoChave: e.gymId + '|' + ox + '|' + cx + '|' + base,
         cena: CENA_LUZ[e.gymId] || null,   // tinta ambiente e contraluz da arena (Regra 8)
         quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
-      if (!espelha) { SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); return; }
-      ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
-      SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
-      ctx.restore();
+      if (!espelha) SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
+      else {
+        ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
+        SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
+        ctx.restore();
+      }
+      // tufos do chão da arena na frente dos cascos (Regra 7), na cor do chão sob eles
+      if (chao) SP.drawTufosFrente(ctx, cx, base, 44, chao, k, base);
     }
     var item = {
       drawn: false,
@@ -6352,6 +6366,12 @@
     // montado já na largada, no molde do porte (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora,
     // ~0,8 ms por quadro com marcas e jóquei), e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi
     // simulada.
+    // a passada e os pousos do galope de cada corredor (Sprites.contatoGalope; null sem moldes) e a poeira de pouso viva
+    var passadas = L.racers.map(function (r) {
+      var v = opcoesVisuais(r.horse, null), c = SP.contatoGalope(r.horse.element, v.porte);
+      return c ? { passada: c.passada, quadros: c.cascos.length } : null;
+    });
+    var poeiras = L.racers.map(function () { return { q: -1, lista: [] }; });
     var visuais = L.racers.map(function (r, q) {
       var v = opcoesVisuais(r.horse, joqueiDoCorredor(L, q));
       v.rastro = true;   // rastro de luz do Mítico: só na corrida
@@ -6763,6 +6783,8 @@
         t: red ? tr * 0.4 : tr, weather: climaCor, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
         curveScale: lay.arcoK, regiao: regiaoDaPista(L)
       });
+      // a sombra da cerca de trás sobre a raia de cima (Regra 7)
+      SP.drawSombraCerca(ctx, W, laneTop, self.camPx, S, chaoPista);
       // natureza, camada de trás (calor, respingos, névoa do fundo): antes dos cavalos. lift acompanha o
       // relevo das subidas e o arco das curvas (os respingos e o calor ficam no chão levantado)
       var natO = {
@@ -6817,8 +6839,19 @@
         }
         var inten = standing ? 0 : boostIntensity(j, self.simT);
         if (inten > 0.02) SP.drawTrail(ctx, x + an.rear[0] * S, y + an.rear[1] * S, r.horse.element, tr + j * 0.31, inten, S);
-        // poeira dos cascos em terra ou areia (fora da chuva), atrás do cavalo
-        if (poeira && !standing) FX.drawHoofDust(ctx, x + an.rear[0] * S, feetY, S, tr + j * 0.37, L.cond.surface, red);
+        // poeira dos cascos em terra ou areia (fora da chuva), atrás do cavalo: com os moldes, nasce no quadro em que o
+        // casco pousa, no ponto do chão do pouso (presa ao chão: guarda o x de arte do chão), em 2 tons do chão (Regra 12)
+        var cascos = standing ? null : SP.cascosNaTela(x, y, cavalo), pj2 = poeiras[j];
+        if (cascos) {
+          if (cascos.quadro !== pj2.q) {
+            if (pj2.q >= 0 && poeira) cascos.pousos.forEach(function (px) { pj2.lista.push({ t0: tr, xa: (px + self.camPx) / S }); });
+            pj2.q = cascos.quadro;
+          }
+          pj2.lista = pj2.lista.filter(function (pz) { return tr - pz.t0 < FX.POUSO_S; });
+          var corP = window.Luz.degrau(chaoPista, 1), bordaP = window.Luz.degrau(chaoPista, 2);
+          pj2.lista.forEach(function (pz) { FX.drawPoeiraPouso(ctx, pz.xa * S - self.camPx, feetY, S, tr - pz.t0, corP, bordaP); });
+          if (j === me) FX._stats.cascoJogador = { q: cascos.quadro, xs: cascos.xs, x: x, camPx: self.camPx, S: S, tr: tr, passada: cascos.passada };
+        } else if (poeira && !standing) FX.drawHoofDust(ctx, x + an.rear[0] * S, feetY, S, tr + j * 0.37, L.cond.surface, red);
         if (lift > 0 && !standing && !reduced()) {
           // poeira levantada na subida
           var dp = Math.floor(tr * 10 + j) % 3;
@@ -6835,6 +6868,12 @@
         }
         if (gl) SP.drawHorseSilhouette(ctx, x, y, cavalo, gl.cor, gl.alpha);
         SP.drawHorse(ctx, x, y, cavalo);
+        FX._stats.ordemContato.push('h' + j);
+        // contato da raia logo depois do cavalo dela: sulcos e torrões presos ao chão sobre a linha dos cascos, só na faixa
+        // do cavalo (segue o relevo e o arco dele), atrás dos cavalos das raias de baixo (Regra 7)
+        SP.drawContatoRaia(ctx, caixaCav.x - 4 * S, caixaCav.x + caixaCav.w + 4 * S, feetY, self.camPx, S, chaoPista);
+        FX._stats.ordemContato.push('c' + j);
+        if (j === me && cascos) FX._stats.cascoCoberto = cascos.xs.some(function (cx) { for (var u = 0; u < 3; u++) if (SP.contatoEm(cx + u * S, self.camPx, S) > 0) return true; return false; });
         FX._stats.caixasCavalos.push({ racer: j, x: Math.round(caixaCav.x / S), y: Math.round(caixaCav.y / S), w: Math.round(caixaCav.w / S), h: Math.round(caixaCav.h / S), arco: arcoJ });
         // vento, "+" e faíscas da skill / Garra no próprio cavalo (fx.js)
         for (var ei = 0; ei < efeitoItens.length; ei++) {
@@ -7172,7 +7211,15 @@
       var st = sample(self.simT);
       // galope: cadência em tempo real proporcional à velocidade (mais lenta na câmera lenta)
       // (guia §8a: 21 quadros do molde por segundo a 17 m/s = 14 dos 6 do ciclo do código)
-      for (var j = 0; j < n; j++) self.gallop[j] += dtReal * GALOPE_QPS * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
+      // DEV "galope casado" (Regra 12): o casco de apoio anda na tela igual ao chão; quadros do molde por segundo =
+      // velocidade na tela (m/s da simulação × segundos de simulação por segundo real) × px de arte por metro ÷ passada
+      // do molde (px por quadro), no ciclo do código (GALLOP_FRAMES quadros = os quadros do molde)
+      var casada = DEV_MODE && ui.dev.cadenciaCasada;
+      for (var j = 0; j < n; j++) {
+        var pj = casada ? passadas[j] : null;
+        if (pj && pj.passada > 0) self.gallop[j] += dtReal * (st.speed[j] * ts * self.mult * slowK * self.ppmArt / pj.passada) * (SP.GALLOP_FRAMES / pj.quadros);
+        else self.gallop[j] += dtReal * GALOPE_QPS * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
+      }
       // narração
       while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT && !esperaRevelacao(feedEvents[feedPtr])) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);

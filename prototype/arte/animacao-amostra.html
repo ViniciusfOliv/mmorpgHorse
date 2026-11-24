@@ -219,7 +219,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
   // degrau; a cada passo (fps próprio) só esses pixels são reescritos no ImageData e a camada volta por um putImageData.
   function CicloCor(base, escolhe, rampas, cor, fps) {
     // escolhe(x, y, hex) -> índice da rampa ou -1; rampas: listas de hex; cor(x, y, rampa, degrau, t) -> degrau novo
-    this.base = base; this.saida = base.clone(); this.fps = fps || 10; this.passo = -1; this.cor = cor;
+    this.base = base; this.saida = base.clone(); this.fps = fps || 12; this.passo = -1; this.cor = cor;
     this.rampas = rampas.map(function (r) { return r.map(c32); });
     var px = [], hexes = {};
     for (var y = 0; y < base.h; y++) for (var x = 0; x < base.w; x++) {
@@ -779,7 +779,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
     }
     // crina do pescoço tremulando no vento (1 px, onda que corre para trás)
     if (this.ventoCrina && vento(t) > 0.5) {
-      var fq = Math.floor(t * 8);
+      var fq = Math.floor(t * 6);
       for (k = 0; k < this.crina.length; k += 2) {
         x = this.crina[k]; y = this.crina[k + 1] + (x >= this.cabeca.x0 ? cabeca : 0);
         if (Math.sin(x * 0.9 + fq * 1.3) > 0.55 && y > 0 && !m[(y - 1) * 64 + x]) { m[(y - 1) * 64 + x] = 1; m[y * 64 + x] = 4; }
@@ -870,7 +870,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
         var onda = fsin(s.mA[j] - t * s.mS[j] + fsin(s.mB[j] + t * 0.5) * 1.6);
         if (d >= 4 && onda < -0.6) return d - 1;
         return onda > 0.72 && hash(Math.floor((x + t * 4) * s.mL[j]), y) < 0.55 ? d + 1 : d;
-      }, 8);
+      }, 6);
       // as partes fixas da onda, por pixel (perto = 0 no horizonte e 1 na mureta)
       var nm = s.mar.n; s.mA = new Float32Array(nm); s.mS = new Float32Array(nm); s.mB = new Float32Array(nm); s.mL = new Float32Array(nm); s.mH = new Float32Array(nm);
       for (var jm = 0; jm < nm; jm++) {
@@ -911,7 +911,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
         var ko = KO[i] * cx.ond;
         if (ko) { v[0] = Math.round(cx.bal * KX[i] + ko * fsin(PH[i] - cx.tt)); v[1] = Math.round(cx.bal * KY[i] + ko * 0.6 * fsin(PH[i] - cx.tt + 1.3)); }
         else { v[0] = Math.round(cx.bal * KX[i]); v[1] = Math.round(cx.bal * KY[i]); }
-      }, 8, function (t) {
+      }, 6, function (t) {
         pc.caixas.forEach(function (cx) {
           var vv = ventoEm(cx.cx, t); cx.bal = vv * (0.55 + 0.45 * Math.sin(t * (1.6 + vv * 1.8) + cx.fase)) * (MAIS ? 1.45 : 1);
           cx.ond = MAIS ? 0.75 + vv * 0.6 : 0; cx.tt = t * 3.4 + cx.fase;   // mais movimento: as folhas ondulam sempre
@@ -942,7 +942,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
       var faixas = []; for (var fx = 0; fx < fr.w; fx += 48) faixas.push({ id: 1 + fx / 48, x0: Math.max(0, fx - 3), x1: Math.min(fr.w, fx + 51), y0: 0, y1: 34 });
       s.capim = new Deforma(fr, mf, faixas, function (x, y, cx, t, v) {
         v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0;
-      }, 8, function (t) {
+      }, 6, function (t) {
         for (var x = 0; x < fr.w; x++) {
           var w = ventoEm(x * 0.9, t), onda = Math.sin(x * 0.07 - t * 3.2) * 0.5 + 0.5;
           GC[x] = MAIS ? w * 2.2 + onda * 1.5 + Math.sin(x * 0.23 - t * 5.1) * 0.35 : w * 2.2 + (w - 0.4) * onda * 1.6;   // mais: a onda não para
@@ -1010,7 +1010,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
         repetida(s.mar.saida.c, cam * 0.1, lt - 32 - 96, W);
       })) repetida(IMG['litoral/horizonte'], cam * 0.1, lt - 32 - 96, W);
       if (MAIS && L.mar.ativo) mede(L.mar, function () {
-        var y = lt - 128 + 87, q = Math.floor(t * 8), off = Math.floor(cam * 0.1), x = 0;
+        var y = lt - 128 + 87, q = Math.floor(t * 6), off = Math.floor(cam * 0.1), x = 0;
         while (x < W) {
           var k = hash3((x + off) >> 2, 5, q >> 1), n = 2 + Math.floor(k * 6);
           if (k < 0.55) { R(x, y + (k < 0.2 ? -1 : 0), n, 1, k < 0.3 ? P.branco : P.claro); if (k < 0.12) R(x + 1, y - 2, 1, 1, P.branco); }
@@ -1137,12 +1137,12 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
       for (y = 0; y < 70; y++) for (x = 0; x < mb.w; x++) { var dd = y - TOPO[x]; PESO[y * mb.w + x] = dd >= 0 && dd < 6 ? 1 - dd / 8 : 0; }
       s.copas = new Deforma(mb, mm, [{ id: 1, x0: 0, x1: mb.w, y0: 0, y1: 70 }], function (x, y, cx, t, v, i) {
         v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.09)) : 0; v[1] = 0;
-      }, 8, function (t) { var c = s.copas.caixas[0]; c.tt = t * 1.3; c.amp = 0.8 + vento(t) * (MAIS ? 0.9 : 0.5); });
+      }, 6, function (t) { var c = s.copas.caixas[0]; c.tt = t * 1.3; c.amp = 0.8 + vento(t) * (MAIS ? 0.9 : 0.5); });
       // capim alto: tudo acima da linha 50 da camada balança, mais no alto, numa onda contínua
       var fr = Buf.de(IMG['planalto/frente']), mf = new Int16Array(fr.w * fr.h), ALT = new Float32Array(64), GC = new Float32Array(fr.w);
       for (y = 0; y < 50; y++) { for (x = 0; x < fr.w; x++) if (fr.d[y * fr.w + x]) mf[y * fr.w + x] = 1 + ((x / 48) | 0); var al = Math.max(0, 50 - y) / 44; ALT[y] = al * al; }
       var faixas = []; for (var fx = 0; fx < fr.w; fx += 48) faixas.push({ id: 1 + fx / 48, x0: Math.max(0, fx - 4), x1: Math.min(fr.w, fx + 52), y0: 0, y1: 50 });
-      s.capim = new Deforma(fr, mf, faixas, function (x, y, cx, t, v) { v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0; }, 8, function (t) {
+      s.capim = new Deforma(fr, mf, faixas, function (x, y, cx, t, v) { v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0; }, 6, function (t) {
         for (var x = 0; x < fr.w; x++) { var w = ventoEm(x * 0.9, t), onda = Math.sin(x * 0.06 - t * 2.8) * 0.5 + 0.5; GC[x] = MAIS ? w * 2.6 + onda * 1.8 + Math.sin(x * 0.21 - t * 4.6) * 0.4 : w * 2.4 + (w - 0.4) * onda * 1.6; }
       });
       s.rotor = rotorQuadros(24, 25); s.ang = 0;
@@ -1210,7 +1210,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
         var v = fsin(s.lA[j] - t * s.lS[j]) + fsin(s.lA[j] * 0.37 + t * 0.7) * 0.6;
         if (s.lE[j]) return s.lH[j] < 0.3 && v > 1.0 ? d + 1 : d;              // encosta: veios esparsos que descem
         return Math.max(0, Math.min(4, d + (v > 1.35 ? 2 : v > 0.55 ? 1 : v < -1.1 ? -1 : 0)));
-      }, 10);
+      }, 12);
       // partes fixas por pixel: fase (ângulo no anel; altura na encosta), velocidade, ruído
       var nl = s.lava.n; s.lA = new Float32Array(nl); s.lS = new Float32Array(nl); s.lH = new Float32Array(nl); s.lE = new Uint8Array(nl);
       for (var jl = 0; jl < nl; jl++) {
@@ -1283,7 +1283,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
     var fl = t - s.estouro < 0.5;
     s.jorro = MAIS && t - s.estouro < 1.3 ? (t - s.estouro) / 1.3 : -1;   // jorro de lava em cada estouro (desenhado na frente da fumaça)
     // cratera: 5 px de lava viva no topo do pico, com o brilho em ciclo
-    var q = Math.floor(t * 8);
+    var q = Math.floor(t * 6);
     var cr = [[-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [-1, 1], [0, 1], [1, 1]];
     cr.forEach(function (p, i) { R(vx + p[0], vy + p[1], 1, 1, RAMPA_BRASA[(fl ? 0 : 1) + ((i + q) % 3)]); });
     R(vx - 3, vy + 1, 1, 1, P.vinho); R(vx + 3, vy + 1, 1, 1, P.vinho);
@@ -1384,7 +1384,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
       for (y2 = 26; y2 < 112; y2++) for (x2 = 0; x2 < 256; x2++) { var dd2 = y2 - TOPO[x2]; PESO[y2 * 256 + x2] = dd2 >= 0 && dd2 < 7 ? 1 - dd2 / 9 : 0; }
       s.mata = new Deforma(b, mm, [{ id: 1, x0: 0, x1: 256, y0: 26, y1: 112 }], function (x, y, cx, t, v, i) {
         v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.13 + (TOPO[x] & 7) * 0.4)) : 0; v[1] = 0;
-      }, 10, function (t) { var c = s.mata.caixas[0]; c.tt = t * 1.5; c.amp = 0.8 + vento(t) * 0.6; });
+      }, 12, function (t) { var c = s.mata.caixas[0]; c.tt = t * 1.5; c.amp = 0.8 + vento(t) * 0.6; });
       var AC = new Float32Array(160), AP = new Float32Array(160), GC = new Float32Array(256);
       for (y2 = 0; y2 < 160; y2++) { AC[y2] = suave(150, 112, y2); AP[y2] = suave(80, 40, y2); }
       s.capim = new Deforma(b, mc, [{ id: 1, x0: 0, x1: 256, y0: 106, y1: 160 }, { id: 2, x0: 0, x1: 28, y0: 28, y1: 100 }, { id: 2, x0: 234, x1: 256, y0: 28, y1: 100 }], function (x, y, cx, t, v) {
@@ -1500,7 +1500,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
       for (y = 40; y < 96; y++) for (x = 0; x < 256; x++) { var dd = y - TOPO[x]; PESO[y * 256 + x] = dd >= 0 && dd < 8 ? 1 - dd / 10 : dd >= 8 && dd < 20 ? 0.45 : 0; }
       s.arvores = new Deforma(hb, mh, [{ id: 1, x0: 0, x1: 102, y0: 40, y1: 96 }, { id: 1, x0: 218, x1: 256, y0: 40, y1: 96 }], function (x, y, cx, t, v, i) {
         v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.11 + y * 0.05)) : 0; v[1] = 0;
-      }, 10, function (t) { s.arvores.caixas.forEach(function (c) { c.tt = t * 1.4; c.amp = 0.9 + ventoEm(c.x0, t) * 0.7; }); });
+      }, 12, function (t) { s.arvores.caixas.forEach(function (c) { c.tt = t * 1.4; c.amp = 0.9 + ventoEm(c.x0, t) * 0.7; }); });
       s.borboletas = [{ x: 40, y: 112, f: 0, cor: P.ouro }, { x: 170, y: 120, f: 2.1, cor: P.branco }, { x: 230, y: 108, f: 4.3, cor: P.ouroC }];
       // painel do piloto pago: o mesmo cavalo (padrão, baio) por código à esquerda e com os quadros do PixelLab à direita
       s.pl = { acoes: {}, ordem: [], buf: tela(256, 88), fundo: tela(256, 88), atual: null, t0: 0, fila: 0, seq: true };

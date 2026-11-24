@@ -872,7 +872,8 @@
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
   var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], faixaDadoCaixa: null, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [], caixasEtiquetas: [],
-    faixaLugar: '', faixaLugarCaixa: null, natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0, climaPista: '' };
+    faixaLugar: '', faixaLugarCaixa: null, natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0, climaPista: '',
+    ordemContato: [], cascoCoberto: null, cascoJogador: null };
   var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
   // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
   Object.defineProperty(stats, 'intervalo', { enumerable: true, get: function () {
@@ -883,6 +884,7 @@
   function beginFrame() {
     stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.faixaDadoCaixa = null; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = []; stats.caixasEtiquetas = [];
     stats.faixaLugar = ''; stats.faixaLugarCaixa = null; stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0; stats.climaPista = '';
+    stats.ordemContato = []; stats.cascoCoberto = null; stats.cascoJogador = null;
   }
   function endFrame(ms, agora) {
     if (agora != null && isFinite(agora)) {
@@ -1726,6 +1728,20 @@
     return n;
   }
 
+  // poeira do pouso (guia de integração, Regras 7 e 12): nasce no quadro em que o casco pousa, no ponto do chão onde ele
+  // pousou (a tela passa o x de tela de agora desse ponto: a nuvem fica presa ao chão), em 2 tons da cor do chão (cor =
+  // 1 degrau acima, borda = 2 acima), sobe e cresce e some aos 0,4 s. idade em segundos reais.
+  var POUSO_S = 0.4;
+  function drawPoeiraPouso(ctx, x, y, S, idade, cor, borda) {
+    if (!ctx || !(idade >= 0) || idade >= POUSO_S) return 0;
+    var ph = idade / POUSO_S, w = ph < 0.35 ? 2 : 3, h = ph < 0.35 || ph >= 0.75 ? 1 : 2;
+    var bx = Math.round(x - (w / 2 + ph * 3) * S), by = Math.round(y - (1 + ph * 4 + h) * S);
+    ctx.fillStyle = cor; ctx.fillRect(bx, by, w * S, h * S);
+    if (borda && h > 1) { ctx.fillStyle = borda; ctx.fillRect(bx, by, w * S, S); }
+    stats.natureza.poeiraCascos++;
+    return 1;
+  }
+
   // ---- traçado de cima: mapa da pista (sala) e minimapa (HUD da corrida) ---------------------------
   // Cores: reta na cor do piso (opts.piso; sem ele, a cor da reta do catálogo), curva e subida na cor do
   // tipo (GameData.BLOCK_TYPES). Largada: quadrado claro com borda escura; chegada: xadrez com borda.
@@ -1913,7 +1929,7 @@
     drawTypeAura: drawTypeAura,
     drawNature: drawNature,
     drawFogFront: drawFogFront,
-    drawHoofDust: drawHoofDust,
+    drawHoofDust: drawHoofDust, drawPoeiraPouso: drawPoeiraPouso, POUSO_S: POUSO_S,
     drawTrackMap: drawTrackMap,
     drawMiniMap: drawMiniMap,
     // estatísticas

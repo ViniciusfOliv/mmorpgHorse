@@ -1983,6 +1983,30 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     if (!m) { m = {}; naCenaCache.set(img, m); }
     return m[cena] || (m[cena] = remapeia(img, lutFigura('cena|' + cena)));
   }
+  // tufos do próprio chão da cena na frente da linha dos cascos (Regra 7: palha no estábulo, grama ou cascalho na arena):
+  // fios de 1 px de largura e 1 a 3 de altura em ~1/3 das colunas entre cx − larg/2 e cx + larg/2 (pixels de arte), com a
+  // base na linha y (a de baixo dos cascos), nas cores da rampa do chão (o chão e 1 degrau acima e abaixo). O padrão sai
+  // de semente (a cena), sem Math.random; cobre a última linha do casco (some o brilho dela) só onde há fio.
+  // tapete (palha): antes dos fios, uma linha do próprio chão na linha y inteira (o casco afunda nela: some a última
+  // linha dele, com o brilho), com as pontas recortadas
+  function drawTufosFrente(ctx, cx, y, larg, chao, k, semente, tapete) {
+    var Lz = luzApi(), cores = Lz ? [Lz.degrau(chao, 1), chao, Lz.degrau(chao, -1)] : [light(chao, 0.2), chao, shade(chao, 0.3)];
+    var x0 = Math.round(cx - larg / 2), sd = (semente | 0) * 7 + 3, dens = tapete ? 0.55 : 0.36;
+    if (tapete) {
+      ctx.fillStyle = chao;
+      var a = Math.round(hash2(sd, 47) * 3), b = Math.round(hash2(sd, 53) * 3);
+      ctx.fillRect((x0 + a) * k, y * k, (larg - a - b) * k, k);
+    }
+    for (var x = 0; x < larg; x++) {
+      var h = hash2(x + sd, 31);
+      if (h > dens) continue;
+      var alt = 1 + Math.floor(hash2(x + sd, 37) * 3), lean = hash2(x + sd, 41) < 0.5 ? 0 : (hash2(x + sd, 43) < 0.5 ? -1 : 1);
+      for (var dy = 0; dy < alt; dy++) {
+        ctx.fillStyle = cores[dy === alt - 1 ? 0 : (dy === 0 ? 2 : 1)];
+        ctx.fillRect((x0 + x + (dy === alt - 1 ? lean : 0)) * k, (y + 1 - dy - 1) * k, k, k);
+      }
+    }
+  }
   // sombra dos pés de um personagem que não é molde (treinador, objeto): elipse de 2 tons da rampa do chão, 2 px de arte
   // para a direita, com os pés em (cx, y) e a largura larg (pixels de arte; k = escala)
   function drawSombraPes(ctx, cx, y, larg, chao, k) {
@@ -2285,6 +2309,115 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     function conv(p) { return p ? [ANCHORS.nose[0] + (p[0] - ref.nose[0]) * r, FOOT_Y + 1 - (ref.footY + 1 - p[1]) * r] : null; }
     return { rear: conv(ref.rear), nose: conv(ref.nose), saddle: conv(ref.saddle) };
   }
+
+  // Contato com o chão no galope (guia de integração, Regra 12). Pura, por molde, calculada uma vez: os cascos no chão de
+  // cada quadro (grupos de pixels do molde nas 2 linhas de baixo, footY e footY − 1, com o x do meio), e o casco que
+  // recua de um quadro para o seguinte (2 a 14 px para trás) é o de apoio. passada = a mediana desses recuos, em pixels
+  // de arte por quadro; pousa[q] = o quadro q tem um casco que acabou de pousar (no chão, sem vir de um casco de apoio do
+  // quadro anterior) — é nele que a poeira nasce.
+  function cascosNoChao(idx, w, h, foot) {
+    var g = [], x, ini = -1;
+    for (x = 0; x <= w; x++) {
+      var tem = x < w && ((foot < h && idx[foot * w + x] > 0) || (foot > 0 && idx[(foot - 1) * w + x] > 0));
+      if (tem && ini < 0) ini = x;
+      if (!tem && ini >= 0) { g.push((ini + x - 1) / 2); ini = -1; }
+    }
+    return g;
+  }
+  function passadaDe(quadros) {
+    var n = quadros.length, recuos = [], pousa = [], pousos = [], q, a, b;
+    for (q = 0; q < n; q++) { pousa.push(false); pousos.push([]); }
+    for (q = 0; q < n; q++) {
+      var cur = quadros[q], nx = quadros[(q + 1) % n];
+      nx.forEach(function (xb) {
+        var melhor = null;
+        cur.forEach(function (xa) { var d = xa - xb; if (d >= 2 && d <= 14 && (melhor === null || d < melhor)) melhor = d; });
+        if (melhor !== null) recuos.push(melhor);
+      });
+    }
+    // pouso: o casco que não vem de um casco de apoio do quadro anterior e continua de apoio no seguinte (recua nele)
+    function recua(de, para) { for (var i = 0; i < para.length; i++) { var d = de - para[i]; if (d >= 2 && d <= 14) return true; } return false; }
+    for (q = 0; q < n; q++) {
+      var ant = quadros[(q - 1 + n) % n], prox = quadros[(q + 1) % n];
+      for (a = 0; a < quadros[q].length; a++) {
+        var xa = quadros[q][a], veio = false;
+        for (b = 0; b < ant.length; b++) if (recua(ant[b], [xa])) veio = true;
+        if (!veio && recua(xa, prox)) { pousa[q] = true; pousos[q].push(xa); }
+      }
+    }
+    recuos.sort(function (x, y) { return x - y; });
+    return { passada: recuos.length ? recuos[recuos.length >> 1] : 0, pousa: pousa, pousos: pousos, cascos: quadros };
+  }
+  function passadaMolde(M) {
+    if (M._passada) return M._passada;
+    var quadros = [];
+    for (var q = 0; q < M.frames; q++) quadros.push(cascosNoChao(M.galope[q], M.w, M.h, M.ancoras.galope[q].footY));
+    return (M._passada = passadaDe(quadros));
+  }
+  // a passada e os quadros de pouso do galope (null sem moldes) e, com x/y/opts do drawHorse (corrida, sem quadro), os
+  // x de tela dos cascos no chão do quadro de agora
+  function contatoGalope(element, porte) { return moldsOk ? passadaMolde(moldes[chaveMolde(element, porte)]) : null; }
+  function cascosNaTela(x, y, opts) {
+    if (!moldsOk) return null;
+    var k = Math.max(1, Math.round(opts.scale || 1)), nome = chaveMolde(opts.element, opts.porte), M = moldes[nome];
+    var q = quadroGalope(M, opts.frame), L = layoutMolde(nome, 'galope', Math.round(x), Math.round(y), k, opts.quadro);
+    var P = passadaMolde(M), tela = function (cx) { return L.ox + Math.round(cx) * L.S; };
+    return { quadro: q, S: L.S, pe: L.pe, xs: P.cascos[q].map(tela), pousos: P.pousos[q].map(tela), passada: P.passada, quadros: M.frames };
+  }
+
+  // Contato da raia (Regra 7): sulcos e torrões na cor do chão sobre a linha dos cascos de uma raia, presos ao chão
+  // (paralaxe 1,0), desenhados logo depois do cavalo dela (atrás dos das raias de baixo). Um padrão de 128 px de arte que
+  // se repete, com torrões de 1 a 3 px de altura em ~1/4 das colunas: cobrem o casco só às vezes (uniforme vira barra).
+  // Cores: o chão 1 degrau abaixo (sulco) e 1 acima (a crista do torrão, na luz). Pré-desenhado por chão.
+  var CONTATO_W = 128, CONTATO_H = 4, contatoCache = {};
+  function alturaContato(xa) {   // altura do torrão na coluna xa (pixels de arte do chão), 0 sem torrão
+    var c = mod(Math.floor(xa), CONTATO_W), bloco = Math.floor(c / 4), h = hash2(bloco, 7);
+    if (h > 0.34) return 0;
+    var dentro = c - bloco * 4, larg = 1 + Math.floor(hash2(bloco, 11) * 3);
+    if (dentro >= larg) return 0;
+    return 1 + Math.floor(hash2(bloco, 13) * 3);
+  }
+  function faixaContato(chao) {
+    if (contatoCache[chao]) return contatoCache[chao];
+    var Lz = luzApi(), esc = Lz ? Lz.degrau(chao, -1) : shade(chao, 0.3), cla = Lz ? Lz.degrau(chao, 1) : light(chao, 0.2);
+    var c = makeCanvas(CONTATO_W, CONTATO_H), g = c.getContext('2d');
+    for (var x = 0; x < CONTATO_W; x++) {
+      var a = alturaContato(x);
+      if (!a) continue;
+      g.fillStyle = esc; g.fillRect(x, CONTATO_H - a, 1, a);
+      if (a > 1) { g.fillStyle = cla; g.fillRect(x, CONTATO_H - a, 1, 1); }
+    }
+    return (contatoCache[chao] = c);
+  }
+  // a faixa de contato de uma raia: a linha dos cascos em pe (px de tela), o chão rolado por camPx (px de tela), escala P,
+  // só entre x0 e x1 (px de tela; a faixa do cavalo daquela raia, para seguir o relevo e o arco dele)
+  function drawContatoRaia(ctx, x0, x1, pe, camPx, P, chao) {
+    var t = faixaContato(String(chao || '#cd683d').toLowerCase()), tw = CONTATO_W * P, cam = Math.round(camPx / P) * P;
+    x0 = Math.floor(x0 / P) * P; x1 = Math.ceil(x1 / P) * P;
+    for (var x = x0; x < x1;) {
+      var u = mod(x + cam, tw), w = Math.min(tw - u, x1 - x);   // u: a coluna do padrão (px de tela) em x
+      ctx.drawImage(t, u / P, 0, w / P, CONTATO_H, x, pe - CONTATO_H * P, w, CONTATO_H * P);
+      x += w;
+    }
+  }
+  // a sombra da cerca de trás sobre a raia de cima (Regra 7): o chão 1 degrau abaixo, 1 a 2 px de altura com a borda
+  // recortada, presa ao chão
+  var cercaCache = {};
+  function drawSombraCerca(ctx, W, y, camPx, P, chao) {
+    chao = String(chao || '#cd683d').toLowerCase();
+    var t = cercaCache[chao];
+    if (!t) {
+      var Lz = luzApi(), esc = Lz ? Lz.degrau(chao, -1) : shade(chao, 0.3);
+      t = cercaCache[chao] = makeCanvas(CONTATO_W, 3);
+      var g = t.getContext('2d');
+      g.fillStyle = esc;
+      for (var x = 0; x < CONTATO_W; x++) g.fillRect(x, 0, 1, 1 + (hash2(Math.floor(x / 3), 23) < 0.55 ? 1 : 0) + (hash2(Math.floor(x / 5), 29) < 0.2 ? 1 : 0));
+    }
+    var tw = CONTATO_W * P, off = mod(Math.round(camPx / P) * P, tw);
+    for (var xx = -off; xx < W; xx += tw) ctx.drawImage(t, xx, y, tw, 3 * P);
+  }
+  // a altura do contato sob uma coluna da tela (px de tela; para o ui-test conferir se cobre o casco)
+  function contatoEm(xTela, camPx, P) { return alturaContato(Math.floor((xTela + Math.round(camPx / P) * P) / P)); }
 
   // Para testes: o layout e o quadro do galope que drawHorse usaria (null sem moldes); porte opcional, como no drawHorse.
   function layoutTeste(element, estado, x, y, k, quadro, porte) {
@@ -3600,7 +3733,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
-    pixelsSombra: pixelsSombra, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes,
+    pixelsSombra: pixelsSombra, passadaDe: passadaDe, cascosNoChao: cascosNoChao, contatoGalope: contatoGalope, cascosNaTela: cascosNaTela, drawContatoRaia: drawContatoRaia, drawSombraCerca: drawSombraCerca, contatoEm: contatoEm, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes, drawTufosFrente: drawTufosFrente,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,
