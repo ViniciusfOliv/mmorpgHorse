@@ -1559,7 +1559,7 @@
     if (lo && M.desafio.papeis) lo.innerHTML = Object.keys(M.desafio.papeis).map(function (m) {
       var cd = corDoMolde(m), fig = '<figure class="cand"><div class="lote-par">';
       [1, 5].forEach(function (d) { var im = IMG['d-p-' + m + '-' + d]; if (im) { var c = pintaPapeis(im, cd.pal, d === 1 ? '#e83b3b' : '#f9c22b'); fig += '<img src="' + c.toDataURL() + '" width="144" height="144" alt="">'; } });
-      return fig + '</div><figcaption>' + m + ' · cores do ' + cd.nome.split(' ')[0] + ' · de frente e de costas</figcaption></figure>';
+      return fig + '</div><figcaption>' + m + ' · cores: ' + ({ Brasa: 'Brasa', 'Maré': 'Maré', 'Ipê': 'Ipê', Lisa: 'neutras' })[cd.nome.split(' ')[0]] + ' · de frente e de costas</figcaption></figure>';
     }).join('');
     var fo = document.getElementById('meshyFolhas'); if (fo && M.desafio.meshyFolhas) fo.innerHTML = M.desafio.meshyFolhas.map(function (c) { return '<figure class="cand"><img src="' + c.uri + '" style="width:576px;max-width:100%" alt=""><figcaption>' + c.nome + '</figcaption></figure>'; }).join('');
   }
