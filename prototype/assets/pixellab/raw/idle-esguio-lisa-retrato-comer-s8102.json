@@ -1,0 +1,93 @@
+{
+  "endpoint": "/animate-with-text-v3",
+  "data": "2026-11-23T23:59:59.475Z",
+  "pedido": {
+    "first_frame": {
+      "type": "base64",
+      "base64": "<base64 omitido: 615 bytes, sha256 f5d8d4d04650a86f>",
+      "format": "png"
+    },
+    "action": "side view horse facing right, standing in place, same body, same colors, flat colors, no anti-aliasing, seamless loop, lowers its head and neck all the way down to the ground to graze grass, then lifts its head back up",
+    "frame_count": 8,
+    "seed": 8102,
+    "no_background": true,
+    "drift_threshold": 0
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "id": "b3bf5de8-7292-4f7a-b40e-002b3c292580",
+    "status": "completed",
+    "created_at": "2026-11-23T23:59:07.131595+00:00",
+    "last_response": {
+      "seed": 8102,
+      "type": "message_done",
+      "usage": {
+        "usd": 0,
+        "type": "generations",
+        "generations": 1,
+        "cost_if_paid": 0.018613936490482756
+      },
+      "images": [
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 747 bytes, sha256 11b7d8794eb3975c>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 749 bytes, sha256 49aea742d559d15a>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 758 bytes, sha256 8e0f7d8f81568926>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 733 bytes, sha256 094de5ed9b2fd1ae>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 713 bytes, sha256 9f90f8aee5b2b711>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 724 bytes, sha256 44a0338aa7066638>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 722 bytes, sha256 bd43e9a6cd8c6061>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 724 bytes, sha256 6c13512c70262fdf>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 722 bytes, sha256 a028e59da5162be7>",
+          "format": "png"
+        }
+      ],
+      "status": "completed",
+      "progress": 0.4666666666666667,
+      "flow_kind": "animation",
+      "billing_usage": {
+        "type": "generations",
+        "generations": 1
+      },
+      "generation_id": "fc786a10-aa7a-477a-aa2f-7ceffb5a34a4",
+      "queue_position": 0,
+      "billing_charged": true,
+      "generation_started_at": "2026-11-23T23:59:17.134272+00:00"
+    }
+  }
+}
