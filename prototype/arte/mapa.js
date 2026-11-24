@@ -1325,7 +1325,7 @@
         li.appendChild(b); lista.appendChild(li);
       });
     }
-    if (telaAtual === 'mundo') [['a', 'Piloto: ilha A'], ['b', 'Piloto: ilha B'], ['v1', 'v1: por código']].forEach(function (v) {
+    if (telaAtual === 'mundo') [['b', 'Ilha B (escolhida)'], ['a', 'Ilha A'], ['v1', 'v1: por código']].forEach(function (v) {
       ctl.appendChild(botao(v[1], function () { usaVariante(v[0]); montaUI(); anuncia('Mapa: ' + v[1]); }, { pressed: VAR.id === v[0] }));
     });
     ctl.appendChild(botao('Animações reduzidas', function () { reduzido = !reduzido; montaUI(); }, { pressed: reduzido }));
@@ -1367,7 +1367,7 @@
     for (var p = 0; p < W * H; p++) { lavado[p] = lavar(dd[p] | 0xff000000); escuro.d[p] = escurecer((mundo.b.d[p] | 0xff000000) >>> 0); }
     escuro.poe();
     varCache.v1 = { pesos: pesoReg, lavado: lavado, escuro: escuro };
-    usaVariante('a');
+    usaVariante('b');
     montaCandidatos();
     ajusta(); window.addEventListener('resize', ajusta);
     montaUI();
