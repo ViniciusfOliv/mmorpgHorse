@@ -64,7 +64,9 @@ teto). O render volta cada pixel ao seu papel (formato dos moldes) e a amostra r
 A Brasa (padrao-chamas) também foi refeita pelos papéis (30; saldo 45): os 12 moldes prontos, 360 créditos, o teto.
 **Spec:** `docs/superpowers/specs/2026-11-24-mapa-ginasios-design.md`, com as 4 escolhas do Vinicius (sem marcas nas vistas 3D
 na v1, cena de 256 × 160, crina cheia aceita, plano começando pelo mapa e pela trilha). Âncoras das vistas de frente e de costas (`meshy-ancoras.json`, script `arte-desafio-ancoras.mjs`) entregues à frente 1,
-que já ligou o `IdleMolde` a elas (claude/animacao-ambiente, 7bf5977). Próximo: aprovação da spec e o plano. Lote dos 12 cavalos segue não aprovado.
+que já ligou o `IdleMolde` a elas (claude/animacao-ambiente, 7bf5977). **Spec aprovada pelo Vinicius (2026-11-24).** Plano: `docs/superpowers/plans/2026-11-24-mapa-ginasios.md` (bloco A: mapa,
+transição e trilha, sem custo; bloco B: vistas de frente e de costas nos moldes, chão por elemento e a cena), aguardando
+aprovação. `main` (e157f3f5) trazida para o ramo. Lote dos 12 cavalos segue não aprovado.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 
