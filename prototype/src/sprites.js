@@ -56,9 +56,9 @@
  *   hora do desenho). Sem eles (o wiki embute só este arquivo), marcas, jóquei e raridade não desenham nada.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./marcas.js'), require('./data.js'));
-  else root.Sprites = factory(null, null);   // no navegador: Marcas e GameData globais, procurados na hora (ver marcasApi)
-}(typeof self !== 'undefined' ? self : this, function (MARCAS_NODE, DADOS_NODE) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./marcas.js'), require('./data.js'), require('./luz.js'));
+  else root.Sprites = factory(null, null, null);   // no navegador: Marcas, GameData e Luz globais, procurados na hora (ver marcasApi)
+}(typeof self !== 'undefined' ? self : this, function (MARCAS_NODE, DADOS_NODE, LUZ_NODE) {
   'use strict';
 
   // ===================================================================
@@ -874,11 +874,11 @@
     var s = Math.max(1, Math.round(opts.scale || 1));
     x = Math.round(x); y = Math.round(y);
     crisp(ctx);
-    if (opts.shadow !== false) {
-      ctx.fillStyle = 'rgba(20,10,20,0.28)';
+    if (opts.shadow !== false) {   // opaca, na rampa do chão (Regra 2), 2 px de arte para a direita
+      var Lz = luzApi(), Sz = Lz ? Lz.sombraDoChao(opts.chao || '#cd683d') : { projetada: '#9e4539', contato: '#6e2727' };
       var sy = y + (FOOT_Y - 1) * s;
-      ctx.fillRect(x + 9 * s, sy, 22 * s, s);
-      ctx.fillRect(x + 11 * s, sy + s, 18 * s, s);
+      ctx.fillStyle = Sz.projetada; ctx.fillRect(x + 11 * s, sy, 22 * s, s); ctx.fillRect(x + 13 * s, sy + s, 18 * s, s);
+      ctx.fillStyle = Sz.contato; ctx.fillRect(x + 15 * s, sy, 12 * s, s);
     }
     ctx.drawImage(horseBase(opts).canvas, x, y, HORSE_W * s, HORSE_H * s);
   }
@@ -926,15 +926,18 @@
   var ESTILOS_MOLDE = ['chamas', 'ondas', 'folhas', 'lisa'];
   // os portes vêm de GameData.PORTES.valores; esta cópia vale sem o GameData (o wiki embute só o sprites.js)
   var PORTES_MOLDE = ['esguio', 'padrao', 'robusto'], PORTE_PADRAO = 'padrao';
-  var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
+  // na paleta-mestra já na origem (guia de integração, Regra 3; antes: #1a1405, #e8b48a e #5a3a22, levados à mestra só
+  // no coresNaMestra)
+  var MOLDE_CORES_FIXAS = { contorno: '#2e222f', pele: '#fdcbb0', sela: '#4c3e24' };
   var moldes = null;       // chave do molde -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
-  var moldsOk = false;
+  var moldsOk = false, vistasOk = false;   // vistasOk: os moldes têm as vistas de frente e de costas
   var moldesLref = 0;      // maior larguraUtil entre os 4 moldes do padrão: escala única
   var alturaMaxEstado = {}; // estado -> maior altura de bbox entre os 12 moldes: o passo da escala num quadro fixo
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
   var CORTE_MAX = 0.1;     // fração da altura do bbox que pode ser cortada no topo de um quadro de altura fixa
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
   var moldCache = new LruCanvasCache(8 * 1024 * 1024);
+  var sombraCache = new LruCanvasCache(2 * 1024 * 1024);   // sombras dos moldes por quadro, chão e vista (sombraMolde)
   LruCanvasCache.prototype.clear = function () { this.map.clear(); this.bytes = 0; };
   // máscaras da crina para o brilho da raridade (recortadas na crina: poucos KB cada); fora do moldCache, que o
   // ui-test conta por corrida e no pódio
@@ -1035,7 +1038,7 @@
   // Chave a mais na tabela (a de um molde antigo '<estilo>') é ignorada.
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
-    moldsOk = false; api.moldsReady = false; api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
+    moldsOk = false; vistasOk = false; api.moldsReady = false; api.moldesVistas = false; api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
     if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
     if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
@@ -1046,6 +1049,9 @@
       return;
     }
     var novos = {}, pendentes = 1, motivo = null;   // 1 = o próprio laço abaixo (fecha no fim)
+    // as vistas de frente e de costas (cena de desafio, spec 2026-11-24-mapa-ginasios §4): tudo ou nada nos 12 moldes; sem
+    // elas os moldes ligam do mesmo jeito e estadoMolde cai na vista de lado
+    var comVistas = chaves.every(function (ch) { var e2 = est[ch], A2 = e2 && e2.json && e2.json.ancoras; return !!(e2 && e2.frente && e2.costas && A2 && A2.frente && A2.costas); });
     function falha(m) { if (!motivo) motivo = m || 'falha'; }
     function fim() {
       pendentes--;
@@ -1060,7 +1066,7 @@
         var E = novos[ch].estados;
         for (var est in E) if (Object.prototype.hasOwnProperty.call(E, est)) alturaMaxEstado[est] = Math.max(alturaMaxEstado[est] || 0, E[est].altura);
       });
-      moldes = novos; api.moldesConjunto = 'portes'; moldsOk = true; api.moldsReady = true;
+      moldes = novos; api.moldesConjunto = 'portes'; moldsOk = true; api.moldsReady = true; vistasOk = comVistas; api.moldesVistas = comVistas;
       if (typeof pronto === 'function') pronto();
     }
     try {
@@ -1088,7 +1094,22 @@
         }
         carrega(e.retrato, 'retrato', function (idx) { M.retrato = idx; });
         carrega(e.parado, 'parado', function (idx) { M.parado = idx; });
+        if (comVistas) ['frente', 'costas'].forEach(function (vq) {
+          M.estados[vq] = refDe(vq, [A[vq]]); M.ancoras[vq] = ancoraComL(A[vq], J.larguraUtil);
+          carrega(e[vq], vq, function (idx) { M[vq] = idx; });
+        });
         e.galope.forEach(function (url, q) { carrega(url, 'galope-' + q, function (idx) { M.galope[q] = idx; }); });
+        // gestos do idle (PixelLab): opcionais; um quadro que falhe tira só o gesto dele
+        M.gestos = {};
+        Object.keys(e.gestos || {}).forEach(function (g) {
+          var urls = e.gestos[g], lista = new Array(urls.length), ok = true;
+          M.gestos[g] = lista;
+          urls.forEach(function (url, q) {
+            pendentes++;
+            decodificaMolde(url, M.w, M.h, function (idx) { lista[q] = idx; fim(); }, function () { ok = false; delete M.gestos[g]; fim(); });
+          });
+          void ok;
+        });
       });
     } catch (ex) {
       falha(ex.message);   // as decodificações já pedidas terminam sem ligar os moldes
@@ -1098,6 +1119,7 @@
 
   // Estado do molde para as opções do drawHorse; null = pose sem molde (galope sem jóquei): usa o código.
   function estadoMolde(o) {
+    if ((o.vista === 'frente' || o.vista === 'costas') && vistasOk) return o.vista;   // de frente ou de costas (cena de desafio)
     if (o.retrato) return 'retrato';
     if (o.jockey === false) return o.idle ? 'retrato' : null;
     return o.idle ? 'parado' : 'galope';
@@ -1152,12 +1174,48 @@
     return out;
   }
 
-  // Cores por papel (índice 0–9) para as opções do drawHorse.
+  // Cores por papel (índice 0–9) para as opções do drawHorse. As sombras da pelagem e da crina são 1 degrau abaixo na
+  // rampa (Luz.degrau; guia de integração, Regra 4), para caírem nas mesmas famílias frias da sombra do chão; sem o
+  // luz.js, as de antes.
   function coresMolde(o) {
-    var pal = o.palette || PALETTES.neutro;
+    var pal = o.palette || PALETTES.neutro, Lz = luzApi();
     var coat = pal.coat || '#a0704a', mane = corCrina(o);
-    return [null, MOLDE_CORES_FIXAS.contorno, coat, pal.coatShade || shade(coat, 0.35), mane, shade(mane, 0.35),
+    var coatS = Lz ? Lz.degrau(naMestra(coat.toLowerCase()), -1) : pal.coatShade || shade(coat, 0.35);
+    var maneS = Lz ? Lz.degrau(naMestra(mane.toLowerCase()), -1) : shade(mane, 0.35);
+    return [null, MOLDE_CORES_FIXAS.contorno, coat, coatS, mane, maneS,
       pal.accent || '#f2ead8', o.silks || '#d8353b', MOLDE_CORES_FIXAS.pele, MOLDE_CORES_FIXAS.sela];
+  }
+  // Pelagem e crina em 4 tons (guia de integração, Regra 4; plano da animação ambiente, etapa 0.3). Os moldes trazem 2
+  // tons (papéis 2/3 e 4/5); os outros 2 saem de um sombreado por código, com a luz de cima e da esquerda:
+  //   luz (16 pelo, 18 crina): o tom claro (2, 4) na borda de cima da silhueta (sem corpo acima) ou no canto de cima e da
+  //     esquerda (sem corpo à esquerda nem na diagonal);
+  //   sombra profunda (17 pelo, 19 crina): o tom escuro (3, 5) na borda de baixo ou da direita (sem corpo abaixo ou à
+  //     direita);
+  //   em massas: o pixel só muda se tiver um vizinho 4-conexo do mesmo papel com a mesma marca (nada de pixel solto).
+  // "Corpo" é todo papel > 1 (o contorno e o vazio não contam). Puro: devolve um novo Uint8Array de índices.
+  var TOM_LUZ = { 2: 16, 4: 18 }, TOM_FUNDO = { 3: 17, 5: 19 };
+  function sombreiaPelagem(idx, w, h) {
+    var n = w * h, out = new Uint8Array(n), marca = new Uint8Array(n), x, y, i, p;
+    function corpo(xx, yy) { return xx >= 0 && yy >= 0 && xx < w && yy < h && idx[yy * w + xx] > 1; }
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+      i = y * w + x; p = idx[i]; out[i] = p;
+      if (TOM_LUZ[p]) { if (!corpo(x, y - 1) || (!corpo(x - 1, y) && !corpo(x - 1, y - 1))) marca[i] = 1; }
+      else if (TOM_FUNDO[p]) { if (!corpo(x, y + 1) || !corpo(x + 1, y)) marca[i] = 2; }
+    }
+    function igual(i0, xx, yy) { if (xx < 0 || yy < 0 || xx >= w || yy >= h) return false; var j = yy * w + xx; return marca[j] === marca[i0] && idx[j] === idx[i0]; }
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+      i = y * w + x;
+      if (!marca[i] || !(igual(i, x - 1, y) || igual(i, x + 1, y) || igual(i, x, y - 1) || igual(i, x, y + 1))) continue;
+      out[i] = marca[i] === 1 ? TOM_LUZ[idx[i]] : TOM_FUNDO[idx[i]];
+    }
+    return out;
+  }
+  // as cores dos índices 16–19 (luz e sombra profunda da pelagem e da crina), das cores por papel já na mestra: 1 degrau
+  // acima e 2 abaixo na rampa (sem o luz.js, clareada e escurecida)
+  function coresTons(cores) {
+    var Lz = luzApi();
+    function t(c, n) { return Lz ? Lz.degrau(c, n) : (n > 0 ? light(c, 0.25) : shade(c, 0.55)); }
+    return [t(cores[2], 1), t(cores[2], -2), t(cores[4], 1), t(cores[4], -2)];
   }
   // a cor da crina (papel 4) do molde nas opções do drawHorse; o brilho da raridade escolhe a cor por ela
   function corCrina(o) {
@@ -1208,11 +1266,13 @@
   // Índices 10–15 por cima dos papéis: 10–12 = camada das marcas (1 branco, 2 branco-sombra, 3 escuro),
   // 13–15 = camada do jóquei (1 tom 2 da seda, 2 capacete, 3 manta). As camadas não se cruzam (marcas só na
   // pelagem, jóquei só na roupa e na sela).
-  function indicesComCamadas(idx, w, h, ancora, v) {
+  // (base: os índices já sombreados, que ficam fora das camadas; as camadas saem dos papéis originais)
+  function indicesComCamadas(idx, w, h, ancora, v, base) {
     var cm = v.marcas ? v.MK.camadaMarcas(idx, w, h, ancora, v.marcas, v.semente) : null;
     var cj = v.padrao ? v.MK.camadaJoquei(idx, w, h, ancora, v.padrao) : null;
     var out = new Uint8Array(w * h);
-    for (var i = 0; i < w * h; i++) out[i] = cm && cm[i] ? 9 + cm[i] : (cj && cj[i] ? 12 + cj[i] : idx[i]);
+    base = base || idx;
+    for (var i = 0; i < w * h; i++) out[i] = cm && cm[i] ? 9 + cm[i] : (cj && cj[i] ? 12 + cj[i] : base[i]);
     return out;
   }
   function coresComCamadas(cores, v) {
@@ -1229,15 +1289,77 @@
   // semente, padrão e capacete, quando vêm nas opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a
   // chave e os pixels de antes da parte 2a.
   // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
+  // o.clima (corrida): as cores passam pela LUT do clima, a mesma das camadas da região, e o cavalo escurece junto com o
+  // fundo (Regra 8 (a)); sol ou sem clima: a chave e os pixels de antes
+  // (a LUT de figura: Luz.lutFigura, mais branda que a do fundo; um clima em que ela é a identidade fica como o sol)
+  function climaDoCavalo(o) {
+    var Lz = luzApi();
+    if (!o.clima || !CLIMA_PALETA[o.clima] || !Lz || !Lz.CONDICAO_FIGURA) return null;
+    return (Lz.CONDICAO_FIGURA[o.clima] || 'sol') === 'sol' ? null : o.clima;
+  }
+  // (clima: a LUT de figura do clima; 'cena|<nome>': a tinta ambiente da cena)
+  function lutFigura(clima) {
+    if (lutClimas['fig|' + clima]) return lutClimas['fig|' + clima];
+    var Lz = luzApi(), L = clima.indexOf('cena|') === 0 ? Lz.lutCondicao(clima.slice(5)) : Lz.lutFigura(clima), t = {};
+    MESTRA.forEach(function (h) { t['#' + h] = L['#' + h] || '#' + h; });
+    return (lutClimas['fig|' + clima] = t);
+  }
+  // o.cena (cenas paradas: 'fornalha', 'estabulo', 'remanso'): a tinta ambiente da cena nas figuras (Luz.CONDICOES) e o
+  // contraluz da fonte emissiva dela (Luz.CONTRALUZ; o.contraluz === false tira), do lado da fonte (o.espelhado vira o
+  // lado, para a fonte ficar no mesmo lado da tela)
+  function cenaDoCavalo(o) { var Lz = luzApi(); return o.cena && Lz && Lz.CONDICOES && Lz.CONDICOES[o.cena] ? o.cena : null; }
+  function contraluzDe(o, cena) {
+    var Lz = luzApi(), c = cena && o.contraluz !== false && Lz.CONTRALUZ ? Lz.CONTRALUZ[cena] : null;
+    if (!c) return null;
+    var lado = c.lado;
+    if (o.espelhado && lado !== 'cima') lado = lado === 'esquerda' ? 'direita' : 'esquerda';
+    return { lado: lado, cor: c.cor };
+  }
+  // contraluz de 1 px: o pixel do tom de luz (16 pelo, 18 crina) com o vazio ou o contorno do lado da fonte vira o
+  // índice 20 (a cor da fonte); só onde o pixel já é o degrau mais claro (Regra 8)
+  function comContraluz(sb, idx, w, h, lado) {
+    var dx = lado === 'esquerda' ? -1 : lado === 'direita' ? 1 : 0, dy = lado === 'cima' ? -1 : 0, out = new Uint8Array(sb);
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+      var i = y * w + x;
+      if (sb[i] !== 16 && sb[i] !== 18) continue;
+      var xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= w || yy >= h || idx[yy * w + xx] <= 1) out[i] = 20;
+    }
+    return out;
+  }
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o);
-    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
+    // nas vistas de frente e de costas não há marcas nem camadas do jóquei (decisão da spec: primeira versão sem marcas)
+    var vista = estado === 'frente' || estado === 'costas';
+    var cores = coresNaMestra(coresMolde(o)), v = vista ? null : visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce);
+    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '') + (cl ? '|c' + cl : '') +
+      (ce ? '|s' + ce + (cz ? ',' + cz.lado : '') : '');
     var c = moldCache.get(key);
     if (!c) {
-      var M = moldes[nome], idx = indicesMolde(M, estado, quadro);
-      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v), M.w, M.h, coresNaMestra(coresComCamadas(cores, v)))
-        : pintaIndices(idx, M.w, M.h, cores);
+      var M = moldes[nome];
+      c = pintaMolde(M, indicesMolde(M, estado, quadro), ancoraMolde(M, estado, quadro), o, vista);
       moldCache.set(key, c);
+    }
+    return c;
+  }
+  // a chave da recoloração (cores, marcas, jóquei, clima, cena), sem o molde e o quadro
+  function chaveCores(o) {
+    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce);
+    return cores.slice(2, 8).join(',') + (v ? v.chave : '') + (cl ? '|c' + cl : '') + (ce ? '|s' + ce + (cz ? ',' + cz.lado : '') : '');
+  }
+  // um mapa de papéis do molde (o do quadro, ou um montado pelo idle) pintado com as opções do drawHorse: 4 tons, marcas,
+  // jóquei, LUT do clima e da cena, contraluz. Sem cache (quem chama guarda).
+  function pintaMolde(M, idx, ancora, o, semVisuais) {
+    var cores = coresNaMestra(coresMolde(o)), v = semVisuais ? null : visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce), c;
+    {
+      var sb = sombreiaPelagem(idx, M.w, M.h), tons = coresTons(cores);
+      if (cz) sb = comContraluz(sb, idx, M.w, M.h, cz.lado);
+      var lut = cl ? lutFigura(cl) : null, lutC = ce ? lutFigura('cena|' + ce) : null;
+      var noClima = function (lista) {
+        return lista.map(function (x) { if (!x) return x; x = x.toLowerCase(); if (lut) x = corClima(lut, x); return lutC ? corClima(lutC, x) : x; });
+      };
+      var extra = [cz ? cz.cor : null];
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancora, v, sb), M.w, M.h, noClima(coresNaMestra(coresComCamadas(cores, v)).concat(tons)).concat(extra))
+        : pintaIndices(sb, M.w, M.h, noClima(cores.concat([null, null, null, null, null, null], tons)).concat(extra));
     }
     return c;
   }
@@ -1301,6 +1423,427 @@
     return { S: S, ox: ox, oy: pe - (ref.footY + 1) * S, pe: pe, topo: pe - ref.altura * S, cx: Math.round(ox + ref.centro * S) };
   }
 
+  // Sombra do cavalo (guia de integração, Regra 2: a causa nº 1 do "PNG colado"). Opaca, na rampa do chão da cena
+  // (Luz.sombraDoChao: 1 degrau abaixo = projetada, 2 = contato), nunca preto com alfa. Pura: devolve os pixels
+  // [{ x, y, cor, n }] no espaço do molde (pintados nessa ordem; o contato vem por último; n = degraus abaixo do chão).
+  //   'lateral' (corrida, idle, retratos): elipse achatada sob os cascos, centrada 2 px à direita do corpo (luz de cima e
+  //             da esquerda, guia §4), mais a faixa de contato logo abaixo de cada casco
+  //   'cima'    (cenas vistas de cima: arena, desafio, trilha): a silhueta inteira deslocada 3 px à direita e 2 para baixo,
+  //             em 1 tom, mais o contato sob os cascos
+  var SOMBRA = { dxLateral: 2, ryLateral: 1.7, rxFrac: 0.42, dxCima: 3, dyCima: 2 };
+  function pixelsSombra(idx, w, h, ancora, chao, vista, espelho) {
+    var L = luzApi(), S = L ? L.sombraDoChao(chao || '#cd683d') : { projetada: '#9e4539', contato: '#6e2727' };
+    var out = [], foot = ancora.footY, b = ancora.bbox, x, y;
+    if (vista === 'cima') {
+      // espelho: o desenho vai ser virado (cena do desafio), então a sombra sai para a esquerda e volta à direita na tela
+      var dxC = espelho ? -SOMBRA.dxCima : SOMBRA.dxCima;
+      for (y = 0; y < h; y++) for (x = 0; x < w; x++) if (idx[y * w + x]) out.push({ x: x + dxC, y: y + SOMBRA.dyCima, cor: S.projetada, n: -1 });
+    } else {
+      var cx = b.x + b.w / 2 + (espelho ? -SOMBRA.dxLateral : SOMBRA.dxLateral), rx = Math.max(6, Math.round(b.w * SOMBRA.rxFrac)), ry = SOMBRA.ryLateral, cy = foot + 0.5;
+      for (y = foot - 1; y <= foot + 2; y++) for (x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        var ex = (x - cx) / rx, ey = (y - cy) / ry;
+        if (ex * ex + ey * ey <= 1 && x >= 0 && x < w + 4) out.push({ x: x, y: y, cor: S.projetada, n: -1 });
+      }
+    }
+    // contato: logo abaixo de cada casco (pixel opaco na linha dos pés com o de baixo vazio), e 1 à direita
+    for (x = 0; x < w; x++) {
+      if (idx[foot * w + x] && !(foot + 1 < h && idx[(foot + 1) * w + x])) { out.push({ x: x, y: foot + 1, cor: S.contato, n: -2 }); out.push({ x: x + (espelho ? -1 : 1), y: foot + 1, cor: S.contato, n: -2 }); }
+    }
+    return out;
+  }
+  // o sprite da sombra de um quadro do molde, num chão e numa vista (cache próprio, fora dos moldes recoloridos).
+  // em (opcional, cenas pintadas de chão variado, como a arena do desafio): { fn(x, y) -> hex do chão ou null, chave, x, y }
+  // — cada pixel da sombra é o chão de verdade sob ele, 1 ou 2 degraus abaixo (Luz.degrau); (x, y) é o pixel de arte, no
+  // espaço do ctx, do canto do sprite da sombra; chave identifica a cena e a posição (entra no cache)
+  function sombraMolde(nome, estado, quadro, chao, vista, espelho, em) {
+    var key = 'sombra|' + nome + '|' + estado + '|' + quadro + '|' + chao + '|' + vista + (espelho ? '|e' : '') +
+      (em ? '|' + em.chave + '|' + em.x + '|' + em.y : ''), c = sombraCache.get(key);
+    if (c) return c;
+    var M = moldes[nome], idx = indicesMolde(M, estado, quadro), anc = ancoraMolde(M, estado, quadro), Lz = luzApi();
+    var ps = pixelsSombra(idx, M.w, M.h, anc, chao, vista, espelho);
+    // margem de 4 px em volta (o deslocamento da sombra sai do quadro do molde)
+    c = makeCanvas(M.w + 8, M.h + 8);
+    var g = c.getContext('2d');
+    ps.forEach(function (p) {
+      var cor = p.cor, sob = em && Lz ? em.fn(em.x + p.x + 4, em.y + p.y + 4) : null;
+      if (sob) cor = Lz.degrau(naMestra(sob), p.n);
+      g.fillStyle = cor; g.fillRect(p.x + 4, p.y + 4, 1, 1);
+    });
+    c.sombra = true;   // marca para os testes separarem a sombra do cavalo
+    sombraCache.set(key, c);
+    return c;
+  }
+
+  // a cor-base do piso da pista (a mesma do tile do surfaceTile, como o drawTrack o escolhe), para a sombra dos cavalos na
+  // corrida: com a arte da região pronta, o piso no clima mostrado pela LUT; sem ela, o tile de sempre (molhado na chuva)
+  function corDoPiso(surface, clima, regiao) {
+    var a = (SURF[surface] || SURF.grama).a, RG = regiaoPronta(regiao);
+    if (RG) { var c0 = corClima(lutClima(clima || 'sol'), naMestra(a)).toLowerCase(), sh = passoLeitura(surface, clima); return sh ? luzApi().degrau(c0, sh) : c0; }
+    return corClima(null, naMestra(clima === 'chuva' ? shade(a, 0.22) : a)).toLowerCase();
+  }
+  // a cor mais comum na faixa de pixels [x0, x1] × [y, y1] de uma imagem (o chão sob os pés numa cena pintada; a faixa
+  // pula as linhas de borda, como a beira bege do piso do estábulo); lida uma vez por imagem e posição (fora do laço)
+  var chaoCache = {};
+  function corDoChaoEm(img, x0, x1, y, y1) {
+    if (y1 == null || y1 < y) y1 = y;
+    if (!img || img.complete === false || img.naturalWidth === 0) return null;   // ainda carregando: nada no cache
+    var key = (img.src || img.width + 'x' + img.height) + '|' + x0 + '|' + x1 + '|' + y + '|' + y1;
+    if (chaoCache[key]) return chaoCache[key];
+    var w = Math.max(1, x1 - x0 + 1), hh = y1 - y + 1, c = makeCanvas(w, hh), g = c.getContext('2d');
+    g.drawImage(img, -x0, -y);
+    var d = g.getImageData(0, 0, w, hh).data, cont = {}, melhor = '#cd683d', mc = 0;
+    for (var i = 0; i < w * hh; i++) {
+      if (d[i * 4 + 3] < 128) continue;
+      var h = rgbToHex(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]).toLowerCase();
+      cont[h] = (cont[h] || 0) + 1; if (cont[h] > mc) { mc = cont[h]; melhor = h; }
+    }
+    return (chaoCache[key] = naMestra(melhor).toLowerCase());
+  }
+  // o chão de uma imagem pintada, pixel a pixel: fn(x, y) -> '#rrggbb' (null fora dela, no transparente ou ainda carregando);
+  // os pixels são lidos uma vez por imagem (para a sombra por pixel, opção chaoEm do drawHorse)
+  var imgPxCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function chaoDaImagem(img) {
+    if (!img || img.complete === false || img.naturalWidth === 0 || !imgPxCache) return null;
+    var P = imgPxCache.get(img);
+    if (!P) {
+      var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, c = makeCanvas(w, h), g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      P = { w: w, h: h, d: g.getImageData(0, 0, w, h).data };
+      imgPxCache.set(img, P);
+    }
+    return function (x, y) {
+      x = Math.floor(x); y = Math.floor(y);
+      if (x < 0 || y < 0 || x >= P.w || y >= P.h) return null;
+      var i = (y * P.w + x) * 4;
+      return P.d[i + 3] < 128 ? null : rgbToHex(P.d[i], P.d[i + 1], P.d[i + 2]).toLowerCase();
+    };
+  }
+  // uma imagem de figura (treinador) na tinta ambiente de uma cena (Luz.CONDICOES[cena]), pré-assada uma vez por imagem
+  // e cena; sem cena conhecida ou ainda carregando, a própria imagem
+  var naCenaCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function imagemNaCena(img, cena) {
+    var Lz = luzApi();
+    if (!img || !cena || !Lz || !Lz.CONDICOES || !Lz.CONDICOES[cena] || !naCenaCache || img.complete === false || img.naturalWidth === 0) return img;
+    var m = naCenaCache.get(img);
+    if (!m) { m = {}; naCenaCache.set(img, m); }
+    return m[cena] || (m[cena] = remapeia(img, lutFigura('cena|' + cena)));
+  }
+  // tufos do próprio chão da cena na frente da linha dos cascos (Regra 7: palha no estábulo, grama ou cascalho na arena):
+  // fios de 1 px de largura e 1 a 3 de altura em ~1/3 das colunas entre cx − larg/2 e cx + larg/2 (pixels de arte), com a
+  // base na linha y (a de baixo dos cascos), nas cores da rampa do chão (o chão e 1 degrau acima e abaixo). O padrão sai
+  // de semente (a cena), sem Math.random; cobre a última linha do casco (some o brilho dela) só onde há fio.
+  // tapete (palha): antes dos fios, uma linha do próprio chão na linha y inteira (o casco afunda nela: some a última
+  // linha dele, com o brilho), com as pontas recortadas
+  function drawTufosFrente(ctx, cx, y, larg, chao, k, semente, tapete) {
+    var Lz = luzApi(), cores = Lz ? [Lz.degrau(chao, 1), chao, Lz.degrau(chao, -1)] : [light(chao, 0.2), chao, shade(chao, 0.3)];
+    var x0 = Math.round(cx - larg / 2), sd = (semente | 0) * 7 + 3, dens = tapete ? 0.55 : 0.36;
+    if (tapete) {
+      ctx.fillStyle = chao;
+      var a = Math.round(hash2(sd, 47) * 3), b = Math.round(hash2(sd, 53) * 3);
+      ctx.fillRect((x0 + a) * k, y * k, (larg - a - b) * k, k);
+    }
+    for (var x = 0; x < larg; x++) {
+      var h = hash2(x + sd, 31);
+      if (h > dens) continue;
+      var alt = 1 + Math.floor(hash2(x + sd, 37) * 3), lean = hash2(x + sd, 41) < 0.5 ? 0 : (hash2(x + sd, 43) < 0.5 ? -1 : 1);
+      for (var dy = 0; dy < alt; dy++) {
+        ctx.fillStyle = cores[dy === alt - 1 ? 0 : (dy === 0 ? 2 : 1)];
+        ctx.fillRect((x0 + x + (dy === alt - 1 ? lean : 0)) * k, (y + 1 - dy - 1) * k, k, k);
+      }
+    }
+  }
+  // sombra dos pés de um personagem que não é molde (treinador, objeto): elipse de 2 tons da rampa do chão, 2 px de arte
+  // para a direita, com os pés em (cx, y) e a largura larg (pixels de arte; k = escala)
+  function drawSombraPes(ctx, cx, y, larg, chao, k) {
+    var Lz = luzApi(), S = Lz ? Lz.sombraDoChao(chao) : { projetada: '#9e4539', contato: '#6e2727' }, rx = larg / 2;
+    for (var dy = -1; dy <= 1; dy++) for (var dx = -Math.ceil(rx); dx <= Math.ceil(rx); dx++) {
+      var e = (dx / rx) * (dx / rx) + (dy / 1.4) * (dy / 1.4);
+      if (e > 1) continue;
+      ctx.fillStyle = e < 0.3 ? S.contato : S.projetada;
+      ctx.fillRect((Math.round(cx) + 2 + dx) * k, (y + dy) * k, k, k);
+    }
+  }
+
+  // ---------------------------------------------------------------- idle dos moldes (animação ambiente, etapa 2)
+  // O cavalo parado vivo (spec 2026-11-23-animacao-ambiente §3; igual à amostra, prototype/src/ambiente.js, CavaloIdle):
+  // a cada quadro monta-se um mapa de papéis novo a partir do molde — respiração (a barriga desce 1 px), piscar (o olho
+  // da âncora), cauda (abana; a ponta vai com o vento), orelha (gira 1 px), aceno e sacudir da cabeça, crina do
+  // pescoço no vento — e ele é pintado pelo mesmo pipeline do molde (4 tons, marcas, jóquei, LUT, contraluz) só quando
+  // muda. Gestos do PixelLab (comer e cavar no retrato, cavar com jóquei no parado), raros: um a cada 15–30 s.
+  // Sorteios só da RNG cosmética do cavalo (mulberry32 da semente), nunca da seed das regras; nada de Math.random.
+  // Liga com opts.anima (true: os gestos de código; 'cena': também os do PixelLab, para os cavalos grandes das cenas).
+  function rngCosmetica(semente) {
+    var a = semente >>> 0;
+    return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  // o vento cosmético das cenas (o mesmo da amostra, na versão "mais movimento", a escolhida)
+  function ventoCena(t) {
+    var base = 0.42 + 0.12 * Math.sin(t * 0.13 + 0.4);
+    var r1 = Math.pow(Math.max(0, Math.sin(t * 0.31 + 1.3)), 8) * 0.55, r2 = Math.pow(Math.max(0, Math.sin(t * 0.83 + 0.2)), 10) * 0.25;
+    var forte = Math.pow(Math.max(0, Math.sin(t * 0.42 + 2.2)), 10) * 0.8;
+    return Math.min(1, base * 1.05 + r1 * 1.2 + r2 * 1.2 + forte);
+  }
+  var IDLE_EVENTOS = { piscar: 0.22, cauda: 0.9, orelha: 0.7, cabeca: 1.3, sacode: 0.75 };
+  var IDLE_GESTO_QPS = 6;   // os quadros do PixelLab, na base comum de 6/12 q/s
+  // Vistas de frente e de costas (a cena de desafio nova, frente 2): as âncoras trazem as peças explícitas — olho [x, y…],
+  // orelhas e crina [x0, y0, x1, y1), respira [x0, x1, y] (a linha de cima do corpo sobe 1 px), cauda [x0, y0, x1, y1)
+  // nas costas — e os gestos daquele estado (IDLE_GESTOS_ESTADO). De lado, as peças saem da busca de perfil.
+  var IDLE_GESTOS_ESTADO = {
+    frente: ['respira', 'piscar', 'orelha', 'crina'],
+    costas: ['respira', 'cauda', 'orelha', 'crina']
+  };
+  function IdleMolde(M, estado, semente, gestos) {
+    var idx = M[estado], a = M.ancoras[estado];
+    this.M = M; this.estado = estado; this.idx = idx; this.w = M.w; this.h = M.h; this.anc = a;
+    var lista = IDLE_GESTOS_ESTADO[estado];
+    this.pode = function (g) { return !lista || lista.indexOf(g) >= 0; };
+    this.rng = rngCosmetica(semente);
+    this.respira = 3.2 + this.rng() * 1.2; this.faseR = this.rng() * 6;
+    this.eventos = []; this.proximo = 1 + this.rng() * 3;
+    this.gestos = gestos || null; this.proxGesto = 6 + this.rng() * 12; this.gesto = null;
+    this.mapa = new Uint8Array(idx.length);
+    this.pecas();
+  }
+  IdleMolde.prototype.em = function (x, y) { return x < 0 || y < 0 || x >= this.w || y >= this.h ? 0 : this.idx[y * this.w + x]; };
+  IdleMolde.prototype.pecas = function () {
+    if (Array.isArray(this.anc.respira)) return this.pecasExplicitas();
+    var I = this.idx, a = this.anc, W = this.w, nx = a.nose[0], ny = a.nose[1], rx = a.rear[0], ry = a.rear[1], x, y, v;
+    var topo = this.h; for (y = 0; y < this.h && topo === this.h; y++) for (x = nx - 12; x <= nx; x++) if (this.em(x, y)) { topo = y; break; }
+    this.orelhas = [];
+    for (y = topo; y <= topo + 2; y++) for (x = nx - 12; x <= nx + 1; x++) { v = this.em(x, y); if (v) this.orelhas.push(x, y, v); }
+    this.olho = (a.olho || []).slice();
+    this.olhoBaixo = 0; for (var k = 1; k < this.olho.length; k += 2) this.olhoBaixo = Math.max(this.olhoBaixo, this.olho[k]);
+    var cauda = new Uint8Array(W * this.h), c0 = this.h, c1 = 0;
+    for (y = ry - 10; y < this.h; y++) for (x = 0; x <= rx + 7; x++) { v = this.em(x, y); if (v === 4 || v === 5) cauda[y * W + x] = 1; }
+    for (y = ry - 10; y < this.h; y++) for (x = 0; x <= rx + 7; x++)
+      if (this.em(x, y) === 6 && (cauda[y * W + x - 1] || cauda[y * W + x + 1] || cauda[(y - 1) * W + x] || cauda[(y + 1) * W + x])) cauda[y * W + x] = 1;
+    for (y = ry - 10; y < this.h; y++) for (x = 0; x <= rx + 8; x++) {
+      if (this.em(x, y) !== 1) continue;
+      var toca = false, corpo = false;
+      for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) {
+        if (!ox && !oy) continue; var q = this.em(x + ox, y + oy);
+        if (cauda[(y + oy) * W + x + ox]) toca = true; else if (q >= 2 && q !== 4 && q !== 5) corpo = true;
+      }
+      if (toca && !corpo) cauda[y * W + x] = 2;
+    }
+    this.cauda = [];
+    for (y = 0; y < this.h; y++) for (x = 0; x < W; x++) if (cauda[y * W + x]) { this.cauda.push(x, y, I[y * W + x]); c0 = Math.min(c0, y); c1 = Math.max(c1, y); }
+    this.caudaY0 = c0; this.caudaY1 = c1;
+    this.barriga = [];
+    for (x = rx + 8; x <= nx - 16; x++) {
+      for (y = a.footY - 6; y > ry; y--) {
+        if (this.em(x, y) && !this.em(x, y + 1) && !this.em(x, y + 2) && !this.em(x, y + 3)) { this.barriga.push(x, y); break; }
+        if (this.em(x, y) && this.em(x, y + 1)) break;
+      }
+    }
+    this.cabeca = { x0: nx - 15, y1: ny + 5 };
+    this.crina = [];
+    for (x = rx + 20; x <= nx - 6; x++) for (y = 0; y < ny + 4; y++) {
+      v = this.em(x, y); if (!v) continue;
+      if (v === 1 && (this.em(x, y + 1) === 4 || this.em(x, y + 1) === 5)) this.crina.push(x, y);
+      break;
+    }
+  };
+  // as peças das âncoras explícitas (frente e costas)
+  IdleMolde.prototype.pecasExplicitas = function () {
+    var a = this.anc, W = this.w, H = this.h, I = this.idx, self = this, x, y, v;
+    function caixa(c, fn) { if (!Array.isArray(c)) return; for (var yy = Math.max(0, c[1]); yy < Math.min(H, c[3]); yy++) for (var xx = Math.max(0, c[0]); xx < Math.min(W, c[2]); xx++) fn(xx, yy); }
+    this.orelhas = [];
+    caixa(a.orelhas, function (xx, yy) { v = self.em(xx, yy); if (v) self.orelhas.push(xx, yy, v); });
+    this.olho = (a.olho || []).slice();
+    this.olhoBaixo = 0; for (var k = 1; k < this.olho.length; k += 2) this.olhoBaixo = Math.max(this.olhoBaixo, this.olho[k]);
+    // cauda (costas): o contorno, a crina e o detalhe da caixa (nos moldes a cauda pode ser 4, 5 ou 6)
+    this.cauda = []; var c0 = H, c1 = 0;
+    caixa(a.cauda, function (xx, yy) { v = I[yy * W + xx]; if (v === 1 || v === 4 || v === 5 || v === 6) { self.cauda.push(xx, yy, v); c0 = Math.min(c0, yy); c1 = Math.max(c1, yy); } });
+    this.caudaY0 = c0; this.caudaY1 = c1;
+    // respiração: em cada coluna da linha, o topo do corpo (até a linha y) sobe 1 px
+    this.respiraCols = [];
+    var R = a.respira;
+    for (x = R[0]; x < R[1]; x++) for (y = 0; y <= R[2]; y++) if (this.em(x, y)) { this.respiraCols.push(x, y); break; }
+    this.barriga = [];
+    // crina: a borda de cima de cada coluna da caixa
+    this.crina = [];
+    if (Array.isArray(a.crina)) for (x = a.crina[0]; x < a.crina[2]; x++) for (y = a.crina[1]; y < a.crina[3]; y++) if (this.em(x, y)) { this.crina.push(x, y); break; }
+    this.cabeca = null;
+  };
+  IdleMolde.prototype.dispara = function (nome, t) { this.eventos.push({ nome: nome, t0: t, lado: this.rng() < 0.5 ? -1 : 1, forte: (0.6 + this.rng() * 0.4) * 1.3 }); };
+  // a agenda da versão "mais movimento" (a escolhida): um gesto a cada 1–3,5 s, às vezes dois juntos; os do PixelLab
+  // (quando há) a cada 15–30 s, um de cada vez, e os de código esperam o fim dele
+  IdleMolde.prototype.agenda = function (t) {
+    if (this.gesto && t >= this.gesto.t0 + this.gesto.q.length / IDLE_GESTO_QPS) { this.gesto = null; this.proximo = t + 0.8; }
+    if (this.gestos && !this.gesto && t >= this.proxGesto) {
+      var nomes = Object.keys(this.gestos);
+      if (nomes.length) this.gesto = { nome: nomes[Math.floor(this.rng() * nomes.length)], t0: t };
+      if (this.gesto) this.gesto.q = this.gestos[this.gesto.nome];
+      this.proxGesto = t + 15 + this.rng() * 15;
+    }
+    if (this.gesto || t < this.proximo) return;
+    var r = this.rng(), nome = r < 0.26 ? 'piscar' : r < 0.5 ? 'cauda' : r < 0.66 ? 'orelha' : r < 0.84 ? 'cabeca' : 'sacode';
+    if (nome === 'piscar' && !this.olho.length) nome = 'orelha';   // sem olho na âncora, sem piscar
+    if (this.pode(nome)) this.dispara(nome, t);
+    if (nome === 'piscar' && this.rng() < 0.3) this.dispara('piscar', t + 0.32);
+    this.proximo = t + 1 + this.rng() * 2.5;
+    if (nome !== 'cauda' && this.rng() < 0.35 && this.pode('cauda')) this.dispara('cauda', t + 0.2 + this.rng() * 0.4);
+  };
+  // o mapa do quadro t e a chave do que mudou (a pintura só refaz quando a chave muda)
+  IdleMolde.prototype.monta = function (t) {
+    var m = this.mapa, I = this.idx, W = this.w, k, x, y;
+    if (this.gesto) {
+      var q = Math.min(this.gesto.q.length - 1, Math.floor((t - this.gesto.t0) * IDLE_GESTO_QPS)), Q = this.gesto.q[q];
+      if (Q && Q.length === m.length) { m.set(Q); return 'g' + this.gesto.nome + q; }
+      this.gesto = null;   // quadro que não chegou: o gesto acaba e volta ao idle
+    }
+    m.set(I);
+    var chave = '';
+    var fr = mod(t + this.faseR, this.respira) / this.respira, inspira = fr > 0.1 && fr < 0.55;
+    if (inspira) for (k = 0; k < this.barriga.length; k += 2) { x = this.barriga[k]; y = this.barriga[k + 1]; m[(y + 1) * W + x] = 1; m[y * W + x] = 3; }
+    if (inspira && this.respiraCols) for (k = 0; k < this.respiraCols.length; k += 2) {   // frente e costas: o topo sobe 1 px
+      x = this.respiraCols[k]; y = this.respiraCols[k + 1];
+      if (y > 0) { m[(y - 1) * W + x] = I[y * W + x]; m[y * W + x] = I[(y + 1) * W + x] || I[y * W + x]; }
+    }
+    chave += inspira ? 'r' : '-';
+    var cauda = 0, orelha = 0, olho = 0, cabeca = 0;
+    for (k = this.eventos.length - 1; k >= 0; k--) {
+      var e = this.eventos[k], u = (t - e.t0) / IDLE_EVENTOS[e.nome];
+      if (u < 0) continue;
+      if (u >= 1) { this.eventos.splice(k, 1); continue; }
+      if (e.nome === 'piscar') olho = u < 0.25 || u > 0.75 ? 1 : 2;
+      else if (e.nome === 'cauda') cauda = Math.round(e.lado * e.forte * 3 * Math.sin(u * Math.PI * 2) * (1 - u * 0.4));
+      else if (e.nome === 'orelha') orelha = u < 0.75 ? 1 : 0;
+      else if (e.nome === 'cabeca') cabeca = u < 0.15 || u > 0.85 ? 0 : u < 0.3 || u > 0.7 ? 1 : 2;
+      else if (e.nome === 'sacode') { cabeca = Math.floor(u * 6) % 2; orelha = u > 0.2 && u < 0.8 ? 1 : orelha; }
+    }
+    var vc = this.pode('cauda') ? Math.round(Math.max(0, ventoCena(t) - 0.55) * 2.2 * Math.max(0, Math.sin(t * 3.1 + this.faseR))) : 0;
+    var dc = cauda || -vc;
+    if (dc) {
+      for (k = 0; k < this.cauda.length; k += 3) { x = this.cauda[k]; y = this.cauda[k + 1]; if (m[y * W + x] === this.cauda[k + 2]) m[y * W + x] = 0; }
+      var span = Math.max(1, this.caudaY1 - this.caudaY0);
+      for (k = 0; k < this.cauda.length; k += 3) {
+        x = this.cauda[k]; y = this.cauda[k + 1];
+        var u2 = (y - this.caudaY0) / span, dx = Math.round(dc * Math.pow(u2, 1.4)), dy = Math.abs(dc) >= 2 && u2 > 0.8 ? -1 : 0, nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < W && ny >= 0 && ny < this.h) m[ny * W + nx] = this.cauda[k + 2];
+      }
+    }
+    chave += 'c' + dc;
+    if (cabeca && this.cabeca) {
+      var cb = this.cabeca;
+      for (y = cb.y1; y >= 0; y--) for (x = cb.x0; x < W; x++) {
+        var dy2 = x < cb.x0 + 3 ? Math.min(1, cabeca) : cabeca, sy = y - dy2;
+        m[y * W + x] = sy >= 0 ? (I[sy * W + x] || (y > cb.y1 - dy2 ? m[y * W + x] : 0)) : 0;
+      }
+      chave += 'h' + cabeca;
+    }
+    if (orelha) {
+      var o = this.orelhas, yTop = o[1];
+      for (k = 0; k < o.length; k += 3) if (o[k + 1] <= yTop + 1) m[(o[k + 1] + cabeca) * W + o[k]] = 0;
+      for (k = 0; k < o.length; k += 3) if (o[k + 1] <= yTop + 1) { var xx = o[k] - 1; if (xx >= 0) m[(o[k + 1] + cabeca) * W + xx] = o[k + 2]; }
+      chave += 'o';
+    }
+    if (olho) {
+      for (k = 0; k < this.olho.length; k += 2) {
+        x = this.olho[k]; y = this.olho[k + 1];
+        if (olho === 2 ? y < this.olhoBaixo : y < this.olhoBaixo - 1) m[(y + (cabeca || 0)) * W + x] = 3;
+      }
+      chave += 'p' + olho;
+    }
+    // crina do pescoço no vento: 5 fases que se repetem (a chave fica num conjunto pequeno)
+    if (this.pode('crina') && ventoCena(t) > 0.5) {
+      var fq = Math.floor(t * 6) % 5;
+      for (k = 0; k < this.crina.length; k += 2) {
+        x = this.crina[k]; y = this.crina[k + 1] + (this.cabeca && x >= this.cabeca.x0 ? cabeca : 0);
+        if (Math.sin(x * 0.9 + fq * DOIS_PI / 5) > 0.55 && y > 0 && !m[(y - 1) * W + x]) { m[(y - 1) * W + x] = 1; m[y * W + x] = 4; }
+      }
+      chave += 'v' + fq;
+    }
+    return chave;
+  };
+  // só a chave do quadro t, sem montar o mapa (a mesma do monta; o moldes-test confere): quem já tem o quadro pintado
+  // dessa chave não precisa montar nada. Tira da lista os eventos que acabaram, como o monta.
+  IdleMolde.prototype.chave = function (t) {
+    if (this.gesto) {
+      var q = Math.min(this.gesto.q.length - 1, Math.floor((t - this.gesto.t0) * IDLE_GESTO_QPS)), Q = this.gesto.q[q];
+      if (Q && Q.length === this.mapa.length) return 'g' + this.gesto.nome + q;
+      return null;   // o gesto acaba no monta
+    }
+    var fr = mod(t + this.faseR, this.respira) / this.respira, chave = fr > 0.1 && fr < 0.55 ? 'r' : '-', k;
+    var cauda = 0, orelha = 0, olho = 0, cabeca = 0;
+    for (k = this.eventos.length - 1; k >= 0; k--) {
+      var e = this.eventos[k], u = (t - e.t0) / IDLE_EVENTOS[e.nome];
+      if (u < 0) continue;
+      if (u >= 1) { this.eventos.splice(k, 1); continue; }
+      if (e.nome === 'piscar') olho = u < 0.25 || u > 0.75 ? 1 : 2;
+      else if (e.nome === 'cauda') cauda = Math.round(e.lado * e.forte * 3 * Math.sin(u * Math.PI * 2) * (1 - u * 0.4));
+      else if (e.nome === 'orelha') orelha = u < 0.75 ? 1 : 0;
+      else if (e.nome === 'cabeca') cabeca = u < 0.15 || u > 0.85 ? 0 : u < 0.3 || u > 0.7 ? 1 : 2;
+      else if (e.nome === 'sacode') { cabeca = Math.floor(u * 6) % 2; orelha = u > 0.2 && u < 0.8 ? 1 : orelha; }
+    }
+    var vc = this.pode('cauda') ? Math.round(Math.max(0, ventoCena(t) - 0.55) * 2.2 * Math.max(0, Math.sin(t * 3.1 + this.faseR))) : 0;
+    chave += 'c' + (cauda || -vc);
+    if (cabeca && this.cabeca) chave += 'h' + cabeca;
+    if (orelha) chave += 'o';
+    if (olho) chave += 'p' + olho;
+    if (this.pode('crina') && ventoCena(t) > 0.5) chave += 'v' + Math.floor(t * 6) % 5;
+    return chave;
+  };
+  var DOIS_PI = Math.PI * 2;
+  // um animador por cavalo e estado (a semente das marcas, a pose e o molde); quem some da tela sai no limpar do cache
+  var idleRegistro = new Map();
+  var ccCena = new WeakMap();   // opções da cena -> chave das cores (moldeIdle)
+  function moldeIdle(nome, estado, o) {
+    var M = moldes[nome], sem = (o.semente >>> 0) || 0, k = nome + '|' + estado + '|' + sem + '|' + (o.anima === 'cena' ? 'c' : '');
+    var r = idleRegistro.get(k);
+    if (!r) {
+      var gestos = null;
+      if (o.anima === 'cena' && M.gestos) {
+        gestos = {};
+        // só o gesto com todos os quadros decodificados (a lista pode ter furo enquanto decodifica ou se um quadro falhou)
+        (estado === 'retrato' ? ['comer', 'cavar'] : ['cavarJ']).forEach(function (g) {
+          var q = M.gestos[g];
+          if (q && q.length && q.every(function (x) { return x && x.length === M.w * M.h; })) gestos[g] = q;
+        });
+        if (!Object.keys(gestos).length) gestos = null;
+      }
+      // pintados: os quadros do idle já pintados (a respiração e as orelhas voltam aos mesmos estados; repintar custava
+      // ~1 ms a cada troca na cena do desafio)
+      r = { anim: new IdleMolde(M, estado, sem * 2654435761 + estado.length, gestos), chave: '', canvas: null, pintados: new Map() };
+      if (idleRegistro.size > 48) idleRegistro.clear();
+      idleRegistro.set(k, r);
+    }
+    var t = Number(o.t) || 0;
+    // sem marcas nas vistas de frente e de costas (decisão do Vinicius para a v1 da cena de desafio nova)
+    var oP = IDLE_GESTOS_ESTADO[estado] ? Object.assign({}, o, { marcas: null }) : o;
+    // a cena guarda as mesmas opções do cavalo (só o t muda): a chave das cores sai uma vez por objeto de opções
+    var cc = o.anima === 'cena' ? ccCena.get(o) : null, vista = estado === 'frente' || estado === 'costas';
+    if (cc == null) { cc = '#' + chaveCores(o); if (o.anima === 'cena') ccCena.set(o, cc); }
+    if (o.anima === 'cena' && !r.aquecido) {
+      // as cenas (poucos cavalos): os estados dos próximos segundos pintados já na montagem, por um animador à parte com a
+      // mesma semente (os eventos saem da RNG cosmética e do t: os mesmos do animador de verdade) — sem isso, o 1º ciclo
+      // pintava um estado novo a cada troca (~0,5 ms cada)
+      r.aquecido = true;
+      var aq = new IdleMolde(M, estado, sem * 2654435761 + estado.length, null), fim = t + aq.respira + 0.5;
+      for (var ta = t; ta < fim && r.pintados.size < 64; ta += 1 / 14) {
+        aq.agenda(ta);
+        var ka = aq.monta(ta) + cc;
+        if (!r.pintados.has(ka)) r.pintados.set(ka, pintaMolde(M, aq.mapa, M.ancoras[estado], oP, vista));
+      }
+    }
+    r.anim.agenda(t);
+    // a chave primeiro (barata); o mapa só é montado para um quadro que ainda não foi pintado
+    var ch = r.anim.chave(t), chave = ch == null ? null : ch + cc;
+    if (chave === r.chave && r.canvas) return r.canvas;
+    var pronto = chave != null ? r.pintados.get(chave) : null;
+    if (!pronto) chave = r.anim.monta(t) + cc;
+    if (chave !== r.chave || !r.canvas) {
+      r.chave = chave; r.canvas = pronto || r.pintados.get(chave);
+      if (!r.canvas) {
+        r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP, vista);
+        if (r.pintados.size >= 96) r.pintados.delete(r.pintados.keys().next().value);   // sai o mais antigo
+        r.pintados.set(chave, r.canvas);
+      }
+    }
+    return r.canvas;
+  }
+
   function drawHorseMolde(ctx, x, y, o, estado) {
     var k = Math.max(1, Math.round(o.scale || 1));
     var nome = chaveMolde(o.element, o.porte), M = moldes[nome];
@@ -1308,19 +1851,23 @@
     x = Math.round(x); y = Math.round(y);
     var L = layoutMolde(nome, estado, x, y, k, o.quadro);
     crisp(ctx);
-    if (o.shadow !== false) {   // a mesma sombra do sprite por código, sob os cascos e centrada no corpo do molde
-      ctx.fillStyle = 'rgba(20,10,20,0.28)';
-      if (L.grade) {   // na grade: a sombra em pixels do molde (opaca seria mancha; o véu fica até a etapa 2 trocar a pista)
-        var u = L.S, syG = L.pe - 3 * u;
-        ctx.fillRect(L.cx - 16 * u, syG, 32 * u, u);
-        ctx.fillRect(L.cx - 13 * u, syG + u, 26 * u, u);
-      } else {
-        var sy = L.pe - 2 * k;
-        ctx.fillRect(L.cx - 11 * k, sy, 22 * k, k);
-        ctx.fillRect(L.cx - 9 * k, sy + k, 18 * k, k);
-      }
+    if (o.shadow !== false) {   // sombra opaca na rampa do chão (o.chao, o.vista; padrão: terra da pista, lateral)
+      var em = typeof o.chaoEm === 'function' ? { fn: o.chaoEm, chave: String(o.chaoChave || ''), x: Math.round(L.ox / L.S) - 4, y: Math.round(L.oy / L.S) - 4 } : null;
+      var som = sombraMolde(nome, estado, quadro, (o.chao || '#cd683d').toLowerCase(), o.vista === 'cima' ? 'cima' : 'lateral', !!o.espelhado, em);
+      ctx.drawImage(som, L.ox - 4 * L.S, L.oy - 4 * L.S, som.width * L.S, som.height * L.S);
     }
-    ctx.drawImage(moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
+    // parado vivo (o.anima): o mapa montado pelo idle; fora isso (e no movimento reduzido), o quadro do molde
+    var vivo = o.anima && !o.reduzido && (estado === 'parado' || estado === 'retrato' || estado === 'frente' || estado === 'costas');
+    ctx.drawImage(vivo ? moldeIdle(nome, estado, o) : moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
+  }
+
+  // o quadro do idle vivo que o drawHorse desenharia agora (o canvas guardado; o mesmo objeto enquanto o idle não muda),
+  // ou null se o cavalo não estiver vivo: quem guarda o cavalo desenhado (a cena do desafio) só redesenha quando ele troca
+  function quadroIdle(opts) {
+    opts = opts || {};
+    var estado = moldsOk ? estadoMolde(opts) : null;
+    if (!estado || !opts.anima || opts.reduzido || !(estado === 'parado' || estado === 'retrato' || estado === 'frente' || estado === 'costas')) return null;
+    return moldeIdle(chaveMolde(opts.element, opts.porte), estado, opts);
   }
 
   function drawHorse(ctx, x, y, opts) {
@@ -1599,13 +2146,122 @@
     return { rear: conv(ref.rear), nose: conv(ref.nose), saddle: conv(ref.saddle) };
   }
 
+  // Contato com o chão no galope (guia de integração, Regra 12). Pura, por molde, calculada uma vez: os cascos no chão de
+  // cada quadro (grupos de pixels do molde nas 2 linhas de baixo, footY e footY − 1, com o x do meio), e o casco que
+  // recua de um quadro para o seguinte (2 a 14 px para trás) é o de apoio. passada = a mediana desses recuos, em pixels
+  // de arte por quadro; pousa[q] = o quadro q tem um casco que acabou de pousar (no chão, sem vir de um casco de apoio do
+  // quadro anterior) — é nele que a poeira nasce.
+  function cascosNoChao(idx, w, h, foot) {
+    var g = [], x, ini = -1;
+    for (x = 0; x <= w; x++) {
+      var tem = x < w && ((foot < h && idx[foot * w + x] > 0) || (foot > 0 && idx[(foot - 1) * w + x] > 0));
+      if (tem && ini < 0) ini = x;
+      if (!tem && ini >= 0) { g.push((ini + x - 1) / 2); ini = -1; }
+    }
+    return g;
+  }
+  function passadaDe(quadros) {
+    var n = quadros.length, recuos = [], pousa = [], pousos = [], q, a, b;
+    for (q = 0; q < n; q++) { pousa.push(false); pousos.push([]); }
+    for (q = 0; q < n; q++) {
+      var cur = quadros[q], nx = quadros[(q + 1) % n];
+      nx.forEach(function (xb) {
+        var melhor = null;
+        cur.forEach(function (xa) { var d = xa - xb; if (d >= 2 && d <= 14 && (melhor === null || d < melhor)) melhor = d; });
+        if (melhor !== null) recuos.push(melhor);
+      });
+    }
+    // pouso: o casco que não vem de um casco de apoio do quadro anterior e continua de apoio no seguinte (recua nele)
+    function recua(de, para) { for (var i = 0; i < para.length; i++) { var d = de - para[i]; if (d >= 2 && d <= 14) return true; } return false; }
+    for (q = 0; q < n; q++) {
+      var ant = quadros[(q - 1 + n) % n], prox = quadros[(q + 1) % n];
+      for (a = 0; a < quadros[q].length; a++) {
+        var xa = quadros[q][a], veio = false;
+        for (b = 0; b < ant.length; b++) if (recua(ant[b], [xa])) veio = true;
+        if (!veio && recua(xa, prox)) { pousa[q] = true; pousos[q].push(xa); }
+      }
+    }
+    recuos.sort(function (x, y) { return x - y; });
+    return { passada: recuos.length ? recuos[recuos.length >> 1] : 0, pousa: pousa, pousos: pousos, cascos: quadros };
+  }
+  function passadaMolde(M) {
+    if (M._passada) return M._passada;
+    var quadros = [];
+    for (var q = 0; q < M.frames; q++) quadros.push(cascosNoChao(M.galope[q], M.w, M.h, M.ancoras.galope[q].footY));
+    return (M._passada = passadaDe(quadros));
+  }
+  // a passada e os quadros de pouso do galope (null sem moldes) e, com x/y/opts do drawHorse (corrida, sem quadro), os
+  // x de tela dos cascos no chão do quadro de agora
+  function contatoGalope(element, porte) { return moldsOk ? passadaMolde(moldes[chaveMolde(element, porte)]) : null; }
+  function cascosNaTela(x, y, opts) {
+    if (!moldsOk) return null;
+    var k = Math.max(1, Math.round(opts.scale || 1)), nome = chaveMolde(opts.element, opts.porte), M = moldes[nome];
+    var q = quadroGalope(M, opts.frame), L = layoutMolde(nome, 'galope', Math.round(x), Math.round(y), k, opts.quadro);
+    var P = passadaMolde(M), tela = function (cx) { return L.ox + Math.round(cx) * L.S; };
+    return { quadro: q, S: L.S, pe: L.pe, xs: P.cascos[q].map(tela), pousos: P.pousos[q].map(tela), passada: P.passada, quadros: M.frames };
+  }
+
+  // Contato da raia (Regra 7): sulcos e torrões na cor do chão sobre a linha dos cascos de uma raia, presos ao chão
+  // (paralaxe 1,0), desenhados logo depois do cavalo dela (atrás dos das raias de baixo). Um padrão de 128 px de arte que
+  // se repete, com torrões de 1 a 3 px de altura em ~1/4 das colunas: cobrem o casco só às vezes (uniforme vira barra).
+  // Cores: o chão 1 degrau abaixo (sulco) e 1 acima (a crista do torrão, na luz). Pré-desenhado por chão.
+  var CONTATO_W = 128, CONTATO_H = 4, contatoCache = {};
+  function alturaContato(xa) {   // altura do torrão na coluna xa (pixels de arte do chão), 0 sem torrão
+    var c = mod(Math.floor(xa), CONTATO_W), bloco = Math.floor(c / 4), h = hash2(bloco, 7);
+    if (h > 0.34) return 0;
+    var dentro = c - bloco * 4, larg = 1 + Math.floor(hash2(bloco, 11) * 3);
+    if (dentro >= larg) return 0;
+    return 1 + Math.floor(hash2(bloco, 13) * 3);
+  }
+  function faixaContato(chao) {
+    if (contatoCache[chao]) return contatoCache[chao];
+    var Lz = luzApi(), esc = Lz ? Lz.degrau(chao, -1) : shade(chao, 0.3), cla = Lz ? Lz.degrau(chao, 1) : light(chao, 0.2);
+    var c = makeCanvas(CONTATO_W, CONTATO_H), g = c.getContext('2d');
+    for (var x = 0; x < CONTATO_W; x++) {
+      var a = alturaContato(x);
+      if (!a) continue;
+      g.fillStyle = esc; g.fillRect(x, CONTATO_H - a, 1, a);
+      if (a > 1) { g.fillStyle = cla; g.fillRect(x, CONTATO_H - a, 1, 1); }
+    }
+    return (contatoCache[chao] = c);
+  }
+  // a faixa de contato de uma raia: a linha dos cascos em pe (px de tela), o chão rolado por camPx (px de tela), escala P,
+  // só entre x0 e x1 (px de tela; a faixa do cavalo daquela raia, para seguir o relevo e o arco dele)
+  function drawContatoRaia(ctx, x0, x1, pe, camPx, P, chao) {
+    var t = faixaContato(String(chao || '#cd683d').toLowerCase()), tw = CONTATO_W * P, cam = Math.round(camPx / P) * P;
+    x0 = Math.floor(x0 / P) * P; x1 = Math.ceil(x1 / P) * P;
+    for (var x = x0; x < x1;) {
+      var u = mod(x + cam, tw), w = Math.min(tw - u, x1 - x);   // u: a coluna do padrão (px de tela) em x
+      ctx.drawImage(t, u / P, 0, w / P, CONTATO_H, x, pe - CONTATO_H * P, w, CONTATO_H * P);
+      x += w;
+    }
+  }
+  // a sombra da cerca de trás sobre a raia de cima (Regra 7): o chão 1 degrau abaixo, 1 a 2 px de altura com a borda
+  // recortada, presa ao chão
+  var cercaCache = {};
+  function drawSombraCerca(ctx, W, y, camPx, P, chao) {
+    chao = String(chao || '#cd683d').toLowerCase();
+    var t = cercaCache[chao];
+    if (!t) {
+      var Lz = luzApi(), esc = Lz ? Lz.degrau(chao, -1) : shade(chao, 0.3);
+      t = cercaCache[chao] = makeCanvas(CONTATO_W, 3);
+      var g = t.getContext('2d');
+      g.fillStyle = esc;
+      for (var x = 0; x < CONTATO_W; x++) g.fillRect(x, 0, 1, 1 + (hash2(Math.floor(x / 3), 23) < 0.55 ? 1 : 0) + (hash2(Math.floor(x / 5), 29) < 0.2 ? 1 : 0));
+    }
+    var tw = CONTATO_W * P, off = mod(Math.round(camPx / P) * P, tw);
+    for (var xx = -off; xx < W; xx += tw) ctx.drawImage(t, xx, y, tw, 3 * P);
+  }
+  // a altura do contato sob uma coluna da tela (px de tela; para o ui-test conferir se cobre o casco)
+  function contatoEm(xTela, camPx, P) { return alturaContato(Math.floor((xTela + Math.round(camPx / P) * P) / P)); }
+
   // Para testes: o layout e o quadro do galope que drawHorse usaria (null sem moldes); porte opcional, como no drawHorse.
   function layoutTeste(element, estado, x, y, k, quadro, porte) {
     return moldsOk ? layoutMolde(chaveMolde(element, porte), estado, Math.round(x), Math.round(y), Math.max(1, Math.round(k)), quadro) : null;
   }
   function quadroGalopeTeste(element, frame, porte) { return moldsOk ? quadroGalope(moldes[chaveMolde(element, porte)], frame) : null; }
 
-  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
+  function limparCacheMoldes() { idleRegistro.clear(); moldCache.clear(); sombraCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
@@ -2031,6 +2687,20 @@
   function skyKey(weather) { return weather === 'nevoa' ? 'nublado' : weather; }
 
   var tileCache = new Map();
+  // Leitura por valor (guia de integração, Regra 14): o degrau do piso das raias num clima, escolhido pela tabela da cena
+  // (Luz.leituraPiso) com as pelagens das paletas dos elementos; 0 sem o luz.js. Vale para o tile da pista e para a cor do
+  // piso da sombra (corDoPiso), que andam juntos.
+  var leituraCache = {};
+  function passoLeitura(surface, clima) {
+    var Lz = luzApi(), k = SURF[surface] ? surface : 'grama';
+    if (!Lz || !Lz.leituraPiso) return 0;
+    if (!leituraCache[k]) {
+      var pel = Object.keys(PALETTES).map(function (n) { return naMestra(PALETTES[n].coat.toLowerCase()); });
+      leituraCache[k] = Lz.leituraPiso(naMestra(SURF[k].a), pel);
+    }
+    var e = leituraCache[k][CLIMA_PALETA[clima] ? clima : 'sol'];
+    return e ? e.passo : 0;
+  }
   // regiao: o piso no clima por troca de paleta (sem o escurecido e as poças de antes, que eram mistura fora da mestra)
   function surfaceTile(surface, weather, artH, regiao) {
     var key = surface + '|' + weather + '|' + artH + (regiao ? '|r' : '');
@@ -2038,7 +2708,7 @@
     if (c) return c;
     var TW = 64, S = SURF[surface] || SURF.grama;
     var cols = new Array(TW * artH);
-    var wet = weather === 'chuva' && !regiao, lutT = regiao ? lutClima(weather) : null;
+    var wet = weather === 'chuva' && !regiao, lutT = regiao ? lutClima(weather) : null, Lz = luzApi(), sh = regiao ? passoLeitura(surface, weather) : 0;
     for (var y = 0; y < artH; y++) {
       for (var x = 0; x < TW; x++) {
         var h = hash2(x, y), col;
@@ -2066,7 +2736,7 @@
           if (surface !== 'grama' && pd > 0.42) col = mix(col, '#9fb4c8', 0.35);
           if (surface === 'grama' && h > 0.9) col = mix(col, '#cfe8ff', 0.4);
         }
-        cols[y * TW + x] = corClima(lutT, naMestra(col));
+        cols[y * TW + x] = sh ? Lz.degrau(corClima(lutT, naMestra(col)), sh) : corClima(lutT, naMestra(col));
       }
     }
     c = gridToCanvas(cols, TW, artH);
@@ -2175,7 +2845,7 @@
   function drawTrackFront(ctx) {
     var F = frenteQuadro;
     if (!F) return false;
-    var img = camadasNoClima(F.RG, F.clima).frente, P = F.P;
+    var img = F.viv ? F.viv.camada('frente') : camadasNoClima(F.RG, F.clima).frente, P = F.P;
     if (!F.trA) camadaRepetida(ctx, img, F.camArt * 1.25, F.y, F.W, P);
     else for (var i = 0; i < F.trA.length; i++) camadaColunas(ctx, img, F.camArt * 1.25, F.y - F.trA[i][2] * P, F.trA[i][0], F.trA[i][1], P);
     return true;
@@ -2273,12 +2943,27 @@
   // listra é inteira, de uma vez; nas pontas, a coluna j de cada listra (j = 0..3P−1) vale para os começos em
   // [ini, fim), ou seja, para x em [ini + j, fim + j) — a listra que começa antes de ini não aparece e a que
   // começa antes de fim sai inteira (passa de x1, como antes)
-  function hachura(ctx, h, y, alt, P, cor) {
-    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j;
-    var lis = hachuraPadrao(ctx, P, false, cor), col = hachuraPadrao(ctx, P, true, cor);
+  // Com o navegador (document), cada faixa é colada de uma tira pré-desenhada (o padrão repetido em W + 10P × alt) com
+  // drawImage no mesmo lugar: o mesmo desenho, pixel a pixel. Os ~19 preenchimentos por padrão (createPattern) com a
+  // origem deslocada custavam até 20 ms por quadro numa subida num celular com GPU (S24 FE, 2026-11-24; no contêiner,
+  // sem GPU, quase nada). padrao = true: o jeito antigo (o ui-test compara os dois); sem document, o padrão.
+  var hachuraTiras = {};
+  function hachuraTira(P, coluna, cor, w, alt) {
+    var step = 10 * P, k = P + (coluna ? 'c' : 'l') + (cor || '') + '|' + alt, c = hachuraTiras[k];
+    if (c && c.width >= w + step) return c;
+    c = makeCanvas(w + step, alt);
+    var g = c.getContext('2d'); g.fillStyle = hachuraPadrao(g, P, coluna, cor); g.fillRect(0, 0, c.width, alt);
+    return (hachuraTiras[k] = c);
+  }
+  function hachura(ctx, h, y, alt, P, cor, padrao) {
+    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j, step = 10 * P;
+    var imagem = !padrao && typeof document !== 'undefined' && !!ctx.canvas, Wc = imagem ? ctx.canvas.width : 0;
+    var lis = imagem ? hachuraTira(P, false, cor, Wc, alt) : hachuraPadrao(ctx, P, false, cor);
+    var col = imagem ? hachuraTira(P, true, cor, Wc, alt) : hachuraPadrao(ctx, P, true, cor);
     function faixa(pat, dx, xa, xb) {
       if (xb <= xa) return;
       var ox = h.org + dx;
+      if (imagem) { ctx.drawImage(pat, mod(xa - ox, step), 0, xb - xa, alt, xa, y, xb - xa, alt); return; }
       ctx.fillStyle = pat;
       ctx.translate(ox, y); ctx.fillRect(xa - ox, 0, xb - xa, alt); ctx.translate(-ox, -y);
     }
@@ -2295,6 +2980,29 @@
   // numa subida em 1280 px; ~11 ms assim). Sem document (Node), copia do próprio canvas. Devolve o nº de
   // trechos. (O arco das curvas não copia pixels: cada peça da faixa já é desenhada no lugar — mais barato.)
   var rascunho = null;
+  // Com o navegador, o relevo não copia o próprio canvas: com uma subida na tela, o drawTrack desenha numa tela à parte
+  // (telaFora) e cola no fim (compoeRelevo), com as colunas da faixa levantadas — o mesmo desenho, pixel a pixel. Ler o
+  // canvas do próprio quadro, num celular com GPU, obriga a terminar o quadro no meio. o.relevo === 'copia': o jeito
+  // antigo (deslocaFaixa; o ui-test compara os dois); sem document, também.
+  var foraRel = null;
+  function telaFora(W, Hh) {
+    if (!foraRel) foraRel = document.createElement('canvas');
+    if (foraRel.width !== W || foraRel.height !== Hh) { foraRel.width = W; foraRel.height = Hh; }
+    return foraRel.getContext('2d');
+  }
+  function compoeRelevo(dst, src, W, Hh, y0, P, dyPx, fundo) {
+    var h = Hh - y0;
+    crisp(dst);
+    dst.drawImage(src, 0, 0, W, y0, 0, 0, W, y0);
+    function trecho(xa, xb, dy) {
+      var w = xb - xa; if (w <= 0) return;
+      dst.drawImage(src, xa, y0, w, h, xa, y0 - dy, w, h);
+      if (dy > 0) { dst.fillStyle = fundo; dst.fillRect(xa, Hh - dy, w, dy); }
+    }
+    var xa = 0, dyA = dyPx(0);
+    for (var x = P; x < W; x += P) { var dy = dyPx(x); if (dy !== dyA) { trecho(xa, x, dyA); xa = x; dyA = dy; } }
+    trecho(xa, W, dyA);
+  }
   function deslocaFaixa(ctx, W, Hh, y0, P, dyPx, fundo) {
     var trechos = [], xa = -1, dyA = 0;
     for (var x = 0; x < W; x += P) {
@@ -2339,17 +3047,85 @@
     var r = id && regioesImg[id];
     if (!r || !r.camadas) return null;
     for (var i = 0; i < CAMADAS_REGIAO.length; i++) if (!r.camadas[CAMADAS_REGIAO[i]]) return null;
+    r.id = id;
     return r;
+  }
+  // Animação ambiente na corrida (plano da animação ambiente, etapa 5): o game.js passa a fábrica do motor
+  // (Ambiente.regiao); cada região ganha uma RegiaoViva por clima, que troca as camadas paradas pelas vivas (mesmo
+  // tamanho e lugar) e desenha por cima pássaros, placa, biruta, fumaça e o rotor. Sem a fábrica, sem a região pronta
+  // ou com o.vivo falso (movimento reduzido), as camadas paradas de sempre.
+  var fabricaViva = null, filaViva = [], filaRodando = false;
+  // para os testes: a região viva do último quadro (null: as paradas), o maior passo de montagem e quantas montaram
+  // ms: o tempo gasto no passo e no que vai por cima (o custo do ambiente além das camadas, que trocam 1 por 1)
+  var statsViva = { usada: null, maiorPassoMs: 0, passos: 0, montadas: 0, ms: 0, quadros: 0, por: {}, max: {} };
+  function medeViva(v) {
+    ['atualiza', 'desenha', 'nuvens'].forEach(function (k) {
+      var f = v[k];
+      v[k] = function () {
+        var t0 = agoraMs(), r = f.apply(v, arguments), d = agoraMs() - t0, nome = k === 'desenha' ? arguments[0] : k;
+        statsViva.ms += d; statsViva.por[nome] = (statsViva.por[nome] || 0) + d; if (k === 'atualiza') statsViva.quadros++;
+        statsViva.max[nome] = Math.max(statsViva.max[nome] || 0, d);
+        return r;
+      };
+    });
+    return v;
+  }
+  function setAmbiente(fn) { fabricaViva = typeof fn === 'function' ? fn : null; }
+  // a região viva de RG no clima, se já está montada; senão põe na fila de montagem (um passo por tarefa, sem travar
+  // quadro) e devolve null: até ficar pronta, a pista usa as camadas paradas. sync: monta na hora (testes)
+  function regiaoViva(RG, clima, sync) {
+    if (!fabricaViva || !RG) return null;
+    var V = RG.vivas || (RG.vivas = {});
+    if (!Object.prototype.hasOwnProperty.call(V, clima)) {
+      var v = null;
+      try {
+        var sol = clima === 'sol' || !CLIMA_PALETA[clima], cm = camadasNoClima(RG, clima);
+        v = fabricaViva(RG.id, { sol: RG.camadas, clima: sol ? null : cm, nevoa: RG.nevoa || null }, sol ? null : lutClima(clima), { aosPoucos: true }) || null;
+      } catch (e) { v = null; avisoViva(RG, clima, e); }
+      V[clima] = v || false;
+      if (v) { medeViva(v); filaViva.push({ RG: RG, clima: clima, v: v }); rodaFilaViva(); }
+    }
+    var r = V[clima];
+    if (r && !r.pronta && sync) { while (filaViva.length) passoFilaViva(); }
+    return r && r.pronta ? r : null;
+  }
+  function avisoViva(RG, clima, e) { if (typeof console !== 'undefined') console.warn('região viva ' + RG.id + ' (' + clima + '): ' + e.message); }
+  function passoFilaViva() {
+    var it = filaViva[0], t0 = agoraMs();
+    try { if (it.v.montaPasso()) { filaViva.shift(); statsViva.montadas++; } }
+    catch (e) { filaViva.shift(); it.RG.vivas[it.clima] = false; avisoViva(it.RG, it.clima, e); }
+    statsViva.passos++; statsViva.maiorPassoMs = Math.max(statsViva.maiorPassoMs, agoraMs() - t0);
+  }
+  function agoraMs() { return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now(); }
+  function rodaFilaViva() {
+    if (filaRodando || !filaViva.length || typeof setTimeout !== 'function') return;
+    filaRodando = true;
+    setTimeout(function passo() {
+      passoFilaViva();
+      if (filaViva.length) setTimeout(passo, 0); else filaRodando = false;
+    }, 0);
+  }
+  // põe na fila as regiões vivas dos climas da corrida (a do clima inicial primeiro): montam na contagem da largada
+  function prepararRegiaoViva(id, climas) {
+    var RG = regiaoPronta(id), n = 0;
+    if (!RG) return 0;
+    (climas || []).forEach(function (c) { regiaoViva(RG, c); n++; });
+    return n;
   }
   // Clima por troca de paleta (guia §3; a mesma conta da amostra): cada cor da mestra misturada k com o rumo e levada de
   // volta à mestra. Sol = a paleta como está. As camadas da região, a faixa de grama, o céu, o piso e as cercas trocam
   // juntos, uma vez por região e clima (pré-desenhados, guia §9).
   var CLIMA_PALETA = { nublado: ['#7f708a', 0.38], chuva: ['#323353', 0.42], nevoa: ['#c7dcd0', 0.5] };
   var lutClimas = {};
+  // a LUT de um clima: por degrau de rampa (Luz.lutCondicao; guia de integração, Regra 8), que não funde os tons; sem o
+  // luz.js, a mistura com a tinta do clima levada à mestra (o jeito antigo)
   function lutClima(clima) {
     if (lutClimas[clima]) return lutClimas[clima];
-    var cl = CLIMA_PALETA[clima], t = {};
-    MESTRA.forEach(function (h) { t['#' + h] = cl ? naMestra(mix('#' + h, cl[0], cl[1])) : '#' + h; });
+    var cl = CLIMA_PALETA[clima], t = {}, Lz = luzApi();
+    if (Lz && Lz.lutCondicao) {
+      var L = Lz.lutCondicao(cl ? clima : 'sol');
+      MESTRA.forEach(function (h) { t['#' + h] = L['#' + h] || '#' + h; });
+    } else MESTRA.forEach(function (h) { t['#' + h] = cl ? naMestra(mix('#' + h, cl[0], cl[1])) : '#' + h; });
     return (lutClimas[clima] = t);
   }
   function corClima(lut, c) { return (lut && lut[c]) || c; }
@@ -2467,14 +3243,23 @@
     }
   }
   // o fundo da região: céu, sol, nuvens, horizonte e meio (a arquibancada e a faixa de grama vêm depois, com o arco)
-  function fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P) {
-    var lt = Math.round(laneTop / P), cm = camadasNoClima(RG, weather);
+  // viv: a região viva (regiaoViva) ou null: as camadas paradas
+  function fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P, viv) {
+    var lt = Math.round(laneTop / P), cm = camadasNoClima(RG, weather), Wa = Math.ceil(W / P);
     ctx.drawImage(ceuRegiao(weather, lt), 0, 0, W, lt * P);
-    if (weather === 'sol') ctx.drawImage(solDaRegiao(), 100 * P, (lt - 104) * P, 23 * P, 23 * P);   // à esquerda (a luz vem de cima e da esquerda), fora do minimapa
-    camadaRepetida(ctx, cm.nuvens, camArt * 0.04 - vento.dir * t * 3 * (vento.k.nuvem || 1), (lt - 110) * P, W, P);
-    camadaRepetida(ctx, cm.horizonte, camArt * 0.1, (lt - 32 - cm.horizonte.height) * P, W, P);
+    // à esquerda (a luz vem de cima e da esquerda), fora do minimapa; vivo, o halo gira (4 quadros de 25 px, mesmo centro)
+    if (weather === 'sol') { if (viv) ctx.drawImage(viv.quadroSol(t), 99 * P, (lt - 105) * P, 25 * P, 25 * P); else ctx.drawImage(solDaRegiao(), 100 * P, (lt - 104) * P, 23 * P, 23 * P); }
+    var dN = camArt * 0.04 - vento.dir * t * 3 * (vento.k.nuvem || 1);
+    if (viv) { viv.nuvens(ctx, dN, (lt - 110) * P, W, P); viv.desenha('ceu', ctx, P, 0, lt - 128, Wa, camArt); }
+    else camadaRepetida(ctx, cm.nuvens, dN, (lt - 110) * P, W, P);
+    var hz = viv ? viv.camada('horizonte') : cm.horizonte, yH = lt - 32 - hz.height, xH = -mod(Math.floor(camArt * 0.1), hz.width);
+    if (viv) viv.desenha('antesHorizonte', ctx, P, xH, yH, Wa, camArt);
+    camadaRepetida(ctx, hz, camArt * 0.1, yH * P, W, P);
+    if (viv) viv.desenha('horizonte', ctx, P, xH, yH, Wa, camArt);
     if (weather === 'nevoa') ctx.drawImage(veuNevoa(Math.ceil(W / P), lt), 0, 0, Math.ceil(W / P) * P, (lt + 10) * P);
-    camadaRepetida(ctx, cm.meio, camArt * 0.3, (lt + 26 - cm.meio.height + ((RG.posicao || {}).meio || 0)) * P, W, P);
+    var me = viv ? viv.camada('meio') : cm.meio, yM = lt + 26 - me.height + ((RG.posicao || {}).meio || 0);
+    camadaRepetida(ctx, me, camArt * 0.3, yM * P, W, P);
+    if (viv) viv.desenha('meio', ctx, P, -mod(Math.floor(camArt * 0.3), me.width), yM, Wa, camArt);
   }
   // o que drawTrack deixou para o primeiro plano do mesmo quadro (drawTrackFront): os trechos do arco das curvas
   var frenteQuadro = null;
@@ -2490,12 +3275,33 @@
     // (o zoom da corrida), o jogo manda o rolar acumulado (o.camPx): cam × ppm daria um salto no fundo a cada mudança de ppm
     var camPx = o.camPx != null ? +o.camPx : cam * ppm, vento = ventoPista(o.wind);
     function sx(m) { return Math.round((m - cam) * ppm); }
+    // o.perfil (medição, spike do teste de engine): soma o tempo de cada parte do desenho em o.perfil.soma[parte] e
+    // guarda o pior em o.perfil.max[parte]; sem ele, nada é medido
+    var PF = o.perfil || null, tPF = PF ? agoraMs() : 0;
+    function pf(k) {
+      if (!PF) return;
+      var a = agoraMs(), d = a - tPF; tPF = a;
+      PF.soma[k] = (PF.soma[k] || 0) + d; if (!(PF.max[k] >= d)) PF.max[k] = d;
+    }
+    // com uma subida na tela, a pista inteira vai para a tela à parte e é colada no fim com o relevo (compoeRelevo)
+    var alvoRel = null, liftCol = null;
+    if ((o.hills || []).length && o.hillRelief !== false && o.relevo !== 'copia' && typeof document !== 'undefined' && document.createElement) {
+      liftCol = function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, o.hills, o.hillMaxLift) * P; };
+      for (var xq = 0; xq < W; xq += P) if (liftCol(xq) > 0) { alvoRel = ctx; ctx = telaFora(W, Hh); break; }
+    }
     crisp(ctx);
     // (weather junta a névoa ao nublado, para o cenário por código; a troca de paleta da região usa o clima de verdade)
     var clima = o.weather || 'sol', RG = regiaoPronta(o.regiao), camArt = camPx / P, lutRG = RG ? lutClima(clima) : null;
     function K(c) { return corClima(lutRG, c); }   // com a região, a cor da cerca e do chão no clima (troca de paleta)
     frenteQuadro = null;
-    if (RG) fundoRegiao(ctx, RG, W, laneTop, camArt, t, clima, vento, P);
+    // a região viva: o.vivo (o jogo manda falso em movimento reduzido); um passo por quadro, no tempo t
+    var viv = RG && o.vivo ? regiaoViva(RG, clima) : null;
+    statsViva.usada = viv ? RG.id + '|' + clima : null;
+    if (viv) {
+      var dtv = viv.tAnt == null ? 1 / 60 : Math.min(0.1, Math.max(0, t - viv.tAnt));
+      viv.tAnt = t; viv.atualiza(t, dtv, o.wind);
+    }
+    if (RG) fundoRegiao(ctx, RG, W, laneTop, camArt, t, clima, vento, P, viv);
 
     // --- céu em faixas (sem a região: o cenário por código de antes)
     var sky = SKY[weather] || SKY.sol;
@@ -2550,6 +3356,7 @@
     ridge(0.15, 2, 6, 0.08, HC.near, 90);
     }
 
+    pf('fundo');
     // --- curvas (o.curves): arco da pista NA TELA (RaceFx.curveOffsetTela, "as pontas mais altas"). Com o meio da
     // tela numa curva, a cerca, as raias e os cavalos (no game.js, com o mesmo camTela) sobem até 20 px de arte
     // nas pontas da tela e a arquibancada 10/6 disso; placas "CURVA" na cerca. Precisa do fx.js (RaceFx); sem ele
@@ -2580,7 +3387,8 @@
     if (RG) {
       // a da região: um objeto a cada 2600 px da paralaxe 0,75 (a primeira 60 px depois da largada); na curva sobe
       // como a de código (10/6 do arco da cerca), cada trecho de colunas recortado
-      var CMc = camadasNoClima(RG, clima), ar = CMc.arquibancada, arW = ar.width * P, arY = laneTop - (6 + ar.height) * P, PER_AR = 2600 * P;
+      var CMc = camadasNoClima(RG, clima), ar = viv ? viv.camada('arquibancada') : CMc.arquibancada, arW = ar.width * P, arY = laneTop - (6 + ar.height) * P, PER_AR = 2600 * P;
+      var arCima = viv && viv.tem('arquibancada');
       var arX0 = -mod(Math.floor(camArt * 0.75) * P, PER_AR) + 60 * P;
       var arTr = arco ? trechosArco(FXc.CURVA.arquibancada / FXc.CURVA.arco) : [[0, W, 0]];
       for (var ati = 0; ati < arTr.length; ati++) {
@@ -2588,6 +3396,13 @@
         for (var axx = arX0 - PER_AR; axx < W; axx += PER_AR) {
           var ca = Math.max(axx, atr[0]), cb = Math.min(axx + arW, atr[1]);   // só as colunas do trecho (sem recorte)
           if (cb > ca) ctx.drawImage(ar, (ca - axx) / P, 0, (cb - ca) / P, ar.height, ca, arY - atr[2] * P, cb - ca, ar.height * P);
+          // o que vai por cima dela (varais de bandeirolas): recortado no trecho quando o arco o divide
+          if (arCima && cb + 12 * P > ca) {
+            var corta = arTr.length > 1;
+            if (corta) { ctx.save(); ctx.beginPath(); ctx.rect(atr[0], 0, atr[1] - atr[0], laneTop); ctx.clip(); }
+            viv.desenha('arquibancada', ctx, P, Math.round(axx / P), Math.round(arY / P) - atr[2], Math.ceil(W / P), camArt);
+            if (corta) ctx.restore();
+          }
         }
       }
     } else {
@@ -2633,6 +3448,7 @@
     ctx.fillRect(0, laneTop - 4 * P, W, 4 * P);
     }
 
+    pf('arquibancada');
     // --- faixa da pista no arco das curvas: da cerca externa à interna, tudo sobe dyX(x) pixels do canvas na
     // coluna x (0 fora das curvas). Peças por coluna (postes, tracejados, placas) usam dyX; faixas de largura
     // total são desenhadas por trecho de colunas (faixaLarga); o piso, recortado por trecho.
@@ -2650,9 +3466,12 @@
     }
     if (RG) {
       camadaNoArco(camadasNoClima(RG, clima).grama || faixaGrama(), 1, laneTop - 16 * P);
-      frenteQuadro = { RG: RG, clima: clima, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P };
+      // placa pendurada e biruta atrás da cerca de trás (vivas), subindo com o arco no x de cada uma
+      if (viv) viv.desenha('cerca', ctx, P, -Math.floor(camArt), Math.round(laneTop / P), Math.ceil(W / P), camArt, function (xa) { return arcoEm(cam + (xa * P + P / 2) / ppm, 1); });
+      frenteQuadro = { RG: RG, clima: clima, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P, viv: viv };
     }
 
+    pf('grama');
     // --- superfície da pista
     var artH = Math.ceil(trackH / P);
     var tile = surfaceTile(surface, RG ? clima : weather, artH, !!RG);
@@ -2695,8 +3514,15 @@
       }
     }
 
+    pf('piso e raias');
     // --- subidas
     var hills = o.hills || [];
+    // as tiras da hachura saem já no 1º quadro da corrida (a contagem da largada) e a cada troca de clima, não no 1º
+    // quadro de uma subida (montar custava ~28 ms naquele quadro no celular)
+    if (hills.length && o.hachura !== 'padrao' && typeof document !== 'undefined') {
+      var corHa = RG ? K(SC.dark) : null;
+      hachuraTira(P, false, corHa, W, trackH); hachuraTira(P, true, corHa, W, trackH);
+    }
     for (var hi = 0; hi < hills.length; hi++) {
       var a = sx(hills[hi][0]), bb = sx(hills[hi][1]);
       if (bb < -60 * P || a > W + 60 * P) continue;
@@ -2704,7 +3530,7 @@
       if (x1 > x0) {
         if (!RG) { ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH); }
         // hachura diagonal ancorada no mundo
-        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null);
+        if (!o.semHachura) hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null, o.hachura === 'padrao');
       }
       // linhas amarelas de início/fim
       ctx.fillStyle = '#f9c22b';
@@ -2714,6 +3540,7 @@
       }
     }
 
+    pf('subidas');
     // --- curvas: linhas tracejadas de início e fim (o arco e as placas na cerca dizem que é curva)
     for (var cvi = 0; cvi < curves.length; cvi++) {
       var ca = sx(curves[cvi][0]), cb = sx(curves[cvi][1]);
@@ -2725,6 +3552,7 @@
       }
     }
 
+    pf('curvas');
     // --- marcas de distância (linhas na pista)
     var ev = Math.max(10, o.distanceMarkersEvery || 200);
     var finishM = o.finishM || 1000;
@@ -2752,6 +3580,7 @@
       }
     }
 
+    pf('marcas e chegada');
     // --- cercas (externa em cima, interna embaixo)
     function rail(y, postsUp) {
       // postes a cada 4 m
@@ -2768,6 +3597,7 @@
     }
     rail(laneTop, true);
 
+    pf('cerca de cima');
     // --- cerca interna e gramado interno (na curva o gramado começa mais acima: o rodapé fica maior)
     // (com a região, chão de terra escura: o primeiro plano, drawTrackFront, cobre quase tudo)
     var innerC = RG ? K('#4c3e24') : weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
@@ -2816,6 +3646,7 @@
     }
     if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, trackBottom - dyX(fx), 2 * P, 8 * P); }
 
+    pf('interno');
     // --- placas (depois do campo interno; nenhuma passa da cerca para baixo), acompanhando a cerca no arco
     // placas de distância sobre a cerca externa
     for (var m2 = mStart; m2 <= mEnd; m2 += ev) {
@@ -2888,10 +3719,13 @@
       drawBoard(ctx, fx + P, postTop - 19 * P, 'CHEGADA', P, '#2e222f', '#ffffff');
     }
 
+    pf('placas');
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
-    if (hills.length && o.hillRelief !== false) {
+    if (alvoRel) { compoeRelevo(alvoRel, ctx.canvas, W, Hh, laneTop - 8 * P, P, liftCol, innerC); ctx = alvoRel; }
+    else if (hills.length && o.hillRelief !== false) {
       deslocaFaixa(ctx, W, Hh, laneTop - 8 * P, P, function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, hills, o.hillMaxLift) * P; }, innerC);
     }
+    pf('relevo');
   }
 
   // RaceFx (fx.js) carregado no navegador ou no Node; sem ele, null (a pista fica reta)
@@ -2904,9 +3738,11 @@
   // carrega os dois antes do sprites.js). Sem eles (o wiki embute só o sprites.js): sem marcas, jóquei e raridade.
   function marcasApi() { return MARCAS_NODE || (typeof self !== 'undefined' && self.Marcas) || null; }
   function dadosApi() { return DADOS_NODE || (typeof self !== 'undefined' && self.GameData) || null; }
+  function luzApi() { return LUZ_NODE || (typeof self !== 'undefined' && self.Luz) || null; }
 
   var api = {
-    HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y,
+    HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
+    pixelsSombra: pixelsSombra, IdleMolde: IdleMolde, passoLeitura: passoLeitura, passadaDe: passadaDe, cascosNoChao: cascosNoChao, contatoGalope: contatoGalope, cascosNaTela: cascosNaTela, drawContatoRaia: drawContatoRaia, drawSombraCerca: drawSombraCerca, contatoEm: contatoEm, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes, drawTufosFrente: drawTufosFrente,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,
@@ -2915,6 +3751,7 @@
     randomPalette: randomPalette,
     ELEMENTS: ['fogo', 'agua', 'grama'],   // os três tipos do v3 (a paleta e o estilo 'neutro' ficam como queda)
     drawHorse: drawHorse,
+    quadroIdle: quadroIdle,
     alturaFonte: alturaFonte,   // a altura da maiúscula da fonte do canvas ('g7', 'g9', 'g11'; sem fonte: a 3×5)
     naMestra: naMestra,   // a cor da paleta-mestra mais perto de um hex (etapa 1b; os testes conferem as cores por ela)
     drawHorseCodigo: drawHorseCodigo,
@@ -2940,6 +3777,7 @@
     drawTrackFront: drawTrackFront,
     setRegioes: setRegioes,
     prepararRegiao: prepararRegiao,
+    setAmbiente: setAmbiente, prepararRegiaoViva: prepararRegiaoViva, statsViva: function () { return statsViva; }, regiaoViva: function (id, clima) { return regiaoViva(regiaoPronta(id), clima || 'sol', true); },
     regiaoPronta: regiaoPronta,
     cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,

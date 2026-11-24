@@ -1,0 +1,118 @@
+<title>Galope Animado</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Molde da amostra de animação ambiente (prototype/tools/arte-animacao-build.mjs troca os marcadores e gera
+   prototype/arte/animacao-amostra.html). Visual único e escuro de propósito: é tela de jogo, no tom azul da interface de
+   hoje (Nunito + painéis 323353/3e3546/484a77/4d65b4, guia de arte §6). Layout: seletor de cena no topo; "hoje" e
+   "animada" lado a lado no largo e empilhadas no estreito; abaixo, controles da cena, medidor de custo e notas. */
+@font-face { font-family: 'NunitoA'; font-weight: 600; src: url(/*__N600__*/) format('woff2'); }
+@font-face { font-family: 'NunitoA'; font-weight: 800; src: url(/*__N800__*/) format('woff2'); }
+:root {
+  --noite: #323353; --painel: #3e3546; --painel-2: #484a77; --painel-3: #4d65b4; --linha: #4d9be6; --tinta: #2e222f;
+  --texto: #ffffff; --texto-2: #c7dcd0; --texto-3: #9babb2; --ouro: #f9c22b; --ouro-2: #f79617; --ganho: #91db69;
+  --perda: #e83b3b; --foco: #8ff8e2;
+  --f-titulo: 'NunitoA', 'Nunito', system-ui, sans-serif; --f-corpo: 'NunitoA', 'Nunito', system-ui, sans-serif;
+  --f-dado: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+body { background: var(--noite); color: var(--texto); font-family: var(--f-corpo); font-weight: 600; font-size: 15px; line-height: 1.5;
+  background-image: radial-gradient(var(--painel) 1px, transparent 1px); background-size: 6px 6px; }
+.pagina { max-width: 1120px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 18px; }
+header { display: grid; gap: 6px; }
+h1 { font-family: var(--f-titulo); font-weight: 800; font-size: 26px; line-height: 1.2; margin: 0; color: var(--ouro);
+  text-shadow: 2px 2px 0 var(--tinta); text-wrap: balance; }
+.sub { margin: 0; color: var(--texto-2); max-width: 70ch; }
+.cenas { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; font-weight: 800; color: var(--texto); background: var(--painel-2); border: 2px solid var(--tinta);
+  box-shadow: inset 0 2px 0 var(--painel-3), inset 0 -2px 0 var(--tinta); padding: 6px 12px 8px; cursor: pointer; min-height: 40px; }
+button:hover { background: var(--painel-3); }
+button[aria-pressed="true"] { background: var(--ouro); color: var(--tinta); box-shadow: inset 0 2px 0 #fbb954, inset 0 -2px 0 var(--ouro-2); }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--foco); outline-offset: 2px; }
+.telas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.tela { min-width: 0; display: grid; gap: 8px; background: var(--painel); border: 2px solid var(--tinta);
+  box-shadow: inset 0 2px 0 var(--painel-2); padding: 10px; }
+.tela h2 { margin: 0; font-family: var(--f-titulo); font-weight: 800; font-size: 17px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.tela h2 small { font-weight: 600; font-size: 13px; color: var(--texto-3); }
+.moldura { background: var(--tinta); display: grid; place-items: center; min-height: 80px; overflow: hidden; }
+canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ctl > span { color: var(--texto-3); font-size: 13px; }
+.baixo { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.caixa { min-width: 0; background: var(--painel); border: 2px solid var(--tinta); box-shadow: inset 0 2px 0 var(--painel-2); padding: 12px 14px; display: grid; gap: 10px; }
+.caixa h3 { margin: 0; font-family: var(--f-titulo); font-weight: 800; font-size: 16px; color: var(--texto); }
+.medidor { width: 100%; border-collapse: collapse; font-size: 13px; }
+.medidor th { text-align: left; color: var(--texto-3); font-weight: 600; padding: 2px 6px; }
+.medidor td { padding: 3px 6px; border-top: 1px solid var(--painel-2); vertical-align: middle; }
+.medidor td.n, .medidor th.n { text-align: right; font-family: var(--f-dado); font-variant-numeric: tabular-nums; }
+.medidor label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.medidor input { width: 18px; height: 18px; accent-color: var(--ouro); }
+.medidor tfoot td { font-weight: 800; border-top: 2px solid var(--linha); }
+.barra { height: 10px; background: var(--tinta); position: relative; min-width: 60px; }
+.barra i { position: absolute; inset: 0 auto 0 0; background: var(--ganho); }
+.barra i.alto { background: var(--ouro-2); }
+.barra i.estouro { background: var(--perda); }
+.nota-med { margin: 0; font-size: 13px; color: var(--texto-3); max-width: 70ch; }
+.resumo { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--texto-2); }
+.resumo b { font-family: var(--f-dado); color: var(--texto); font-variant-numeric: tabular-nums; }
+.notas { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; color: var(--texto-2); font-size: 14px; }
+.notas b { color: var(--ouro); font-weight: 800; }
+.tag { display: inline-block; font-size: 11px; font-weight: 800; padding: 0 6px; border: 1px solid var(--tinta); vertical-align: 1px; }
+.tag.cod { background: var(--ganho); color: var(--tinta); }
+.tag.pago { background: var(--ouro-2); color: var(--tinta); }
+.tag.mais { background: var(--foco); color: var(--tinta); }
+.estilo { display: flex; gap: 0; }
+.sel { display: flex; gap: 6px; align-items: center; color: var(--texto-2); font-size: 14px; }
+.sel select { font: inherit; font-weight: 800; color: var(--texto); background: var(--painel-2); border: 2px solid var(--tinta); padding: 6px 8px; min-height: 40px; }
+.estilo button + button { margin-left: -2px; }
+@media (max-width: 760px) { .telas, .baixo { grid-template-columns: minmax(0, 1fr); } h1 { font-size: 22px; } }
+</style>
+
+<div class="pagina">
+  <header>
+    <h1>Galope Elemental · animação ambiente</h1>
+    <p class="sub">A imagem de hoje, parada, ao lado da mesma imagem animada por código, na versão escolhida ("mais
+      movimento", com a vegetação e a água mexendo o tempo todo); a versão anterior fica no seletor para comparar. Tudo na
+      paleta Resurrect 64 e no pixel inteiro. Escolha a cena, ligue e desligue camadas e veja quanto cada uma custa por quadro.</p>
+  </header>
+  <nav class="cenas" id="cenas" aria-label="Cena"></nav>
+  <section class="telas">
+    <div class="tela">
+      <h2>Hoje <small>a imagem parada que está no jogo</small></h2>
+      <div class="moldura" id="molduraAntes"><canvas id="antes" aria-label="Cena parada, como está hoje"></canvas></div>
+    </div>
+    <div class="tela">
+      <h2>Animada <small id="legenda"></small></h2>
+      <div class="moldura" id="molduraDepois"><canvas id="depois" aria-label="Cena animada"></canvas></div>
+      <div class="ctl" id="ctlCena"></div>
+    </div>
+  </section>
+  <section class="tela piloto" id="painelPiloto" hidden>
+    <h2>PixelLab × código <small>o mesmo molde e a mesma pelagem: à esquerda o idle por código, à direita comer e cavar do PixelLab (12 moldes)</small></h2>
+    <div class="moldura" id="molduraPiloto"><canvas id="piloto" aria-label="Comparação do idle por código e do PixelLab"></canvas></div>
+    <div class="ctl" id="ctlPiloto"></div>
+  </section>
+  <section class="baixo">
+    <div class="caixa">
+      <h3>Custo por quadro</h3>
+      <p class="nota-med">Medido agora, no aparelho em que a página está aberta. Orçamento do guia de arte: 2 ms de JavaScript
+        por quadro num celular médio. No computador, multiplique por ~4 (a régua do teste de engine); no celular, o número já é
+        o dele. A barra mostra a parte do orçamento que cada camada ocupa no celular médio. Desligue uma camada para comparar.</p>
+      <div class="resumo" id="resumo"></div>
+      <table class="medidor">
+        <thead><tr><th>Camada</th><th class="n">ms/quadro</th><th class="n">pico</th><th>orçamento</th></tr></thead>
+        <tbody id="camadas"></tbody>
+        <tfoot><tr><td>Quadro inteiro (com a cópia ampliada)</td><td class="n" id="totMs">–</td><td class="n" id="totPico">–</td><td><div class="barra"><i id="totBarra"></i></div></td></tr></tfoot>
+      </table>
+    </div>
+    <div class="caixa">
+      <h3>O que mexe nesta cena</h3>
+      <ul class="notas" id="notas"></ul>
+    </div>
+  </section>
+</div>
+<script>window.__ANIM = /*__DADOS__*/;</script>
+<script>
+/*__JS__*/
+</script>

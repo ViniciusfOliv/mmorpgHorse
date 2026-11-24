@@ -1,0 +1,73 @@
+{
+  "endpoint": "/animate-with-text-v3",
+  "data": "2026-11-23T23:19:37.779Z",
+  "pedido": {
+    "first_frame": {
+      "type": "base64",
+      "base64": "<base64 omitido: 580 bytes, sha256 e3d3c2070275a5fa>",
+      "format": "png"
+    },
+    "action": "side view horse facing right, standing in place, same body, same colors, flat colors, no anti-aliasing, seamless loop, idle breathing, very subtle rise and fall of the barrel and a slight head bob",
+    "frame_count": 4,
+    "seed": 8131,
+    "no_background": true,
+    "drift_threshold": 0
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "id": "f5dacfa2-eba7-4af2-8f99-4c2832412605",
+    "status": "completed",
+    "created_at": "2026-11-23T23:19:01.304686+00:00",
+    "last_response": {
+      "seed": 8131,
+      "type": "message_done",
+      "usage": {
+        "usd": 0,
+        "type": "generations",
+        "generations": 1,
+        "cost_if_paid": 0.016371136446793874
+      },
+      "images": [
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 723 bytes, sha256 493219409bfca558>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 708 bytes, sha256 4f26d70ec445b9ac>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 722 bytes, sha256 be7b91410cf3b1fa>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 726 bytes, sha256 4f9f261360198feb>",
+          "format": "png"
+        },
+        {
+          "type": "base64",
+          "base64": "<base64 omitido: 743 bytes, sha256 734447ad4eb5edec>",
+          "format": "png"
+        }
+      ],
+      "status": "completed",
+      "progress": 0.5454545454545454,
+      "flow_kind": "animation",
+      "billing_usage": {
+        "type": "generations",
+        "generations": 1
+      },
+      "generation_id": "6df46489-b479-467c-ae66-5236341b84e2",
+      "queue_position": 0,
+      "billing_charged": true,
+      "generation_started_at": "2026-11-23T23:19:09.883126+00:00"
+    }
+  }
+}

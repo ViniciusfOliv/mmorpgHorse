@@ -9,14 +9,14 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lerMoldes, lerIcones, jsonJs } from '../tools/arte-embutida.mjs'
+import { lerMoldes, lerIcones, lerRegioes, jsonJs } from '../tools/arte-embutida.mjs'
 import { cssFontes } from '../tools/interface-arte.mjs'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(AQUI, '..')
 const ler = (p) => readFile(join(ROOT, p), 'utf8')
 
-const MODULOS = ['src/data.js', 'src/sim.js', 'src/marcas.js', 'src/sprites.js', 'src/fx.js']
+const MODULOS = ['src/data.js', 'src/sim.js', 'src/marcas.js', 'src/luz.js', 'src/sprites.js', 'src/ambiente.js', 'src/fx.js']
 const avisos = []
 const moldes = await lerMoldes(ROOT, avisos)
 const icones = await lerIcones(ROOT)
@@ -24,7 +24,9 @@ const icones = await lerIcones(ROOT)
 const iconesCorrida = Object.fromEntries(Object.entries(icones).filter(([k]) => /^(sk-|cl-|ui-dado$)/.test(k)))
 
 const tag = (nome, js) => `<script>\n/* ${nome} */\n${js.trim().replace(/<\/script/gi, '<\\/script')}\n</script>`
-const scripts = [tag('arte embutida', `window.__MOLDES = ${jsonJs(moldes)};\nwindow.__ICONES = ${jsonJs(iconesCorrida)};`)]
+const regioes = await lerRegioes(ROOT), manifesto = JSON.parse(await ler('assets/arte/animacao.json'))
+const scripts = [tag('arte embutida', `window.__MOLDES = ${jsonJs(moldes)};\nwindow.__ICONES = ${jsonJs(iconesCorrida)};\n` +
+  `window.__REGIOES = ${jsonJs(regioes)};\nwindow.__ANIM_MANIFESTO = ${jsonJs(manifesto)};`)]
 for (const m of MODULOS) scripts.push(tag(m + ' (cópia sem alteração)', await ler(m)))
 scripts.push(tag('spike/engine.js', await readFile(join(AQUI, 'engine.js'), 'utf8')))
 

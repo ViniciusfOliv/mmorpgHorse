@@ -1,0 +1,154 @@
+{
+  "esguio-lisa": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "esguio-chamas": {
+    "cavar": {
+      "seed": 8113,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          77
+        ],
+        [
+          8113,
+          0
+        ]
+      ]
+    }
+  },
+  "esguio-ondas": {
+    "cavar": {
+      "seed": 8113,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          62
+        ],
+        [
+          8113,
+          0
+        ]
+      ]
+    }
+  },
+  "esguio-folhas": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "padrao-lisa": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "padrao-chamas": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "padrao-ondas": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "padrao-folhas": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "robusto-lisa": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "robusto-chamas": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "robusto-ondas": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "robusto-folhas": {
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  }
+}

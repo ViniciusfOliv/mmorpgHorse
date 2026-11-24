@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodeGray } from './png.mjs';
-import { validar, ancoras, paraCinza, classificarFamilias, corrigirGrupo, limiaresDeTons, posProcessar } from './moldes-lib.mjs';
+import { validar, ancoras, olhoMolde, paraCinza, classificarFamilias, corrigirGrupo, limiaresDeTons, posProcessar } from './moldes-lib.mjs';
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const DIR_MOLDES = path.join(RAIZ, 'prototype', 'assets', 'pixellab');
@@ -320,6 +320,8 @@ export function gravarMolde(dir, chave, { nomes, quadros, tons }, { seeds, extra
     mudou[n] = n.startsWith('galope-') ? !(antigos[f] && antigos[f].equals(buf)) : gravarFinal(path.join(dir, f), buf);
     if (n.startsWith('galope-')) fs.writeFileSync(path.join(dir, f), buf);
     anc[n] = ancoras(quadros[i].idx, LADO, LADO);
+    // o olho no retrato e no parado (o idle pisca: animação ambiente, etapa 2)
+    if (n === 'retrato' || n === 'parado') anc[n].olho = olhoMolde(quadros[i].idx, LADO, LADO, anc[n].nose, chave + ':' + n);
   });
   const json = {
     estilo: chave, w: LADO, h: LADO, footY: anc.retrato.footY, frames,

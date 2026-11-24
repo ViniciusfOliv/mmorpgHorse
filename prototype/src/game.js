@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja, MP = window.Mapa;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
   if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !AF || !telaEl) {
@@ -31,6 +31,9 @@
   // variáveis ficam como abaixo e devHooks continua null. Fora dos blocos, nada chama código de dentro deles
   // a não ser por devHooks.
   var DV = null, DEV_MODE = false, DEV_BUILD = false, devHooks = null;
+  // ?quadro=<segundos>: o relógio da animação ambiente parado nesse instante (cenas das abas, arena do desafio, cavalos
+  // parados), para as capturas oficiais saírem iguais a cada vez; a corrida não muda. Só apresentação (vale também no jogo de produção: a captura do jogo.html).
+  var QUADRO_FIXO = (function () { var m = /[?&]quadro=([0-9]+(?:\.[0-9]+)?)(&|$)/.exec(window.location.search); return m ? Number(m[1]) : null; }());
   /*@dev:inicio*/
   // ?dev=1 ou o build de teste (prototype/dist/jogo-dev.html, que traz window.__GALOPE_DEV = true: o artefato do
   // claude.ai não repassa a query). Nele o jogo só lê e grava o save de teste.
@@ -239,22 +242,31 @@
     Object.keys(m).forEach(function (r) {
       var cam = m[r] && m[r].camadas;
       if (!cam || typeof cam !== 'object') return;
-      var reg = { posicao: m[r].posicao || {}, camadas: {} };
-      Object.keys(cam).forEach(function (k) {
-        if (typeof cam[k] !== 'string') return;
+      // nevoa: cor crua -> cor do horizonte embutido (a animação ambiente lê as rampas cruas do manifesto)
+      var reg = { posicao: m[r].posicao || {}, camadas: {}, nevoa: m[r].nevoa && typeof m[r].nevoa === 'object' ? m[r].nevoa : null };
+      var chaves = Object.keys(cam).filter(function (k) { return typeof cam[k] === 'string'; }), faltam = chaves.length;
+      chaves.forEach(function (k) {
         var img = new Image();
-        img.onload = function () { reg.camadas[k] = img; prontas[r] = reg; SP.setRegioes(prontas); };
+        // a região entra quando todas as imagens dela chegaram (o meio sem as pás do Planalto junto com as 5 camadas)
+        img.onload = function () { reg.camadas[k] = img; if (--faltam === 0) { prontas[r] = reg; SP.setRegioes(prontas); } };
         img.src = cam[k];
       });
     });
   }
   carregarRegioes();
+  // a animação ambiente das regiões na corrida (ambiente.js, etapa 5): o Sprites pede ao motor uma região viva por clima
+  if (window.Ambiente && SP.setAmbiente) SP.setAmbiente(function (id, imgs, lut, opts) {
+    if (!window.Ambiente.REGIOES_VIVAS[id]) return null;
+    window.Ambiente.dados({ manifesto: window.__ANIM_MANIFESTO });
+    return window.Ambiente.regiao(id, imgs, lut, opts);
+  });
   // a região do cenário de uma corrida: a do ginásio (Fornalha no Sertão, Remanso no Litoral, Capoeira no Cerrado, as
   // mesmas paletas das arenas) ou a da pista (regioes.json, "pistas"); senão o Cerrado
   var GIN_REGIAO = { fogo: 'sertao', agua: 'litoral', grama: 'cerrado' };
   function regiaoDaPista(L) {
     var m = window.__REGIOES;
     if (L && L.regiao) return L.regiao;
+    if (DEV_MODE && ui.dev.regiao && m && hasOwn(m, ui.dev.regiao)) return ui.dev.regiao;   // o cenário escolhido na gaveta DEV
     if (m && typeof m === 'object' && L) for (var r in m) if (hasOwn(m, r) && m[r] && (m[r].pistas || []).indexOf(L.trackName) >= 0) return r;
     return 'cerrado';
   }
@@ -1218,7 +1230,7 @@
     joqueiKeep: null,   // e o jóquei também (padrão e capacete)
     // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
     // (ver a seção "Modo DEV")
-    dev: { aberto: false, ouroInf: true, msg: '', f: null, confirmZerar: false }, devNext: null };
+    dev: { aberto: false, ouroInf: true, cadencia: 'meio', regiao: '', msg: '', f: null, confirmZerar: false }, devNext: null };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -1454,7 +1466,7 @@
             vis.reduzido = reduced();
             SP.drawHorse(s.ctx, Math.round((RW - 40) / 2) * s.k, (RH - 37) * s.k, comVisuais({
               palette: horse.palette, element: horse.element, idle: true, t: reduced() ? 0.5 : t + phase,
-              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS,
+              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS, chao: C.palha2,   // sombra na palha da baia
               quadro: { topo: 0, base: (RH - 3) * s.k, grade: s.k, centro: Math.round(RW / 2) * s.k }
             }, vis));
           }
@@ -1471,6 +1483,8 @@
     for (var w = 0; w < cenas.length; w++) drawGinCena(cenas[w]);
     var abas = root.querySelectorAll('canvas[data-cena-aba]');
     for (var wa = 0; wa < abas.length; wa++) drawCenaAba(abas[wa]);
+    var mundos = root.querySelectorAll('canvas[data-mapa-mundo]');
+    for (var wn = 0; wn < mundos.length; wn++) drawMapaMundo(mundos[wn]);
     var mapas = root.querySelectorAll('canvas[data-mapa]');
     for (var wm = 0; wm < mapas.length; wm++) drawMapaTrilha(mapas[wm]);
   }
@@ -2220,6 +2234,13 @@
         devSelect('direcao', 'Direção do vento', [['1', '→ Direita'], ['-1', '← Esquerda']], f.direcao) +
         devEntrada('seed', 'Seed', 'type="text" inputmode="numeric" autocomplete="off" placeholder="da sala"', f.seed) +
       '</div>' +
+      // a cadência do galope (guia de integração, Regra 12), para comparar as 3 opções; o jogo usa a do meio (Vinicius,
+      // 2026-11-24)
+      '<div class="dev-campos dev-campos--1">' + devSelect('cadencia', 'Cadência do galope', [['meio', 'Meio-termo (padrão do jogo)'],
+        ['natural', 'Natural (casco patina)'], ['casada', 'Casada com o chão (casco não patina; pernas bem mais rápidas)']], ui.dev.cadencia) + '</div>' +
+      // o cenário das corridas (só desenho; a animação ambiente de cada região): fica até mudar de novo
+      '<div class="dev-campos dev-campos--1">' + devSelect('regiao', 'Cenário das corridas', [['', 'O da pista (padrão do jogo)']].concat(
+        Object.keys(window.__REGIOES || {}).map(function (r) { return [r, (window.__REGIOES[r] && window.__REGIOES[r].nome) || r]; })), ui.dev.regiao) + '</div>' +
       '<p class="dev-armado' + (ui.devNext ? ' dev-armado--on' : '') + '" id="dev-armado">' + esc(devResumoArmado(ui.devNext)) + '</p>' +
       '<div class="dev-acoes">' + devBotao('dev-armar', 'Armar', 'btn--ouro') + devBotao('dev-limpar', 'Limpar') + '</div>');
 
@@ -2469,6 +2490,18 @@
     devEl.addEventListener('change', function (e) {
       var k = e.target && e.target.getAttribute ? e.target.getAttribute('data-dev-campo') : null;
       if (!k || !state) return;
+      if (k === 'regiao') {
+        ui.dev.regiao = hasOwn(window.__REGIOES || {}, e.target.value) ? e.target.value : '';
+        ui.dev.msg = 'Cenário das corridas: ' + (ui.dev.regiao ? window.__REGIOES[ui.dev.regiao].nome : 'o da pista') + '.';
+        renderDev();
+        return;
+      }
+      if (k === 'cadencia') {
+        ui.dev.cadencia = ['natural', 'meio', 'casada'].indexOf(e.target.value) >= 0 ? e.target.value : 'meio';
+        ui.dev.msg = 'Cadência do galope: ' + { natural: 'natural', meio: 'meio-termo', casada: 'casada com o chão' }[ui.dev.cadencia] + '.';
+        renderDev();
+        return;
+      }
       if (k === 'ouroinf') {
         ui.dev.ouroInf = !!e.target.checked;
         if (ui.dev.ouroInf) devGrava('Ouro infinito ligado.');
@@ -3072,6 +3105,7 @@
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
+      mapaMundoHtml() +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
       '</section>' + afkCartaoHtml() + selvagensBlocoHtml() +
@@ -3451,11 +3485,12 @@
   // 'desafio' }; "Começar duelo" leva ao duelo k; "Pular tudo" e o voltar do aparelho, ao resumo. Sem a arte do oponente,
   // a cena fica só com o cavalo dele. Só desenho: nada grava nem muda o state.
   // ---------------------------------------------------------------------------------------------
-  // Etapa 5 da direção de arte: o fundo é a arena do ginásio (window.__ARENAS, 256×160 ao ar livre), sem as 32 linhas de
-  // cima do céu; o treinador no corpo de ~40 px (quadro 32×48) e os cavalos, todos 1:1 na grade. Numa coluna mais estreita
-  // que 256 pixels de arte, a cena corta as laterais (centrada). Posições em pixels da cena (já sem o céu cortado).
-  var CENA_W = 256, CENA_H = 128, CENA_CORTE = 32;
-  var CENA_POS = { rival: { cx: 168, base: 70 }, treinador: { x: 194, base: 70 }, voce: { cx: 84, base: 118 } };
+  // A cena do desafio (plano do mapa B4): a arena 0 de cada ginásio (window.__ARENAS, 256×160 inteira, com o céu), o
+  // treinador e os cavalos 1:1 na grade (Mapa.cena). Numa coluna mais estreita que 256 pixels de arte, a cena corta as
+  // laterais (centrada).
+  var CENA_W = 256, CENA_H = 160;
+  // a escada da virada de clima na paleta (Luz.CONDICOES), passo a passo, PASSO_CLIMA_S segundos por degrau
+  var ESCADA_CLIMA = ['nevoa', 'sol', 'nublado', 'chuva'], PASSO_CLIMA_S = 0.25;
   var arenaImgs = {};
   function arenaImg(id) {
     var m = window.__ARENAS;
@@ -3476,7 +3511,6 @@
   // desenho: nada grava nem muda o state. Sem a arte, nada (a tela fica como antes).
   // ---------------------------------------------------------------------------------------------
   var TELA_W = 256, CENA_ABA_H = 160, MAPA_H = 384;
-  var MAPA_PARADAS = [[88, 360], [168, 292], [84, 224], [168, 156], [128, 84]];   // (x, y do chão), da 1ª etapa ao líder
   var telaImgs = {}, telaItems = [];
   function telaImg(tipo, id) {
     var m = window.__TELAS, src = m && m[tipo] && hasOwn(m[tipo], id) ? m[tipo][id] : null;
@@ -3488,6 +3522,35 @@
       im.src = src;
     }
     return im.complete && im.naturalWidth ? im : null;
+  }
+  // Animação ambiente (spec 2026-11-23-animacao-ambiente; plano, etapa 3): as cenas animadas por código
+  // (prototype/src/ambiente.js) no topo das abas. Uma por cena, montada quando a imagem dela chega;
+  // o laço "vivo" (~14 q/s) chama. Só apresentação: a RNG é a cosmética do motor, nada da seed. Movimento reduzido ou
+  // sem o motor: a imagem parada de sempre. ambMs: o custo de cada cena (o ui-test confere o equivalente por quadro a
+  // 60 q/s, o do orçamento da spec §2.4: o tempo gasto por segundo ÷ 60).
+  var AMB_ABA = { expedicao: ['expedicao', 'telas/expedicao'], haras: ['cavalos', 'telas/haras'], estabulo: ['estabulo', 'telas/estabulo'], loja: ['loja', 'telas/loja'] };
+  var ambCenas = {}, ambMs = {};
+  function ambienteDe(par, img) {
+    var AMB = window.Ambiente;
+    if (!AMB || !par || !img) return null;
+    if (hasOwn(ambCenas, par[0])) return ambCenas[par[0]] || null;
+    try {
+      AMB.dados({ manifesto: window.__ANIM_MANIFESTO });
+      AMB.IMG[par[1]] = img;
+      ambCenas[par[0]] = AMB.cena(par[0], { mais: true, semCavalos: true });
+      ambCenas[par[0]].tAnt = null;
+    } catch (e) { ambCenas[par[0]] = false; if (window.console) console.warn('ambiente ' + par[0] + ': ' + e.message); }
+    return ambCenas[par[0]] || null;
+  }
+  // um quadro da cena no buffer dela (resolução de arte) e a cópia ampliada em ctx: (x, y) e escala k em pixels do canvas
+  function desenhaAmbiente(c, ctx, t, x, y, k) {
+    var dt = c.tAnt == null ? 0.07 : Math.min(0.25, Math.max(0, t - c.tAnt)), t0 = window.performance.now();
+    c.tAnt = t;
+    c.atualiza(t, dt); c.desenha(null, 0);
+    var agora = window.performance.now(), ms = agora - t0, id = c.def.id, st = ambMs[id] || (ambMs[id] = { soma: 0, n: 0, ini: t0, fim: t0 });
+    if (agora - st.fim > 2000) { st.soma = 0; st.n = 0; st.ini = t0; }   // voltou a esta tela: mede de novo
+    st.soma += ms; st.n++; st.fim = agora;
+    ctx.drawImage(c.buffer, x, y, c.W * k, c.H * k);
   }
   function temTela(tipo, id) { var m = window.__TELAS; return !!(m && m[tipo] && hasOwn(m[tipo], id) && typeof m[tipo][id] === 'string'); }
   // a cena da aba e a placa do título juntas num painel com moldura (refino de 2026-11-23, escolha do Vinicius: a cena solta
@@ -3506,15 +3569,29 @@
     return { W: W, ox: Math.floor((TELA_W - W) / 2) };
   }
   // o cavalo parado 1:1 com o corpo centrado em cx e os cascos em base (pixels de arte do canvas)
-  function cavaloParado(ctx, k, h, vis, cx, base, t) {
+  // cena: a luz da cena no cavalo (Luz.CONDICOES; padrão o Estábulo); espelha: virado para a esquerda; palha: a linha de
+  // palha na frente dos cascos (o Estábulo), senão só os tufos do chão
+  function cavaloParado(ctx, k, h, vis, cx, base, t, chao, cena, espelha, palha) {
     vis.reduzido = reduced();
-    SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
-      jockey: false, silks: PLAYER_SILKS, quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
+    var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
+      jockey: false, silks: PLAYER_SILKS, chao: chao, cena: cena === undefined ? 'estabulo' : cena, anima: 'cena', espelhado: !!espelha,   // vivo: idle e gestos (animação ambiente, etapa 2)
+      quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
+    if (!espelha) SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
+    else { ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1); SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); ctx.restore(); }
+    // a palha do chão na frente dos cascos (Regra 7)
+    if (chao) SP.drawTufosFrente(ctx, cx, base, 46, chao, k, Math.round(cx), palha !== false);
+  }
+  // os cavalos do pasto do Haras (animação ambiente, etapa 3): até 2 do jogador, os que não estão ativos (com 1 só, ele)
+  function cavalosDoHaras() {
+    if (!state || !state.mounts || !state.mounts.length) return [];
+    var outros = state.mounts.filter(function (m) { return m.uid !== state.activeId; });
+    return (outros.length ? outros : state.mounts).slice(0, 2);
   }
   function drawCenaAba(cv) {
     var aba = cv.getAttribute('data-cena-aba'), L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, CENA_ABA_H), k = s.k, ctx = s.ctx;
     cv.setAttribute('data-arte', L.W + 'x' + CENA_ABA_H);
     var h = aba === 'estabulo' ? playerHorse() : null, vis = h ? opcoesVisuais(h, null) : null;
+    var pasto = aba === 'haras' ? cavalosDoHaras().map(function (m) { return { h: m, vis: opcoesVisuais(m, null) }; }) : [];
     var item = {
       drawn: false,
       draw: function (t) {
@@ -3523,68 +3600,218 @@
         item.drawn = !!img; item.t = t;
         ctx.clearRect(0, 0, cv.width, cv.height);
         if (!img) return;
-        ctx.drawImage(img, -L.ox * k, 0, TELA_W * k, CENA_ABA_H * k);
+        var amb = reduced() ? null : ambienteDe(AMB_ABA[aba], img);
+        if (amb) desenhaAmbiente(amb, ctx, t, -L.ox * k, 0, k);
+        else ctx.drawImage(img, -L.ox * k, 0, TELA_W * k, CENA_ABA_H * k);
         // o cavalo ativo no meio da baia, com os cascos acima da placa do título (que cobre as últimas ~40 linhas)
-        if (h) cavaloParado(ctx, k, h, vis, TELA_W / 2 - L.ox, 112, reduced() ? 0.5 : t);
-      }
-    };
-    item.draw(0);
-    if (h) vivo(item, cv);
-    telaItems.push(item);
-  }
-  function trilhaMapaHtml(id) {
-    if (!temTela('mapas', id)) return '';
-    var g = GD.GYMS[id], txt = g.etapas.map(function (e, i) { return ginEtapaRotulo(e, i) + ' ' + e.nome + ': ' + trilhaEstadoTxt(id, i); }).join('; ');
-    return '<div class="trilha-mapa-palco"><canvas class="trilha-mapa" data-mapa="' + esc(id) + '" role="img" aria-label="' +
-      esc('Mapa da trilha, de baixo para cima. ' + txt + '.') + '"></canvas></div>';
-  }
-  function drawMapaTrilha(cv) {
-    var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];
-    if (!g) return;
-    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox;
-    cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
-    var estados = g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); });
-    function px(x, y, w, hh, cor) { ctx.fillStyle = cor; ctx.fillRect((x - ox) * k, y * k, w * k, hh * k); }
-    var item = {
-      drawn: false,
-      draw: function (t) {
-        var img = telaImg('mapas', id);
-        item.drawn = !!img; item.t = t;
-        ctx.clearRect(0, 0, cv.width, cv.height);
-        if (!img) return;
-        ctx.drawImage(img, -ox * k, 0, TELA_W * k, MAPA_H * k);
-        // o caminho: tracejado de 3 px (borda escura, miolo claro); até a etapa seguinte à última vencida, aceso
-        for (var q = 0; q + 1 < MAPA_PARADAS.length; q++) {
-          var a = MAPA_PARADAS[q], b = MAPA_PARADAS[q + 1], n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
-          var aceso = estados[q] === 'vencida' || estados[q] === 'revanche' || estados[q] === 'feita';
-          for (var u = 0; u <= n; u++) {
-            if (u % 8 >= 5) continue;
-            var x = Math.round(a[0] + (b[0] - a[0]) * u / n), y = Math.round(a[1] + (b[1] - a[1]) * u / n);
-            px(x - 2, y - 2, 5, 5, C.sombra);
-            px(x - 1, y - 1, 3, 3, aceso ? C.ouroClaro : '#c7dcd0');
-          }
-        }
-        // as paradas: um tablado de pedra (ouro na vencida e na tocável) e o oponente de pé em cima
-        g.etapas.forEach(function (e, i) {
-          var p = MAPA_PARADAS[i], st = estados[i], ouro = st === 'vencida' || st === 'feita', vez = st === 'proxima' || st === 'revanche';
-          for (var yy = -5; yy <= 5; yy++) {
-            var w = Math.round(18 * Math.sqrt(1 - (yy * yy) / 25));
-            px(p[0] - w, p[1] + yy, 2 * w, 1, Math.abs(yy) === 5 ? C.sombra : yy < 1 ? (vez ? C.ouroClaro : ouro ? C.ouro : '#c7dcd0') : (vez || ouro ? C.ouroEscuro : '#9babb2'));
-            if (Math.abs(yy) < 5) { px(p[0] - w, p[1] + yy, 1, 1, C.sombra); px(p[0] + w - 1, p[1] + yy, 1, 1, C.sombra); }
-          }
-          var corpo = treinadorImg(ginTreinadorId(e.nome));
-          if (corpo) ctx.drawImage(corpo, (p[0] - 16 - ox) * k, (p[1] - corpo.naturalHeight + 1) * k, corpo.naturalWidth * k, corpo.naturalHeight * k);
+        // a sombra na cor do chão da cena, lida da imagem sob os cascos (uma vez; guia de integração, Regra 2)
+        if (h) cavaloParado(ctx, k, h, vis, TELA_W / 2 - L.ox, 112, reduced() ? 0.5 : t, SP.corDoChaoEm(img, TELA_W / 2 - 16, TELA_W / 2 + 16, 113, 118));
+        // no pasto do Haras, de frente um para o outro, na luz do dia (sem tinta de cena)
+        pasto.forEach(function (p, i) {
+          var cx = (i ? 178 : 78) - L.ox, base = 116;
+          cavaloParado(ctx, k, p.h, p.vis, cx, base, (reduced() ? 0.5 : t) + i * 7.3, SP.corDoChaoEm(img, cx + L.ox - 16, cx + L.ox + 16, base + 1, base + 4), null, i === 1, false);
         });
       }
     };
     item.draw(0);
+    if (h || pasto.length || AMB_ABA[aba]) vivo(item, cv);   // o cavalo ativo (Estábulo) ou a cena animada (Expedição, Haras)
     telaItems.push(item);
-    // tocar numa parada é tocar no cartão dela (só as tocáveis têm botão)
+  }
+  function trilhaMapaHtml(id) {
+    if (!temTela('mapas', id) || !MP) return '';
+    var g = GD.GYMS[id], txt = g.etapas.map(function (e, i) { return ginEtapaRotulo(e, i) + ' ' + e.nome + ': ' + trilhaEstadoTxt(id, i); }).join('; ');
+    return '<div class="trilha-mapa-palco"><canvas class="trilha-mapa" data-mapa="' + esc(id) + '" role="img" aria-label="' +
+      esc('Mapa da trilha, de baixo para cima. ' + txt + '.') + '"></canvas></div>';
+  }
+  // ---- O mapa-múndi da aba Expedição (spec 2026-11-24-mapa-ginasios §3.1): a ilha com os três ginásios, viva (água, lava,
+  // nuvens, fumaça, névoa sobre o que não foi conquistado). Só desenho (prototype/src/mapa.js); o progresso vem do save e o
+  // toque num ginásio é o toque no cartão dele (a lista de cartões continua embaixo, com o controle completo).
+  var mapaArte = { imgs: {}, mundo: null, falhou: false };
+  function mapaImg(chave, src) {
+    var im = mapaArte.imgs[chave];
+    if (!im && typeof Image === 'function') {
+      im = mapaArte.imgs[chave] = new Image();
+      im.onload = function () { telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.src = src;
+    }
+    return im && im.complete && im.naturalWidth ? im : null;
+  }
+  function temMapaMundo() { var m = window.__MAPA_MUNDO; return !!(MP && m && typeof m.terreno === 'string' && m.ginasios); }
+  // o mundo é montado uma vez (≈ 0,1 s), quando a ilha, os ginásios e os corpos dos líderes já chegaram; null até lá
+  function mapaMundo() {
+    if (mapaArte.mundo || mapaArte.falhou || !temMapaMundo()) return mapaArte.mundo;
+    var m = window.__MAPA_MUNDO, arte = { terreno: mapaImg('terreno', m.terreno), ginasios: {}, lideres: {} }, falta = !arte.terreno;
+    MP.ORDEM.forEach(function (el) {
+      arte.ginasios[el] = mapaImg('g-' + el, m.ginasios[el]); if (!arte.ginasios[el]) falta = true;
+      var g = GD.GYMS[el], lider = g && g.etapas[g.etapas.length - 1];
+      if (lider && window.__TREINADORES && hasOwn(window.__TREINADORES, ginTreinadorId(lider.nome))) { arte.lideres[el] = treinadorImg(ginTreinadorId(lider.nome)); if (!arte.lideres[el]) falta = true; }
+    });
+    if (falta) return null;
+    try { mapaArte.mundo = MP.mundo(arte, { sprites: SP }); } catch (e) { mapaArte.falhou = true; console.warn('mapa-múndi: ' + (e && e.message)); }
+    return mapaArte.mundo;
+  }
+  // o progresso que o mapa mostra (o mesmo dos cartões)
+  function mapaProgresso() {
+    var out = {};
+    GD.GYM_ORDER.forEach(function (id) {
+      out[GD.GYMS[id].element] = { vencidas: ginProgresso(id), insignia: ginTemInsignia(id), revanche: ginRevancheHoje(id) ? 'livre' : ginRevancheFeita(id) ? 'feita' : null };
+    });
+    return out;
+  }
+  function mapaMundoTxt() {
+    return 'Mapa da ilha dos ginásios. ' + GD.GYM_ORDER.map(function (id) {
+      return GD.GYMS[id].name + ': ' + ginProgressoTxt(id) + (ginRevancheHoje(id) ? ', revanche hoje' : '');
+    }).join('; ') + '.';
+  }
+  // ---- A viagem entre o mapa e a trilha (spec §3.2, plano A4): zoom e íris ao entrar num ginásio, o inverso ao voltar.
+  // As trocas de tela vão por relógio (não dependem de o canvas estar sendo desenhado); os canvas só mostram o passo da
+  // hora (Mapa.passoViagem). Com movimento reduzido, ou com o mapa fora da tela, a troca é direta, como antes.
+  var viagem = null;   // { tipo: 'entra' | 'sai', id, el, t0 }
+  function relogio() { return (window.performance ? performance.now() : 0) / 1000; }
+  function naTela(el) { if (!el) return false; var r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < (window.innerHeight || 0) && r.height > 0; }
+  function comecaViagem(tipo, id, tela, troca, fim) {
+    var v = viagem = { tipo: tipo, id: id, el: GD.GYMS[id].element, t0: relogio() };
+    acordaLaco();
+    setTimeout(function () {
+      if (viagem !== v) return;
+      if (ui.screen !== tela) { viagem = null; return; }   // o jogador foi para outra aba no meio: a viagem para
+      v.trocou = true; troca(); acordaLaco();
+    }, MP.VIAGEM[tipo].troca * 1000);
+    setTimeout(function () { if (viagem !== v) return; viagem = null; if (fim) fim(); }, MP.VIAGEM[tipo].fim * 1000 + 30);
+  }
+  // um toque novo durante a viagem: antes da troca de tela é ignorado (true); depois dela, a viagem acaba ali (sem esperar a
+  // íris) e o toque segue normalmente (false)
+  function viagemSegura() {
+    if (!viagem) return false;
+    if (viagem.trocou) { viagem = null; return false; }
+    return true;
+  }
+  function passoDaViagem(lado) {
+    if (!viagem) return null;
+    var V = MP.passoViagem(viagem.tipo, relogio() - viagem.t0);
+    return V.lado === lado ? V : null;
+  }
+  function mapaMundoHtml() {
+    if (!temMapaMundo()) return '';
+    return '<div class="mapa-mundo-palco"><canvas class="mapa-mundo" data-mapa-mundo="1" role="img" aria-label="' + esc(mapaMundoTxt()) + '"></canvas></div>';
+  }
+  function drawMapaMundo(cv) {
+    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
+    cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        var m = mapaMundo();
+        item.t = t;
+        if (!m) return;
+        if (!item.drawn) m.estado(mapaProgresso());
+        // com ?quadro= (capturas) o t fica parado no instante pedido, mas o que anda por dt (a pista que se pinta, o trote,
+        // a viagem) anda no relógio
+        var tr0 = QUADRO_FIXO != null ? performance.now() / 1000 : t;
+        var r = reduced(), dt = tAnt ? Math.max(0, tr0 - tAnt) : 0;
+        tAnt = tr0;
+        if (item.drawn && r) return;
+        item.drawn = true;
+        var t0 = window.performance ? performance.now() : 0;
+        m.quadro(t, dt, r);
+        var t1 = t0 ? performance.now() : 0, V = passoDaViagem('mundo');
+        if (V) { var pg = MP.POS[viagem.el], f = [pg[0], pg[1] - 8]; MP.desenhaViagem(ctx, k, ox, L.W, m.c, f, V.z, V.r, f, viagem.el); }
+        else ctx.drawImage(m.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        cv.setAttribute('data-viagem', V ? viagem.tipo : '');
+        // o custo (média móvel, para o ui-test): o desenho do quadro (data-ms) e a cópia ampliada para a tela (data-ms-copia)
+        if (t0) {
+          var t2 = performance.now(), ms = t1 - t0, mc = t2 - t1;
+          item.ms = item.n ? item.ms * 0.9 + ms * 0.1 : ms; item.mc = item.n ? item.mc * 0.9 + mc * 0.1 : mc; item.n = (item.n || 0) + 1;
+          if (item.n > 3) { cv.setAttribute('data-ms', item.ms.toFixed(3)); cv.setAttribute('data-ms-copia', item.mc.toFixed(3)); }
+        }
+      }
+    };
+    item.draw(0);
+    telaItems.push(item);
+    vivo(item, cv);
+    // tocar num ginásio do mapa é tocar no cartão dele
     cv.addEventListener('click', function (ev) {
       var r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * L.W + ox, y = (ev.clientY - r.top) / r.height * MAPA_H;
-      for (var i = 0; i < MAPA_PARADAS.length; i++) {
-        var p = MAPA_PARADAS[i];
-        if (Math.abs(x - p[0]) <= 20 && y >= p[1] - 50 && y <= p[1] + 8) {
+      var el = MP.ginasioEm(x, y), id = null;
+      if (!el) return;
+      GD.GYM_ORDER.forEach(function (g) { if (GD.GYMS[g].element === el) id = g; });
+      var b = id && document.querySelector('#tela [data-acao="ginasio-abrir"][data-id="' + id + '"]');
+      if (b) b.click();
+    });
+  }
+  // ---- A trilha de um ginásio (spec 2026-11-24-mapa-ginasios §3.3): o mapa de hoje, a pista de terra que se pinta até a
+  // etapa da vez, as bases de pedra com os oponentes e o estado de cada um, e o cavalo ativo ao lado da próxima parada.
+  // Depois de vencer, ao voltar para a trilha, a pista se pinta do ponto que a tela mostrou até o novo e o cavalo trota
+  // (a memória é da sessão: recarregar mostra a trilha pronta). O fundo animado é da frente 1 (window.Ambiente), quando
+  // existir; sem ele, a imagem parada. Tocar numa parada é tocar no cartão dela (só as tocáveis têm botão).
+  mapaArte.trilhas = {};
+  function trilhaObj(id) {
+    var g = GD.GYMS[id], tr = mapaArte.trilhas[id];
+    if (tr) return tr;
+    if (!MP || !g) return null;
+    var mapa = telaImg('mapas', id), corpos = [], falta = !mapa;
+    g.etapas.forEach(function (e) {
+      var tid = ginTreinadorId(e.nome), tem = window.__TREINADORES && hasOwn(window.__TREINADORES, tid);
+      var im = tem ? treinadorImg(tid) : null; if (tem && !im) falta = true; corpos.push(im);
+    });
+    var ic = function (nome) { var src = iconeSrc(nome); if (!src) return null; var im = mapaImg('ic-' + nome, src); if (!im) falta = true; return im; };
+    var estrela = ic('ui-estrela'), insignia = ic('ins-' + g.element);
+    if (falta) return null;
+    var amb = null;
+    try { amb = window.Ambiente && typeof window.Ambiente.cena === 'function' ? window.Ambiente.cena('mapa:' + g.element, { imagem: mapa, caminho: MP.mascaraCaminho() }) : null; } catch (e) { amb = null; }
+    var op = { el: g.element, sprites: SP, cavalo: null, ambiente: amb };
+    tr = MP.trilha({ mapa: mapa, corpos: corpos, estrela: estrela, insignia: insignia }, op);
+    if (tr) { tr.op = op; tr.p = null; mapaArte.trilhas[id] = tr; }
+    return tr;
+  }
+  function drawMapaTrilha(cv) {
+    var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];
+    if (!g) return;
+    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
+    cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
+    var h = playerHorse(), vis = h ? opcoesVisuais(h, joqueiDoJogador()) : null;
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        var tr = trilhaObj(id);
+        item.t = t;
+        if (!tr) return;
+        // com ?quadro= (capturas) o t fica parado no instante pedido, mas o que anda por dt (a pista que se pinta, o trote,
+        // a viagem) anda no relógio
+        var tr0 = QUADRO_FIXO != null ? performance.now() / 1000 : t;
+        var r = reduced(), dt = tAnt ? Math.max(0, tr0 - tAnt) : 0;
+        tAnt = tr0;
+        if (!item.drawn) {   // o estado do save (uma vez por tela): as etapas, o cavalo e, se a etapa da vez andou, a pintura
+          var p = Math.min(ginProgresso(id), ginEtapasTotal(id) - 1);
+          tr.estados(g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); }));
+          if (tr.p !== p) { tr.posiciona(p, { de: tr.p != null && tr.p < p ? tr.p : null, reduzido: r }); tr.p = p; }
+          tr.op.cavalo = h ? comVisuais({ palette: h.palette, element: h.element, jockey: true, silks: PLAYER_SILKS }, vis) : null;
+        }
+        if (item.drawn && r) return;
+        item.drawn = true;
+        item.rapido = !r && tr.anda();   // a pista se pintando e o trote: desenho a cada quadro
+        var t0 = window.performance ? performance.now() : 0;
+        // (com ?quadro=, enquanto a pista se pinta e o cavalo trota, o relógio: a espera da pintura é marcada em t)
+        tr.quadro(QUADRO_FIXO != null && item.rapido ? tr0 : t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
+        var t1 = t0 ? performance.now() : 0, V = passoDaViagem('trilha');
+        if (V) { var hp = tr.posCavalo(); MP.desenhaViagem(ctx, k, ox, L.W, tr.c, [128, 192], 1, V.r, [hp[0], hp[1] - 20], viagem.el); }
+        else ctx.drawImage(tr.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        cv.setAttribute('data-viagem', V ? viagem.tipo : '');
+        if (t0) {
+          var ms = t1 - t0; item.ms = item.n ? item.ms * 0.9 + ms * 0.1 : ms; item.n = (item.n || 0) + 1;
+          if (item.n > 3) cv.setAttribute('data-ms', item.ms.toFixed(3));
+        }
+        cv.setAttribute('data-anda', item.rapido ? '1' : '0');
+      }
+    };
+    item.draw(0);
+    telaItems.push(item);
+    vivo(item, cv);
+    cv.addEventListener('click', function (ev) {
+      var rc = cv.getBoundingClientRect(), x = (ev.clientX - rc.left) / rc.width * L.W + ox, y = (ev.clientY - rc.top) / rc.height * MAPA_H;
+      for (var i = 0; i < MP.PARADAS.length; i++) {
+        var pp = MP.PARADAS[i];
+        if (Math.abs(x - pp[0]) <= 20 && y >= pp[1] - 50 && y <= pp[1] + 8) {
           var b = document.querySelector('#tela .trilha .etapa[data-etapa="' + i + '"] button.etapa-btn');
           if (b && !b.disabled && b.getAttribute('aria-disabled') !== 'true') b.click();
           return;
@@ -3626,57 +3853,65 @@
     var d = R.duelos[k], dono = GD.GYMS[R.gymId].etapas[R.etapa].nome;
     var a = d.cfg.racers[0].horse, b = d.cfg.racers[1].horse, an = R.cavalos[d.a].nome, bn = R.adversario[d.b];
     var n = cenaQueue.length;
-    cenaQueue.push({ gymId: R.gymId, dono: dono, a: a, b: b });
+    cenaQueue.push({ gymId: R.gymId, dono: dono, a: a, b: b, an: an, bn: bn, folA: d.folegoA, folB: d.folegoB });
+    // as placas ficam desenhadas na cena (nome na cor da raridade, nível e fôlego); aqui, o mesmo em texto, para o leitor
+    // de tela (o nome do canvas já diz quem enfrenta quem)
     var placa = function (cls, quem, nome, h) {
       return '<div class="gin-placa gin-placa--' + cls + '"><b class="gin-placa-quem">' + esc(quem) + '</b>' +
         '<span class="gin-placa-cavalo">' + esc(nome + ' · Nv ' + h.level) + '</span>' + elementHtml(h.element) + '</div>';
     };
-    return '<div class="gin-cena gin-cena--' + esc(R.gymId) + '">' + placa('rival', dono, bn, b) +
+    return '<div class="gin-cena gin-cena--' + esc(R.gymId) + '">' +
       '<div class="gin-cena-palco"><canvas class="gin-cena-tela" data-cena="' + n + '" role="img" aria-label="' +
-        esc(dono + ' e ' + bn + ' contra você e ' + an) + '"></canvas><span class="gin-vs" aria-hidden="true">VS</span></div>' +
-      placa('voce', 'Você', an, a) + '</div>';
+        esc(dono + ' e ' + bn + ' contra você e ' + an) + '"></canvas></div>' +
+      '<div class="sr">' + placa('rival', dono, bn, b) + placa('voce', 'Você', an, a) + '</div></div>';
+  }
+  // A cena de desafio (spec 2026-11-24-mapa-ginasios §3.4, plano B4): a arena 0 do ginásio, o oponente de frente ao fundo com
+  // o treinador ao lado, o nosso cavalo de costas na frente, todos pisando no chão (Mapa.cena), e as placas na cena. Só mostra
+  // o duelo gravado (cenaQueue vem do desafio pago). Na grade da interface, 256 × 160, cortando as laterais por igual.
+  var COR_RAR_TXT = { comum: '#9babb2', magico: '#1ebc73', raro: '#4d9be6', lendario: '#f79617', mitico: '#a884f3' };   // a mítica mais clara: o 905ea9 some na placa
+  var cenasArte = {};
+  function cenaObj(gymId) {
+    if (cenasArte[gymId]) return cenasArte[gymId];
+    if (!MP || !MP.cena) return null;
+    var arena = arenaImg(gymId); if (!arena) return null;
+    var c = MP.cena({ arena: arena }, { el: GD.GYMS[gymId].element, sprites: SP });
+    if (c) cenasArte[gymId] = c;
+    return c;
   }
   function drawGinCena(cv) {
     var e = cenaQueue[Number(cv.getAttribute('data-cena'))];
     if (!e) return;
-    // na grade da interface: 1 pixel de arte = gradeS pixels do aparelho; a largura é a da arena (256) ou a que cabe no
-    // palco, cortando as laterais por igual
     var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), palcoW = cv.parentElement ? cv.parentElement.clientWidth : 0;
     var W = Math.max(160, Math.min(CENA_W, palcoW ? Math.floor(palcoW * r / kG) : CENA_W)), ox = Math.floor((CENA_W - W) / 2);
-    var s = setupCanvasGrade(cv, W, CENA_H);
-    var k = s.k, ctx = s.ctx;
+    var s = setupCanvasGrade(cv, W, CENA_H), k = s.k, ctx = s.ctx;
     cv.setAttribute('data-arte', W + 'x' + CENA_H);
-    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, null), img = null, arena = null;
-    // o cavalo 1:1 com o corpo centrado em cx e os cascos em base (pixels da cena); espelhado em volta de cx
-    function cavalo(h, vis, cx, base, t, espelha) {
-      cx -= ox;
-      vis.reduzido = reduced();
-      var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k, jockey: false, silks: PLAYER_SILKS,
-        quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
-      if (!espelha) { SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); return; }
-      ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
-      SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
-      ctx.restore();
-    }
+    cv.setAttribute('data-folego', e.folA + ',' + e.folB);   // o fôlego das placas (o do duelo gravado), para o ui-test
+    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, joqueiDoJogador());
+    var cavB = comVisuais({ palette: e.b.palette, element: e.b.element, jockey: true, silks: '#e83b3b', chave: 'b|' + (e.b.id || e.bn) }, visB);
+    var cavA = comVisuais({ palette: e.a.palette, element: e.a.element, jockey: true, silks: PLAYER_SILKS, chave: 'a|' + (e.a.uid || e.a.id || e.an) }, visA);
+    var placas = {
+      rival: { nome: e.bn, sub: 'Nv ' + e.b.level, folego: e.folB, cor: COR_RAR_TXT[e.b.rarity] },
+      voce: { nome: e.an, sub: 'Nv ' + e.a.level, folego: e.folA, cor: COR_RAR_TXT[e.a.rarity] }
+    };
     var item = {
       drawn: false,
       draw: function (t) {
         if (item.drawn && reduced()) return;
-        item.drawn = true;
         item.t = t;
-        var tt = reduced() ? 0.5 : t, P = CENA_POS;
+        var c = cenaObj(e.gymId);
+        var lider = treinadorImg(ginTreinadorId(e.dono));
         ctx.clearRect(0, 0, cv.width, cv.height);
-        arena = arena || arenaImg(e.gymId);
-        if (arena) ctx.drawImage(arena, -ox * k, -CENA_CORTE * k, CENA_W * k, (CENA_H + CENA_CORTE) * k);
-        else { ctx.fillStyle = C.painel; ctx.fillRect(0, 0, cv.width, cv.height); }
-        cavalo(e.b, visB, P.rival.cx, P.rival.base, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
-        img = img || treinadorImg(ginTreinadorId(e.dono));
-        if (img) {
-          var tx = P.treinador.x - ox, ty = P.treinador.base - img.naturalHeight;
-          ctx.drawImage(img, tx * k, ty * k, img.naturalWidth * k, img.naturalHeight * k);
-          cv.setAttribute('data-treinador', [tx, ty, img.naturalWidth, img.naturalHeight].join(','));
+        if (!c) { ctx.fillStyle = C.painel; ctx.fillRect(0, 0, cv.width, cv.height); return; }
+        item.drawn = true;
+        var t0 = window.performance ? performance.now() : 0;
+        var arte = c.quadro(reduced() ? 0 : t, reduced(), { oponente: cavB, nosso: cavA, lider: lider, placas: placas }, { x0: ox, x1: ox + W });
+        if (t0) {   // o custo do desenho (média móvel, para o ui-test); os 3 primeiros quadros montam os cavalos
+          var ms = performance.now() - t0; item.n = (item.n || 0) + 1;
+          if (item.n > 3) { item.ms = item.ms ? item.ms * 0.9 + ms * 0.1 : ms; cv.setAttribute('data-ms', item.ms.toFixed(3)); }
         }
-        cavalo(e.a, visA, P.voce.cx, P.voce.base, tt, false);
+        ctx.drawImage(arte, -ox * k, 0, CENA_W * k, CENA_H * k);
+        var cx = lider ? c.caixaLider(lider) : null;
+        if (cx) cv.setAttribute('data-treinador', [cx[0] - ox, cx[1], cx[2], cx[3]].join(','));
       }
     };
     item.draw(0);
@@ -6218,6 +6453,15 @@
     }
     // o clima que o painel do topo mostra e a pista desenha (chuva, névoa): o da simulação, mas a virada de um Dado só
     // depois da revelação (Ruling 18; a velocidade dos cavalos é a da simulação, que já conta o clima novo)
+    // a escada da virada de clima na paleta (Luz.CONDICOES: névoa +1, sol 0, nublado -1, chuva -2): de um clima a outro,
+    // os degraus do meio e o destino (sem o de partida)
+    function caminhoClima(de, para) {
+      var a = ESCADA_CLIMA.indexOf(de), b = ESCADA_CLIMA.indexOf(para), out = [], s = b > a ? 1 : -1;
+      if (a < 0 || b < 0 || a === b) return [para];
+      for (var i = a + s; i !== b; i += s) out.push(ESCADA_CLIMA[i]);
+      out.push(para);
+      return out;
+    }
     function climaMostrado(simT) {
       var w = L.cond.weather;
       for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) {
@@ -6322,14 +6566,33 @@
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
     // as camadas da região nos climas que trocam a paleta, pré-desenhadas na largada (uma virada de clima não custa um quadro)
     SP.prepararRegiao(regiaoDaPista(L), ['nublado', 'chuva', 'nevoa']);
+    var climasDaCorrida = [L.cond.weather];
+    climaEvs.reduce(function (de, e) { climasDaCorrida = climasDaCorrida.concat(caminhoClima(de, e.weather)); return e.weather; }, L.cond.weather);
+    climasDaCorrida = climasDaCorrida.filter(function (c, i, a) { return a.indexOf(c) === i; });
+    // a região viva (animação ambiente) em cada clima que a corrida mostra; em movimento reduzido, as camadas paradas
+    if (!reduced() && SP.prepararRegiaoViva) {
+      var tViva = window.performance.now();
+      SP.prepararRegiaoViva(regiaoDaPista(L), climasDaCorrida);   // (já com os degraus das viradas)
+      FX._stats.regiaoVivaMs = window.performance.now() - tViva;
+    }
     // marcas, jóquei, raridade (parte 2a) e porte (parte 2b) de cada corredor, calculados uma vez; cada cavalo é
     // montado já na largada, no molde do porte (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora,
     // ~0,8 ms por quadro com marcas e jóquei), e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi
     // simulada.
+    // a passada e os pousos do galope de cada corredor (Sprites.contatoGalope; null sem moldes) e a poeira de pouso viva
+    var passadas = L.racers.map(function (r) {
+      var v = opcoesVisuais(r.horse, null), c = SP.contatoGalope(r.horse.element, v.porte);
+      return c ? { passada: c.passada, quadros: c.cascos.length } : null;
+    });
+    var poeiras = L.racers.map(function () { return { q: -1, lista: [] }; });
     var visuais = L.racers.map(function (r, q) {
       var v = opcoesVisuais(r.horse, joqueiDoCorredor(L, q));
       v.rastro = true;   // rastro de luz do Mítico: só na corrida
-      SP.prepararCavalo(comVisuais({ palette: r.horse.palette, element: r.horse.element, silks: r.silks }, v));
+      // e em cada clima que a corrida mostra (o inicial e as viradas, que já saíram da seed): a LUT do clima é pré-assada
+      // no cavalo, que escurece junto com o fundo (guia de integração, Regra 8)
+      climasDaCorrida.forEach(function (cl) {
+        SP.prepararCavalo(comVisuais({ palette: r.horse.palette, element: r.horse.element, silks: r.silks, clima: cl }, v));
+      });
       return v;
     });
 
@@ -6715,15 +6978,26 @@
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
       var tr = self.tReal, red = reduced();
       var clima = climaMostrado(self.simT);
+      // a virada de clima na paleta anda de degrau em degrau (sol → nublado → chuva), um passo a cada PASSO_CLIMA_S de
+      // tempo real, todos pré-assados na largada; a chuva e a névoa (fx.js) e o painel já mudam na revelação
+      if (self.climaAlvo !== clima) {
+        self.climaCaminho = self.climaAlvo && !red ? caminhoClima(self.climaAlvo, clima) : [clima];
+        self.climaAlvo = clima; self.tVirada = tr;
+      }
+      var climaCor = self.climaCaminho[Math.min(self.climaCaminho.length - 1, Math.max(0, Math.floor((tr - self.tVirada) / PASSO_CLIMA_S)))];
+      FX._stats.climaCor = climaCor;
+      var chaoPista = SP.corDoPiso(L.cond.surface, climaCor, regiaoDaPista(L));   // a sombra dos cavalos nesse piso e clima (Regra 2)
       FX._stats.climaPista = clima;   // para o ui-test: o clima desenhado na pista neste quadro
       // em reduced nada congela: o cenário (nuvens, torcida, bandeiras, grama) anda a 40 % e a natureza
       // (fx.js) recebe o tempo real com a marca reduced (chuva a 40 %, metade dos pingos, sem relâmpago)
       SP.drawTrack(ctx, {
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: self.camPx, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
-        t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
-        curveScale: lay.arcoK, regiao: regiaoDaPista(L)
+        t: red ? tr * 0.4 : tr, weather: climaCor, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
+        curveScale: lay.arcoK, regiao: regiaoDaPista(L), vivo: !red
       });
+      // a sombra da cerca de trás sobre a raia de cima (Regra 7)
+      SP.drawSombraCerca(ctx, W, laneTop, self.camPx, S, chaoPista);
       // natureza, camada de trás (calor, respingos, névoa do fundo): antes dos cavalos. lift acompanha o
       // relevo das subidas e o arco das curvas (os respingos e o calor ficam no chão levantado)
       var natO = {
@@ -6750,7 +7024,10 @@
         var cavalo = comVisuais({
           // fase contínua do galope: o código usa o quadro inteiro; o molde mapeia o ciclo (mesma duração)
           palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
-          scale: S, silks: r.silks, t: tr, idle: standing
+          scale: S, silks: r.silks, t: tr, idle: standing,
+          chao: chaoPista,   // sombra opaca na cor do piso no clima (guia de integração, Regra 2)
+          clima: climaCor,   // o cavalo na LUT do clima mostrado, como o fundo (Regra 8)
+          anima: standing ? 'cena' : false   // parado na largada: vivo, com o cavar com jóquei (animação ambiente, etapa 2)
         }, visuais[j]);
         cavalo.reduzido = red;
         // caixa do que vai ser desenhado (molde ou código): o corte nas bordas e o monitor de câmera usam ela,
@@ -6776,8 +7053,19 @@
         }
         var inten = standing ? 0 : boostIntensity(j, self.simT);
         if (inten > 0.02) SP.drawTrail(ctx, x + an.rear[0] * S, y + an.rear[1] * S, r.horse.element, tr + j * 0.31, inten, S);
-        // poeira dos cascos em terra ou areia (fora da chuva), atrás do cavalo
-        if (poeira && !standing) FX.drawHoofDust(ctx, x + an.rear[0] * S, feetY, S, tr + j * 0.37, L.cond.surface, red);
+        // poeira dos cascos em terra ou areia (fora da chuva), atrás do cavalo: com os moldes, nasce no quadro em que o
+        // casco pousa, no ponto do chão do pouso (presa ao chão: guarda o x de arte do chão), em 2 tons do chão (Regra 12)
+        var cascos = standing ? null : SP.cascosNaTela(x, y, cavalo), pj2 = poeiras[j];
+        if (cascos) {
+          if (cascos.quadro !== pj2.q) {
+            if (pj2.q >= 0 && poeira) cascos.pousos.forEach(function (px) { pj2.lista.push({ t0: tr, xa: (px + self.camPx) / S }); });
+            pj2.q = cascos.quadro;
+          }
+          pj2.lista = pj2.lista.filter(function (pz) { return tr - pz.t0 < FX.POUSO_S; });
+          var corP = window.Luz.degrau(chaoPista, 1), bordaP = window.Luz.degrau(chaoPista, 2);
+          pj2.lista.forEach(function (pz) { FX.drawPoeiraPouso(ctx, pz.xa * S - self.camPx, feetY, S, tr - pz.t0, corP, bordaP); });
+          if (j === me) FX._stats.cascoJogador = { q: cascos.quadro, xs: cascos.xs, x: x, camPx: self.camPx, S: S, tr: tr, passada: cascos.passada };
+        } else if (poeira && !standing) FX.drawHoofDust(ctx, x + an.rear[0] * S, feetY, S, tr + j * 0.37, L.cond.surface, red);
         if (lift > 0 && !standing && !reduced()) {
           // poeira levantada na subida
           var dp = Math.floor(tr * 10 + j) % 3;
@@ -6794,6 +7082,12 @@
         }
         if (gl) SP.drawHorseSilhouette(ctx, x, y, cavalo, gl.cor, gl.alpha);
         SP.drawHorse(ctx, x, y, cavalo);
+        FX._stats.ordemContato.push('h' + j);
+        // contato da raia logo depois do cavalo dela: sulcos e torrões presos ao chão sobre a linha dos cascos, só na faixa
+        // do cavalo (segue o relevo e o arco dele), atrás dos cavalos das raias de baixo (Regra 7)
+        SP.drawContatoRaia(ctx, caixaCav.x - 4 * S, caixaCav.x + caixaCav.w + 4 * S, feetY, self.camPx, S, chaoPista);
+        FX._stats.ordemContato.push('c' + j);
+        if (j === me && cascos) FX._stats.cascoCoberto = cascos.xs.some(function (cx) { for (var u = 0; u < 3; u++) if (SP.contatoEm(cx + u * S, self.camPx, S) > 0) return true; return false; });
         FX._stats.caixasCavalos.push({ racer: j, x: Math.round(caixaCav.x / S), y: Math.round(caixaCav.y / S), w: Math.round(caixaCav.w / S), h: Math.round(caixaCav.h / S), arco: arcoJ });
         // vento, "+" e faíscas da skill / Garra no próprio cavalo (fx.js)
         for (var ei = 0; ei < efeitoItens.length; ei++) {
@@ -7131,7 +7425,17 @@
       var st = sample(self.simT);
       // galope: cadência em tempo real proporcional à velocidade (mais lenta na câmera lenta)
       // (guia §8a: 21 quadros do molde por segundo a 17 m/s = 14 dos 6 do ciclo do código)
-      for (var j = 0; j < n; j++) self.gallop[j] += dtReal * GALOPE_QPS * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
+      // Cadência (Regra 12; escolha do Vinicius em 2026-11-24: o meio-termo). "Casada": o casco de apoio anda na tela igual
+      // ao chão; quadros do molde por segundo = velocidade na tela (m/s da simulação × segundos de simulação por segundo
+      // real) × px de arte por metro ÷ passada do molde (px por quadro), no ciclo do código (GALLOP_FRAMES quadros = os
+      // quadros do molde). "Natural": a de antes (21 quadros do molde por segundo a 17 m/s). "Meio": a média geométrica
+      // das duas (~1,3× a natural; o casco patina bem menos sem as pernas virarem um borrão). A gaveta DEV compara as 3.
+      var cad = DEV_MODE ? ui.dev.cadencia : 'meio';
+      for (var j = 0; j < n; j++) {
+        var pj = passadas[j], nat = GALOPE_QPS * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
+        var cas = pj && pj.passada > 0 ? (st.speed[j] * ts * self.mult * slowK * self.ppmArt / pj.passada) * (SP.GALLOP_FRAMES / pj.quadros) : null;
+        self.gallop[j] += dtReal * (cas === null || cad === 'natural' ? nat : cad === 'casada' ? cas : Math.sqrt(nat * cas));
+      }
       // narração
       while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT && !esperaRevelacao(feedEvents[feedPtr])) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
@@ -7199,7 +7503,7 @@
       var r = L.racers[ri], kS = k;
       var opts = comVisuais({
         palette: r.horse.palette, element: r.horse.element, idle: true, t: 0,
-        scale: kS, silks: r.silks, shadow: false, quadro: { topo: -1e6, base: 0, grade: k, centro: 0 }
+        scale: kS, silks: r.silks, quadro: { topo: -1e6, base: 0, grade: k, centro: 0 }
       }, opcoesVisuais(r.horse, joqueiDoCorredor(L, ri)));   // parte 2a
       var b = SP.horseBox(0, -HORSE_PE * kS, opts);
       var alto = Math.max(-b.y, HORSE_PE * kS);   // o desenho por código ocupa HORSE_PE·kS acima dos cascos
@@ -7222,6 +7526,7 @@
       sl.hx = sl.left - sl.bx;
       sl.hy = sl.top * k - HORSE_PE * sl.kS;
       sl.opts.quadro = { topo: -1e6, base: sl.top * k, grade: k, centro: sl.left - sl.bx };   // em pé no degrau, 1:1
+      sl.opts.chao = sl.col;   // a sombra na cor do degrau do pódio
       sl.caixa = SP.horseBox(sl.hx, sl.hy, sl.opts);
       podio.push({ lugar: sl.place, x: sl.caixa.x / dpr(), y: sl.caixa.y / dpr(), w: sl.caixa.w / dpr(), h: sl.caixa.h / dpr(), escala: sl.kS / dpr() });
     });
@@ -7759,14 +8064,17 @@
         break;
       }
       // ---- Ginásios (aba Expedição): abrir a trilha, abrir o detalhe da etapa próxima, voltar ----
-      case 'ginasio-abrir':
-        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id)) break;
-        ui.gym = { id: id, etapa: null, time: [], res: null, msg: null };
-        go('ginasio');
-        // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola na hora o
-        // mínimo para ela aparecer inteira; o foco fica no título
-        mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"], .etapa[data-estado="revanche"]'));
+      case 'ginasio-abrir': {
+        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || viagemSegura()) break;
+        var abreGin = function () { ui.gym = { id: id, etapa: null, time: [], res: null, msg: null }; go('ginasio'); };
+        // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola o mínimo
+        // para ela aparecer inteira (depois da viagem, se houver); o foco fica no título
+        var mostraProx = function () { mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"], .etapa[data-estado="revanche"]')); };
+        // a rolagem vai junto com a troca de tela (como sem viagem): a etapa da vez aparece inteira logo que a trilha abre
+        if (MP && !reduced() && mapaArte.mundo && naTela(telaEl.querySelector('canvas[data-mapa-mundo]'))) { comecaViagem('entra', id, 'expedicao', function () { abreGin(); mostraProx(); }, null); break; }
+        abreGin(); mostraProx();
         break;
+      }
       case 'ginasio-etapa': {
         // só abre o que o módulo deixa hoje (ginModo): a etapa próxima ou a revanche do líder livre hoje (o aria-disabled só
         // avisa: confere de novo pelo progresso salvo e pelo dia)
@@ -7838,7 +8146,14 @@
       case 'ginasio-pular-tudo':
         if ((ui.screen === 'corrida' || ui.screen === 'entreduelos' || ui.screen === 'desafio') && ui.gym && ui.gym.ver) ginPulaTudo();
         break;
-      case 'ginasio-voltar':
+      case 'ginasio-voltar': {
+        if (viagemSegura()) break;
+        // da trilha para o mapa: a viagem de volta (do detalhe, do preparo e do resumo, a volta é direta, como antes)
+        var gV = ui.gym;
+        if (MP && !reduced() && ui.screen === 'ginasio' && gV && gV.etapa === null && !gV.res && mapaArte.trilhas[gV.id] && temMapaMundo() &&
+          naTela(telaEl.querySelector('canvas[data-mapa]'))) { comecaViagem('sai', gV.id, 'ginasio', voltaDaSubtela, null); break; }
+        voltaDaSubtela(); break;
+      }
       case 'montaria-voltar':
       case 'perfil-voltar':
         voltaDaSubtela(); break;
@@ -8431,10 +8746,11 @@
       if (!precisaLaco()) { lacoAtivo = false; return; }
       window.requestAnimationFrame(loop);
       if (raceView) raceView.frame(now);
-      if (live.length && !reducedQuadro && now - lastIdle > 70) {
-        lastIdle = now;
-        var t = now / 1000;
-        for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel) live[i].draw(t);
+      if (live.length && !reducedQuadro) {
+        // o ritmo de sempre (~14 q/s) e, a cada quadro, só os itens marcados como rápidos (a viagem e a trilha se pintando)
+        var t = QUADRO_FIXO != null ? QUADRO_FIXO : now / 1000, todos = now - lastIdle > 70;
+        if (todos) lastIdle = now;
+        for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel && (todos || live[i].rapido || viagem)) live[i].draw(t);
       }
     } finally { reducedQuadro = null; }
   }
@@ -8560,6 +8876,12 @@
       afkTick: function () { afkTick(); },
       afkVoltou: function () { afkVoltou(); },
       bonusConta: function () { return bonusConta(); },
+      // custo das cenas animadas (etapa 3): por desenho e o equivalente por quadro a 60 q/s (ms gastos por segundo ÷ 60)
+      ambienteMs: function () {
+        var o = {};
+        Object.keys(ambMs).forEach(function (k) { var st = ambMs[k], seg = (st.fim - st.ini) / 1000; o[k] = { porDesenho: st.n ? st.soma / st.n : 0, n: st.n, por60: seg > 0.5 ? st.soma / seg / 60 : null }; });
+        return o;
+      },
       GEAR_ON: GEAR_ON, GEAR_PVP: GEAR_PVP
     };
     // rascunho dos pontos livres da tela da Montaria (null sem rascunho), para o teste ler

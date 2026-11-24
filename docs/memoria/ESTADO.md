@@ -1,18 +1,93 @@
 # Estado do projeto
 
+**Integração de 2026-11-24 (aprovada pelo Vinicius):** animação ambiente (etapas 0 a 6) + mapa dos ginásios (blocos A e
+B: mapa-múndi vivo, viagem, trilha que se pinta, cena de desafio com as vistas Meshy e idle) na `main` por avanço direto
+(77ba27e4), com o `check.sh` completo OK (83 blocos, 132 metas; desenho por quadro 2,17 ms). Republicados: jogo v18, DEV
+v16, wiki v15, testadores v4. Próximas frentes visuais: tela inicial (3) e inventário (4).
+
 **Integração de 2026-11-23 (aprovada pelo Vinicius: "pode integrar tudo na main e republicar"):** AFK (blocos A e B), forja,
 bestiário, equipamento de PVE, reforja, Selo do campeão, as correções da revisão, o build dos testadores e o lote 1 de
 ajustes (câmera, skills resumidas, sexo, selvagens escondidos) entraram na `main` por avanço direto (100e438), com o
 `check.sh` completo OK (213 + 69 testes de regra, 139 de efeitos, 176 de moldes, 1064 do wiki, 132 metas, 81 blocos de
 interface). Republicados: jogo (versão 16), DEV (14), wiki (13) e testadores (2, https://claude.ai/artifact/2McVg8D1wv5Qm8WWnSN8hL).
-Em andamento: animação ambiente (`claude/animacao-ambiente`, amostra v3 aprovada como "mais movimento"; lote pago de
-comer/cavar e spec a seguir); depois mapa dos ginásios, tela inicial e inventário.
+Em andamento: animação ambiente (`claude/animacao-ambiente`: plano aprovado, etapa 0 — integração visual P1 — feita no
+ramo, esperando retorno); depois mapa dos ginásios, tela inicial e inventário.
 
 **Próxima frente (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE.** Spec
 `docs/superpowers/specs/2026-11-23-afk-drops-design.md` e plano `docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B)
 aprovados pelo Vinicius; a implementação parte da `main` (que já tem as skills com ranks e a direção de arte). O rancho
 ficou só como ideia.
 
+
+**Mapa dos ginásios, frente 2 das visuais (2026-11-24, ramo `claude/mapa-ginasios`, fora da `main`): amostra v1
+publicada** em https://claude.ai/artifact/XkbbtUoHuAxcYFQ45thNTF (`prototype/arte/mapa-amostra.html`, gerada por
+`node prototype/tools/mapa-amostra-build.mjs` a partir de `prototype/arte/mapa.html` + `mapa.js`; não toca em `src/` nem
+`dist/`). Mostra: o mapa-múndi em tela única (ilha 256 × 384 por código: Fornalha no vulcão, Remanso no lago, Capoeira na
+mata), vivo (mar, rio e lava em ciclo de cor, copas no vento, fumaça e bombas do vulcão, nuvens com sombra, pássaros),
+névoa sobre o que não foi conquistado (só visual), medalhão do líder (cabeça do corpo 1:1), insígnia e "!" da revanche;
+tocar num ginásio → aproximação 1×→2×→3× e íris na cor do elemento → a trilha (mapa de hoje, com ciclo de cor) com a pista
+de terra que se pinta tile a tile ao vencer (ponte de tábuas sobre a água no Remanso), os estados das paradas e o cavalo
+ativo (molde do jogo) trotando até o próximo oponente; e a volta. Lista de botões, teclado e leitor de tela; medidor de
+custo (desenho do quadro ~0,2–0,4 ms no mundo e ~0,25–0,6 na trilha no contêiner). Ao lado, as capturas de hoje. Custo
+zero. **v1 aprovada como direção (2026-11-24); piloto pago feito** (confirmado pelo Vinicius aqui; teto 15): 14
+gerações (saldo 879 → 858), script `prototype/tools/arte-mapa-mundo.mjs`, folha `prototype/arte/folha-mapa-mundo.html`. A
+amostra v2 (mesmo artefato) abre na ilha pintada A (s9902), com a B (s9901) e a v1 no seletor, os ginásios do piloto
+assentados com sombra de contato e todos os candidatos embaixo. **Próximo:** escolha do Vinicius (ilha e ginásios),
+retoques e a spec. **Guia de integração (`docs/arte/integracao.md`, na `main`) aplicado na amostra, só código (versão
+3 do artefato):** ginásios com sombra de silhueta e capim na base, estandartes do líder no lugar dos medalhões, espuma
+nas margens, névoa em massas de 2 × 2, bases de pedra e sombras dos treinadores e do cavalo na trilha, pista com borda
+recortada e trecho fechado como chão pisado. Pendentes do Vinicius: D1 (REST pintado × Map Workshop) e D5 (origem das
+referências); nada mais é gasto antes. **Decisões de 2026-11-24 (via coordenação, confirmadas aqui):** ilha B; ginásios
+Fogo s9921 e Água s9932; Capoeira refeita (s9953, 3 gerações); referências do Vinicius são da vitrine do PixelLab e
+ficam só como alvo de comparação; mapa pintado é o principal, com o exemplo de mapa de peças feito (9 gerações) para
+comparar; **a cena de desafio passa a ser desta frente**, na direção de batalha de RPG de criaturas (oponente de frente no
+alto à direita, o nosso de costas embaixo): piloto da Brasa feito (12 gerações), na amostra (versão 5). Gasto da
+rodada 2: 24 gerações (saldo 848 → 824). Próximo: escolha do candidato de costas e da vista de frente, estimativa do
+lote (12 moldes, de costas e de frente, com idle) e a spec. **Versão 6 (retorno do Vinicius à 5):** um padrão só de
+cavalo (a trilha trota com o mesmo desenho do parado, passo de 1 px); a cena de desafio com o chão da arena como plano
+(oponente e líder pisando no fundo, o nosso na frente cortado pela borda, marcas de terra gasta no chão, sombras deitadas
+no piso), arena 1 e arena 0 no seletor. Lote dos 12 cavalos NÃO aprovado; o oponente de frente no estilo do molde pede
+teste pago (perguntado). **Versão 7:** o Vinicius aprovou o teste de frente (10 gerações, saldo 824 → 814): saiu todo de
+lado, então o oponente passou a ser o próprio molde espelhado (mesmo traço). Pedido dele sobre a arena: os jogadores
+"dentro do cenário", com a arena só de fundo: a imagem da arena vale até o horizonte e abaixo dele há um piso em
+perspectiva por código, onde todos pisam. Vista de frente no estilo do molde segue em aberto (outra técnica a estudar). **Versão 9 (2026-11-24):** arena 0
+escolhida; nome na cor da raridade; comparação de ferramentas aprovada pelo Vinicius: PixelLab inpaint (10 gerações,
+814 → 804), Meshy 3D (30 créditos, 465 → 435; um cavalo 3D renderizado em pixel em 8 vistas coerentes, o melhor
+resultado para frente/costas), Canva (2 fundos, só prévias), Gemini bloqueado (conta sem créditos pré-pagos). Chaves do
+Meshy e do Gemini salvas no ambiente (proxy), nunca no código.
+**Versão 10 (2026-11-24):** rodada aprovada pelo Vinicius: Meshy 2º cavalo (Ipê, porte robusto, crina de folhas; 30
+créditos, 435 → 405): o porte aparece, a crina de folhas virou manchas; troca de cor funciona sem modelo novo só onde as
+cores dos papéis não se misturam (na Brasa crina e jóquei dividem tons), então "1 modelo por porte + recolor" pede modelos
+nascidos de imagem com cores puras por papel, e o formato da crina exige outro modelo. Canva: os 2 fundos exportados em
+1920 × 1080, reduzidos à grade e usados como arenas "Canva 1/2" na cena (créditos do plano). Gemini: a chave nova está
+salva, mas no cabeçalho Authorization; a geração de imagem é só na API nativa, que lê `x-goog-api-key` (401, nada
+cobrado); o Vinicius mudou o cabeçalho e o teste rodou (4 variações, ~US$ 0,155): a cena volta quase igual, com
+sombras de contato um pouco mais marcadas; ganho pequeno.
+**Lote do Meshy por molde (opção A, 2026-11-24, confirmado pelo Vinicius aqui):** Ipê refeito a partir do molde em cores
+puras por papel (30 créditos) e, aprovado o resultado, os outros 10 moldes (300 créditos; saldo 405 → 75; 330 dos 360 do
+teto). O render volta cada pixel ao seu papel (formato dos moldes) e a amostra recolore como o jogo (versões 12 e 13).
+A Brasa (padrao-chamas) também foi refeita pelos papéis (30; saldo 45): os 12 moldes prontos, 360 créditos, o teto.
+**Spec:** `docs/superpowers/specs/2026-11-24-mapa-ginasios-design.md`, com as 4 escolhas do Vinicius (sem marcas nas vistas 3D
+na v1, cena de 256 × 160, crina cheia aceita, plano começando pelo mapa e pela trilha). Âncoras das vistas de frente e de costas (`meshy-ancoras.json`, script `arte-desafio-ancoras.mjs`) entregues à frente 1,
+que já ligou o `IdleMolde` a elas (claude/animacao-ambiente, 7bf5977). **Spec aprovada pelo Vinicius (2026-11-24).** Plano: `docs/superpowers/plans/2026-11-24-mapa-ginasios.md` (bloco A: mapa,
+transição e trilha, sem custo; bloco B: vistas de frente e de costas nos moldes, chão por elemento e a cena), aguardando
+aprovação. `main` (e157f3f5) trazida para o ramo. **Plano aprovado pelo Vinicius (2026-11-24); bloco A implementado:**
+`prototype/src/mapa.js` (mundo, trilha, viagem; testes em `prototype/tools/mapa-test.js`, no `check.sh`), arte do mapa no
+build (`window.__MAPA_MUNDO`, +35 KB), mapa-múndi na aba Expedição (acima dos cartões; tocar = cartão), viagem com zoom e
+íris, trilha com a pista que se pinta e o cavalo ativo (o fundo animado das trilhas fica com a frente 1, por
+`window.Ambiente.cena('mapa:<el>')`, com a máscara do caminho), bloco `expedicao-mapa` no `ui-test`, capturas final-24 e
+final-25 novas. `check.sh` completo OK (82 blocos de interface, 132 metas). DEV do ramo publicado para teste:
+https://claude.ai/artifact/EmQzDqJgwnWjZAgagDkXcC. Nada na `main`. **Bloco B implementado (2026-11-24):** as vistas de frente
+e de costas dos 12 moldes (`assets/arte/desafio/vistas/`, `arte-desafio-moldes.mjs`) entram nos moldes pelo `lerMoldes`
+(tudo ou nada) e o `drawHorse` aceita `vista: 'frente' | 'costas'` (sem marcas); a cena de desafio é a `Mapa.cena`: arena 0,
+256 × 160, piso por código na Fornalha e o chão pintado da arena no Remanso e na Capoeira, oponente de frente com o
+treinador, o nosso de costas, marcas e sombras deitadas, placas no canvas (nome na cor da raridade, nível, fôlego do duelo
+gravado; o texto também em HTML para o leitor de tela). `check.sh` completo OK; DEV republicado (versão 2 do mesmo
+artefato). Fica para a integração com a frente 1: o idle nas vistas (a linha do `vivo` no `drawHorseMolde`, que ela faz) e o
+fundo animado das trilhas (`Ambiente.cena`, já ligado do meu lado). Próximo: integração na `main`, quando a coordenação e o
+Vinicius decidirem. Lote dos 12 cavalos segue não aprovado.
+Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
+o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 
 _Atualizado em 2026-11-23 (ajustes de interface, lote 1)._
 
@@ -38,6 +113,137 @@ balanço rápido e 81 blocos de interface); custo por quadro sem piora (mesmas c
 1280 1,91 → 1,77–2,19 ms; 8 Míticos 1,96 → 1,91–2,13; portes 2,04 → 1,94–2,07; ruído da máquina). Capturas oficiais
 regeneradas (39 mudaram, nenhuma nova nem removida). **Artefato de teste novo** (jogo de produção do ramo):
 https://claude.ai/artifact/KnwuELhSrLKrMSEmNtAZ4N. Os oficiais não foram republicados; nada na `main`.
+
+**Em andamento (2026-11-23): animação ambiente, entrega 1 (amostra)**, no branch `claude/animacao-ambiente` (frente 1 de 4
+das visuais; depois vêm o mapa dos ginásios, a tela inicial e o inventário). Pedido do Vinicius: nenhuma imagem parada
+(vulcão em erupção, placas ao vento, folhas, pássaros, cavalos com idle natural), qualidade sempre. **Amostra publicada**
+em https://claude.ai/artifact/2azaDeDRV77ZhvYCuhQNmz (`prototype/arte/animacao-amostra.html`, gerada por
+`node prototype/tools/arte-animacao-build.mjs` a partir de `prototype/arte/animacao.html` + `animacao.js`; não toca em
+`src/` nem `dist/`). Quatro cenas, cada uma "hoje" (parada) ao lado da animada, com medidor de custo por camada
+(liga/desliga): **Litoral** (mar e rio por ciclo de cor, farol, veleiros, coqueiros e capim que dobram com o vento,
+torcida, bandeirolas, placa de madeira que balança e gira, biruta, gaivotas, areia, cavalos em idle na largada),
+**Fornalha** (a arena gerada não tem vulcão: o pico da esquerda virou vulcão por código; fosso e encostas de lava, ar
+quente, braseiros, emblemas, brasas), **Expedição** (vulcão, rio, placas que giram no poste, capim, pinheiros, nuvens
+finas, pássaros, folhas) e **Cavalos** (idle em camadas no Haras: respiração, piscar, cauda, orelha, cabeça, crina ao
+vento; botões para disparar). Tudo por código, custo de crédito zero, RNG só cosmética (mulberry32 de semente fixa, fora
+da seed). Custo medido no contêiner: 0,3–0,6 ms por quadro de animação (≈ 1,2–1,6 ms num celular médio pela régua ×4 do
+teste de engine; orçamento 2 ms), ≤ 160 chamadas de desenho e ≤ 90 partículas. **Retorno do Vinicius (2026-11-23, pela coordenação):** a versão
+atual está **aprovada como a principal**; pediu uma variante **"mais movimento"** para comparar, feita na mesma página
+(seletor "Atual / Mais movimento" em cada cena: rajada forte que dobra tudo junto, ondas que quebram na mureta, "ola" na
+torcida, revoadas em V, redemoinho de folhas e areia, jorros de lava, bolhas no fosso, corredeira, borboletas, gestos dos
+cavalos a cada 1–3,5 s e o "sacudir a cabeça"); medidas no contêiner (atual / mais): Litoral 0,48/0,47 ms, Fornalha
+0,19/0,27, Expedição 0,25/0,32, Cavalos 0,08/0,21 (≤ 1,3 ms no celular médio; ≤ 270 chamadas, ≤ 140 partículas).
+**Piloto pago rodado** (confirmado pelo Vinicius): 6 gerações do `animate-with-text-v3` no molde padrão-lisa
+(`prototype/tools/arte-animacao-piloto.mjs`; PixelLab 915 → 909), quadros em `prototype/assets/pixellab/idle/`, no
+painel "PixelLab × código" da cena dos cavalos: comer (8102) e cavar (8111) bons e naturais, o que o código não faz;
+cauda e respiração o código já resolve. **2ª rodada (2026-11-23/24):** o Vinicius
+escolheu a **"mais movimento"** como padrão e pediu a **vegetação e a água mexendo sempre** (feito: folhas dos coqueiros
+ondulando, capim em onda contínua, espuma na mureta, matas e pinheiros balançando, espuma descendo o rio, pasto do Haras
+com faixas de brilho; amostra na versão 3, abrindo na escolhida; Litoral em 0,46–0,54 ms ≈ 1,8–2,1 ms no celular, no
+limite: o remédio é pré-assar os loops, na spec). **Lote pago autorizado e rodado**: comer e cavar nos 12 moldes, 30
+gerações (o teto; PixelLab 909 → 879), os 24 limpos depois de apagar por código os fiapos de capim soltos da boca no
+comer; painel com o seletor dos 12 moldes na amostra. **Spec da entrega 2 escrita**:
+`docs/superpowers/specs/2026-11-23-animacao-ambiente-design.md` (todas as imagens, arquitetura `ambiente.js` +
+manifesto + pré-assado, orçamento por tela, custo, testes, ordem). **Spec aprovada (2026-11-24)**, com os opcionais
+cata-vento e cavar com jóquei (o vulcão por VFX fica para depois); pedido de qualidade: "o personagem não pode parecer
+PNG por cima do fundo" (referências em `docs/arte/referencias/2026-11-24-estilo-*.png`, no branch da coordenação; guia
+de integração a caminho). **Opcionais rodados**: cavar com jóquei nos 12 moldes (14 gerações, todos limpos) e o
+Planalto sem as pás (3 gerações de `/inpaint` + preenchimento por código; rotor de 4 pás por código, cena nova
+"Planalto · cata-vento" na amostra). Sombra de contato sob os cavalos já na amostra (versão 5). **Plano escrito**:
+`docs/superpowers/plans/2026-11-24-animacao-ambiente.md` (6 etapas; divisão com o chat do mapa: esta frente faz o
+ambiente dentro dos mapas das trilhas). O **guia de integração visual** (`docs/arte/integracao.md`, na `main` desde 93d4741) entrou no
+plano como **etapa 0, antes de animar mais coisa**: os P1 só de código (sombra opaca na rampa do chão, LUT de luz e
+clima por rampa no atlas, pelagem dos moldes em 4 tons por sombreado de código — os crus têm quase só 2 tons —,
+constantes na paleta, contato e casco sem patinar com base de quadros comum de 12 q/s, leitura por valor); D1–D6 com o
+Vinicius, nada da etapa 0 depende delas. **Plano aprovado (2026-11-24). Etapa 0 feita no ramo** (sem integrar na `main`
+nem republicar os oficiais; um commit por item): 0.4 `prototype/src/luz.js` (rampas da R64, `degrau`, `valor`,
+`sombraDoChao`) e as cores fixas do molde na paleta; 0.1 sombra opaca na rampa do chão (lateral +2 px; silhueta na
+diagonal pixel a pixel sobre o chão pintado no desafio; treinador; catraca do alfa parcial no `arte-check`: fx 20,
+sprites 12, game 6); 0.3 pelagem e crina em 4 tons por sombreado de código **na recoloração, sem mudar o formato dos
+PNGs** (desvio do plano, que previa papéis novos com cinza × 17: o resultado é o mesmo, sem regerar os 12 moldes); 0.2
+LUT por degrau de rampa (`Luz.lutCondicao`: nublado −1, chuva −2, névoa +1 com tinta neutra; tarde/noite/calor prontas),
+figura com LUT mais branda (chuva −1), pré-assada por clima na largada, virada em passos (sol → nublado → chuva), tinta
+de cena e contraluz (Fornalha, Estábulo, Remanso); 0.5 contato por raia, poeira no pouso presa ao chão em 2 tons, sombra
+da cerca, palha/tufos na frente dos cascos, amostra em 6/12 q/s; 0.6 leitura por valor (degrau do piso das raias por
+tabela, L* ≥ 5 onde dá; terra ao sol de 0 para 13,9). **Decisão pendente do Vinicius (C11):** casco sem patinar exige
+galope a ~36 q/s porque a corrida é reproduzida ~2× comprimida (o chão anda ~400 px de arte/s); na cadência natural de
+hoje o casco patina ~15 px por quadro; a gaveta DEV tem "galope casado com o chão" para comparar (0,25 px). `check.sh` completo
+OK (8/8, 81 blocos; desenho por quadro a 1280 com chuva e ventania 2,05 ms, era 1,62). **DEV de teste do ramo:**
+https://claude.ai/artifact/JRBwAmXN9cRi4ABWuD5cEn; **prancha antes × depois** (1×, 3×, cinza, C1–C12):
+https://claude.ai/artifact/CexCcMiyqTZcwrGcfKR5tn (`node prototype/tools/prancha-etapa0.mjs`). **Etapa 0 aprovada
+(2026-11-24, "Prossiga")**; casco: **opção C** (meio-termo, média geométrica entre a cadência natural e a casada: patina
+4,6 px em vez de 14,7), com as 3 na gaveta DEV. **Etapa 1 feita** (motor): `prototype/src/ambiente.js` (UMD; o motor e as
+cenas saíram da amostra sem mudar um pixel, conferido por hash), API `Ambiente.cena(id)`, manifesto
+`prototype/assets/arte/animacao.json` (peças, rampas e pontos por imagem; as cenas leem dali), folha de máscaras
+(`prototype/tools/arte-animacao-mascaras.mjs`), pré-assado por estado da peça (coqueiros, torcida, araucárias; ≤ 1,42 MB
+por tela), testes no fx-test e no arte-check. **Achado e corrigido:** desde que o "fatia" saiu, as peças da deformação
+do Litoral e do Planalto ficavam paradas na tela da amostra (faltava o putImageData). O motor ainda não está no build do
+jogo (entra quando o jogo usar, etapa 3). **Etapa 2 feita (cavalos vivos no jogo):** âncora `olho` nos 12 moldes
+(`moldes-lib.mjs` olhoMolde + `prototype/tools/moldes-olho.mjs`; 4 à mão no OLHO_MANUAL), `Sprites.IdleMolde` (idle de
+código pintado pelo pipeline do molde) e os gestos do PixelLab (comer e cavar no retrato, cavar com jóquei no parado; a
+cada 15–30 s, embutidos no build: +240 KB) no Estábulo, no desafio e na espera da largada (`opts.anima`). Folha:
+`node prototype/tools/folha-cavalos-idle.mjs`. O esguio-chamas parado não abana a cauda (a crina não fica atrás da
+garupa). **Etapa 3a feita:** o motor e o manifesto
+entram no build; topo da Expedição e do Haras (com até 2 cavalos do jogador vivos no pasto) e a arena da Fornalha
+animam no laço "vivo" (`AMB_ABA`/`AMB_ARENA` no game.js); bloco `ambiente` no ui-test (em série; 0,21 / 0,12 / 0,14 ms
+por quadro a 60 q/s; "Reduzidas" parado). O vulcão da Fornalha fica no corte de cima da arena do desafio (não aparece
+nela). **Etapa 3b feita:** cenas novas do
+Estábulo (lampiões, poeira dourada, poeira no ar, feno nas rajadas) e da Loja (lanternas, lanternas verdes, poções com
+bolhas e brilho, luz do chão — atrás da placa do título —, poeira no facho), no manifesto e no jogo; as 4 abas animam
+(0,04 / 0,07 / 0,24 / 0,11 ms por quadro a 60 q/s). Remanso e Capoeira ficaram fora: a cena de desafio vai ser trocada
+pela da frente 2 (o `IdleMolde` já aceita as vistas de frente e de costas dela). **Etapa 5 feita (regiões na
+corrida, adiantada pela coordenação; a 4 espera a spec do mapa):** `Ambiente.regiao` / `RegiaoViva` no `ambiente.js`
+(uma por região e clima, montada aos poucos na contagem da largada pela fila do `sprites.js`: `setAmbiente`,
+`regiaoViva`, `prepararRegiaoViva`, `statsViva`); as 5 camadas vivas no lugar das paradas (mesmo tamanho, paralaxe e
+recorte do arco) e o que vai por cima (sol girando, nuvens em 2 velocidades, pássaros e revoada, placa e biruta na
+cerca em carimbos de 12 q/s, fumaça, pétalas, areia, rotor). Litoral: mar em ciclo de cor (ciclo de 8 s guardado),
+farol, veleiros, espuma, coqueiros (cache comum entre climas), torcida e varais; Planalto: `meio-sem-pas` + rotor de
+24 ângulos, copas, nuvem baixa entre os picos; Várzea: reflexo da lagoa e brilhos, copas, bandeiras, torcida; Cerrado:
+neblina, copas e pétalas dos ipês, bandeiras; Sertão: ar quente, fumaça da chaminé, juazeiro, caatinga nas rajadas,
+bandeirinhas de São João. Capim de todas num laço próprio (`OndaRapida`). Custo do ambiente na corrida (1280, chuva e
+ventania; passo + o que vai por cima): Litoral 0,27, Sertão 0,22, Várzea 0,19, Planalto 0,18 ms por quadro; partículas
+≤ 60. Linha de base (pedido da coordenação, mesma condição, 3× cada): desenho por quadro `main` 2,04 / 1,71 / 2,03 ms
+(média 1,93) e o ramo antes da etapa 5 2,32 / 2,17 / 2,18 (média 2,22): +0,3 ms reais da etapa 0 (perfil: `drawImage`
+da sombra, da faixa de contato e da poeira de pouso). Cenário escolhido na gaveta DEV ("Cenário das corridas"). Verificação: `check.sh` completo OK (166 testes de
+efeitos, 82 blocos); corrida a 1280 com chuva e ventania, com e sem a região viva na mesma página (3× cada):
+~2,45 ms contra ~2,15 ms no regime (+0,25–0,3 ms, o custo do ambiente). DEV v6 publicado no artefato de teste. **Etapa 6, a parte sem o aparelho:** spike do teste de engine na v4
+(regiões + ambiente vivo + o que a etapa 0 pôs na corrida; botão "Etapa 6: rodada de 60 s" com o veredito), publicado
+em https://claude.ai/artifact/4CGJheLECVrZRwuynZi3jH, rodada no celular do Vinicius (`docs/teste-engine.md` §7.1). **Achado da etapa 6 (S24 FE):** a rodada de 60 s
+reprovou pelo cenário nas **subidas**: a hachura diagonal pintada com ~19 preenchimentos por padrão custava até 20–28 ms
+por quadro no aparelho (no contêiner, nada). Corrigida sem mudar o desenho (tira pré-desenhada + relevo em tela à parte),
+com testes no bloco `teto`; commits isolados 40f9fe46 + e157f3f5 sobre a `main` no ramo `claude/fix-subidas-gpu`
+(push com OK do Vinicius, para a coordenação levar à `main`) e integrados aqui. Spike com o diagnóstico, as subidas e a
+medição por parte do cenário (`o.perfil` do `drawTrack`). Etapa 6 de 60 s de novo no aparelho, com a correção: 0,2% dos quadros acima de 20 ms (passa) e 1% low 52,5 (não chega a
+55); JS 4,7/6,6 ms, cenário 1,3/2,6/4,1. Os 7 quadros lentos parecem o ritmo da tela, não o desenho
+(`docs/teste-engine.md` §7.1). **Sem a trava em 60 (como o jogo roda, no ritmo da tela): 119,1 FPS, 1% low 69,4,
+1 de 7.138 quadros acima de 20 ms, JS 3,1/4,3 ms — passa.** Os soluços eram da trava do spike numa tela de 120 Hz.
+Decidido: sem trava por enquanto; **pendente perto do lançamento:** a trava em 60 para poupar bateria, com um método
+melhor que o acumulador da v3. A correção das subidas entrou na `main` (e157f3f5) e os oficiais foram republicados pela
+coordenação. A spec do mapa foi aprovada: a etapa 4 segue quando o plano do chat do mapa definir a camada. Capturas
+oficiais com o tempo congelado: `?quadro=<segundos>` no jogo (o laço "vivo" parado nesse instante) e o `ui-test`
+abrindo as páginas com `quadro=3` quando grava em `prototype/screens/` (o bloco `ambiente` abre sem). Fora:
+garças da Várzea (cabeça que abaixa) e a revoada de garças. **Etapa 4 (mapas das trilhas) feita no ramo (2026-11-24):**
+`Ambiente.CENAS['mapa:agua'|'mapa:fogo'|'mapa:grama']` no `ambiente.js` (correnteza em riscos, espuma, coqueiros e junco,
+peixe; lava em ciclo de cor pela distância da fenda, brasas, fumaça, tufos; copas ao vento, sombras de nuvem, borboletas,
+folhas), tique de 8 q/s, desenho direto no buffer do mapa; custo 0,105/0,113/0,286 ms por quadro (teto 0,35); 2 testes
+no `fx-test` (determinismo, paleta, nada nasce no caminho). Vitrine: https://claude.ai/artifact/AAxGUNY1Fa8SjoRNTrfoRW
+(`prototype/tools/mapas-vivos-vitrine.mjs`). `check.sh` completo OK (168 de efeitos, 82 blocos de interface); DEV
+versão 7. A frente 2 já passa `{ imagem, caminho: MP.mascaraCaminho() }` no `trilhaObj` (entra no `claude/mapa-ginasios`
+depois do bloco B). **Junção com o mapa dos ginásios (2026-11-24, pedido da coordenação):** `claude/mapa-ginasios`
+(blocos A e B, 4a7f485) juntado neste ramo (19417636), sem rebase; conflitos resolvidos preservando os dois lados (a cena do
+desafio nova do `mapa.js` fica, com a luz de cena e o clima dos cavalos do `pintaMolde`; a escada de clima da corrida
+volta; o `?quadro=` congela o laço vivo novo). O fundo das 3 trilhas anima no jogo; o idle vivo vale nas vistas de frente
+e de costas (`drawHorseMolde`; o `mapa.js` redesenha o cavalo da cena pelo idle, sem o balanço da figura inteira). A
+arena antiga da Fornalha saiu do motor (`CENAS.fornalha`, a entrada `ginasios/fogo` do manifesto e da folha das máscaras;
+a amostra antiga fica sem ela). Custo da cena do desafio com o idle: `IdleMolde.chave(t)` (chave sem montar o mapa),
+opções fixas por cavalo, consulta a 10 q/s, pré-pintura dos próximos segundos; o idle soma ~0,03 ms por quadro (bloco
+sozinho 0,69 ms; régua 1,2). O bloco `fluxo-capturas-ginasio` foi para a fase em série do `ui-test-paralelo` (mede tempo
+real; em paralelo passava da régua até sem o idle). Com `?quadro=`, o que anda por dt nos mapas segue o relógio.
+`check.sh` completo OK (b203f58e; 83 blocos, 4 por vez + 11 em série); capturas oficiais regeneradas. DEV versão 8;
+jogo de teste novo: https://claude.ai/artifact/6dBBKxNgCobippyXKbVn2c. Nada na `main`: a coordenação leva depois do OK
+do Vinicius.
+Quando os ramos se juntarem: 'frente'/'costas' na condição do `vivo` do `drawHorseMolde`. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
+falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
 aparelho-alvo ficar abaixo de 45 FPS no 1% low até em escala 1×). Steam no escopo (Electron + steamworks.js). Antes do

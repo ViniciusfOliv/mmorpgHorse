@@ -269,6 +269,49 @@ Os motivos:
 **Quando reabrir o Godot:** só se um aparelho-alvo ficar abaixo de 45 FPS no 1% low **até em escala 1×**, onde quase
 não há pixel para preencher. Isso mostraria que o limite é a WebView em si.
 
+### 7.1 Rodada da etapa 6 da animação ambiente (spike v4, 2026-11-24)
+
+O spike v4 desenha o cenário das regiões do jogo, com a região viva do `ambiente.js` (camada "Ambiente vivo"). Também
+desenha o que a etapa 0 pôs na corrida: sombra opaca, contato da raia, sombra da cerca, poeira de pouso e a luz do
+clima nos cavalos. O parallax extra da v3 ficou desligado, porque as camadas da região já fazem esse papel. O botão
+**"Etapa 6: rodada de 60 s"** roda o pior caso de hoje: 12 cavalos, Litoral vivo, chuva e ventania, travado em 60 FPS.
+O resumo traz o veredito:
+
+- **Critério:** no máximo 1% dos quadros acima de 20 ms e 1% low de pelo menos 55.
+- **Artefato:** https://claude.ai/artifact/4CGJheLECVrZRwuynZi3jH
+- **Contêiner, desktop 1280, CPU 1×** (40 a 60 s cada, quatro rodadas alternadas):
+  - com o ambiente vivo: 0 e 1 quadro acima de 20 ms, 1% low de 59,5 e 57,2;
+  - com as camadas paradas: 7 e 0 quadros, 1% low de 37,8 e 59,5.
+  - Os poucos picos são ruído da máquina e aparecem com e sem o ambiente.
+  - O ambiente soma cerca de 0,4 ms de JS no cenário.
+- **CPU 4×:** reprova, porque o canvas é rasterizado na CPU (a cópia da câmera do spike leva 29 ms). Como na seção 2,
+  esse número só compara camadas. **O que decide é o celular.**
+- **Como medir no contêiner:** `node prototype/spike/medir-engine.mjs --etapa6 [--so desktop]`.
+- **No aparelho (S24 FE, WebView do app do Claude, 120 Hz), 2026-11-24:**
+
+  | Rodada | Quadros acima de 20 ms | 1% low | JS méd/p95 | Cenário méd/p95/máx | Veredito |
+  |---|---|---|---|---|---|
+  | 1ª e 2ª (antes da correção) | 11,3% e 10,6% | 29,1 e 28,1 | 7,6/23,0 e 7,7/23,6 | 4,2/19,8/32,7 e 4,3/20,3/30,1 | reprovou |
+  | 3ª (com a correção das subidas) | 0,2% (7 de 3.591) | 52,5 | 4,7/6,6 | 1,3/2,6/4,1 | reprovou pelo 1% low |
+
+  - **A causa das duas primeiras:** a hachura das subidas (`docs/memoria/bugs.md`, "Desempenho da corrida"). As
+    baterias de fases curtas nunca chegavam a uma subida.
+  - **Na 3ª:** passa folgado no limite de quadros lentos, mas o 1% low (média dos 36 piores) fica 2,5 abaixo de 55.
+    Os 7 quadros lentos não batem com pico de JS (nenhuma parte passou de 4,1 ms) e parecem os soluços que aparecem até
+    sem cenário (fase D6 do diagnóstico: 7 de 712). É o ritmo da tela de 120 Hz travada em 60, como na seção 4.2.
+  - 4ª rodada (travada em 60): 0,4% acima de 20 ms (15 de 3.587), 1% low 48,1, JS 4,8/6,7. Os soluços mudam de
+    rodada para rodada com o mesmo conteúdo.
+  - **5ª rodada, sem a trava** (botão "Etapa 6 sem trava (120 Hz)", no ritmo da tela): 119,1 FPS, **1% low 69,4**,
+    p99 8,5 ms, **1 de 7.138 quadros acima de 20 ms**, JS 3,1/4,3 ms, cenário 0,8/1,5/5,7. **Passa.**
+  - **Conclusão:** o desenho cabe com folga (cerca de 8 ms por quadro a 120 Hz). Os soluços das rodadas travadas são da
+    trava em 60 numa tela de 120 Hz (o acumulador da v3 pula uma batida sim, uma não, e um atraso da tela vira um
+    quadro de 25 ms), não do conteúdo. **O jogo não trava em 60** (`game.js` segue o `requestAnimationFrame`), então
+    se comporta como a 5ª rodada.
+  - **Decidido (Vinicius, 2026-11-24, "faça o melhor por enquanto"):** sem trava por enquanto. O jogo segue o
+    `requestAnimationFrame`. **Pendente para perto do lançamento:** a trava em 60 para poupar bateria (item 3 acima)
+    volta com um método melhor que o acumulador da v3, que soluça numa tela de 120 Hz, e com a rodada da etapa 6
+    travada passando no aparelho.
+
 ## 8. Além de web e Godot: outras opções, com jogos de referência
 
 _Pergunta do Vinicius (2026-11-19, depois de decidir que o jogo também vai para a Steam)._ Todas as alternativas

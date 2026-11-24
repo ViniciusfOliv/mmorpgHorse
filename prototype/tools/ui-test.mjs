@@ -40,7 +40,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
+  'corrompido', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-camera', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
@@ -48,7 +48,7 @@ const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adultera
   'skills', 'skills-aba', 'skills-resumo', 'ranks', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
   'crescimento-jogo',
   'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
-  'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
+  'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'expedicao-mapa', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
   'fluxo-pequeno']
 if (process.argv.includes('--blocos')) { console.log(BLOCOS.join('\n')); process.exit(0) }
 // UI_SO=reserva,gravacao,...: roda só os blocos com esses nomes (para desenvolver um teste sem esperar o resto); sem UI_SO
@@ -118,12 +118,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // page.clock.setSystemTime muda o dia) — use com timezoneId para o dia local não depender da máquina;
 // extra.moldes (padrão true): espera os moldes do PixelLab carregarem (Sprites.moldsReady === true) — o jogo
 // re-renderiza a tela quando eles chegam, e esperar evita clicar num botão que está sendo trocado.
+// Nas capturas oficiais (prototype/screens/), a página abre com ?quadro=3: a animação ambiente parada no mesmo instante,
+// e a captura sai igual a cada vez (plano da animação ambiente, etapa 6); extra.vivo = true abre sem (o bloco ambiente).
+const QUADRO_CAPTURAS = 3
 async function newPage(browser, viewport, label, extra = {}) {
-  const { pagina = 'preview.html', query = '', init = null, moldes = true, bloquear = [], relogio = null, ...ctxExtra } = extra
+  const { pagina = 'preview.html', vivo = false, init = null, moldes = true, bloquear = [], relogio = null, ...ctxExtra } = extra
+  let { query = '' } = extra
+  delete ctxExtra.query
+  if (SHOTS_SAO_OFICIAIS && !vivo && !/[?&]quadro=/.test(query)) query += (query.includes('?') ? '&' : '?') + 'quadro=' + QUADRO_CAPTURAS
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, ...ctxExtra })
   const page = await ctx.newPage()
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
-  page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}`))
+  page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}` + (process.env.UI_PILHA ? ' ' + e.stack : '')))
   for (const padrao of bloquear) await ctx.route(padrao, (r) => r.abort())   // sem rede para esses endereços
   if (init) await page.addInitScript(init)
   if (relogio) await page.clock.install({ time: relogio })
@@ -5169,7 +5175,7 @@ try {
         const q = (s) => document.querySelector(s), tx = (e) => (e ? e.textContent.replace(/\s+/g, ' ').trim() : null), cv = q('#tela .gin-cena-tela')
         const placa = (c) => ({ quem: tx(q(`#tela .gin-placa--${c} .gin-placa-quem`)), cavalo: tx(q(`#tela .gin-placa--${c} .gin-placa-cavalo`)), el: tx(q(`#tela .gin-placa--${c} .el`)) })
         return { rotulo: tx(q('#tela .tela--desafio .rotulo')), titulo: tx(q('#t-desafio')), rival: placa('rival'), voce: placa('voce'), vant: tx(q('#tela .gin-cena-vant')),
-          aria: cv && cv.getAttribute('aria-label'), cw: cv && cv.width, ch: cv && cv.height, arte: cv && cv.getAttribute('data-arte'), cores: eval(cores), txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id,
+          aria: cv && cv.getAttribute('aria-label'), folego: cv && cv.getAttribute('data-folego'), cw: cv && cv.width, ch: cv && cv.height, arte: cv && cv.getAttribute('data-arte'), cores: eval(cores), txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id,
           botoes: [...document.querySelectorAll('#tela .tela--desafio .acoes button')].map((b) => ({ acao: b.getAttribute('data-acao'), txt: tx(b), h: b.getBoundingClientRect().height, bottom: b.getBoundingClientRect().bottom })),
           ih: window.innerHeight, k: window.__galope.ui.gym && window.__galope.ui.gym.ver && window.__galope.ui.gym.ver.k }
       }, GIN_CENA_CORES)
@@ -5180,13 +5186,15 @@ try {
       for (const c of ['rotulo', 'titulo', 'vant']) if (x[c] !== espx[c]) problems.push(`${label}: desafio ${k + 1}, ${c} "${x[c]}" (esperado "${espx[c]}")`)
       for (const c of ['rival', 'voce']) if (JSON.stringify(x[c]) !== JSON.stringify(espx[c])) problems.push(`${label}: desafio ${k + 1}, placa ${c} ${JSON.stringify(x[c])} (esperado ${JSON.stringify(espx[c])})`)
       if (x.aria !== `${dono} e ${bn} contra você e ${an}`) problems.push(`${label}: desafio ${k + 1}, nome do canvas "${x.aria}"`)
+      // as placas da cena (plano do mapa B4) mostram o fôlego de quem larga no duelo gravado
+      if (x.folego !== `${d.folegoA},${d.folegoB}`) problems.push(`${label}: desafio ${k + 1}, fôlego nas placas ${x.folego} (gravado ${d.folegoA},${d.folegoB})`)
       if (x.k !== k || x.foco !== 't-desafio') problems.push(`${label}: desafio ${k + 1}: ver.k ${x.k}, foco ${x.foco}`)
       if (/Vitória|Derrota|venceu|perdeu|Prêmio|de Ouro|Duelo \d+ de \d+|\d+ duelos|Pote/.test(x.txt)) problems.push(`${label}: a tela de desafio ${k + 1} entrega o que vem depois: ${x.txt.slice(0, 300)}`)
       const acoes = x.botoes.map((b) => b.acao + ':' + b.txt).join(',')
       if (acoes !== 'ginasio-comecar:Começar duelo,ginasio-pular-tudo:Pular tudo' || x.botoes.some((b) => b.h < 44 || b.bottom > x.ih)) problems.push(`${label}: botões do desafio ${k + 1} ${JSON.stringify(x.botoes)} (janela ${x.ih})`)
-      // a cena: a arena (até 256 de largura, 128 de altura) em escala inteira, a da grade
+      // a cena: a arena (até 256 de largura, 160 de altura) em escala inteira, a da grade
       const arte = (x.arte || '').split('x').map(Number)
-      if (!x.cw || !(arte[0] >= 160 && arte[0] <= 256) || arte[1] !== 128 || x.cw % arte[0] || x.ch !== x.cw / arte[0] * arte[1]) problems.push(`${label}: a cena do desafio ${k + 1} fora da escala inteira (${x.cw}×${x.ch}, arte ${x.arte})`)
+      if (!x.cw || !(arte[0] >= 160 && arte[0] <= 256) || arte[1] !== 160 || x.cw % arte[0] || x.ch !== x.cw / arte[0] * arte[1]) problems.push(`${label}: a cena do desafio ${k + 1} fora da escala inteira (${x.cw}×${x.ch}, arte ${x.arte})`)
       if ((x.cores > 12) !== temArte) problems.push(`${label}: desafio ${k + 1}: ${temArte ? 'sem' : 'com'} o oponente na cena (${x.cores} cores na faixa dele; arte no build: ${temArte})`)
       await checkOverflow(pg, label + ' desafio ' + (k + 1))
       return x
@@ -6030,6 +6038,74 @@ try {
       if (Math.abs(r.css[0] - r.canvas[0] / r.dpr) > 0.5 || Math.abs(r.css[1] - r.canvas[1] / r.dpr) > 0.5) problems.push(`[${label}] o CSS não mostra 1 pixel do canvas por pixel do aparelho: ${r.canvas} → ${r.css}`)
       if (r.cavalo[0] > 64 || r.cavalo[1] > 64) problems.push(`[${label}] cavalo maior que o molde 1:1: ${r.cavalo}`)
       if (r.render !== 'pixelated') problems.push(`[${label}] canvas sem image-rendering: pixelated (${r.render})`)
+      // sombra opaca na rampa do chão (etapa 0 da animação ambiente; guia de integração, Regra 2): todos os cavalos da pista
+      // pedem a sombra num só piso (Sprites.corDoPiso), em vista lateral, e sob os cascos do jogador a tela mostra esse
+      // piso (então ele é o chão de verdade) e as duas cores da sombra (1 e 2 degraus abaixo na rampa dele), opacas
+      const som = await pg.evaluate(async () => {
+        const SP = window.Sprites, orig = SP.drawHorse, chaos = []
+        SP.drawHorse = function (c, x, y, o) { if (o && !o.quadro) chaos.push(String(o.chao) + '|' + (o.vista || 'lateral') + '|' + (o.shadow !== false)); return orig.apply(this, arguments) }
+        await new Promise((ok) => setTimeout(ok, 300))
+        SP.drawHorse = orig
+        const L = window.__galope.ui.lobby, s = window.__galope.race._state, st = window.RaceFx._stats
+        const piso = chaos.length ? chaos[chaos.length - 1].split('|')[0] : '?', S = window.Luz.sombraDoChao(piso)
+        const b = st.caixasCavalos.find((c) => c.racer === L.playerIdx), cv = document.getElementById('pista'), g = cv.getContext('2d'), k = s.sTela
+        const cores = {}
+        if (b) {
+          for (let y = b.y + b.h - 2; y <= b.y + b.h + 3; y++) for (let x = b.x; x < b.x + b.w + 4; x++) {
+            const d = g.getImageData(x * k + (k >> 1), y * k + (k >> 1), 1, 1).data
+            const h = '#' + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, '0')).join('')
+            cores[h] = (cores[h] || 0) + 1
+          }
+        }
+        return { piso, S, chaos: [...new Set(chaos)], caixa: b || null, cores }
+      })
+      notes[label + '-sombra'] = som
+      if (som.chaos.length !== 1 || som.chaos[0] !== som.piso + '|lateral|true') problems.push(`[${label}] sombra dos cavalos da pista em mais de um piso ou sem vista lateral: ${som.chaos.join(', ')}`)
+      if (!som.caixa) problems.push(`[${label}] sem a caixa do cavalo do jogador para conferir a sombra`)
+      else for (const [nome, cor] of [['chão', som.piso], ['sombra projetada', som.S.projetada], ['contato', som.S.contato]]) {
+        if (!som.cores[cor]) problems.push(`[${label}] sob os cascos do jogador falta a cor do ${nome} (${cor}); cores: ${JSON.stringify(som.cores)}`)
+      }
+      // contato com o chão (Regras 7 e 12): em ~2 s de corrida, a cada quadro, o contato de cada raia vem logo depois do
+      // cavalo dela (atrás do da raia de baixo); o casco do jogador fica coberto por um torrão em parte dos quadros, nunca
+      // em todos; e a patinação do casco de apoio (quanto ele anda na tela além do chão, por troca de quadro do molde),
+      // medida nas 3 cadências do DEV: a casada tem de ficar em até 1,5 px de arte em média, e a do meio (o padrão) abaixo da natural
+      const contato = async (casada) => pg.evaluate(async (cas) => {
+        window.__galope.ui.dev.cadencia = cas
+        const FX = window.RaceFx, amostras = [], ordemRuim = []
+        await new Promise((ok) => {
+          const t0 = performance.now()
+          const tick = () => {
+            const st = FX._stats, o = st.ordemContato
+            for (let i = 0; i < o.length; i += 2) if (o[i][0] !== 'h' || o[i + 1] !== 'c' + o[i].slice(1)) { ordemRuim.push(o.join(' ')); break }
+            if (st.cascoJogador) amostras.push({ ...st.cascoJogador, xs: st.cascoJogador.xs.slice(), coberto: st.cascoCoberto })
+            if (performance.now() - t0 < 2500) requestAnimationFrame(tick); else ok()
+          }
+          requestAnimationFrame(tick)
+        })
+        const cob = amostras.filter((a) => a.coberto).length
+        // patinação: entre duas trocas de quadro seguidas (q -> q + 1), cada casco do quadro novo que veio de um casco de
+        // apoio do anterior (recuo de 2 a 14 px de arte) anda na tela Δh; o chão anda −Δcam; patina = Δh + Δcam
+        const trocas = []; for (let i = 1; i < amostras.length; i++) if (amostras[i].q !== amostras[i - 1].q) trocas.push(amostras[i])
+        const slips = []
+        for (let i = 1; i < trocas.length; i++) {
+          const a = trocas[i - 1], b = trocas[i], S = b.S
+          if ((a.q + 1) % 9 !== b.q) continue
+          b.xs.forEach((xb) => {
+            const rel = (xx, s) => (xx - s.x) / S
+            const par = a.xs.find((xa) => { const d = rel(xa, a) - rel(xb, b); return d >= 2 && d <= 14 })
+            if (par !== undefined) slips.push(((xb - par) + (b.camPx - a.camPx)) / S)
+          })
+        }
+        const media = slips.length ? slips.reduce((u, v) => u + v, 0) / slips.length : null
+        return { quadros: amostras.length, cobertos: cob, ordemRuim: ordemRuim.slice(0, 2), nOrdemRuim: ordemRuim.length, trocas: trocas.length, slips: slips.length, patinaMedia: media }
+      }, casada)
+      const natural = await contato('natural'), meio = await contato('meio'), casada = await contato('casada')
+      notes[label + '-contato'] = { natural, meio, casada }
+      if (natural.nOrdemRuim) problems.push(`[${label}] contato da raia fora de ordem (cavalo → contato, raia a raia): ${natural.ordemRuim.join(' | ')}`)
+      if (!natural.quadros || natural.cobertos === 0 || natural.cobertos === natural.quadros) problems.push(`[${label}] casco do jogador coberto pelo contato em ${natural.cobertos} de ${natural.quadros} quadros (esperado em parte, nunca em todos)`)
+      // o meio-termo (o padrão do jogo) patina menos que a natural
+      if (meio.slips >= 3 && natural.slips >= 3 && !(Math.abs(meio.patinaMedia) < Math.abs(natural.patinaMedia))) problems.push(`[${label}] cadência do meio-termo patina ${meio.patinaMedia} px, não menos que a natural (${natural.patinaMedia})`)
+      if (casada.slips < 3 || Math.abs(casada.patinaMedia) > 1.5) problems.push(`[${label}] galope casado: o casco de apoio patina ${casada.patinaMedia} px de arte por quadro do molde em média (${casada.slips} medidas; esperado até 1,5)`)
       await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
       await pg.waitForSelector('#t-resultado')
     } catch (e) {
@@ -6069,18 +6145,55 @@ try {
         const rv = window.__galope.race, s = rv._state, L = window.__galope.ui.lobby, desenha = rv.frame
         rv.frame = function () {}
         const P = CanvasRenderingContext2D.prototype, nomes = ['fillRect', 'drawImage'], orig = {}, cont = {}
-        nomes.forEach((n) => { orig[n] = P[n]; P[n] = function () { cont[n]++; return orig[n].apply(this, arguments) } })
+        // (2026-11-24) no laço da corrida, nenhum drawImage que leia o buffer do quadro antes da cópia final para a tela
+        // (#pista) e nenhum preenchimento por padrão no quadro (canvas do tamanho do quadro): no celular com GPU os dois
+        // obrigavam a terminar o quadro no meio e a subida custava até 20 ms (docs/memoria/bugs.md, "Desempenho da corrida")
+        let autoCopia = 0, padrao = 0, fontes = []
+        const telaPista = document.getElementById('pista')
+        nomes.forEach((n) => { orig[n] = P[n]; P[n] = function () {
+          cont[n]++
+          if (n === 'drawImage' && arguments[0] instanceof HTMLCanvasElement) fontes.push([arguments[0], this.canvas])
+          if (n === 'fillRect' && typeof CanvasPattern !== 'undefined' && this.fillStyle instanceof CanvasPattern && this.canvas.width === s.W && this.canvas.height === s.H) padrao++
+          return orig[n].apply(this, arguments)
+        } })
         const fim = Math.max(...L.sim.finishTimes), por = []
         try {
           for (let T = 1; T < fim; T += 2) {
             s.phase = 'corrida'; s.simT = T; s.tReal = T * 0.3; s.last = 0; s.flash = 0; s.winnerSeen = true; s.mult = 1
-            nomes.forEach((n) => { cont[n] = 0 })
+            nomes.forEach((n) => { cont[n] = 0 }); fontes = []
             desenha(1)
+            // o buffer do quadro é a fonte da cópia para a tela; lido antes disso (em outro canvas), é leitura no meio do quadro
+            const buf = (fontes.find((f) => f[1] === telaPista) || [])[0]
+            if (buf) autoCopia += fontes.filter((f) => f[0] === buf && f[1] !== telaPista).length
             por.push({ T, fillRect: cont.fillRect, drawImage: cont.drawImage, auras: window.RaceFx._stats.auras })
           }
         } finally { nomes.forEach((n) => { P[n] = orig[n] }); rv.frame = desenha }
-        return { por, canvas: [s.W, s.H, s.S] }
+        return { por, canvas: [s.W, s.H, s.S], autoCopia, padrao }
       })
+      if (r.autoCopia || r.padrao) problems.push(`teto-desenho: ${r.autoCopia} leitura(s) do buffer do quadro no meio dele e ${r.padrao} preenchimento(s) por padrão no laço da corrida (com as subidas)`)
+      // o relevo (tela à parte) e a hachura (tira pré-desenhada) de hoje desenham igual ao jeito antigo (cópia do canvas e
+      // padrão), pixel a pixel, em pontos de subida das 5 regiões e do cenário por código (com uma subida dentro de curva)
+      const iguais = await pg.evaluate(() => {
+        const SP = window.Sprites, out = []
+        const casos = [['litoral', 960, null], ['cerrado', 1080, null], [null, 1150, null], [null, 985, null], ['sertao', 1000, [1050, 1300]], ['varzea', 1230, null], ['planalto', 1010, null]]
+        for (const [reg, cam, curva] of casos) {
+          if (reg && !SP.regiaoPronta(reg)) { out.push(reg + ': região não carregou'); continue }
+          const h = {}
+          for (const modo of ['antigo', 'novo']) {
+            const c = document.createElement('canvas'); c.width = 900; c.height = 600; const ctx = c.getContext('2d')
+            SP.drawTrack(ctx, { width: 900, height: 600, cameraX: cam, pxPerMeter: 6, camPx: cam * 6, lanes: 8, laneTop: 300, laneH: 30, surface: 'terra',
+              finishM: 3000, hills: [[1000, 1250], [2350, 2600]], curves: curva ? window.RaceFx.curveRuns([curva]) : [], t: 5, weather: 'chuva', pixel: 3,
+              highlightLane: 2, hillMaxLift: 20, wind: { intensity: 'ventania', dir: 1 }, curveScale: 1, regiao: reg,
+              relevo: modo === 'antigo' ? 'copia' : undefined, hachura: modo === 'antigo' ? 'padrao' : undefined })
+            const d = ctx.getImageData(0, 0, 900, 600).data; let x = 2166136261
+            for (let i = 0; i < d.length; i++) { x ^= d[i]; x = Math.imul(x, 16777619) }
+            h[modo] = x >>> 0
+          }
+          if (h.antigo !== h.novo) out.push((reg || 'código') + ' em ' + cam + ' m')
+        }
+        return out
+      })
+      if (iguais.length) problems.push('teto-desenho: o relevo ou a hachura das subidas mudou o desenho em: ' + iguais.join(', '))
       const max = (k) => r.por.reduce((m, q) => (q[k] > m[k] ? q : m), r.por[0])
       const med = (k) => { const v = r.por.map((q) => q[k]).sort((a, b) => a - b); return v[v.length >> 1] }
       notes.tetoDesenho = { canvas: r.canvas, quadros: r.por.length, fillRect: { med: med('fillRect'), max: max('fillRect').fillRect, em: max('fillRect').T },
@@ -6098,6 +6211,93 @@ try {
       problems.push('teto-desenho: ' + e.message)
     } finally {
       await pg.context().close()
+    }
+  }
+
+  // ---------------- animação ambiente nas abas e no desafio (plano da animação ambiente, etapa 3) ----------------
+  // As cenas animadas por código (prototype/src/ambiente.js) no topo das 4 abas e a cena do desafio (mapa.js, com o idle
+  // dos cavalos de frente e de costas): a tela anima (o canvas muda), o custo equivalente por quadro a 60 q/s das abas fica
+  // abaixo de 1,5 × o teto da spec §2.4 (0,35 ms; no contêiner), e em "Reduzidas" (movimento reduzido) cada tela fica parada, sem o motor.
+  if (quer('ambiente')) {
+    const label = 'ambiente'
+    const TETO = { expedicao: 0.35, cavalos: 0.35, estabulo: 0.35, loja: 0.35 }
+    const hashCv = (pg, sel) => pg.locator(sel).first().evaluate((c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let x = 0; for (let k = 0; k < d.length; k += 31) x = (x * 31 + d[k]) >>> 0; return x })
+    const quadros = async (pg, sel, n = 10) => { const hs = new Set(); for (let i = 0; i < n; i++) { await pg.waitForTimeout(200); hs.add(await hashCv(pg, sel)) } return hs.size }
+    const abreDesafio = async (pg) => {
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+      await pg.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click()
+      await pg.waitForFunction(() => !!document.getElementById('t-ginasio'), null, { timeout: 4000 })
+      await pg.locator('[data-acao="ginasio-etapa"]').first().click(); await pg.waitForSelector('#t-etapa')
+      for (const u of await pg.evaluate(() => [...document.querySelectorAll('#tela [data-acao="ginasio-time"]')].map((x) => x.getAttribute('data-id')).slice(0, 3))) await pg.locator(`#tela [data-acao="ginasio-time"][data-id="${u}"]`).click().catch(() => {})
+      await pg.locator('#tela [data-acao="ginasio-desafiar"]').click(); await pg.waitForSelector('#t-desafio', { timeout: 6000 })
+    }
+    for (const reduzido of [false, true]) {
+      const lab = label + (reduzido ? '-reduzidas' : '')
+      const pg = await newPage(browser, { width: 1000, height: 800 }, lab, { query: '?dev=1', vivo: true, reducedMotion: reduzido ? 'reduce' : 'no-preference' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        const vistos = {}, ms = {}, CENA = { expedicao: 'expedicao', haras: 'cavalos', estabulo: 'estabulo', loja: 'loja' }
+        const leMs = async (id) => { const m = await pg.evaluate(() => window.__galope.ambienteMs()); if (m[id]) ms[id] = m[id] }
+        for (const aba of ['estabulo', 'loja', 'expedicao', 'haras']) {
+          await pg.locator(`[data-acao="aba"][data-id="${aba}"]`).click(); await pg.waitForTimeout(2500)
+          vistos[aba] = await quadros(pg, 'canvas.cena-aba')
+          await leMs(CENA[aba])   // logo depois da tela (voltar a ela recomeça a medida)
+          await checkOverflow(pg, `${lab} ${aba}`)
+        }
+        await abreDesafio(pg); await pg.waitForTimeout(2500)
+        vistos.desafio = await quadros(pg, '#tela canvas')
+        notes[lab] = { vistos, ms }
+        if (!reduzido) {
+          for (const [k, n] of Object.entries(vistos)) if (n < 3) problems.push(`[${lab}] ${k}: a cena não anima (${n} quadros diferentes em 2 s)`)
+          for (const [id, teto] of Object.entries(TETO)) {
+            const m = ms[id]
+            if (!m || m.por60 == null) problems.push(`[${lab}] ${id}: sem medida de custo (${JSON.stringify(m)})`)
+            else if (m.por60 > 1.5 * teto) problems.push(`[${lab}] ${id}: ${m.por60.toFixed(3)} ms por quadro a 60 q/s, acima de 1,5 × o teto ${teto}`)
+          }
+        } else {
+          for (const [k, n] of Object.entries(vistos)) if (n !== 1) problems.push(`[${lab}] ${k}: em movimento reduzido a tela mexeu (${n} quadros diferentes)`)
+          if (Object.keys(ms).length) problems.push(`[${lab}] em movimento reduzido o motor do ambiente rodou: ${Object.keys(ms).join(', ')}`)
+        }
+      } catch (e) {
+        problems.push(`[${lab}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // Regiões na corrida (etapa 5): cada uma, escolhida no cenário da gaveta DEV, fica viva na corrida (Sprites.statsViva:
+    // a região e o clima do último quadro), com o passo e o que vai por cima abaixo de 1,5 × o teto de 0,30 ms por quadro;
+    // em movimento reduzido, as camadas paradas (nenhuma região viva)
+    const TETO_REG = 0.30
+    for (const reduzido of [false, true]) {
+      const lab = label + '-corrida' + (reduzido ? '-reduzidas' : '')
+      const pg = await newPage(browser, { width: 1280, height: 800 }, lab, { query: '?dev=1', vivo: true, reducedMotion: reduzido ? 'reduce' : 'no-preference' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        const regs = reduzido ? ['litoral'] : ['litoral', 'planalto', 'varzea', 'cerrado', 'sertao'], vistas = {}
+        for (const reg of regs) {
+          await devAbrir(pg); await pg.selectOption('#dev-regiao', reg)
+          await devArmar(pg, { clima: 'chuva', vento: 'ventania', direcao: -1, seed: 4242 })
+          if (await pg.locator('#t-resultado').count()) { await pg.getByRole('button', { name: /Correr de novo|Treino gratuito/ }).click(); await pg.waitForSelector('#t-largada') }
+          else await abrirSala(pg)
+          await pg.getByRole('button', { name: /^Largar/ }).click()
+          const q0 = await (await pg.waitForFunction(() => { const r = window.__galope.race; return r && r._state.phase === 'corrida' && window.RaceFx._stats.quadros > 30 ? window.RaceFx._stats.quadros : false }, null, { timeout: 60000, polling: 'raf' })).jsonValue()
+          await pg.evaluate(() => { const st = window.Sprites.statsViva(); st.ms = 0; st.quadros = 0 })
+          await pg.waitForFunction((q) => window.RaceFx._stats.quadros >= q, q0 + 150, { timeout: 60000, polling: 'raf' })
+          const st = await pg.evaluate(() => Object.assign({}, window.Sprites.statsViva()))
+          vistas[reg] = { usada: st.usada, porQuadro: st.quadros ? +(st.ms / st.quadros).toFixed(3) : null, maiorPassoMs: +st.maiorPassoMs.toFixed(1) }
+          await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click(); await pg.waitForSelector('#t-resultado')
+        }
+        notes[lab] = vistas
+        for (const [reg, v] of Object.entries(vistas)) {
+          if (reduzido) { if (v.usada !== null) problems.push(`[${lab}] ${reg}: em movimento reduzido a região ficou viva (${v.usada})`); continue }
+          if (!v.usada || !v.usada.startsWith(reg + '|')) problems.push(`[${lab}] ${reg}: a região não ficou viva na corrida (${v.usada})`)
+          else if (!(v.porQuadro <= 1.5 * TETO_REG)) problems.push(`[${lab}] ${reg}: ambiente ${v.porQuadro} ms por quadro, acima de 1,5 × o teto ${TETO_REG}`)
+        }
+      } catch (e) {
+        problems.push(`[${lab}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
     }
   }
 
@@ -6320,8 +6520,15 @@ try {
         const q = dadoAtual()
         if (q >= 0 && w.porDado[q].painel === null && w.porDado[q].painelAntes !== null && painel.textContent !== w.porDado[q].painelAntes) w.porDado[q].painel = s.simT
       }).observe(painel, { childList: true, subtree: true, characterData: true })
+      // Regra 8 (e) da integração: a virada de clima não monta nada no meio da corrida (o cache dos moldes não cresce
+      // depois do 1º quadro) e a paleta passa pelos degraus do meio (climaCor: sol → nublado → chuva)
+      w.cache0 = null; w.cacheMax = 0; w.cores = []
       const tick = () => {
         if (!window.__galope.race) return
+        const cm = window.Sprites._cacheMoldes(), cc = FX._stats.climaCor
+        if (w.cache0 === null && s.phase !== 'contagem') w.cache0 = cm
+        if (w.cache0 !== null) w.cacheMax = Math.max(w.cacheMax, cm)
+        if (cc && cc !== w.cores[w.cores.length - 1]) w.cores.push(cc)
         if (s.phase !== 'contagem') {
           const t = s.simT, ativo = itens.find((d) => t >= d.t0 && t < d.t1) || null, baixa = tela.classList.contains('tela--baixa')
           const rev = !!ativo && t >= w.porDado[itens.indexOf(ativo)].revela - 1e-6 * ativo.escala, mostrado = rev ? ativo : null
@@ -6375,6 +6582,13 @@ try {
         revela: +p.revela.toFixed(2), primeiroNumero: p.primeiro === null ? null : +p.primeiro.toFixed(2), linhas: p.linhas,
         narracao: { dado: p.feedDado, clima: p.feedClima, anuncio: p.anuncio, painel: p.painel, changed: p.changed },
         climaPista: { de: p.climaAntes, para: p.climaDepois, girando: p.climaGirando, revelado: p.climaRevelado } })) }
+      notes[label + '-dado'].clima = { cache0: w.cache0, cacheMax: w.cacheMax, cores: w.cores }
+      if (w.cacheMax > w.cache0) problems.push(`[${label}] virada de clima: o cache dos moldes cresceu na corrida (${w.cache0} → ${w.cacheMax}); o clima não foi pré-assado`)
+      const ESCADA = ['nevoa', 'sol', 'nublado', 'chuva']
+      for (let i = 1; i < w.cores.length; i++) {
+        const salto = Math.abs(ESCADA.indexOf(w.cores[i]) - ESCADA.indexOf(w.cores[i - 1]))
+        if (!w.red && salto > 1) problems.push(`[${label}] virada de clima: a paleta pulou de ${w.cores[i - 1]} para ${w.cores[i]} sem o degrau do meio (${w.cores.join(' → ')})`)
+      }
       if (w.porDado.length < 2) problems.push(`[${label}] Dado: a corrida tem ${w.porDado.length} Dados (esperado 2)`)
       w.porDado.forEach((p, q) => {
         if (!p.antes || p.durante < 5 || !p.depois) problems.push(`[${label}] Dado ${q + 1}: quadros antes/durante/depois ${p.antes}/${p.durante}/${p.depois} (esperado todos vistos)`)
@@ -9537,8 +9751,11 @@ try {
           else if (!dela.some((d) => d.porte === e.porte)) problems.push(`${onde}: ${fn} de ${e.chave} com porte ${[...new Set(dela.map((d) => d.porte))].join(',')} (esperado ${e.porte})`)
         }
       }
-      const prep = reg.prepararCavalo.map((d) => d.porte).sort().join(','), espPrep = esperados.map((e) => e.porte).sort().join(',')
-      if (prep !== espPrep) problems.push(`${onde}: prepararCavalo com os portes ${prep || '(nenhum)'} (esperado ${espPrep})`)
+      // (uma vez por corredor em cada clima que a corrida mostra: a LUT do clima é pré-assada na largada, Regra 8)
+      const nPrep = reg.prepararCavalo.length, k = esperados.length ? Math.round(nPrep / esperados.length) : 0
+      const prep = reg.prepararCavalo.map((d) => d.porte).sort().join(',')
+      const espPrep = [].concat(...Array.from({ length: Math.max(1, k) }, () => esperados.map((e) => e.porte))).sort().join(',')
+      if (!k || nPrep !== k * esperados.length || prep !== espPrep) problems.push(`${onde}: prepararCavalo com os portes ${prep || '(nenhum)'} (esperado ${esperados.map((e) => e.porte).sort().join(',')}, uma vez por clima)`)
       const pares = [...new Set(reg.anchorsFor.map((d) => d.element + '|' + d.porte))].sort().join(' ')
       const espPares = [...new Set(esperados.map((e) => e.element + '|' + e.porte))].sort().join(' ')
       if (pares !== espPares) problems.push(`${onde}: anchorsFor com ${pares || '(nenhum)'} (esperado ${espPares})`)
@@ -13670,7 +13887,7 @@ try {
   // O artefato do claude.ai não repassa ?dev=1: o jogo-dev.html liga o modo DEV sozinho (window.__GALOPE_DEV), com o
   // save de teste e um aviso no lugar de "Voltar ao jogo real". O jogo.html sem query não tem nada do DEV.
   if (quer('fluxo-build-teste')) {
-    const jd = await newPage(browser, { width: 390, height: 844 }, 'jogo-dev', { pagina: 'jogo-dev.html' })
+    const jd = await newPage(browser, { width: 390, height: 844 }, 'jogo-dev', { pagina: 'jogo-dev.html', vivo: true })   // (vivo: sem query nenhuma, nem o quadro das capturas)
     try {
       await jd.waitForSelector('#t-estabulo', { timeout: 5000 })   // perfil DEV novo: Brasa, sem a escolha inicial
       if (((await jd.locator('.dev-faixa').textContent()) || '').trim() !== 'MODO DEV — save de teste') problems.push('jogo-dev: sem a faixa "MODO DEV — save de teste"')
@@ -13684,7 +13901,7 @@ try {
       problems.push('jogo-dev: ' + e.message)
     }
     await jd.context().close()
-    const jr = await newPage(browser, { width: 390, height: 844 }, 'jogo', { pagina: 'jogo.html' })
+    const jr = await newPage(browser, { width: 390, height: 844 }, 'jogo', { pagina: 'jogo.html', vivo: true })
     try {
       await jr.waitForSelector('.inicial', { timeout: 5000 })
       if ((await jr.locator('.dev-painel, .dev-faixa, .dev-botao').count()) !== 0) problems.push('jogo: modo DEV no jogo.html sem query')
@@ -14275,7 +14492,9 @@ try {
       // a trilha da Fornalha como ela abre: a 390×844 a etapa próxima (Sargento Candeeiro) já cabe inteira, então fica no topo
       await pg.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click()
       await pg.waitForSelector('#t-ginasio')
-      await sleep(300)
+      // a ida é uma viagem (zoom e íris, plano do mapa A4): a captura espera ela terminar e a tela rolar até a etapa próxima
+      await pg.waitForFunction(() => { const c = document.querySelector('canvas[data-mapa]'); return c && c.getAttribute('data-viagem') === '' }, null, { timeout: 3000 }).catch(() => {})
+      await sleep(400)
       const prox = await pg.locator('#tela .etapa--proxima .etapa-nome').textContent()
       if (prox !== G.GYMS.fogo.etapas[2].nome) problems.push(`${label}: a etapa próxima da trilha é "${prox}"`)
       await checkOverflow(pg, label + '-trilha')
@@ -14301,6 +14520,12 @@ try {
       await pg.waitForSelector('#t-desafio', { timeout: 6000 })
       await pg.waitForFunction(GIN_CENA_CORES + ' > 12', null, { timeout: 3000 }).catch(() => problems.push(`${label}: a cena do desafio sem o oponente`))
       await checkOverflow(pg, label + '-cena')
+      // a cena nova (plano do mapa B4): o custo de desenho por quadro (Chromium sem placa de vídeo; régua de 1,2 ms)
+      await pg.waitForSelector('#tela .gin-cena-tela[data-ms]', { timeout: 4000 }).catch(() => problems.push(`${label}: a cena não mediu o desenho`))
+      await sleep(1500)
+      const msCena = Number(await pg.locator('#tela .gin-cena-tela').getAttribute('data-ms'))
+      console.log(`  ${label}: desenho da cena de desafio ${msCena.toFixed(3)} ms por quadro`)
+      if (!(msCena < 1.2)) problems.push(`${label}: a cena de desafio custa ${msCena} ms por quadro (régua: 1,2 ms)`)
       await pg.screenshot({ path: join(SHOTS, 'final-26b-cena-desafio.png') })
       // o 1º duelo (Maré com vantagem contra a Brasa do Sargento; a chegada é colada) no meio da corrida, em x2
       await pg.locator('#tela [data-acao="ginasio-comecar"]').click()
@@ -14321,6 +14546,96 @@ try {
       await pg.evaluate(() => window.scrollTo(0, 0)); await sleep(300)
       await checkOverflow(pg, label + '-resumo')
       await pg.screenshot({ path: join(SHOTS, 'final-28-resumo.png') })
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    } finally {
+      await pg.context().close()
+    }
+  }
+
+  // ---------------- o mapa-múndi da aba Expedição (spec 2026-11-24-mapa-ginasios §3.1, plano A3): desenhado sobre o
+  // progresso do save (Fornalha com 2 etapas, Remanso com a insígnia e a revanche livre, Capoeira do zero), a descrição
+  // para o leitor de tela com o estado dos três, os cartões continuam, tocar num ginásio do mapa abre a trilha dele (o mesmo
+  // caminho do cartão), nada rola de lado a 360 px e o custo de desenho por quadro medido. O teto da spec (0,35 ms num
+  // computador) foi medido na amostra a 60 q/s; aqui o laço do jogo desenha a ~14 q/s (cada quadro junta o ciclo de cor e a
+  // névoa de vários) e o Chromium de teste não tem placa de vídeo: ~0,9 ms por quadro em 2026-11-24, régua de 1,2 ms
+  if (quer('expedicao-mapa')) {
+    const label = 'expedicao-mapa'
+    const save = ginT6Save({ ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 }, agua: { etapa: 5, revDia: null, revVitorias: 0 } }) })
+    const pg = await ginAbre(label, { save, chave: GIN_REAL, pagina: 'preview.html', vp: { width: 360, height: 780 } })
+    try {
+      // voltar da trilha para o mapa: com animação, a viagem de volta termina (data-viagem vazio) antes do próximo toque
+      const volta = async () => {
+        await pg.locator('#tela [data-acao="ginasio-voltar"]').click()
+        await pg.waitForSelector('#t-expedicao')
+        await pg.waitForFunction(() => { const c = document.querySelector('canvas[data-mapa-mundo]'); return !c || !c.getAttribute('data-viagem') }, null, { timeout: 3000 })
+          .catch(() => problems.push(`${label}: a viagem de volta não terminou`))
+        await sleep(100)
+      }
+      const abreAba = async () => { await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao') }
+      await abreAba()
+      await pg.waitForSelector('canvas[data-mapa-mundo][data-ms]', { timeout: 6000 }).catch(() => problems.push(`${label}: o mapa-múndi não foi desenhado`))
+      const info = await pg.locator('canvas[data-mapa-mundo]').evaluate((c) => ({ aria: c.getAttribute('aria-label'), arte: c.getAttribute('data-arte'), cartoes: document.querySelectorAll('#tela .ginasio-cartao').length }))
+      if (!info.aria.includes(G.GYMS.agua.name + ': 5 de 5 vencidos, revanche hoje') || !info.aria.includes(G.GYMS.fogo.name + ': 2 de 5 vencidos')) problems.push(`${label}: a descrição do mapa "${info.aria}"`)
+      if (info.cartoes !== 3) problems.push(`${label}: ${info.cartoes} cartões de ginásio embaixo do mapa`)
+      await checkOverflow(pg, label)
+      // o custo: a média móvel do desenho (data-ms), depois de alguns segundos de animação
+      await sleep(3000)
+      const ms = Number(await pg.locator('canvas[data-mapa-mundo]').getAttribute('data-ms')), mc = Number(await pg.locator('canvas[data-mapa-mundo]').getAttribute('data-ms-copia'))
+      console.log(`  ${label}: desenho do mapa-múndi ${ms.toFixed(3)} ms por quadro (+ ${mc.toFixed(3)} ms da cópia ampliada)`)
+      if (!(ms < 1.2)) problems.push(`${label}: o mapa-múndi custa ${ms} ms por quadro (régua: 1,2 ms sem placa de vídeo)`)
+      // tocar num ginásio do mapa (o centro do objeto, em pixels de arte) abre a trilha dele
+      const toca = async (x, y) => {
+        const r = await pg.locator('canvas[data-mapa-mundo]').evaluate((c) => { const b = c.getBoundingClientRect(); return { l: b.left, t: b.top, w: b.width, h: b.height, W: Number(c.getAttribute('data-arte').split('x')[0]) } })
+        const ox = Math.floor((256 - r.W) / 2)
+        await pg.mouse.click(r.l + (x - ox + 0.5) / r.W * r.w, r.t + (y + 0.5) / 384 * r.h)
+      }
+      for (const id of ['agua', 'fogo']) {
+        await pg.locator('canvas[data-mapa-mundo]').scrollIntoViewIfNeeded()
+        const pos = await pg.evaluate((el) => window.Mapa.POS[el], id)
+        await toca(pos[0], pos[1])
+        if (id === 'agua') {   // a ida é uma viagem: o mapa mostra data-viagem="entra"; um 2º toque no meio dela não abre outro ginásio
+          const viu = await pg.waitForSelector('canvas[data-mapa-mundo][data-viagem="entra"]', { timeout: 1000 }).then(() => true, () => false)
+          if (!viu) problems.push(`${label}: tocar no mapa não começou a viagem`)
+          // quadros da ida, para conferir (fora das capturas oficiais): zoom com a íris fechando e a íris abrindo na trilha
+          for (const [n, ms] of [[1, 220], [2, 420]]) { await sleep(ms === 220 ? 150 : 200); await pg.screenshot({ path: join(SHOTS, `viagem-entra-${n}.png`) }) }
+          await pg.locator('#tela [data-acao="ginasio-abrir"][data-id="grama"]').click({ force: true }).catch(() => {})
+          await sleep(250); await pg.screenshot({ path: join(SHOTS, 'viagem-entra-3.png') })
+        }
+        await pg.waitForSelector('#t-ginasio', { timeout: 3000 }).catch(() => {})
+        const t = await pg.locator('#t-ginasio').textContent().catch(() => null)
+        if (t !== G.GYMS[id].name) problems.push(`${label}: tocar em ${id} no mapa abriu "${t}"`)
+        // a trilha nova (plano A5): desenhada, com o cavalo ativo, e a captura do canvas inteiro para conferir
+        await pg.waitForSelector('canvas[data-mapa][data-ms]', { timeout: 6000 }).catch(() => problems.push(`${label}: a trilha de ${id} não foi desenhada`))
+        await sleep(600)
+        await pg.locator('canvas[data-mapa]').screenshot({ path: join(SHOTS, `mapa-trilha-${id}.png`) })
+        await volta()
+      }
+      // depois de vencer (o save em memória passa a etapa da Fornalha de 2 para 3): ao abrir a trilha de novo, a pista se
+      // pinta até o Tenente e o cavalo trota (data-anda 1), e termina parada (data-anda 0); com movimento reduzido, pronta
+      const abreFogo = async () => {
+        await pg.locator('#tela [data-acao="ginasio-abrir"][data-id="fogo"]').click(); await pg.waitForSelector('#t-ginasio')
+        await pg.waitForSelector('canvas[data-mapa][data-anda]', { timeout: 6000 })
+      }
+      await pg.evaluate(() => { window.__galope.state.ginasios.fogo.etapa = 3 })
+      await abreFogo()
+      const andou = await pg.waitForFunction(() => document.querySelector('canvas[data-mapa]').getAttribute('data-anda') === '1', null, { timeout: 2000 }).then(() => true, () => false)
+      if (!andou) problems.push(`${label}: depois de vencer, a trilha não animou a pista nem o trote`)
+      const parou = await pg.waitForFunction(() => document.querySelector('canvas[data-mapa]').getAttribute('data-anda') === '0', null, { timeout: 6000 }).then(() => true, () => false)
+      if (!parou) problems.push(`${label}: a animação da trilha não terminou em 6 s`)
+      await pg.locator('canvas[data-mapa]').screenshot({ path: join(SHOTS, 'mapa-trilha-fogo-depois.png') })
+      await volta()
+      await pg.emulateMedia({ reducedMotion: 'reduce' })
+      await pg.evaluate(() => { window.__galope.state.ginasios.fogo.etapa = 4 })
+      await abreFogo()
+      await sleep(400)
+      if ((await pg.locator('canvas[data-mapa]').getAttribute('data-anda')) !== '0') problems.push(`${label}: com movimento reduzido a trilha animou`)
+      await volta()
+      await pg.emulateMedia({ reducedMotion: 'no-preference' })
+      // fora dos ginásios (o mar no canto) não abre nada
+      await toca(130, 380)
+      await sleep(200)
+      if (!(await pg.locator('#t-expedicao').count())) problems.push(`${label}: tocar no mar abriu outra tela`)
     } catch (e) {
       problems.push(`[${label}] ` + e.message)
     } finally {
@@ -14548,7 +14863,7 @@ try {
       await mc.evaluate(() => {
         const m = window.__mcache = { max: 0, frames: 0 }
         const tick = () => {
-          if (window.__galope.ui.screen === 'corrida') { m.frames++; m.max = Math.max(m.max, window.Sprites._cacheMoldes()) }
+          if (window.__galope.ui.screen === 'corrida') { const c = window.Sprites._cacheMoldes(); if (!m.frames) m.primeiro = c; m.frames++; m.max = Math.max(m.max, c) }
           requestAnimationFrame(tick)
         }
         requestAnimationFrame(tick)
@@ -14557,10 +14872,14 @@ try {
       await mc.waitForSelector('#pista')
       await mc.getByRole('button', { name: 'x2' }).click()
       await mc.waitForSelector('#t-resultado', { timeout: 120000 })
-      const cache = await mc.evaluate(() => ({ max: window.__mcache.max, frames: window.__mcache.frames, resultado: window.Sprites._cacheMoldes() }))
+      const cache = await mc.evaluate(() => ({ max: window.__mcache.max, primeiro: window.__mcache.primeiro, frames: window.__mcache.frames, resultado: window.Sprites._cacheMoldes(),
+        climas: window.__galope.ui.lobby.sim.events.filter((e) => e.type === 'clima').map((e) => e.weather) }))
       notes.moldesCache = { seed: SEED8, n, ...cache }
       if (!(cache.max > 0)) problems.push('moldes-cache: a corrida não desenhou nenhum molde ' + JSON.stringify(cache))
-      if (cache.max > 240) problems.push('moldes-cache: ' + cache.max + ' entradas no cache depois de uma corrida de 8 (teto 240)')
+      // a LUT de cada clima da corrida (e os degraus da virada) é pré-assada na largada (guia de integração, Regra 8 (e)):
+      // depois do 1º quadro, nada novo entra no cache, nem na virada de clima
+      if (cache.max > cache.primeiro) problems.push('moldes-cache: o cache cresceu durante a corrida (' + cache.primeiro + ' → ' + cache.max + '): algum quadro ou clima não foi pré-assado')
+      if (cache.max > 330) problems.push('moldes-cache: ' + cache.max + ' entradas no cache depois de uma corrida de 8 (teto 330: 8 cavalos × 10 quadros × até 4 climas)')
       if (cache.resultado > 3) problems.push('moldes-cache: o cache não foi limpo ao sair da corrida (' + cache.resultado + ' entradas no resultado; só o pódio = 3)')
     } catch (e) {
       problems.push('moldes-cache: ' + e.message)

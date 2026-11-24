@@ -20,7 +20,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lerMoldes, lerIcones, lerIconesTam, lerMarca, lerTreinadores, lerArenas, lerTelas, lerRegioes, jsonJs } from './tools/arte-embutida.mjs'
+import { lerMoldes, lerIcones, lerIconesTam, lerMarca, lerTreinadores, lerArenas, lerTelas, lerRegioes, lerMapaMundo, jsonJs } from './tools/arte-embutida.mjs'
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
@@ -31,7 +31,7 @@ import { encodePng } from './tools/png.mjs'
 const ROOT = dirname(fileURLToPath(import.meta.url))
 const read = (p) => readFile(join(ROOT, p), 'utf8')
 
-const SCRIPTS = ['src/data.js', 'src/sim.js', 'src/breed.js', 'src/marcas.js', 'src/gear.js', 'src/itens.js', 'src/ginasio.js', 'src/afk.js', 'src/forja.js', 'src/sprites.js', 'src/fx.js', 'src/dev.js', 'src/game.js']
+const SCRIPTS = ['src/data.js', 'src/sim.js', 'src/breed.js', 'src/marcas.js', 'src/gear.js', 'src/itens.js', 'src/ginasio.js', 'src/afk.js', 'src/forja.js', 'src/luz.js', 'src/sprites.js', 'src/ambiente.js', 'src/mapa.js', 'src/fx.js', 'src/dev.js', 'src/game.js']
 const SO_DEV = ['src/dev.js']   // fora do jogo de produção
 
 // Blocos marcados (/*@dev:inicio*/ … /*@dev:fim*/, /*@teste:inicio*/ … /*@teste:fim*/): confere o balanço (sem
@@ -82,6 +82,10 @@ const arteJs = [
   `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
   `window.__ARENAS = ${jsonJs(await lerArenas(ROOT))};`,
   `window.__TELAS = ${jsonJs(await lerTelas(ROOT))};`,
+  // o manifesto da animação ambiente (prototype/assets/arte/animacao.json: peças, rampas e pontos por imagem)
+  `window.__ANIM_MANIFESTO = ${jsonJs(JSON.parse(await readFile(join(ROOT, 'assets', 'arte', 'animacao.json'), 'utf8')))};`,
+  // o mapa-múndi da aba Expedição: a ilha e os ginásios (spec 2026-11-24-mapa-ginasios)
+  `window.__MAPA_MUNDO = ${jsonJs(await lerMapaMundo(ROOT))};`,
   // as licenças das fontes (SIL OFL 1.1): Nunito (a interface) e Galmuri (o texto da corrida) acompanham as fontes
   // embutidas; a tela de Créditos mostra o texto inteiro
   `window.__OFL = ${jsonJs('Nunito\n\n' + await read('assets/fontes/OFL-nunito.txt') + '\n\n— — —\n\nGalmuri\n\n' + await read('assets/fontes/OFL-galmuri.txt'))};`,

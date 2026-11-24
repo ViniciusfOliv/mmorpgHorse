@@ -1,0 +1,22 @@
+{
+  "assinatura": "32aabf3a290a",
+  "endpoint": "/create-image-pixflux",
+  "pedido": {
+    "description": "<601 chars>",
+    "image_size": {
+      "width": 256,
+      "height": 384
+    },
+    "view": "high top-down",
+    "outline": "lineless",
+    "shading": "detailed shading",
+    "detail": "highly detailed",
+    "init_image": {
+      "type": "base64",
+      "base64": "<80132 chars>"
+    },
+    "init_image_strength": 450,
+    "seed": 9911
+  },
+  "arquivo": "base-f450-s9911.png"
+}

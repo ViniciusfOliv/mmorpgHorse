@@ -3,7 +3,8 @@
     <h1>Teste de engine</h1>
     <p class="sub">Uma corrida no pior caso visual do lançamento, desenhada com o código do jogo: cavalos com galope e
       paletas, poeira, clima, parallax, câmera com zoom e tremida, explosões de skill, faixa de ordem e balões. Toque em
-      <b>Rodar bateria</b>, deixe a tela ligada por cerca de 1 minuto e cole o resumo no chat.</p>
+      <b>Etapa 6: rodada de 60 s</b> (o pior caso de hoje: 12 cavalos no Litoral com o ambiente vivo, chuva e ventania,
+      travado em 60 FPS), deixe a tela ligada sem tocar nem rolar por cerca de 1 minuto e cole o resumo no chat.</p>
   </header>
 
   <div class="palco" id="palco"><canvas id="tela" aria-label="Corrida de teste"></canvas></div>
@@ -23,7 +24,11 @@
   <p class="vizinhos" id="vizinhos">Largada em instantes</p>
 
   <section class="acoes">
-    <button type="button" id="b-bateria" class="primario">Rodar bateria (~83 s)</button>
+    <button type="button" id="b-etapa6" class="primario">Etapa 6: rodada de 60 s</button>
+    <button type="button" id="b-etapa6l">Etapa 6 sem trava (120 Hz)</button>
+    <button type="button" id="b-subidas">Subidas (~85 s)</button>
+    <button type="button" id="b-diag">Diagnóstico (~80 s)</button>
+    <button type="button" id="b-bateria">Rodar bateria (~83 s)</button>
     <button type="button" id="b-livre">Rodada livre (60 s)</button>
     <span class="estado" id="estado" role="status">Modo livre: mexa nas camadas abaixo.</span>
   </section>
@@ -53,10 +58,17 @@
         <button type="button" data-v="ciclo">ciclo</button><button type="button" data-v="sol">sol</button><button type="button" data-v="chuva">chuva</button><button type="button" data-v="nevoa">névoa</button><button type="button" data-v="nublado">nublado</button>
       </div>
     </div>
+    <div class="grupo">
+      <span class="g-r">Região</span>
+      <div class="seg" data-grupo="regiao">
+        <button type="button" data-v="litoral">Litoral</button><button type="button" data-v="planalto">Planalto</button><button type="button" data-v="varzea">Várzea</button><button type="button" data-v="cerrado">Cerrado</button><button type="button" data-v="sertao">Sertão</button><button type="button" data-v="nenhuma">Por código</button>
+      </div>
+    </div>
     <div class="grupo grupo--camadas">
       <span class="g-r">Camadas</span>
       <div class="liga" data-grupo="camadas">
         <button type="button" data-v="cenario">Cenário</button>
+        <button type="button" data-v="ambiente">Ambiente vivo</button>
         <button type="button" data-v="parallax">Parallax extra</button>
         <button type="button" data-v="clima">Clima</button>
         <button type="button" data-v="poeira">Poeira</button>

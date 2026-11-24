@@ -38,7 +38,7 @@ lançamento: `docs/cronograma.md`.
 | Gerar o jogo e o wiki (`prototype/dist/`, `docs/wiki.md`) | `node prototype/build.mjs` | 1 s |
 | Testes unitários da simulação | `node prototype/tools/sim-test.js` | 3 s |
 | Testes do treino AFK e da forja | `node prototype/tools/afk-test.js` | 12 s |
-| Testes dos efeitos da corrida (dados, skills, clima, vento, curvas) | `node prototype/tools/fx-test.js` | 2 s |
+| Testes dos efeitos da corrida (dados, skills, clima, vento, curvas, ambiente) e do desenho do mapa dos ginásios | `node prototype/tools/fx-test.js` / `node prototype/tools/mapa-test.js` | 5 s / <1 s |
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~45 s |

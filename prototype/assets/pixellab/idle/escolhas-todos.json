@@ -1,0 +1,266 @@
+{
+  "esguio-lisa": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "esguio-chamas": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "esguio-ondas": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "esguio-folhas": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "padrao-lisa": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "padrao-chamas": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "padrao-ondas": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "padrao-folhas": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "robusto-lisa": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "robusto-chamas": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "robusto-ondas": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  },
+  "robusto-folhas": {
+    "comer": {
+      "seed": 8102,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8102,
+          0
+        ]
+      ]
+    },
+    "cavar": {
+      "seed": 8111,
+      "soltos": 0,
+      "tentativas": [
+        [
+          8111,
+          0
+        ]
+      ]
+    }
+  }
+}

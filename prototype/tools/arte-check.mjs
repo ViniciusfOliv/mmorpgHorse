@@ -29,5 +29,89 @@ for (const [r, reg] of Object.entries(manifesto)) {
     else console.log(`  ok  ${r}/${camada} ${img.width}×${img.height}${e.emenda ? `, emenda ${c.emenda.toFixed(2)}` : ''}`);
   }
 }
-console.log(`\n${n} camadas de arte conferidas, ${falhas} falhas`);
+console.log(`\n${n} camadas de arte conferidas`);
+
+// Catraca do alfa parcial (guia de integração docs/arte/integracao.md, Regra 2a): cada fonte de alfa parcial no código de
+// desenho — rgba/hsla com alfa entre 0 e 1 (literal ou montado), globalAlpha diferente de 0 e 1 (restaurar o anterior não
+// conta), #rrggbbaa, ctx.filter, gradiente, suavização ligada — conta. O teto por arquivo só pode DIMINUIR: ao migrar
+// uma fonte para cor opaca, baixe o número aqui (o teste falha até baixar, para a folga não ser reaproveitada). A única
+// exceção permanente é o relâmpago (guia §3: o clarão da tela, fx.js).
+// Ponto de partida (2026-11-24, depois de sair a sombra translúcida dos cavalos): o guia contou 23, 24 e 5 com outro
+// critério (lá as restaurações do globalAlpha contavam; aqui, os tokens de cor da interface em game.js contam).
+const CATRACA_ALFA = { 'fx.js': 20, 'sprites.js': 12, 'game.js': 6 };
+const FONTES_ALFA = [
+  /\b(rgba|hsla)\(\s*[^)]*?,\s*0?\.\d+\s*\)/g,
+  /['"](rgba|hsla)\(['"]\s*\+/g,
+  /globalAlpha\s*[*+-]?=(?!=)\s*(?!\s|(0|1|prev|a0)\s*[;,)])/g,
+  /['"]#[0-9a-fA-F]{8}['"]/g,
+  /\.filter\s*=/g,
+  /create(Linear|Radial|Conic)Gradient/g,
+  /imageSmoothingEnabled\s*=\s*true/g
+];
+export function contaAlfaParcial(texto) {
+  let k = 0;
+  for (const l of texto.split('\n')) {
+    if (/^\s*(\/\/|\*)/.test(l)) continue;
+    for (const re of FONTES_ALFA) { re.lastIndex = 0; k += (l.match(re) || []).length; }
+  }
+  return k;
+}
+const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
+for (const [f, teto] of Object.entries(CATRACA_ALFA)) {
+  const k = contaAlfaParcial(fs.readFileSync(path.join(SRC, f), 'utf8'));
+  if (k > teto) { falhas++; console.log(`  FALHA alfa parcial em ${f}: ${k} fontes (teto ${teto}); use cor opaca da rampa (Luz.degrau)`); }
+  else if (k < teto) { falhas++; console.log(`  FALHA catraca do alfa: ${f} caiu para ${k} fontes; baixe o teto de ${teto} para ${k} em arte-check.mjs`); }
+  else console.log(`  ok  alfa parcial em ${f}: ${k} fontes (catraca)`);
+}
+
+// Leitura por valor (guia de integração, Regra 14): para cada piso de corrida (na arte da região) e clima, a menor
+// diferença de claridade L* entre o corpo das pelagens dos elementos (na LUT de figura) e o chão das raias (na LUT do
+// clima, com o degrau que a tabela da cena escolheu). Na escada sol → nublado → chuva o chão nunca clareia. Cada degrau
+// escolhido é o melhor dos permitidos e, quando um permitido alcança Luz.LEITURA_MIN, pelo menos isso.
+{
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url), SP = req('../src/sprites.js'), LZ = req('../src/luz.js');
+  const pel = Object.values(SP.PALETTES).map((p) => SP.naMestra(p.coat.toLowerCase()));
+  const linhas = [];
+  for (const piso of ['grama', 'terra', 'areia']) {
+    const base = SP.naMestra({ grama: '#239063', terra: '#cd683d', areia: '#fbb954' }[piso]);
+    const minC = (p, cl) => { const ch = LZ.lutCondicao(cl)[LZ.degrau(base, p)]; return { m: Math.min(...pel.map((c) => Math.abs(LZ.claridade(LZ.lutFigura(cl)[c] || c) - LZ.claridade(ch)))), l: LZ.claridade(ch) }; };
+    let teto = Infinity; const partes = [];
+    for (const cl of ['sol', 'nublado', 'chuva', 'nevoa']) {
+      if (cl === 'nevoa') teto = Infinity;
+      const passo = SP.passoLeitura(piso, cl), tem = minC(passo, cl);
+      const perm = [-1, 0, 1].map((p) => minC(p, cl)).filter((o) => o.l <= teto + 1e-9), melhor = Math.max(...perm.map((o) => o.m));
+      if (tem.l > teto + 1e-9) { falhas++; console.log(`  FALHA leitura ${piso}/${cl}: o chão clareou em relação ao clima anterior`); }
+      if (tem.m < melhor - 0.51) { falhas++; console.log(`  FALHA leitura ${piso}/${cl}: degrau ${passo} dá ${tem.m.toFixed(1)} de L*, outro permitido dá ${melhor.toFixed(1)}`); }
+      else if (melhor >= LZ.LEITURA_MIN && tem.m < LZ.LEITURA_MIN) { falhas++; console.log(`  FALHA leitura ${piso}/${cl}: ${tem.m.toFixed(1)} de L* (mínimo ${LZ.LEITURA_MIN})`); }
+      partes.push(`${cl} ${passo >= 0 ? '+' : ''}${passo} ${tem.m.toFixed(1)}`);
+      teto = tem.l;
+    }
+    linhas.push(`${piso}: ${partes.join(', ')}`);
+  }
+  console.log(`  ok  leitura por valor (degrau do piso e menor diferença de L*): ${linhas.join(' · ')}`);
+}
+
+// Manifesto da animação ambiente (prototype/assets/arte/animacao.json; etapa 1): toda imagem que o motor
+// (prototype/src/ambiente.js) usa tem entrada, e toda cor do manifesto (rampas, cores das peças, contorno) é da
+// Resurrect 64
+{
+  const { createRequire } = await import('node:module');
+  const LZ = createRequire(import.meta.url)('../src/luz.js');
+  const R64 = new Set([].concat(...Object.values(LZ.RAMPAS)).map((h) => h.replace('#', '')));
+  const MAN = JSON.parse(fs.readFileSync(path.join(DIR, 'animacao.json'), 'utf8'));
+  const motor = fs.readFileSync(path.join(SRC, 'ambiente.js'), 'utf8');
+  const usadas = [...new Set([...motor.matchAll(/IMG\['([^']+)'\]/g)].map((m) => m[1]))];
+  const sem = usadas.filter((n) => !MAN.imagens[n]);
+  if (sem.length) { falhas++; console.log(`  FALHA manifesto da animação: sem entrada para ${sem.join(', ')}`); }
+  const fora = [];
+  (function varre(o, onde) {
+    if (Array.isArray(o)) o.forEach((v, i) => varre(v, onde));
+    else if (o && typeof o === 'object') Object.entries(o).forEach(([k, v]) => varre(v, onde + '.' + k));
+    else if (typeof o === 'string' && /^[0-9a-f]{6}$/.test(o) && !R64.has(o)) fora.push(onde + ': ' + o);
+  })(MAN.imagens, 'imagens');
+  if (fora.length) { falhas++; console.log(`  FALHA manifesto da animação: cores fora da Resurrect 64: ${fora.slice(0, 5).join('; ')}`); }
+  if (!sem.length && !fora.length) console.log(`  ok  manifesto da animação: ${usadas.length} imagens do motor com entrada, cores na Resurrect 64`);
+}
+console.log(`${falhas} falhas`);
 process.exit(falhas ? 1 : 0);

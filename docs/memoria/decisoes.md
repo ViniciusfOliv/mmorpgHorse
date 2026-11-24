@@ -44,6 +44,117 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   são nossas (`docs/arte/guia.md`). Pede cavalos em vista de costas e 3/4 de frente: amostra com 1 molde primeiro, com
   confirmação de créditos. Fica com a frente dos ginásios (`claude/mapa-ginasios`).
 
+## 2026-11-24 — Animação ambiente e mapa dos ginásios na `main`
+- Avanço direto para 77ba27e4 depois do `check.sh` completo da coordenação; o bloco de custo da cena de desafio
+  (`fluxo-capturas-ginasio`) roda na fase em série do teste de interface, com a régua de 1,2 ms mantida (medir tempo com
+  4 processos em paralelo é ruído).
+
+## 2026-11-23 — Animação ambiente, amostra (entrega 1)
+- **Animação ambiente por código primeiro, PixelLab só onde o código não fica natural** — ciclo de cor (mar, rio, lava,
+  brilhos), deformação por pixel inteiro (capim, folhas, placas, torcida) e partículas na paleta custam zero de arte e
+  cabem no orçamento; comer e cavar (a cabeça até o chão, a pata no ar) ficam para o piloto pago, que espera confirmação.
+- **Um vento cosmético só, com rajadas que atravessam a cena da esquerda para a direita** — capim, coqueiros,
+  bandeirolas, biruta, placa e poeira reagem à mesma função, em ordem: o movimento parece um vento, não vários loops.
+- **No máximo uma atualização pesada por quadro (agenda) e imagem achatada composta num tique de 12 q/s** — o pico do
+  quadro fica no custo de uma só (de 6,8 ms para ≤ 0,8 ms no contêiner); 1–2 quadros de atraso não se veem.
+- **Idle do cavalo montado do mapa de papéis do molde** — respiração (barriga 1 px), piscar, cauda, orelha e cabeça
+  saem das âncoras e dos papéis, para qualquer pelagem; o olho precisa virar âncora no JSON de cada molde (a busca
+  automática não separa o olho das linhas da cara do robusto-folhas).
+- **Na Fornalha, o pico da esquerda vira vulcão por código** (cratera, fios de lava, fumaça, bombas) — a arena gerada
+  não tem vulcão; dá para desligar e comparar, e o `/v2/vfx` fica de reserva se o Vinicius não gostar.
+- **Integração do personagem antes de animar mais coisa** (pedido da coordenação, guia `docs/arte/integracao.md`,
+  2026-11-24) — o plano ganhou a etapa 0 com os P1 só de código; as etapas de animação vêm depois.
+- **Pelagem em 4 tons por sombreado de código, não pelos crus** (2026-11-24) — medido: os crus dos moldes têm quase só
+  2 tons de pelagem (vermelho claro e escuro) e os quadros do idle vêm planos; o sombreado pela silhueta e pela luz de
+  cima e da esquerda é o mesmo em todos os quadros, e eles batem entre si.
+- **Cata-vento do Planalto: fundo pelo PixelLab, rotor por código** (2026-11-24) — as pás pintadas eram assimétricas
+  (6 braços) e não ficariam bonitas girando; o `/inpaint` (1 geração; o Pro custaria 10–20) refez o fundo depois que a
+  entrada veio sem as pás (com elas, o modelo as repintava), e o rotor de treliça é rasterizado na grade em 24 ângulos.
+- **Sombra de contato feita do próprio chão** (um degrau mais escuro da cor que está sob os cascos, miolo dois degraus,
+  borda em pontilhado, 2 px para a direita) — o primeiro passo para o personagem não parecer colado por cima do fundo.
+- **"Mais movimento" é a versão do jogo, com a vegetação e a água mexendo sempre** (Vinicius, 2ª rodada, 2026-11-23) —
+  substitui a decisão anterior (atual como principal); a anterior fica só na amostra para comparar.
+- **No comer do PixelLab, os fiapos de capim soltos da boca são apagados por código** (peças desconectadas do corpo de
+  até 60 px) — as refações com outras seeds não resolveram e gastariam além do teto; o corpo é sempre a maior peça.
+- **Pré-assar os loops periódicos (coqueiros, copas, capim, bandeiras, torcida) no início da tela** — em tempo real o
+  Litoral fica no limite do orçamento (≈ 2 ms no celular médio); com os quadros prontos, o custo vira um `drawImage`.
+- **A versão atual é a principal; a "mais movimento" fica como opção para comparar** (Vinicius, 2026-11-23; trocada
+  pela de cima na 2ª rodada) — as duas na mesma página com um seletor por cena, ambas no orçamento.
+- **Comer e cavar dos cavalos pelo PixelLab, o resto do idle por código** (piloto de 6 gerações, 2026-11-23) — o
+  `animate-with-text-v3` a partir do molde em cores de papel baixa a cabeça até o capim e pateia de forma natural, e os
+  quadros voltam aos papéis (servem a qualquer pelagem); piscar, cauda, orelha, respiração e aceno o código já faz.
+- **Na amostra do Litoral a arquibancada fica mais à direita (168 em vez de 60)** — na largada ela cobre o mar; só na
+  amostra, para o mar e o farol aparecerem nas duas versões.
+
+## 2026-11-24 — Cena de desafio, comparação de ferramentas
+- **Recomendação: Meshy 3D para as vistas de frente e de costas** — um modelo 3D por cavalo dá todas as vistas com o
+  mesmo traço (o "padrão só" que o Vinicius pediu), renderizado já no tamanho final e passado pelo nosso pós-processo;
+  o PixelLab não virou a pose (generate-with-style-v2) e o template horse saiu com outro traço. Falta subir o contraste
+  de valor contra o chão (Regra 14) e decidir se o molde de lado da corrida também vem do 3D.
+- **Inpaint do PixelLab no chão ajuda pouco** (terra escura que parece buraco); o contato por código fica.
+- **Canva só como referência de fundo**: o conector devolve prévias; o tamanho cheio exige exportar no Canva.
+
+## 2026-11-24 — Mapa dos ginásios, bloco A (implementação)
+- O ciclo de cor do mapa-múndi a 8 passos/s e a névoa a 3 passos/s (por bloco de 2 × 2). · No laço do jogo (~14 q/s) cada
+  quadro juntava o trabalho de vários; assim o desenho cai de ~1,4 para ~0,9 ms sem placa de vídeo, sem perda visível.
+- A viagem troca de tela por relógio; um toque antes da troca é ignorado e, depois dela, acaba a animação e segue. · Não
+  depende de o canvas estar visível e não prende o jogador na íris.
+- A trilha lembra, na sessão, a última etapa que mostrou; ao voltar depois de vencer, pinta desse ponto até o novo.
+  Recarregar mostra a trilha pronta. · Nada vai para o save (spec: só desenho).
+- O ciclo de cor das trilhas saiu do código desta frente. · O fundo animado das trilhas é da frente 1 (combinado).
+
+## 2026-11-24 — Lote do Meshy: um modelo por molde, a partir dos papéis
+- Cada molde vira um modelo 3D gerado da imagem em cores puras por papel; o render devolve os papéis (formato dos moldes) e
+  o jogo recolore. · A recoloração do jogo continua valendo e o lote cai de ~360 para ~330 créditos para 11 moldes.
+- A crina sai cheia (sem pontas de folha ou chama) a ~54 px; aceito pelo Vinicius ao aprovar seguir com os 10. · O formato
+  da crina vem da malha.
+- Nos moldes, os papéis nem sempre são anatômicos (no esguio-chamas, crina e cauda usam "detalhe" e a manta usa "crina");
+  o render segue os papéis do molde, não a anatomia. · Assim a vista 3D pinta igual ao molde de lado.
+
+## 2026-11-24 — Cena de desafio, rodada 2 da comparação (versão 10)
+- Meshy 2º cavalo (Ipê robusto) aprovado e feito (30 créditos): o porte sai bem, o estilo da crina não. · Mostrar se dá para
+  ter 1 modelo 3D por porte e recolorir. · Conclusão: cor sim (com modelo feito de imagem com cores puras por papel), formato da
+  crina não; o lote de ~90 créditos só vale se o Vinicius aceitar crina com o mesmo formato por porte.
+- Fundos do Canva exportados em tamanho cheio e usados como arena na cena (botões Canva 1/2). · Comparar de verdade.
+- Gemini: a geração de imagem exige a API nativa e o cabeçalho `x-goog-api-key`; a via compatível com OpenAI recusa. ·
+  Chave fica só no segredo do ambiente, nunca no código.
+
+## 2026-11-24 — Cena de desafio, retorno à versão 5
+- **Um padrão só de cavalo**: andando ou parado, o mesmo desenho do molde (o trote é o passo de 1 px), e o oponente é o
+  próprio molde espelhado — pedido do Vinicius ("mantenha um padrão").
+- **A arena é só fundo; os jogadores pisam num piso em perspectiva** (por código, abaixo do horizonte da imagem) — ele
+  pediu os jogadores "dentro do cenário", não por cima. Pela escala inteira, a distância aparece pela posição, o corte na
+  borda e a sombra, não por tamanho.
+- **`generate-with-style-v2` não vira a pose**: o "de frente" no estilo do molde saiu de lado (10 gerações perdidas).
+
+## 2026-11-24 — Mapa dos ginásios, rodada 2 (frente 2)
+- **Ilha B, ginásios Fogo s9921, Água s9932 e Capoeira refeita s9953** (escolhas do Vinicius).
+- **Referências do Vinicius (vitrine do PixelLab) só como alvo de comparação, nunca como `style_image`** — não são
+  nossas; a âncora de estilo passa a ser a ilha B e os nossos assets aprovados.
+- **Mapa pintado é o principal; o mapa de peças fica só como exemplo** — com peças standard de 16 px, a grade aparece
+  e as rampas variam entre conjuntos (a rocha saiu verde num e laranja noutro).
+- **Cena de desafio na direção de batalha de RPG de criaturas** (pedido do Vinicius): só a convenção de layout do
+  gênero; arte e interface nossas (guia de arte). O de costas sai bem com `generate-with-style-v2` no estilo do molde; as
+  8 direções do template horse pedem frente e lado como referência (422 sem a frente), então vieram pela descrição e
+  com outro traço.
+
+## 2026-11-24 — Mapa dos ginásios, piloto pago (frente 2)
+- **Ilha pintada pelo Pixen (1 geração) e não pelo Pro (15 por imagem em 256 × 384)** — o Pixen já fez os mapas das
+  trilhas; com 1 geração por tentativa, 4 seeds cabem no teto. O Pixflux partindo do mapa por código quase não mudou a
+  imagem e fica descartado.
+- **Ginásios como objetos 64 × 64 assentados por código** (sombra de contato pela troca de paleta do chão, luz da
+  esquerda) — atende ao pedido do Vinicius de nada parecer "PNG por cima do fundo". O da Capoeira veio com a mata em
+  volta e foi recortado em oval; se for o escolhido, vale refazer.
+
+## 2026-11-24 — Mapa dos ginásios, amostra v1 (frente 2)
+- **Amostra por código primeiro, com a arte já paga nas trilhas** — o mapa-múndi não existia; desenhado por código ele
+  mostra as interações (névoa, transições, trilha) sem gastar, e as máscaras de água e lava saem exatas para o ciclo de
+  cor. A arte final do mapa-múndi pode vir de um piloto pago, só com a confirmação do Vinicius.
+- **Névoa só visual** — as três trilhas continuam abertas desde o começo (spec dos ginásios); a névoa afina a cada etapa
+  vencida e some com a insígnia.
+- **Cavalo ao lado do tablado, virado para o oponente** — 1:1 ele tem ~60 px; na pista, cobria o oponente.
+- **Transição em escala inteira (1×→2×→3×) + íris na cor do elemento**, no pixel mostrado — guia §2 (sem zoom borrado).
+
 ## 2026-11-24 — Como usar o PixelLab (pergunta do Vinicius)
 - **Produção pela API v2 com scripts versionados** (dry-run, `--gerar`, `--teto`, `--reprocessar`), com a chave
   injetada pelo proxy da sessão — não pelo MCP: cada geração fica reprodutível, com custo controlado e registrada em
@@ -1275,3 +1386,27 @@ Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, 
 - **2026-11-23 · Câmera da corrida de 4 a 12 px/m, enquadrando o jogador e os rivais a até 45 m, com a escala e o deslocamento suaves; o cenário rola pelo que a câmera andou (sem salto no zoom) · a 12 px/m fixos os cavalos saíam logo da tela e a disputa sumia. Só apresentação: a simulação não muda.**
 - **2026-11-23 · A seta de quem está fora da tela volta a mostrar os metros até o jogador ("+12 m"/"–8 m") · a etapa 2.4 tirou de propósito (guia: "sem metros"), mas sem eles não dava para saber quão longe estava a disputa; pedido do Vinicius.**
 - **2026-11-23 · O nome de autor nos créditos fica "Vinicius" · confirmado pelo Vinicius; era o último pendente dos créditos antes de publicar.**
+
+## 2026-11-24 · animação ambiente, etapa 0 (integração visual P1)
+- 2026-11-24 · Pelagem em 4 tons calculada na recoloração (`Sprites.sombreiaPelagem`, índices 16–19), sem mudar o formato dos moldes (o plano previa cinza × 17) · os 4 tons saem de sombreado por código de qualquer jeito; evita regerar e re-testar os 12 PNGs.
+- 2026-11-24 · LUT de clima por degrau de rampa (`Luz.lutCondicao`), no lugar da mistura com tinta + cor mais próxima · a antiga fundia metade dos tons (nublado 64 → 32 cores, névoa → 22); a nova funde 5 e 14 dentro das rampas.
+- 2026-11-24 · Figuras (cavalos) numa LUT mais branda que a do fundo (chuva −1 em vez de −2; névoa não muda) · em −2 o cavalo some na pista escura; a figura fica à frente e ainda escurece junto.
+- 2026-11-24 · Rampa oliva com `#313638` entre o contorno e `#4c3e24` · o castanho da Grama tinha a sombra na cor do contorno (3 tons); ganha o 4º.
+- 2026-11-24 · Leitura por valor pelo degrau do piso das raias (−1, 0, +1) escolhido por tabela, sem clarear na escada sol → nublado → chuva · é o remédio do guia que serve a todas as pelagens de uma vez; um degrau único para todos os climas piorava o sol na grama.
+- 2026-11-24 · Casco sem patinar só na gaveta DEV ("galope casado"); a cadência natural continua · casar exige ~36 q/s (a reprodução é ~2× comprimida); muda o visual do galope, então é decisão do Vinicius.
+- 2026-11-24 · Poeira e pousos medidos dos moldes na carga (`passadaDe`), não gravados no JSON · mesmo resultado, sem regerar os JSONs; testado no fx-test.
+- 2026-11-24 · Casco: opção C (meio-termo) como padrão do jogo; natural, meio e casada na gaveta DEV · escolha do Vinicius ("Prossiga", pela coordenação).
+- 2026-11-24 · Pré-assado por estado quantizado da peça (Deforma.preassado), não por quadros de tempo com vento fixo · quadros por tempo matariam a rajada que atravessa a tela e só os coqueiros passariam de 2 MB; por estado, cada peça segue o seu vento, com teto de memória.
+- 2026-11-24 · O motor (ambiente.js) entra no build do jogo só quando o jogo o usar (etapas 2–3) · evita ~60 KB sem uso no jogo.html.
+- 2026-11-24 · Olho dos moldes gravado por ferramenta própria (moldes-olho.mjs) sobre os JSONs de hoje · o --reprocessar dos portes precisa dos mestres crus (fora do repositório); o gerador já grava o olho nos próximos.
+- 2026-11-24 · Idle do jogo liga por opts.anima ('cena' com os gestos do PixelLab) só nas cenas grandes (Estábulo, desafio, largada) · o retrato pequeno não comporta a cabeça do comer, e os cards ficam leves.
+
+- 2026-11-24 · Etapa 5 antes da 4 · a coordenação mandou adiantar as regiões na corrida enquanto a spec do mapa espera o Vinicius.
+- 2026-11-24 · Região viva por região e clima, com as máscaras tiradas das cores do sol e a deformação lendo a camada já na paleta do clima · as mesmas cores da camada parada, sem trocar paleta a cada passo; o que é comum aos climas (geometria dos coqueiros, degraus do mar, rotor) fica guardado uma vez.
+- 2026-11-24 · Montagem aos poucos (um passo por tarefa, na contagem da largada); até ficar pronta, a pista usa as camadas paradas · montar tudo na largada custava 170–250 ms num quadro só.
+- 2026-11-24 · O mar do Litoral na corrida repete a cada 8 s (48 passos guardados) e os coqueiros usam estados mais grossos (8 fases) · cortou o custo do Litoral de 0,38 para 0,27 ms por quadro; o corte das ondas a cada 8 s coincide com a volta da crista.
+- 2026-11-24 · Cenário das corridas na gaveta DEV (persistente, como a cadência) · para o Vinicius ver as 5 regiões e os testes medirem cada uma; só desenho, não entra na sala.
+- 2026-11-24 · Mapas das trilhas: a cena desenha direto no buffer do mapa (sem cópia), refaz a imagem num tique de 8 q/s e a correnteza do rio é de riscos esparsos, não o rio inteiro em ciclo de cor · o ciclo no rio todo ficava artificial e custava acima do teto; assim água 0,105, fogo 0,113 e grama 0,286 ms por quadro (teto 0,35).
+- 2026-11-24 · A cena do mapa recebe a imagem e a máscara do caminho de quem chama (`{ imagem, caminho }`) · o mapa é da frente 2; com a máscara, peixe, brasas e fumaça nunca nascem em cima da trilha.
+- 2026-11-24 · Junção do mapa dos ginásios no ramo da animação: a cena do desafio é a do `mapa.js` (a arena antiga da Fornalha animada sai do motor) e os cavalos dela respiram pelo idle, não pelo balanço de 1 px da figura inteira · pedido da coordenação; o idle das vistas (respiração, piscar, orelha, crina, cauda) já existia e o balanço somado a ele dobrava o movimento.
+- 2026-11-24 · Bloco `fluxo-capturas-ginasio` na fase em série do `ui-test-paralelo` (régua de 1,2 ms mantida) · mede ms por quadro com `performance.now()`; na fila paralela passava da régua por carga (até a cena sem idle deu 1,07 com 4 processos), e a regra do próprio executor é rodar sozinho bloco de tempo medido que falha em paralelo.

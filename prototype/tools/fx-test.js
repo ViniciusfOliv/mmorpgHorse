@@ -1897,7 +1897,14 @@ function com() {
   for (var i = 0; i < arguments.length; i++) for (var k in arguments[i]) if (Object.prototype.hasOwnProperty.call(arguments[i], k)) o[k] = arguments[i][k];
   return o;
 }
-function desenhaCav(o, x, y) { var c = ctxFalso(); SPR.drawHorse(c, x == null ? 40 : x, y == null ? 30 : y, o); return c; }
+// a sombra opaca do molde (etapa 0 da animação ambiente) é um drawImage antes do cavalo: vai para c.sombras, e c.imgs
+// fica só com o cavalo (e os efeitos), como os testes esperam
+function desenhaCav(o, x, y) {
+  var c = ctxFalso(); SPR.drawHorse(c, x == null ? 40 : x, y == null ? 30 : y, o);
+  c.sombras = c.imgs.filter(function (im) { return im.args[0] && im.args[0].sombra; });
+  c.imgs = c.imgs.filter(function (im) { return !(im.args[0] && im.args[0].sombra); });
+  return c;
+}
 // cruzes de 1 px de arte (u px): uma barra deitada (3u × u) e uma em pé (u × 3u) com o mesmo centro
 function cruzes(c, cor, u) {
   var deitadas = c.rects.filter(function (r) { return r.cor === cor && r.w === 3 * u && r.h === u; });
@@ -2167,8 +2174,39 @@ test('com moldes (sintéticos): sem as opções novas, o mesmo desenho de hoje (
     casos.push(com(CAVM, { idle: true, element: 'grama', palette: PAL.grama, quadro: { topo: 0, base: 108 } }));
     var sig = casos.map(function (o) { return assinatura(desenhaCav(o, 50, 40)); }).join('\n');
     // assinatura do desenho sem as opções novas, com este mesmo molde sintético: era b16463ea (sprites.js em 91c48ab, antes da
-    // parte 2a); desde a etapa 1b da direção de arte (2026-11-21) as cores saem da paleta-mestra, o resto igual
-    assert.strictEqual(fnvTexto(sig), '30adc27e');
+    // parte 2a); desde a etapa 1b da direção de arte (2026-11-21) as cores saem da paleta-mestra (30adc27e); desde a etapa 0
+    // da animação ambiente (2026-11-24) a sombra translúcida saiu (a opaca é outra imagem, em c.sombras: 801eda5); desde a
+    // etapa 0.3 a pelagem e a crina têm 4 tons (sombreiaPelagem, moldes-test: c5f16e2e); desde a 0.2 a rampa oliva tem o
+    // #313638 entre o contorno e o #4c3e24 (a sombra do castanho da Grama deixa de ser a cor do contorno), o resto igual
+    assert.strictEqual(fnvTexto(sig), '2a826e10');
+  });
+});
+
+// etapa 0 da animação ambiente (guia de integração, Regra 2): a sombra do molde é opaca, na rampa do chão, e vem antes
+test('com moldes: sombra opaca na rampa do chão, antes do cavalo, por chão e vista; shadow:false tira', function () {
+  comMoldes(function () {
+    var c = ctxFalso(); SPR.drawHorse(c, 40, 30, CAVM);
+    assert.ok(c.imgs.length >= 2 && c.imgs[0].args[0].sombra, 'a sombra é a 1ª imagem, antes do cavalo');
+    assert.ok(!c.rects.some(function (r) { return /rgba/.test(r.cor) || r.a < 1; }), 'nada translúcido');
+    var a = desenhaCav(CAVM), b = desenhaCav(com(CAVM, { chao: '#547e64' })), v = desenhaCav(com(CAVM, { vista: 'cima' }));
+    assert.strictEqual(a.sombras.length, 1);
+    assert.notStrictEqual(a.sombras[0].args[0], b.sombras[0].args[0], 'outro chão, outra sombra');
+    assert.notStrictEqual(a.sombras[0].args[0], v.sombras[0].args[0], 'vista de cima, outra sombra');
+    assert.strictEqual(desenhaCav(CAVM).sombras[0].args[0], a.sombras[0].args[0], 'em cache');
+    assert.strictEqual(desenhaCav(com(CAVM, { shadow: false })).sombras.length, 0);
+    var n = SPR._cacheMoldes(); desenhaCav(com(CAVM, { chao: '#0b8a8f' }));
+    assert.strictEqual(SPR._cacheMoldes(), n, 'a sombra não ocupa o cache dos moldes recoloridos');
+    // cores: a rampa do chão (terra: projetada #9e4539, contato #6e2727), opacas
+    var cores = function (cav) { var k = {}; cav.sombras[0].args[0].getContext().rects.forEach(function (r) { k[r.cor] = 1; }); return Object.keys(k).sort().join(','); };
+    assert.strictEqual(cores(desenhaCav(com(CAVM, { chao: '#cd683d' }))), '#6e2727,#9e4539');
+    // chão pintado e variado (chaoEm): cada pixel da sombra é o chão sob ele, 1 degrau abaixo (contato, 2); a chave entra no cache
+    var areia = function (x) { return x % 2 ? '#e6904e' : '#239063'; };
+    var p1 = desenhaCav(com(CAVM, { vista: 'cima', chaoEm: areia, chaoChave: 'arena-a' })), sp = p1.sombras[0].args[0].getContext().rects;
+    assert.ok(sp.length > 50, 'silhueta inteira');
+    assert.ok(sp.every(function (r) { return ['#cd683d', '#165a4c', '#9e4539', '#313638'].indexOf(r.cor) >= 0; }), 'só degraus do chão sob cada pixel: ' + cores(p1));
+    assert.ok(sp.some(function (r) { return r.cor === '#cd683d'; }) && sp.some(function (r) { return r.cor === '#165a4c'; }), 'as duas rampas');
+    assert.notStrictEqual(desenhaCav(com(CAVM, { vista: 'cima', chaoEm: areia, chaoChave: 'arena-b' })).sombras[0].args[0], p1.sombras[0].args[0], 'outra cena, outra sombra');
+    assert.strictEqual(desenhaCav(com(CAVM, { vista: 'cima', chaoEm: areia, chaoChave: 'arena-a' })).sombras[0].args[0], p1.sombras[0].args[0], 'mesma cena e posição: cache');
   });
 });
 
@@ -2655,6 +2693,362 @@ test('sem saltos: na corrida real a 60 quadros/s a escala muda no máximo 8% de 
     }
     assert.ok(pior <= Math.log(1.08), 'raia ' + me + ': ' + Math.exp(pior).toFixed(3));
   }
+});
+
+// ---------------------------------------------------------------- luz.js (guia de integração, Regras 2, 4 e 14)
+section('luz: rampas da Resurrect 64, degraus e sombra no chão');
+var LUZ = (function () { try { return require('../src/luz.js'); } catch (e) { return null; } })();
+var R64 = ('2e222f 3e3546 625565 966c6c ab947a 694f62 7f708a 9babb2 c7dcd0 ffffff 6e2727 b33831 ea4f36 f57d4a ae2334 ' +
+  'e83b3b fb6b1d f79617 f9c22b 7a3045 9e4539 cd683d e6904e fbb954 4c3e24 676633 a2a947 d5e04b fbff86 165a4c 239063 1ebc73 ' +
+  '91db69 cddf6c 313638 374e4a 547e64 92a984 b2ba90 0b5e65 0b8a8f 0eaf9b 30e1b9 8ff8e2 323353 484a77 4d65b4 4d9be6 8fd3ff ' +
+  '45293f 6b3e75 905ea9 a884f3 eaaded 753c54 a24b6f cf657f ed8099 831c5d c32454 f04f78 f68181 fca790 fdcbb0').split(' ').map(function (h) { return '#' + h; });
+test('o módulo luz.js existe', function () { assert.ok(LUZ, 'prototype/src/luz.js'); });
+test('toda cor das rampas é da Resurrect 64, e toda cor da Resurrect 64 está numa rampa', function () {
+  var usadas = {};
+  Object.keys(LUZ.RAMPAS).forEach(function (n) { LUZ.RAMPAS[n].forEach(function (h) { assert.ok(R64.indexOf(h) >= 0, n + ': ' + h + ' fora da paleta'); usadas[h] = 1; }); });
+  R64.forEach(function (h) { assert.ok(usadas[h], h + ' sem rampa'); });
+});
+test('cada rampa vai do escuro para o claro (valor crescente)', function () {
+  Object.keys(LUZ.RAMPAS).forEach(function (n) {
+    var r = LUZ.RAMPAS[n];
+    for (var i = 1; i < r.length; i++) assert.ok(LUZ.valor(r[i]) > LUZ.valor(r[i - 1]), n + ': ' + r[i - 1] + ' → ' + r[i]);
+  });
+});
+test('degrau desce e sobe dentro da rampa da cor e para nas pontas', function () {
+  assert.strictEqual(LUZ.degrau('#cd683d', -1), '#9e4539', 'pista do Litoral: 1 abaixo');
+  assert.strictEqual(LUZ.degrau('#cd683d', -2), '#6e2727', 'pista do Litoral: 2 abaixo');
+  assert.strictEqual(LUZ.degrau('#547e64', -1), '#374e4a', 'grama');
+  assert.strictEqual(LUZ.degrau('#ab947a', -1), '#966c6c', 'terra clara');
+  assert.strictEqual(LUZ.degrau('#0b8a8f', -1), '#0b5e65', 'água');
+  assert.strictEqual(LUZ.degrau('#2e222f', -3), '#2e222f', 'na ponta escura fica');
+  assert.strictEqual(LUZ.degrau('#ffffff', 2), '#ffffff', 'na ponta clara fica');
+  assert.strictEqual(LUZ.degrau('#e6904e', 1), '#fbb954', 'sobe');
+});
+test('toda cor tem uma rampa principal, e o degrau 0 é a própria cor', function () {
+  R64.forEach(function (h) { assert.ok(LUZ.rampaDe(h), h); assert.strictEqual(LUZ.degrau(h, 0), h); });
+});
+test('sombraDoChao: degrau 1 abaixo (projetada) e 2 abaixo (contato), sempre na paleta e mais escuras', function () {
+  R64.forEach(function (h) {
+    var s = LUZ.sombraDoChao(h);
+    assert.ok(R64.indexOf(s.projetada) >= 0 && R64.indexOf(s.contato) >= 0, h);
+    if (h !== '#2e222f' && h !== '#313638' && h !== '#45293f' && h !== '#323353') assert.ok(LUZ.valor(s.projetada) < LUZ.valor(h), h + ' → ' + s.projetada);
+    assert.ok(LUZ.valor(s.contato) <= LUZ.valor(s.projetada), h + ': contato mais escuro que a projetada');
+  });
+});
+test('as cores fixas do molde estão na paleta (contorno, pele e sela; sem #1a1405)', function () {
+  var F = SPR.MOLDE_CORES_FIXAS;
+  assert.ok(F, 'Sprites.MOLDE_CORES_FIXAS exportado');
+  ['contorno', 'pele', 'sela'].forEach(function (k) { assert.ok(R64.indexOf(F[k]) >= 0, k + ': ' + F[k]); });
+});
+
+section('luz: LUT de clima e de cena por degrau de rampa (guia de integração, Regra 8)');
+var CONDS = Object.keys(LUZ.CONDICOES);
+test('toda condição: as 64 cores vão para cores da Resurrect 64 (b)', function () {
+  CONDS.forEach(function (c) {
+    var t = LUZ.lutCondicao(c);
+    R64.forEach(function (h) { assert.ok(R64.indexOf(t[h]) >= 0, c + ': ' + h + ' → ' + t[h]); });
+    Object.keys(LUZ.CONDICAO_FIGURA).forEach(function (k) { var f = LUZ.lutFigura(k); R64.forEach(function (h) { assert.ok(R64.indexOf(f[h]) >= 0, 'figura ' + k + ': ' + h); }); });
+  });
+  assert.deepStrictEqual(Object.keys(LUZ.lutCondicao('sol')).filter(function (h) { return LUZ.lutCondicao('sol')[h] !== h; }), [], 'sol: a identidade');
+});
+test('a LUT por rampa funde menos tons que a mistura antiga (nublado ≤ 5, névoa ≤ 14 dentro das rampas)', function () {
+  function fundidos(c) { var t = LUZ.lutCondicao(c), f = 0; Object.keys(LUZ.RAMPAS).forEach(function (n) { var r = LUZ.RAMPAS[n], u = {}; r.forEach(function (h) { u[t[h]] = 1; }); f += r.length - Object.keys(u).length; }); return f; }
+  assert.ok(fundidos('nublado') <= 5, 'nublado ' + fundidos('nublado'));
+  assert.ok(fundidos('nevoa') <= 14, 'névoa ' + fundidos('nevoa'));
+  assert.ok(fundidos('chuva') <= 18, 'chuva ' + fundidos('chuva'));
+});
+test('o cavalo escurece junto com o fundo: no nublado e na chuva, nenhuma cor da figura clareia e a média desce como a do fundo (a)', function () {
+  ['nublado', 'chuva'].forEach(function (c) {
+    var f = LUZ.lutFigura(c), b = LUZ.lutCondicao(c), sf = 0, sb = 0, s0 = 0;
+    R64.forEach(function (h) {
+      assert.ok(LUZ.valor(f[h]) <= LUZ.valor(h) + 1e-9, c + ': ' + h + ' clareou na figura');
+      sf += LUZ.valor(f[h]); sb += LUZ.valor(b[h]); s0 += LUZ.valor(h);
+    });
+    assert.ok(sf < s0 && sb < s0, c + ': figura e fundo escurecem');
+    assert.ok(sb <= sf, c + ': o fundo escurece pelo menos tanto quanto a figura (ela fica à frente)');
+  });
+});
+test('mesmos tons por material em toda condição: os 4 tons de pelagem e crina das paletas só se fundem na ponta escura (c)', function () {
+  Object.keys(SPR.PALETTES).forEach(function (nome) {
+    var pal = SPR.PALETTES[nome];
+    [pal.coat, pal.mane].forEach(function (base) {
+      var b = SPR.naMestra(base).toLowerCase(), tons = [LUZ.degrau(b, 1), b, LUZ.degrau(b, -1), LUZ.degrau(b, -2)];
+      var n0 = tons.filter(function (x, i, a) { return a.indexOf(x) === i; }).length;
+      Object.keys(LUZ.CONDICAO_FIGURA).concat(['cena|fornalha', 'cena|estabulo', 'cena|remanso']).forEach(function (c) {
+        var t = c.indexOf('cena|') === 0 ? LUZ.lutCondicao(c.slice(5)) : LUZ.lutFigura(c), dep = tons.map(function (x) { return t[x]; });
+        var n1 = dep.filter(function (x, i, a) { return a.indexOf(x) === i; }).length;
+        if (n1 < n0) assert.ok(dep.indexOf('#2e222f') >= 0, nome + ' ' + b + ' em ' + c + ': ' + tons + ' → ' + dep + ' perdeu tom longe da ponta escura');
+      });
+    });
+  });
+});
+test('tinta de cena só nas sombras (terço escuro de cada rampa) e contraluz só com fonte emissiva', function () {
+  ['fornalha', 'estabulo', 'remanso'].forEach(function (c) {
+    var t = LUZ.lutCondicao(c);
+    Object.keys(LUZ.RAMPAS).forEach(function (n) {
+      var r = LUZ.RAMPAS[n];
+      r.forEach(function (h, i) { if (i / (r.length - 1) > 0.34 && LUZ.rampaDe(h) === n) assert.strictEqual(t[h], h, c + ': ' + h + ' (luz) mudou'); });
+    });
+  });
+  assert.deepStrictEqual(Object.keys(LUZ.CONTRALUZ).sort(), ['estabulo', 'fornalha']);
+});
+test('contraluz no molde: só nos pixels do tom de luz (16, 18) com o vazio do lado da fonte', function () {
+  comMoldes(function () {
+    var base = desenhaCav(com(CAVM, { idle: true, jockey: false, cena: 'estabulo', contraluz: false })).imgs[0].args[0].px;
+    var com1 = desenhaCav(com(CAVM, { idle: true, jockey: false, cena: 'estabulo' })).imgs[0].args[0].px;
+    var dif = 0, cor = LUZ.CONTRALUZ.estabulo.cor;
+    for (var i = 0; i < base.length / 4; i++) if (hexPx(base, i) !== hexPx(com1, i)) { dif++; assert.strictEqual(hexPx(com1, i), cor, 'pixel ' + i); }
+    assert.ok(dif > 0, 'o contraluz aparece');
+  });
+});
+test('figura na cena: a chave do cache leva a cena e o clima; sol e névoa (figura) ficam na chave de antes', function () {
+  comMoldes(function () {
+    SPR.limparCacheMoldes();
+    function n(o) { desenhaCav(o); return SPR._cacheMoldes(); }
+    assert.strictEqual(n(CAVM), 1);
+    assert.strictEqual(n(com(CAVM, { clima: 'sol' })), 1, 'sol');
+    assert.strictEqual(n(com(CAVM, { clima: 'nevoa' })), 1, 'névoa: a figura não muda');
+    assert.strictEqual(n(com(CAVM, { clima: 'nublado' })), 2);
+    assert.strictEqual(n(com(CAVM, { clima: 'chuva' })), 3);
+    assert.strictEqual(n(com(CAVM, { cena: 'fornalha' })), 4);
+    assert.strictEqual(n(com(CAVM, { cena: 'naoexiste' })), 4, 'cena desconhecida: a de antes');
+  });
+});
+
+section('contato com o chão (Regras 7 e 12): passada, pousos, faixa da raia, poeira e tufos');
+test('passadaDe: o casco de apoio recua; passada = a mediana dos recuos; pouso = casco novo que segue de apoio', function () {
+  // casco A pousa em 40 e recua 6 por quadro (40, 34, 28, 22) e sai; casco B pousa em 46 no quadro 3
+  var q = [[40], [34], [28], [22, 46], [40], [34]];
+  var P = SPR.passadaDe(q);
+  assert.strictEqual(P.passada, 6);
+  assert.strictEqual(P.pousa[0], true, 'o 40 do quadro 0 pousa (o 34 do último quadro está à frente dele, não atrás)');
+  assert.strictEqual(P.pousa[3], true, 'o 46 pousa no quadro 3');
+  assert.strictEqual(P.pousa[4], false, 'o 40 do quadro 4 vem do 46 (recuo de 6)');
+  assert.deepStrictEqual(P.pousos[3], [46]);
+});
+test('cascosNoChao: grupos de pixels nas 2 linhas de baixo, com o x do meio', function () {
+  var w = 10, h = 6, idx = new Uint8Array(w * h);
+  idx[5 * w + 1] = 2; idx[5 * w + 2] = 1; idx[4 * w + 7] = 3;
+  assert.deepStrictEqual(SPR.cascosNoChao(idx, w, h, 5), [1.5, 7]);
+});
+test('faixa de contato: presa ao chão, cobre só parte das colunas (torrões de 1 a 3 px)', function () {
+  var com = 0, alts = {};
+  for (var x = 0; x < 512; x++) { var a = SPR.contatoEm(x, 0, 1); if (a) { com++; alts[a] = 1; } }
+  assert.ok(com > 512 * 0.05 && com < 512 * 0.5, 'colunas com torrão: ' + com);
+  var ks = Object.keys(alts);
+  assert.ok(ks.length >= 2 && ks.every(function (k) { return k >= 1 && k <= 3; }), 'alturas de 1 a 3, variadas: ' + ks);
+  assert.strictEqual(SPR.contatoEm(10, 37, 1), SPR.contatoEm(47, 0, 1), 'a câmera rola o padrão junto com o chão');
+  assert.strictEqual(SPR.contatoEm(20, 74, 2), SPR.contatoEm(94, 0, 2), 'na escala 2 também');
+  var c = ctxFalso(); comCanvas(function () { SPR.drawContatoRaia(c, 0, 300, 100, 0, 1, '#cd683d'); });
+  assert.ok(c.imgs.length >= 1 && c.imgs.every(function (im) { return im.args[5] >= 0 && im.args[5] + im.args[7] <= 300; }), 'só na faixa pedida');
+});
+test('poeira do pouso: 2 tons do chão, nasce no pouso e some aos POUSO_S', function () {
+  var c = ctxFalso();
+  assert.strictEqual(FX.drawPoeiraPouso(c, 50, 50, 2, 0.2, '#e6904e', '#fbb954'), 1);
+  assert.ok(c.rects.every(function (r) { return r.cor === '#e6904e' || r.cor === '#fbb954'; }));
+  assert.strictEqual(FX.drawPoeiraPouso(ctxFalso(), 50, 50, 2, FX.POUSO_S, '#e6904e', '#fbb954'), 0, 'depois da vida');
+  assert.strictEqual(FX.drawPoeiraPouso(ctxFalso(), 50, 50, 2, -0.1, '#e6904e'), 0, 'antes de nascer');
+});
+test('tufos na frente dos cascos: determinísticos, só cores da rampa do chão, tapete na linha dos cascos', function () {
+  var a = ctxFalso(), b = ctxFalso();
+  SPR.drawTufosFrente(a, 60, 100, 40, '#e6904e', 2, 1, true); SPR.drawTufosFrente(b, 60, 100, 40, '#e6904e', 2, 1, true);
+  assert.deepStrictEqual(a.rects, b.rects, 'mesma semente, mesmo desenho');
+  var ok = ['#fbb954', '#e6904e', '#cd683d'];
+  assert.ok(a.rects.every(function (r) { return ok.indexOf(r.cor) >= 0; }), 'cores: ' + a.rects.map(function (r) { return r.cor; }));
+  assert.ok(a.rects.some(function (r) { return r.y === 200 && r.w >= 60; }), 'o tapete cobre a linha dos cascos');
+});
+
+section('ambiente.js: o motor da animação ambiente (etapa 1)');
+var AMB = require('../src/ambiente.js');
+// canvas falso com pixels de verdade (createImageData, getImageData, putImageData com retângulo e drawImage de outro canvas
+// falso), o bastante para Buf, CicloCor e Deforma rodarem no Node
+function CanvasPx(w, h) {
+  var cv = this; cv.width = w; cv.height = h; cv.px = new Uint8ClampedArray(w * h * 4);
+  var g = { imageSmoothingEnabled: false, canvas: cv };
+  g.createImageData = function (a, b) { return { width: a, height: b, data: new Uint8ClampedArray(a * b * 4) }; };
+  g.getImageData = function (x, y, a, b) { var d = new Uint8ClampedArray(a * b * 4); for (var j = 0; j < b; j++) for (var i = 0; i < a; i++) for (var k = 0; k < 4; k++) d[(j * a + i) * 4 + k] = cv.px[((y + j) * w + x + i) * 4 + k]; return { width: a, height: b, data: d }; };
+  g.putImageData = function (img, dx, dy, x0, y0, a, b) {
+    x0 = x0 || 0; y0 = y0 || 0; a = a == null ? img.width : a; b = b == null ? img.height : b;
+    for (var j = y0; j < y0 + b; j++) for (var i = x0; i < x0 + a; i++) for (var k = 0; k < 4; k++) cv.px[((dy + j) * w + dx + i) * 4 + k] = img.data[(j * img.width + i) * 4 + k];
+  };
+  g.drawImage = function (src, x, y) { for (var j = 0; j < src.height; j++) for (var i = 0; i < src.width; i++) { var o = (j * src.width + i) * 4; if (src.px[o + 3]) for (var k = 0; k < 4; k++) cv.px[((y + j) * w + x + i) * 4 + k] = src.px[o + k]; } };
+  g.fillRect = function () {}; g.clearRect = function () {};
+  cv.getContext = function () { return g; };
+}
+AMB.config({ criaCanvas: function (w, h) { return new CanvasPx(w, h); } });
+// uma imagem sintética 24×12: céu (c7dcd0), mar numa rampa de 3 tons e uma "folha" verde que a deformação dobra
+function imagemSintetica() {
+  var c = new CanvasPx(24, 12), C = { c7dcd0: [199, 220, 208], '0b5e65': [11, 94, 101], '0eaf9b': [14, 175, 155], '8ff8e2': [143, 248, 226], '239063': [35, 144, 99] };
+  for (var y = 0; y < 12; y++) for (var x = 0; x < 24; x++) {
+    var h = y < 6 ? 'c7dcd0' : ['0b5e65', '0eaf9b', '8ff8e2'][(x + y) % 3];
+    if (y >= 2 && y <= 4 && x >= 4 && x <= 10) h = '239063';
+    var v = C[h], o = (y * 24 + x) * 4; c.px[o] = v[0]; c.px[o + 1] = v[1]; c.px[o + 2] = v[2]; c.px[o + 3] = 255;
+  }
+  return c;
+}
+function rodaMotor() {
+  var b = AMB.Buf.de(imagemSintetica()), rng = AMB.rngCosmetica(7);
+  var ciclo = new AMB.CicloCor(b, function (x, y, h) { return y >= 6 ? 0 : -1; }, [['0b5e65', '0eaf9b', '8ff8e2']], function (x, y, r, d, t) { return (d + Math.floor(t * 4) + x) % 3; }, 12);
+  var m = new Int16Array(24 * 12); for (var y = 2; y <= 4; y++) for (var x = 4; x <= 10; x++) m[y * 24 + x] = 1;
+  var def = new AMB.Deforma(b, m, [{ id: 1, x0: 2, x1: 14, y0: 1, y1: 6 }], function (x, y, cx, t, v) { v[0] = Math.round(cx.amp * (x - 4) / 6); v[1] = 0; }, 12,
+    function (t) { this.caixas[0].amp = 2 * AMB.vento(t) * (0.5 + 0.5 * Math.sin(t * 3 + rng() * 0)); });
+  def.prepara = def.prepara.bind(def);
+  var quadros = [];
+  [1, 1.5, 2.25].forEach(function (t) {
+    ciclo.passo = -1; ciclo.atualiza(t); def.passo = -1; def.atualiza(t);
+    quadros.push(fnvBytes(new Uint8Array(ciclo.saida.d.buffer)) + '/' + fnvBytes(new Uint8Array(def.saida.d.buffer)) + '/' + fnvBytes(def.saida.c.px));
+  });
+  var p = new AMB.Particulas(8); for (var k = 0; k < 5; k++) p.nasce(1, rng() * 24, rng() * 12, rng() - 0.5, -1, 2, rng());
+  p.passo(0.1, 1); p.passo(0.1, 1.1);
+  quadros.push(fnvBytes(new Uint8Array(p.x.buffer)) + '/' + fnvBytes(new Uint8Array(p.y.buffer)));
+  return quadros;
+}
+test('ambiente.js: sem sim.js, sem Math.random, sem DOM no topo (só pelo criaCanvas)', function () {
+  var txt = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'ambiente.js'), 'utf8');
+  var semComent = txt.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(!/require\(['"][^'"]*sim(\.js)?['"]\)/.test(semComent) && !/\bSim\./.test(semComent), 'não importa sim.js');
+  assert.ok(!/Math\.random/.test(semComent), 'sem Math.random (só a RNG cosmética)');
+  assert.strictEqual(typeof AMB.cena, 'function'); assert.strictEqual(typeof AMB.dados, 'function');
+});
+test('ambiente.js: a mesma semente desenha os mesmos 3 quadros (ciclo de cor, deformação e partículas)', function () {
+  var a = rodaMotor(), b = rodaMotor();
+  assert.deepStrictEqual(a, b);
+  assert.notStrictEqual(a[0], a[1], 'o ciclo de cor anda entre os quadros');
+  // instantâneo: muda só se o motor mudar de comportamento (então conferir a amostra e atualizar aqui)
+  assert.strictEqual(fnvTexto(a.join('|')), 'c7fa9b88');
+});
+test('ambiente.js: a deformação põe o passo no canvas da saída (a peça mexe na tela, não só nos dados)', function () {
+  var b = AMB.Buf.de(imagemSintetica()), m = new Int16Array(24 * 12);
+  for (var y = 2; y <= 4; y++) for (var x = 4; x <= 10; x++) m[y * 24 + x] = 1;
+  var def = new AMB.Deforma(b, m, [{ id: 1, x0: 2, x1: 14, y0: 1, y1: 6 }], function (x, y, cx, t, v) { v[0] = t > 1 ? 2 : 0; v[1] = 0; }, 12);
+  def.atualiza(0.5); var antes = fnvBytes(def.saida.c.px);
+  def.atualiza(1.5); assert.notStrictEqual(fnvBytes(def.saida.c.px), antes);
+});
+test('ambiente.js: pré-assado por estado da peça: o mesmo estado repete os mesmos pixels, com teto de memória', function () {
+  function monta(pre) {
+    var b = AMB.Buf.de(imagemSintetica()), m = new Int16Array(24 * 12);
+    for (var y = 2; y <= 4; y++) for (var x = 4; x <= 10; x++) m[y * 24 + x] = 1;
+    var d = new AMB.Deforma(b, m, [{ id: 1, x0: 2, x1: 14, y0: 1, y1: 6 }], function (x, y, cx, t, v) { v[0] = cx.k; v[1] = 0; }, 12, function (t) { d.caixas[0].k = Math.floor(t * 12) % 3; });
+    if (pre) d.preassado(function (cx) { return cx.k; }, 1e6);
+    return d;
+  }
+  var a = monta(false), c = monta(true), ts = [0, 0.09, 0.17, 0.26, 0.34, 0.42, 0.51];
+  ts.forEach(function (t) { a.atualiza(t); c.atualiza(t); assert.strictEqual(fnvBytes(c.saida.c.px), fnvBytes(a.saida.c.px), 't = ' + t); });
+  assert.strictEqual(c.erros, 3, '3 estados calculados'); assert.ok(c.acertos >= 3, 'os outros copiados');
+  var z = monta(true); z.preassado(function (cx) { return cx.k; }, 10); z.atualiza(0); assert.strictEqual(z.cacheBytes, 0, 'acima do teto não guarda');
+});
+
+// Regiões na corrida (plano da animação ambiente, etapa 5): as camadas de verdade (PNG RGBA 8 bits, lidos aqui com o
+// zlib do Node) num canvas falso; a região viva monta, mexe, repete com o mesmo t e não sai da Resurrect 64
+function pngPx(arq) {
+  var buf = require('fs').readFileSync(arq), pos = 8, w = 0, h = 0, idat = [];
+  while (pos < buf.length) {
+    var n = buf.readUInt32BE(pos), tipo = buf.toString('ascii', pos + 4, pos + 8), d = buf.subarray(pos + 8, pos + 8 + n);
+    if (tipo === 'IHDR') { w = d.readUInt32BE(0); h = d.readUInt32BE(4); assert.ok(d[8] === 8 && d[9] === 6 && d[12] === 0, arq + ': RGBA 8 bits sem entrelaçar'); }
+    else if (tipo === 'IDAT') idat.push(d);
+    pos += 12 + n;
+  }
+  var raw = require('zlib').inflateSync(Buffer.concat(idat)), c = new CanvasPx(w, h), L = w * 4, ant = new Uint8Array(L);
+  for (var y = 0; y < h; y++) {
+    var f = raw[y * (L + 1)], lin = raw.subarray(y * (L + 1) + 1, (y + 1) * (L + 1)), out = new Uint8Array(L);
+    for (var i = 0; i < L; i++) {
+      var a = i >= 4 ? out[i - 4] : 0, b = ant[i], cc = i >= 4 ? ant[i - 4] : 0, p = a + b - cc, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - cc);
+      out[i] = (lin[i] + (f === 1 ? a : f === 2 ? b : f === 3 ? (a + b) >> 1 : f === 4 ? (pa <= pb && pa <= pc ? a : pb <= pc ? b : cc) : 0)) & 255;
+    }
+    c.px.set(out, y * L); ant = out;
+  }
+  return c;
+}
+var ARTE = require('path').join(__dirname, '..', 'assets', 'arte'), REGS = ['litoral', 'planalto', 'varzea', 'cerrado', 'sertao'];
+var R64 = {}; ('2e222f 3e3546 625565 966c6c ab947a 694f62 7f708a 9babb2 c7dcd0 ffffff 6e2727 b33831 ea4f36 f57d4a ae2334 e83b3b fb6b1d f79617 ' +
+  'f9c22b 7a3045 9e4539 cd683d e6904e fbb954 4c3e24 676633 a2a947 d5e04b fbff86 165a4c 239063 1ebc73 91db69 cddf6c 313638 374e4a 547e64 ' +
+  '92a984 b2ba90 0b5e65 0b8a8f 0eaf9b 30e1b9 8ff8e2 323353 484a77 4d65b4 4d9be6 8fd3ff 45293f 6b3e75 905ea9 a884f3 eaaded 753c54 a24b6f ' +
+  'cf657f ed8099 831c5d c32454 f04f78 f68181 fca790 fdcbb0').split(' ').forEach(function (h) { R64[h] = 1; });
+var camadasReg = {};
+function regiaoTeste(id) {
+  AMB.dados({ manifesto: JSON.parse(require('fs').readFileSync(require('path').join(ARTE, 'animacao.json'), 'utf8')) });
+  var C = camadasReg[id] || (camadasReg[id] = (function () {
+    var o = {};
+    ['nuvens', 'horizonte', 'meio', 'arquibancada', 'frente'].forEach(function (k) { o[k] = pngPx(require('path').join(ARTE, id, k + '.png')); });
+    var sp = require('path').join(ARTE, id, 'meio-sem-pas.png'); if (require('fs').existsSync(sp)) o.meioSemPas = pngPx(sp);
+    return o;
+  })());
+  return AMB.regiao(id, { sol: C, clima: null, nevoa: null }, null);
+}
+function retratoReg(v, t) {
+  v.atualiza(t, 1 / 60, { intensity: 'ventania', dir: 1 });
+  return Object.keys(v.vivas).sort().map(function (k) { return k + ':' + fnvBytes(v.vivas[k].saida.c.px); }).join(' ');
+}
+test('ambiente.js: as 5 regiões da corrida montam com as camadas de verdade e mexem (etapa 5)', function () {
+  REGS.forEach(function (id) {
+    var v = regiaoTeste(id);
+    assert.ok(v.pronta, id + ' pronta');
+    ['meio', 'arquibancada', 'frente'].forEach(function (k) { assert.ok(v.vivas[k], id + ': ' + k + ' viva'); });
+    if (id === 'litoral' || id === 'varzea' || id === 'sertao') assert.ok(v.vivas.horizonte, id + ': horizonte vivo (mar, lagoa, ar quente)');
+    // cada peça passa por um passo (a Agenda faz um por quadro, a mais atrasada primeiro)
+    var a = []; for (var q = 0; q < 12; q++) a.push(retratoReg(v, 1 + q / 60));
+    var b = []; for (q = 0; q < 12; q++) b.push(retratoReg(v, 2.5 + q / 60));
+    assert.notStrictEqual(a[11], b[11], id + ': as camadas mudam entre t = 1,2 s e t = 2,7 s');
+  });
+});
+test('ambiente.js: região viva determinística (o mesmo t desenha o mesmo) e só com cores da Resurrect 64', function () {
+  REGS.forEach(function (id) {
+    var x = regiaoTeste(id), y = regiaoTeste(id), rx = [], ry = [];
+    for (var q = 0; q < 30; q++) { rx.push(retratoReg(x, 1 + q / 20)); ry.push(retratoReg(y, 1 + q / 20)); }
+    assert.deepStrictEqual(rx, ry, id + ': as duas montagens desenham igual');
+    Object.keys(x.vivas).forEach(function (k) {
+      var px = x.vivas[k].saida.c.px, fora = {};
+      for (var i = 0; i < px.length; i += 4) if (px[i + 3]) { var h = [px[i], px[i + 1], px[i + 2]].map(function (c) { return ('0' + c.toString(16)).slice(-2); }).join(''); if (!R64[h]) fora[h] = 1; }
+      assert.deepStrictEqual(Object.keys(fora), [], id + '/' + k + ': cores fora da Resurrect 64');
+    });
+  });
+});
+test('ambiente.js: partículas do ambiente da corrida ≤ 60 (spec §2.4) e o vento da corrida vira o sentido', function () {
+  ['litoral', 'cerrado', 'sertao'].forEach(function (id) {
+    var v = regiaoTeste(id), mx = 0;
+    for (var q = 0; q < 900; q++) { v.atualiza(1 + q / 30, 1 / 30, { intensity: 'ventania', dir: -1 }); mx = Math.max(mx, v.part.n); }
+    assert.ok(mx > 0 && mx <= 60, id + ': ' + mx + ' partículas no pico');
+    if (id !== 'cerrado') {   // a areia (Litoral) e a fumaça (Sertão) vão para a esquerda com o vento ←
+      var sx = 0, nn = 0; for (var k = 0; k < v.part.n; k++) if (v.part.tipo[k] === 4 || v.part.tipo[k] === 2) { sx += v.part.vx[k]; nn++; }
+      assert.ok(nn && sx / nn < 0, id + ': com o vento ← as partículas andam para a esquerda (' + (nn ? sx / nn : '-') + ')');
+    }
+  });
+  // a montagem aos poucos dá o mesmo que a de uma vez
+  var C = camadasReg.planalto, p1 = AMB.regiao('planalto', { sol: C }, null, { aosPoucos: true }), n = 0;
+  assert.ok(!p1.pronta);
+  while (!p1.montaPasso()) n++;
+  assert.ok(n >= 8, 'em passos (' + n + ')');
+  assert.strictEqual(retratoReg(p1, 3), retratoReg(regiaoTeste('planalto'), 3));
+});
+
+// Mapas das trilhas (plano da animação ambiente, etapa 4): as imagens de verdade, uma máscara de caminho de exemplo (a
+// de verdade é o Mapa.mascaraCaminho() da frente 2); monta, mexe, repete com o mesmo t, só Resurrect 64, nada nasce
+// em cima do caminho
+var MAPAS = require('path').join(ARTE, 'telas', 'finais');
+var caminhoEx = new Uint8Array(256 * 384);
+for (var cy = 0; cy < 384; cy++) { var cxc = 128 + Math.sin(cy / 60) * 50; for (var cxx = Math.round(cxc - 7); cxx <= cxc + 7; cxx++) if (cxx >= 0 && cxx < 256) caminhoEx[cy * 256 + cxx] = 1; }
+function mapaTeste(el) {
+  AMB.CENAS['mapa:' + el].pronta = false;
+  var c = AMB.cena('mapa:' + el, { imagem: pngPx(require('path').join(MAPAS, 'mapa-' + el + '.png')), caminho: caminhoEx });
+  return { c: c, alvo: new CanvasPx(256, 384) };
+}
+function quadroMapa(m, t) { m.c.atualiza(t, 1 / 15); m.c.desenha(m.alvo.getContext(), { x0: 0, x1: 256, y0: 0, y1: 384 }); return fnvBytes(new Uint8Array(m.c.def.saida.d.buffer)); }
+test('ambiente.js: os 3 mapas das trilhas montam, mexem e repetem com o mesmo t (etapa 4)', function () {
+  ['agua', 'fogo', 'grama'].forEach(function (el) {
+    var a = mapaTeste(el), ha = []; for (var q = 0; q < 24; q++) ha.push(quadroMapa(a, 1 + q / 8));
+    var b = mapaTeste(el), hb = []; for (q = 0; q < 24; q++) hb.push(quadroMapa(b, 1 + q / 8));
+    assert.deepStrictEqual(ha, hb, el + ': as duas montagens desenham igual');
+    assert.ok(new Set(ha).size > 6, el + ': o mapa mexe (' + new Set(ha).size + ' quadros diferentes em 3 s)');
+    var px = b.c.def.saida.d, fora = {};
+    for (var i = 0; i < px.length; i++) if (px[i]) { var h = AMB.Buf ? ('000000' + ((px[i] & 255) << 16 | (px[i] >>> 8 & 255) << 8 | px[i] >>> 16 & 255).toString(16)).slice(-6) : ''; if (!R64[h]) fora[h] = 1; }
+    assert.deepStrictEqual(Object.keys(fora), [], el + ': cores fora da Resurrect 64');
+  });
+});
+test('ambiente.js: nos mapas, peixe, brasas e fumaça nunca nascem em cima do caminho', function () {
+  var ag = mapaTeste('agua').c.def, fo = mapaTeste('fogo').c.def;
+  for (var k = 0; k < ag.lagos.length; k += 2) assert.strictEqual(caminhoEx[ag.lagos[k + 1] * 256 + ag.lagos[k]], 0, 'peixe no caminho');
+  for (k = 0; k < fo.quentes.length; k += 2) assert.strictEqual(caminhoEx[fo.quentes[k + 1] * 256 + fo.quentes[k]], 0, 'brasa no caminho');
+  assert.ok(ag.lagos.length > 20 && fo.quentes.length > 20, 'sobram lugares fora do caminho');
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');

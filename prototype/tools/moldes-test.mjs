@@ -10,6 +10,8 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { ICONES_NOVOS, FAMILIAS, RESERVADOS, ANTIGOS } from './icones-catalogo.mjs';
 import { htmlFolhaIcones } from './folha-icones.mjs';
+import { MAPA_MUNDO, lerMoldes as lerMoldesVistas } from './arte-embutida.mjs';
+import { RESURRECT64 as R64_MAPA } from './arte-paleta.mjs';
 import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada, sombraMagenta, sedaNaPelagem, crinaEscura, corrigirGrupo, modoNatural, soltarCrina, CRINA_SOLTA } from './moldes-lib.mjs';
 
 let fails = 0, count = 0;
@@ -714,7 +716,9 @@ moldes.forEach(arq => {
   test(chave + ': ancoras de cada quadro e larguraUtil do JSON = recalculadas dos PNGs', () => {
     nomes.forEach(n => {
       assert.ok(J.ancoras && J.ancoras[n], 'JSON sem ancoras["' + n + '"]');
-      assert.deepStrictEqual(J.ancoras[n], ancoras(quadros[n].idx, 64, 64), n);
+      // (o olho do retrato e do parado, desde a etapa 2 da animação ambiente, sai do olhoMolde: conferido na seção dele)
+      const sem = Object.assign({}, J.ancoras[n]); delete sem.olho;
+      assert.deepStrictEqual(sem, ancoras(quadros[n].idx, 64, 64), n);
     });
     assert.strictEqual(J.larguraUtil, ancoras(quadros.retrato.idx, 64, 64).bbox.w, 'larguraUtil');
   });
@@ -1829,7 +1833,10 @@ await testA('mestres: 3 seeds por etapa, para na 1ª aprovada; o melhor galope f
   assert.deepStrictEqual(Object.keys(J), Object.keys(hoje));
   assert.deepStrictEqual([J.estilo, J.w, J.h, J.frames, J.seeds], ['padrao-lisa', 64, 64, 9, { retrato: 3202, parado: 3102, montado: 3102, galope: 3102 }]);
   const m = Pl().lerMolde(A.dirs.novos, 'padrao-lisa');
-  assert.deepStrictEqual(J.ancoras.retrato, ancoras(m.retrato, 64, 64));
+  // o gravador põe o olho (olhoMolde) no retrato e no parado; o resto da âncora é o ancoras() de sempre
+  assert.ok(Array.isArray(J.ancoras.retrato.olho), 'o gravador põe o olho no retrato');
+  const semOlho = Object.assign({}, J.ancoras.retrato); delete semOlho.olho;
+  assert.deepStrictEqual(semOlho, ancoras(m.retrato, 64, 64));
   assert.deepStrictEqual(falhos(Pc().criterioPernas(m)), []);
 });
 
@@ -2942,6 +2949,272 @@ test('as arenas dos três ginásios: 256×160, opacas', () => {
     assert.ok(d.width === 256 && d.height === 160, `${g}: ${d.width}×${d.height}`);
     for (const [x, y] of [[0, 0], [255, 159]]) assert.strictEqual(d.rgba[(y * 256 + x) * 4 + 3], 255, `${g}: canto ${x},${y} transparente`);
   }
+});
+
+// ---------------------------------------------------------------- sombra opaca na cor do chão (guia de integração, Regra 2)
+console.log('\n## Sombra do cavalo: opaca, na rampa do chão, 2 px para a direita');
+{
+  const req = createRequire(import.meta.url), SP = req('../src/sprites.js'), LUZ = req('../src/luz.js');
+  const lerMolde = (chave, est) => {
+    const d = decodePng(fs.readFileSync(path.join(DIR, `molde-${chave}-${est}.png`)));
+    const idx = new Uint8Array(64 * 64); for (let i = 0; i < 4096; i++) idx[i] = d.rgba[i * 4 + 3] < 128 ? 0 : Math.round(d.rgba[i * 4] / 25);
+    return { idx, anc: JSON.parse(fs.readFileSync(path.join(DIR, `molde-${chave}.json`), 'utf8')).ancoras[est] };
+  };
+  const CHAOS = ['#cd683d', '#547e64', '#239063', '#fbb954', '#ab947a', '#0b8a8f', '#e6904e'];
+  test('pixelsSombra existe no Sprites', () => assert.strictEqual(typeof SP.pixelsSombra, 'function'));
+  for (const chave of ['padrao-lisa', 'robusto-folhas', 'esguio-ondas']) for (const est of ['retrato', 'parado']) {
+    const { idx, anc } = lerMolde(chave, est);
+    test(`${chave} ${est}: vista lateral — só as 2 cores da rampa do chão, faixa sob os cascos, deslocada para a direita`, () => {
+      for (const chao of CHAOS) {
+        const ps = SP.pixelsSombra(idx, 64, 64, anc, chao, 'lateral'), S = LUZ.sombraDoChao(chao);
+        assert.ok(ps.length > 20, `${chao}: sombra pequena demais (${ps.length})`);
+        let sx = 0, contato = 0;
+        for (const p of ps) {
+          assert.ok(p.cor === S.projetada || p.cor === S.contato, `${chao}: cor ${p.cor} fora da rampa`);
+          assert.ok(p.y >= anc.footY - 1 && p.y <= anc.footY + 2, `${chao}: linha ${p.y} longe dos cascos (${anc.footY})`);
+          sx += p.x; if (p.cor === S.contato) contato++;
+        }
+        const cxSombra = sx / ps.length, cxCorpo = anc.bbox.x + anc.bbox.w / 2;
+        assert.ok(cxSombra >= cxCorpo + 1, `${chao}: centro da sombra ${cxSombra.toFixed(1)} não está à direita do corpo ${cxCorpo}`);
+        assert.ok(contato >= 4, `${chao}: sem faixa de contato sob os cascos`);
+      }
+    });
+    test(`${chave} ${est}: vista de cima — a silhueta inteira, deslocada para baixo e para a direita, em 1 tom`, () => {
+      const ps = SP.pixelsSombra(idx, 64, 64, anc, '#547e64', 'cima'), S = LUZ.sombraDoChao('#547e64');
+      let opacos = 0; for (let i = 0; i < 4096; i++) if (idx[i]) opacos++;
+      const proj = ps.filter(p => p.cor === S.projetada);
+      assert.ok(proj.length >= opacos * 0.95, `silhueta incompleta: ${proj.length} de ${opacos}`);
+      let dx = 0, dy = 0; for (const p of proj) { dx += p.x; dy += p.y; }
+      let ox = 0, oy = 0; for (let i = 0; i < 4096; i++) if (idx[i]) { ox += i & 63; oy += i >> 6; }
+      assert.ok(dx / proj.length > ox / opacos && dy / proj.length > oy / opacos, 'não desceu para a direita');
+    });
+  }
+}
+
+console.log('\n## Pelagem e crina em 4 tons (sombreado por código) e marcas sem xadrez');
+{
+  const req = createRequire(import.meta.url), SP = req('../src/sprites.js'), LUZ = req('../src/luz.js'), MK = req('../src/marcas.js');
+  const CH = [...new Set(fs.readdirSync(DIR).filter((f) => /^molde-.*\.json$/.test(f)).map((f) => f.slice(6, -5)))];
+  const EST = ['retrato', 'parado', ...Array.from({ length: 9 }, (_, i) => 'galope-' + i)];
+  const ler = (c, est) => {
+    const f = path.join(DIR, `molde-${c}-${est}.png`); if (!fs.existsSync(f)) return null;
+    const d = decodePng(fs.readFileSync(f)), idx = new Uint8Array(4096);
+    for (let i = 0; i < 4096; i++) idx[i] = d.rgba[i * 4 + 3] < 128 ? 0 : Math.round(d.rgba[i * 4] / 25);
+    return idx;
+  };
+  const DE = { 16: 2, 17: 3, 18: 4, 19: 5 };
+  test('os 12 moldes', () => assert.strictEqual(CH.length, 12));
+  for (const c of CH) test(`${c}: 4 tons de pelo e 4 de crina no molde; por quadro, ≥ 3 de pelo e ≥ 2 de crina; só papéis 2–5 mudam, em massas`, () => {
+    const pelo = new Set(), crina = new Set();
+    for (const est of EST) {
+      const idx = ler(c, est); if (!idx) continue;
+      const o = SP.sombreiaPelagem(idx, 64, 64), n = {};
+      for (let i = 0; i < 4096; i++) {
+        n[o[i]] = (n[o[i]] || 0) + 1;
+        if (o[i] === idx[i]) continue;
+        assert.strictEqual(DE[o[i]], idx[i], `${est}: pixel ${i} foi de ${idx[i]} para ${o[i]}`);
+        const x = i & 63, y = i >> 6, viz = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => x + a >= 0 && x + a < 64 && y + b >= 0 && y + b < 64 && o[(y + b) * 64 + x + a] === o[i]);
+        assert.ok(viz.length, `${est}: pixel solto de tom ${o[i]} em (${x}, ${y})`);
+      }
+      const tp = [2, 3, 16, 17].filter((k) => n[k]), tc = [4, 5, 18, 19].filter((k) => n[k]);
+      tp.forEach((k) => pelo.add(k)); tc.forEach((k) => crina.add(k));
+      assert.ok(tp.length >= 3, `${est}: ${tp.length} tons de pelo`); assert.ok(tc.length >= 2, `${est}: ${tc.length} tons de crina`);
+    }
+    assert.strictEqual(pelo.size, 4, 'tons de pelo no molde'); assert.strictEqual(crina.size, 4, 'tons de crina no molde');
+  });
+  test('cores dos 4 tons: da Resurrect 64, da mesma rampa, do claro ao escuro (4 distintos; 2 nas cores da ponta escura da rampa, como a crina preta)', () => {
+    const R64 = new Set([].concat(...Object.values(LUZ.RAMPAS)));
+    for (const [nome, pal] of Object.entries(SP.PALETTES)) for (const [base] of [[pal.coat], [pal.mane]]) {
+      const b = SP.naMestra(base).toLowerCase(), tons = [LUZ.degrau(b, 1), b, LUZ.degrau(b, -1), LUZ.degrau(b, -2)];
+      const t2 = SP.coresTons([null, null, b, null, b]);
+      assert.deepStrictEqual([t2[0], t2[1]], [tons[0], tons[3]], `${nome}: coresTons segue os degraus`);
+      tons.forEach((t) => assert.ok(R64.has(t), `${nome}: ${t} fora da paleta`));
+      for (let i = 1; i < 4; i++) assert.ok(LUZ.valor(tons[i]) <= LUZ.valor(tons[i - 1]), `${nome}: ${tons} fora de ordem`);
+      const dist = new Set(tons).size, escura = LUZ.RAMPAS[LUZ.rampaDe(b)].indexOf(b) < 2;
+      assert.ok(dist >= (escura ? 2 : 4), `${nome} ${b}: só ${dist} tons distintos (${tons})`);
+    }
+  });
+  test('marcas do corpo (malhado, pintado, ruão) sem xadrez 1×1 regular maior que 4×4, nos 12 moldes e 20 sementes', () => {
+    for (const c of CH) {
+      const idx = ler(c, 'parado'), anc = JSON.parse(fs.readFileSync(path.join(DIR, `molde-${c}.json`), 'utf8')).ancoras.parado;
+      for (const corpo of ['malhado', 'pintado', 'ruao']) for (let sem = 1; sem <= 20; sem++) {
+        const m = MK.camadaMarcas(idx, 64, 64, anc, { cara: 'nenhuma', patas: 0, corpo }, sem);
+        for (let y = 0; y + 5 <= 64; y++) for (let x = 0; x + 5 <= 64; x++) {
+          let par = 0, impar = 0, todos = true;
+          for (let b = 0; b < 5 && todos; b++) for (let a = 0; a < 5; a++) {
+            const i = (y + b) * 64 + x + a; if (idx[i] !== 2 && idx[i] !== 3) { todos = false; break; }
+            const marc = m[i] ? 1 : 0; if (((a + b) & 1) === marc) par++; else impar++;
+          }
+          assert.ok(!todos || (par !== 25 && impar !== 25), `${c} ${corpo} semente ${sem}: xadrez 1×1 em (${x}, ${y})`);
+        }
+      }
+    }
+  });
+}
+
+console.log('\n## Âncora do olho (o idle pisca: animação ambiente, etapa 2)');
+{
+  const CH = [...new Set(fs.readdirSync(DIR).filter((f) => /^molde-(esguio|padrao|robusto)-\w+\.json$/.test(f)).map((f) => f.slice(6, -5)))];
+  for (const c of CH) test(`${c}: olho no retrato e no parado, de 1 a 6 px de contorno na cabeça, atrás do nariz`, () => {
+    const J = JSON.parse(fs.readFileSync(path.join(DIR, `molde-${c}.json`), 'utf8'));
+    for (const est of ['retrato', 'parado']) {
+      const a = J.ancoras[est], o = a.olho, d = decodePng(fs.readFileSync(path.join(DIR, `molde-${c}-${est}.png`)));
+      assert.ok(Array.isArray(o) && o.length >= 2 && o.length <= 12 && o.length % 2 === 0, `${est}: olho ${JSON.stringify(o)}`);
+      for (let k = 0; k < o.length; k += 2) {
+        const x = o[k], y = o[k + 1], papel = Math.round(d.rgba[(y * 64 + x) * 4] / 25);
+        assert.strictEqual(papel, 1, `${est}: (${x}, ${y}) não é contorno (papel ${papel})`);
+        assert.ok(x < a.nose[0] - 2 && x > a.nose[0] - 16 && y < a.nose[1] && y > a.nose[1] - 12, `${est}: (${x}, ${y}) fora da cabeça`);
+      }
+    }
+  });
+  test('moldes-olho.mjs --check: os JSONs têm o olho que a busca (e o OLHO_MANUAL) dá', () => {
+    const r = spawnSync(process.execPath, [path.join(path.dirname(fileURLToPath(import.meta.url)), 'moldes-olho.mjs'), '--check'], { encoding: 'utf8' });
+    assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  });
+}
+
+console.log('\n## Idle dos moldes no jogo (Sprites.IdleMolde; animação ambiente, etapa 2)');
+{
+  const req = createRequire(import.meta.url), SP = req('../src/sprites.js');
+  const CH = [...new Set(fs.readdirSync(DIR).filter((f) => /^molde-(esguio|padrao|robusto)-\w+\.json$/.test(f)).map((f) => f.slice(6, -5)))];
+  const lerIdx = (f) => { const d = decodePng(fs.readFileSync(f)), idx = new Uint8Array(4096); for (let i = 0; i < 4096; i++) idx[i] = d.rgba[i * 4 + 3] < 128 ? 0 : Math.round(d.rgba[i * 4] / 25); return idx; };
+  const molde = (c) => { const J = JSON.parse(fs.readFileSync(path.join(DIR, `molde-${c}.json`), 'utf8')); return { w: 64, h: 64, retrato: lerIdx(path.join(DIR, `molde-${c}-retrato.png`)), parado: lerIdx(path.join(DIR, `molde-${c}-parado.png`)), ancoras: J.ancoras }; };
+  const roda = (M, est, sem, gestos, seg = 40) => { const a = new SP.IdleMolde(M, est, sem, gestos), ch = []; for (let t = 0; t < seg; t += 0.1) { a.agenda(t); ch.push(a.monta(t)); } return { a, ch }; };
+  test('sprites.js sem Math.random (o idle sorteia só da RNG cosmética)', () => {
+    const txt = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'sprites.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    assert.ok(!/Math\.random/.test(txt));
+  });
+  for (const c of CH) test(`${c}: as peças do idle (olho, orelhas, cauda, barriga, crina) e 40 s de quadros válidos, iguais com a mesma semente`, () => {
+    const M = molde(c);
+    for (const est of ['retrato', 'parado']) {
+      const { a, ch } = roda(M, est, 77);
+      assert.ok(a.olho.length >= 2, `${est}: olho`); assert.ok(a.orelhas.length > 0, `${est}: orelhas`);
+      // (o esguio-chamas parado não tem crina atrás da garupa: a cauda dele não abana; o resto do idle vale)
+      if (!(c === 'esguio-chamas' && est === 'parado')) assert.ok(a.cauda.length > 0, `${est}: cauda`);
+      assert.ok(a.barriga.length > 0, `${est}: barriga`);
+      assert.ok(a.mapa.every((v) => v >= 0 && v <= 9), `${est}: só papéis 0–9`);
+      const tipos = new Set(ch.map((k) => k.replace(/[0-9-]/g, '')));
+      assert.ok(new Set(ch).size >= 6, `${est}: o idle muda (${new Set(ch).size} estados)`);
+      assert.ok([...tipos].some((k) => k.includes('p')), `${est}: pisca`);
+      assert.deepStrictEqual(roda(M, est, 77).ch, ch, `${est}: a mesma semente, a mesma sequência`);
+      assert.notDeepStrictEqual(roda(M, est, 78).ch, ch, `${est}: outra semente, outra sequência`);
+    }
+  });
+  test('IdleMolde.chave(t) dá a mesma chave do monta(t) (a cena só monta o mapa de um quadro ainda não pintado), nos 12 moldes e com gesto', () => {
+    for (const c of CH) for (const est of ['retrato', 'parado']) {
+      const M = molde(c), gestos = est === 'retrato' ? { comer: Array.from({ length: 9 }, () => M.retrato.slice()) } : null
+      const a = new SP.IdleMolde(M, est, 41, gestos), b = new SP.IdleMolde(M, est, 41, gestos)
+      for (let t = 0; t < 60; t += 1 / 14) {
+        a.agenda(t); b.agenda(t)
+        const k = a.chave(t), m = b.monta(t)
+        if (k != null) assert.strictEqual(k, m, `${c} ${est} t=${t.toFixed(2)}`)
+        a.monta(t)   // o a segue o mesmo caminho (o gesto que acaba no monta)
+      }
+    }
+  });
+  test('vistas de frente e de costas (âncoras explícitas da frente 2): só os gestos do estado; respiração sobe o topo; cauda só nas costas', () => {
+    // um corpo 20×12 sintético com orelhas, crina e cauda marcadas
+    const W = 30, H = 30, idx = new Uint8Array(W * H);
+    for (let y = 10; y < 22; y++) for (let x = 5; x < 25; x++) idx[y * W + x] = y === 10 || x === 5 || x === 24 ? 1 : 2;
+    for (let y = 6; y < 10; y++) for (let x = 18; x < 22; x++) idx[y * W + x] = 1;   // orelhas
+    for (let y = 12; y < 22; y++) for (let x = 2; x < 5; x++) idx[y * W + x] = 4;     // cauda
+    const anc = { footY: 21, bbox: [2, 6, 25, 22], olho: [], orelhas: [18, 6, 22, 9], crina: [10, 10, 16, 12], respira: [6, 24, 12] };
+    const M = { w: W, h: H, frente: idx, costas: idx, ancoras: { frente: anc, costas: Object.assign({}, anc, { cauda: [2, 12, 5, 22] }) } };
+    for (const est of ['frente', 'costas']) {
+      const a = new SP.IdleMolde(M, est, 3), ch = []; let subiu = false, mexeuCauda = false;
+      for (let t = 0; t < 60; t += 0.1) {
+        a.agenda(t); const k = a.monta(t); ch.push(k);
+        if (/^r/.test(k) && a.mapa[9 * W + 12]) subiu = true;   // inspira: a linha de cima (10) sobe para a 9
+        if (/c-?[1-9]/.test(k)) mexeuCauda = true;
+      }
+      const tudo = ch.join('');
+      assert.ok(!/h[12]/.test(tudo), `${est}: sem aceno de cabeça`); assert.ok(!/p[12]/.test(tudo), `${est}: sem piscar (olho vazio)`);
+      assert.ok(subiu, `${est}: a respiração sobe o topo do corpo`); assert.ok(/o/.test(tudo), `${est}: a orelha gira`);
+      assert.strictEqual(mexeuCauda, est === 'costas', `${est}: cauda ${est === 'costas' ? 'abana' : 'parada'}`);
+    }
+  });
+  test('gesto do PixelLab: entra entre 6 e 18 s, toca os quadros a 6 q/s e volta ao idle; nada de gesto de código durante ele', () => {
+    const M = molde('padrao-lisa'), q = Array.from({ length: 9 }, () => M.retrato.slice());
+    const { ch } = roda(M, 'retrato', 5, { comer: q }, 60);
+    const ini = ch.findIndex((k) => k.startsWith('gcomer'));
+    assert.ok(ini >= 60 && ini <= 180, 'o 1º gesto em ' + ini / 10 + ' s');
+    const fim = ch.findIndex((k, i) => i > ini && !k.startsWith('g'));
+    assert.ok(Math.abs((fim - ini) / 10 - 1.5) <= 0.11, 'dura 9 quadros a 6 q/s: ' + (fim - ini) / 10 + ' s');
+    assert.deepStrictEqual([...new Set(ch.slice(ini, fim))].length, 9, 'os 9 quadros');
+    const n = ch.filter((k, i) => k.startsWith('gcomer0') && (i === 0 || !ch[i - 1].startsWith('gcomer0'))).length;
+    assert.ok(n >= 2 && n <= 4, n + ' gestos em 60 s (um a cada 15–30 s)');
+  });
+}
+
+test('o mapa-múndi embutido: a ilha 256×384 opaca e os ginásios 64×64 com alfa binário, só Resurrect 64', () => {
+  const R = new Set(R64_MAPA.map((h) => h.toLowerCase())), PROTO = path.join(DIR, '..', '..');
+  const confere = (rel, w, h, opaca) => {
+    const d = decodePng(fs.readFileSync(path.join(PROTO, rel)));
+    assert.ok(d.width === w && d.height === h, `${rel}: ${d.width}×${d.height}`);
+    let opacos = 0;
+    for (let i = 0; i < d.width * d.height; i++) {
+      const a = d.rgba[i * 4 + 3];
+      assert.ok(a === 0 || a === 255, `${rel}: alfa ${a}`);
+      if (opaca) assert.strictEqual(a, 255, `${rel}: pixel ${i} transparente`);
+      if (!a) continue;
+      opacos++;
+      const hex = [0, 1, 2].map((c) => d.rgba[i * 4 + c].toString(16).padStart(2, '0')).join('');
+      assert.ok(R.has(hex), `${rel}: cor ${hex} fora da Resurrect 64`);
+    }
+    assert.ok(opacos > (opaca ? w * h - 1 : 400), `${rel}: só ${opacos} pixels`);
+  };
+  confere(MAPA_MUNDO.terreno, 256, 384, true);
+  for (const el of ['fogo', 'agua', 'grama']) confere(MAPA_MUNDO.ginasios[el], 64, 64, false);
+});
+
+// as vistas de frente e de costas dos 12 moldes (cena de desafio; plano do mapa dos ginásios B1): 64 × 64 em papéis, com o
+// contorno de 1 px por fora, as âncoras do idle dentro da caixa e a carga tudo ou nada no lerMoldes
+const DV = path.join(DIR, '..', 'arte', 'desafio', 'vistas');
+const CH12 = ['esguio', 'padrao', 'robusto'].flatMap((p) => ['chamas', 'ondas', 'folhas', 'lisa'].map((e) => `${p}-${e}`));
+test('as vistas de frente e de costas: 24 PNGs 64×64 em tons de papel, cavalo inteiro e contornado', () => {
+  for (const ch of CH12) for (const v of ['frente', 'costas']) {
+    const d = decodePng(fs.readFileSync(path.join(DV, `vista-${ch}-${v}.png`))), W = d.width;
+    assert.ok(W === 64 && d.height === 64, `${ch} ${v}: ${W}×${d.height}`);
+    const papel = (x, y) => (x < 0 || y < 0 || x >= 64 || y >= 64 ? 0 : Math.round(d.rgba[(y * 64 + x) * 4] / 25));
+    let n = 0
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+      const g = d.rgba[(y * 64 + x) * 4]; assert.ok(g % 25 === 0 && g <= 225, `${ch} ${v}: tom ${g}`);
+      const p = papel(x, y); if (!p) continue; n++;
+      if (p !== 1 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => !papel(x + a, y + b))) throw new Error(`${ch} ${v}: pixel ${x},${y} (papel ${p}) na borda sem contorno`);
+    }
+    assert.ok(n > 900, `${ch} ${v}: só ${n} pixels`);
+  }
+});
+test('as âncoras das vistas: dentro da caixa do cavalo, com as peças do idle combinadas com a frente 1', () => {
+  const V = JSON.parse(fs.readFileSync(path.join(DV, 'vistas-3d.json'), 'utf8')).moldes;
+  for (const ch of CH12) for (const v of ['frente', 'costas']) {
+    const A = V[ch][v], b = A.bbox, dentro = (c) => !c || (c[0] >= b.x && c[1] >= b.y && c[2] <= b.x + b.w && c[3] <= b.y + b.h && c[2] > c[0] && c[3] > c[1]);
+    assert.ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= 64 && b.y + b.h <= 64, `${ch} ${v}: bbox fora`);
+    assert.strictEqual(A.footY, b.y + b.h - 1, `${ch} ${v}: footY`);
+    for (const k of ['orelhas', 'crina', 'cauda']) assert.ok(dentro(A[k]), `${ch} ${v}: ${k} fora da caixa`);
+    assert.ok(Array.isArray(A.respira) && A.respira[2] > b.y && A.respira[2] < A.footY && A.respira[1] > A.respira[0], `${ch} ${v}: respira`);
+    assert.ok(Array.isArray(A.nose) && Array.isArray(A.rear) && Array.isArray(A.olho), `${ch} ${v}: nose, rear e olho`);
+    assert.strictEqual('cauda' in A, v === 'costas', `${ch} ${v}: cauda só nas costas`);
+  }
+});
+await testA('o lerMoldes junta as vistas nos 12 estilos, e com uma faltando não junta nenhuma (com aviso)', async () => {
+  const PROTO = path.join(DIR, '..', '..'), av = [];
+  const T = await lerMoldesVistas(PROTO, av);
+  for (const ch of CH12) {
+    const e = T.estilos[ch];
+    assert.ok(/^data:image\/png/.test(e.frente) && /^data:image\/png/.test(e.costas) && e.json.ancoras.frente && e.json.ancoras.costas, ch);
+    assert.ok(e.json.ancoras.parado && e.json.ancoras.retrato, ch + ': as âncoras de lado continuam');
+  }
+  assert.deepStrictEqual(av, []);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vistas-'));
+  try {
+    fs.cpSync(DIR, path.join(tmp, 'assets', 'pixellab'), { recursive: true, filter: (f) => !/[\\/](raw|novos)([\\/]|$)/.test(f) });
+    fs.cpSync(DV, path.join(tmp, 'assets', 'arte', 'desafio', 'vistas'), { recursive: true });
+    fs.unlinkSync(path.join(tmp, 'assets', 'arte', 'desafio', 'vistas', 'vista-robusto-lisa-costas.png'));
+    const av2 = [], T2 = await lerMoldesVistas(tmp, av2);
+    for (const ch of CH12) assert.ok(!T2.estilos[ch].frente && !T2.estilos[ch].json.ancoras.frente, ch + ' ficou com vista');
+    assert.ok(av2.some((a) => /vistas de frente e de costas ignoradas.*robusto-lisa/.test(a)), JSON.stringify(av2));
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');

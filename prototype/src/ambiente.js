@@ -1,0 +1,2542 @@
+/*
+ * MMORPG Horse — motor da animação ambiente (prototype/src/ambiente.js). Etapa 1 do plano
+ * docs/superpowers/plans/2026-11-24-animacao-ambiente.md; spec docs/superpowers/specs/2026-11-23-animacao-ambiente-design.md.
+ * Saiu da amostra (prototype/arte/animacao.js, que agora só tem a interface dela) sem mudar o comportamento: as mesmas
+ * cenas desenham os mesmos pixels (conferido por hash na amostra e no fx-test).
+ *
+ * Só apresentação: não lê nem escreve regra, não importa sim.js, não usa Math.random. Sorteios só da RNG cosmética
+ * (mulberry32 de semente fixa por cena), separada da seed das regras (CLAUDE.md §8).
+ *
+ * Regras do guia de arte (docs/arte/guia.md):
+ *   §2 tudo desenhado num buffer na resolução de arte e copiado para a tela por um drawImage ampliado num inteiro;
+ *      deslocamentos sempre arredondados para o pixel de arte (sem rotação nem escala suave)
+ *   §3 toda cor sai da Resurrect 64; alfa binário (nenhum véu translúcido)
+ *   §9 orçamento: ≤ 2 ms de JavaScript por quadro, ≤ 150 partículas, ≤ 300 chamadas de desenho
+ *
+ * API (UMD: window.Ambiente no navegador, require no Node):
+ *   Ambiente.config({ criaCanvas(w, h), pilotoCanvas })   o canvas novo (padrão: document ou OffscreenCanvas) e o
+ *                                                         canvas do painel do piloto PixelLab (só a amostra)
+ *   Ambiente.dados(A)          os dados embutidos (imagens em data: URI, moldes, regiões, piloto); A.imagens etc.
+ *   Ambiente.IMG               as imagens decodificadas, por nome (quem carrega preenche)
+ *   Ambiente.cena(id, opts)    -> { W, H, atualiza(t, dt), desenha(ctx, cam), parada(ctx), def }: a cena pronta, no
+ *                                 buffer dela; opts = { mais, manifesto }; desenha copia o buffer 1:1 em ctx
+ *   Ambiente.mais(b), Ambiente.usa(ctx), Ambiente.CENAS, Ambiente.estado, Ambiente.medidor, Ambiente.Camada,
+ *   Ambiente.tela               o que a amostra usa para o medidor e as comparações
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.Ambiente = factory();
+}(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  var A = {};   // dados embutidos (Ambiente.dados)
+  var MAN = { imagens: {} };   // o manifesto (prototype/assets/arte/animacao.json; Ambiente.dados com A.manifesto, ou Ambiente.manifesto)
+  function man(nome) { var e = MAN.imagens && MAN.imagens[nome]; if (!e) throw new Error('Ambiente: a imagem ' + nome + ' não está no manifesto'); return e; }
+  function dentro(c, x, y) { return x >= c[0] && y >= c[1] && x < c[2] && y < c[3]; }
+  function dentroDe(lista, x, y) { for (var i = 0; i < (lista || []).length; i++) if (dentro(lista[i], x, y)) return true; return false; }
+  var cfg = {
+    criaCanvas: function (w, h) {
+      var c;
+      if (typeof document !== 'undefined' && document.createElement) c = document.createElement('canvas');
+      else if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
+      else return canvasMudo(w, h);   // Node sem canvas: carrega o módulo (os testes passam o criaCanvas deles)
+      c.width = w; c.height = h; return c;
+    },
+    pilotoCanvas: null,
+    preassado: true,   // pré-assado por estado das peças (Deforma.preassado); false: tudo calculado a cada passo
+    regiaoSem: {}      // diagnóstico (spike do teste de engine): { camadas: true } congela as camadas vivas, { cima: true } tira o que vai por cima
+  };
+  // um canvas que não desenha nada (para o módulo carregar fora do navegador)
+  function canvasMudo(w, h) {
+    var nada = function () {}, img = function (a, b) { return { width: a, height: b, data: new Uint8ClampedArray(a * b * 4) }; };
+    var g = { fillRect: nada, clearRect: nada, drawImage: nada, putImageData: nada, save: nada, restore: nada, beginPath: nada, fill: nada,
+      createImageData: img, getImageData: function (x, y, a, b) { return img(a, b); } };
+    return { width: w, height: h, getContext: function () { return g; } };
+  }
+  var DOIS_PI = Math.PI * 2;
+  // quantiza para o pré-assado: v em degraus de passo; a fase (radianos) em n passos da volta
+  function qv(v, passo) { return Math.round(v / passo) * passo; }
+  // ao abrir a tela: roda os primeiros segundos das peças pré-assadas nas duas versões (com e sem "mais movimento")
+  function aquecer(lista, seg) {
+    if (!cfg.preassado) return;
+    var m0 = MAIS;
+    [true, false].forEach(function (m) { MAIS = m; lista.forEach(function (d) { if (d.chave) d.aquece(0, seg); }); });
+    MAIS = m0;
+  }
+  function qfase(a, n) { return Math.round(mod(a, DOIS_PI) / DOIS_PI * n) % n * DOIS_PI / n; }
+
+  // ================================================================ cores e canvas
+  function rgbDe(h) { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+  // cor em 32 bits na ordem do ImageData (little-endian: ABGR)
+  function c32(h) { var v = rgbDe(h); return ((255 << 24) | (v[2] << 16) | (v[1] << 8) | v[0]) >>> 0; }
+  function hexDe(c) { return [c & 255, (c >>> 8) & 255, (c >>> 16) & 255].map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join(''); }
+  function tela(w, h) { var c = cfg.criaCanvas(w, h); var g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = false; return c; }
+  function Buf(w, h) {
+    this.w = w; this.h = h; this.c = tela(w, h); this.g = this.c.getContext('2d', { willReadFrequently: true });
+    this.img = this.g.createImageData(w, h); this.d = new Uint32Array(this.img.data.buffer);
+  }
+  Buf.de = function (src) {
+    var b = new Buf(src.width, src.height); b.g.drawImage(src, 0, 0);
+    b.img = b.g.getImageData(0, 0, b.w, b.h); b.d = new Uint32Array(b.img.data.buffer);
+    for (var i = 0; i < b.d.length; i++) if ((b.d[i] >>> 24) < 128) b.d[i] = 0; else b.d[i] = (b.d[i] | 0xff000000) >>> 0;   // alfa binário
+    return b;
+  };
+  Buf.prototype.poe = function () { this.g.putImageData(this.img, 0, 0); };
+  Buf.prototype.clone = function () { var b = new Buf(this.w, this.h); b.d.set(this.d); b.poe(); return b; };
+  Buf.prototype.em = function (x, y) { return x < 0 || y < 0 || x >= this.w || y >= this.h ? 0 : this.d[y * this.w + x]; };
+
+  // paleta (só os nomes usados aqui; todas da Resurrect 64)
+  var P = {
+    tinta: '#2e222f', sombra: '#3e3546', cinzaE: '#625565', cinza: '#9babb2', claro: '#c7dcd0', branco: '#ffffff',
+    vinho: '#6e2727', verm: '#b33831', vermC: '#ea4f36', vermV: '#e83b3b', laranja: '#fb6b1d', laranjaC: '#f79617', ouro: '#f9c22b',
+    amarelo: '#fbff86', ouroC: '#fbb954', madE: '#4c3e24', mad: '#9e4539', madC: '#cd683d', madCC: '#e6904e', areia: '#fdcbb0',
+    areiaE: '#ab947a', rosa: '#fca790', violetaE: '#45293f', violeta: '#694f62', roxo: '#7f708a', terra: '#966c6c',
+    mar0: '#0b5e65', mar1: '#0b8a8f', mar2: '#0eaf9b', mar3: '#30e1b9', mar4: '#8ff8e2', ceu1: '#4d65b4', ceu2: '#4d9be6', ceu3: '#8fd3ff',
+    verdeE: '#165a4c', verde: '#239063', verdeC: '#1ebc73', verdeCC: '#91db69', musgo: '#547e64', oliva: '#676633', azulE: '#323353',
+    rosaV: '#f04f78'
+  };
+  var C = {}; Object.keys(P).forEach(function (k) { C[k] = c32(P[k]); });
+
+  // ================================================================ ruído e RNG cosmética
+  function hash(x, y) { var h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+  function hash3(x, y, z) { return hash(x + z * 7919, y - z * 104729); }
+  function rngCosmetica(semente) {   // mulberry32; só para o que é enfeite (nunca entra na regra)
+    var a = semente >>> 0;
+    return function () { a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  var SEN = new Float32Array(1024); for (var si = 0; si < 1024; si++) SEN[si] = Math.sin(si / 1024 * Math.PI * 2);
+  function fsin(x) { return SEN[(x * 162.97466 | 0) & 1023]; }   // seno por tabela (1024 passos): basta para o pixel inteiro
+  function suave(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
+  function mod(a, n) { return ((a % n) + n) % n; }
+
+  // vento cosmético: 0 a 1, com rajadas que atravessam a cena da esquerda para a direita (frente a 110 px de arte/s);
+  // tudo que reage ao vento (capim, coqueiros, bandeirolas, biruta, placa, poeira) lê a mesma função
+  // MAIS: a variante "mais movimento" da cena na tela (pedido do Vinicius, 2026-11-23); a "atual" é a principal
+  var MAIS = false;
+  function vento(t) {
+    var base = 0.42 + 0.12 * Math.sin(t * 0.13 + 0.4);
+    var r1 = Math.pow(Math.max(0, Math.sin(t * 0.31 + 1.3)), 8) * 0.55;
+    var r2 = Math.pow(Math.max(0, Math.sin(t * 0.83 + 0.2)), 10) * 0.25;
+    if (!MAIS) return Math.min(1, base + r1 + r2);
+    // mais movimento: uma rajada forte a cada ~15 s que dobra tudo junto, e as comuns 20% mais fortes
+    var forte = Math.pow(Math.max(0, Math.sin(t * 0.42 + 2.2)), 10) * 0.8;
+    return Math.min(1, base * 1.05 + r1 * 1.2 + r2 * 1.2 + forte);
+  }
+  function rajadaForte(t) { return MAIS && vento(t) > 0.92; }
+  function ventoEm(x, t) { return vento(t - x / 110); }
+
+  // ================================================================ medidor de custo
+  // Cada camada é medida em volta do seu trabalho (atualizar + desenhar) com performance.now(); média móvel de ~1 s e
+  // pico dos últimos ~2 s. Chamadas de desenho contadas pelos ajudantes R() e D().
+  var medidor = { camadas: [], chamadas: 0, chamadasMedia: 0, particulas: 0, fps: 0, total: 0, totalPico: 0 };
+  function Camada(id, rotulo, descricao) {
+    this.id = id; this.rotulo = rotulo; this.descricao = descricao || ''; this.ativo = true;
+    this.ms = 0; this.pico = 0; this.picos = []; this.acc = 0;
+  }
+  function mede(cam, fn) {
+    if (!cam.ativo) return false;
+    var t0 = performance.now(); fn(); cam.acc += performance.now() - t0;
+    return true;
+  }
+  var g = null;   // contexto do buffer da cena (resolução de arte)
+  // KR: a troca de paleta do clima para o que é desenhado por código (regiões na corrida); null = as cores como estão
+  var KR = null;
+  function R(x, y, w, h, cor) { g.fillStyle = KR ? KR[cor] || cor : cor; g.fillRect(x, y, w, h); medidor.chamadas++; }
+  function D(img, a, b, c, d, e, f, h, i) {
+    if (c === undefined) g.drawImage(img, a, b); else g.drawImage(img, a, b, c, d, e, f, h, i);
+    medidor.chamadas++;
+  }
+  // camada de largura w repetida na horizontal, deslocada desloc px (inteiro), com o topo em y
+  function repetida(img, desloc, y, W) {
+    var w = img.width, x = -mod(Math.floor(desloc), w);
+    for (; x < W; x += w) D(img, x, y);
+  }
+
+  // ================================================================ primitivas
+  // --- 1. Ciclo de cor (Mark Ferrari): uma lista dos pixels animados de uma camada, cada um com a sua rampa e o seu
+  // degrau; a cada passo (fps próprio) só esses pixels são reescritos no ImageData e a camada volta por um putImageData.
+  function CicloCor(base, escolhe, rampas, cor, fps) {
+    // escolhe(x, y, hex) -> índice da rampa ou -1; rampas: listas de hex; cor(x, y, rampa, degrau, t) -> degrau novo
+    this.base = base; this.saida = base.clone(); this.fps = fps || 12; this.passo = -1; this.cor = cor;
+    this.rampas = rampas.map(function (r) { return r.map(c32); });
+    var px = [], hexes = {};
+    for (var y = 0; y < base.h; y++) for (var x = 0; x < base.w; x++) {
+      var i = y * base.w + x, v = base.d[i]; if (!v) continue;
+      var h = hexes[v] || (hexes[v] = hexDe(v)), r = escolhe(x, y, h);
+      if (r < 0) continue;
+      var deg = rampas[r].indexOf(h); if (deg < 0) continue;
+      px.push(i, x, y, r, deg);
+    }
+    this.px = new Int32Array(px); this.n = px.length / 5;
+  }
+  CicloCor.prototype.precisa = function (t) { return Math.floor(t * this.fps) !== this.passo; };
+  CicloCor.prototype.atualiza = function (t) {
+    var p = Math.floor(t * this.fps); if (p === this.passo) return false;
+    this.passo = p;
+    var d = this.saida.d, px = this.px, R_ = this.rampas, tq = p / this.fps;
+    for (var k = 0; k < px.length; k += 5) {
+      var r = R_[px[k + 3]], deg = this.cor(px[k + 1], px[k + 2], px[k + 3], px[k + 4], tq, k / 5);
+      d[px[k]] = r[deg < 0 ? 0 : deg >= r.length ? r.length - 1 : deg];
+    }
+    return true;
+  };
+
+  // --- Agenda: cada atualização pesada (ciclo de cor, deformação) só roda quando o seu passo mudou, e no máximo uma por
+  // quadro (a mais atrasada primeiro); as outras mostram o resultado anterior por 1–2 quadros (16–33 ms), o que não se
+  // vê, e o pico do quadro fica no custo de uma só.
+  function Agenda() { this.itens = []; }
+  Agenda.prototype.roda = function (t, ligado) {
+    var melhor = null, atraso = -1;
+    for (var i = 0; i < this.itens.length; i++) {
+      var it = this.itens[i]; if (ligado && !ligado(it)) continue;
+      if (!it.precisa(t)) continue;
+      var a = t - (it.feito || 0); if (a > atraso) { atraso = a; melhor = it; }
+    }
+    if (melhor) { melhor.feito = t; return melhor; }
+    return null;
+  };
+
+  // --- 2. Deformação por pixel inteiro (capim, folhas de coqueiro, torcida, placas): "puxa" cada pixel de destino da
+  // posição (x − dx, y − dy) da imagem de origem, se ali houver um pixel da mesma peça; dx e dy são inteiros. Sem
+  // rotação nem escala suave: a folha "dobra" porque as pontas andam 1–2 px e o miolo fica.
+  function Deforma(origem, mascara, caixas, desloc, fps, prepara) {
+    // origem: Buf; mascara: Int16Array (0 = fora, n = peça n); caixas: [{x0,y0,x1,y1,id,...}] (já com a margem);
+    // prepara(t), opcional: uma vez por passo, para a cena calcular o que vale para a peça ou a coluna inteira (o desloc
+    // por pixel fica só com multiplicações)
+    this.o = origem; this.m = mascara; this.caixas = caixas; this.desloc = desloc; this.fps = fps || 12; this.passo = -1; this.prepara = prepara;
+    this.saida = origem.clone();
+    this.limpo = new Uint32Array(origem.d); for (var i = 0; i < mascara.length; i++) if (mascara[i]) this.limpo[i] = 0;
+    this.v = [0, 0];
+    // pixels de cada caixa a até 3 px da peça (dilatação), feitos uma vez: o laço do passo só passa por eles
+    var w = origem.w, h = origem.h, A = 3;
+    caixas.forEach(function (cx) {
+      if (cx.lista) return;   // a mesma peça já montada (as caixas copiadas de outro clima trazem a lista)
+      var perto = new Uint8Array((cx.x1 - cx.x0) * (cx.y1 - cx.y0)), cw = cx.x1 - cx.x0, lista = [];
+      for (var y = cx.y0; y < cx.y1; y++) for (var x = cx.x0; x < cx.x1; x++) {
+        if (mascara[y * w + x] !== cx.id) continue;
+        for (var yy = Math.max(cx.y0, y - A); yy <= Math.min(cx.y1 - 1, y + A); yy++) for (var xx = Math.max(cx.x0, x - A); xx <= Math.min(cx.x1 - 1, x + A); xx++) perto[(yy - cx.y0) * cw + xx - cx.x0] = 1;
+      }
+      for (var k = 0; k < perto.length; k++) if (perto[k]) lista.push((cx.y0 + ((k / cw) | 0)) * w + cx.x0 + k % cw);
+      cx.lista = new Int32Array(lista);
+    });
+    // o retângulo de todas as caixas: o putImageData de cada passo vai só nele
+    var bb = { x0: w, y0: h, x1: 0, y1: 0 };
+    caixas.forEach(function (cx) { bb.x0 = Math.min(bb.x0, cx.x0); bb.y0 = Math.min(bb.y0, cx.y0); bb.x1 = Math.max(bb.x1, cx.x1); bb.y1 = Math.max(bb.y1, cx.y1); });
+    this.bb = bb;
+    this.chave = null; this.cacheMax = 0; this.cacheBytes = 0; this.acertos = 0; this.erros = 0;
+  }
+  // Pré-assado por estado da peça (spec §2.3; plano, etapa 1): chave(caixa) -> a chave dos parâmetros dela (que a cena
+  // quantiza no prepara) ou null. O resultado de cada caixa em cada chave fica guardado (só os pixels que a caixa
+  // escreve; 0 = não escreveu) até maxBytes; com a chave já vista, o passo copia em vez de calcular. Cada peça segue o
+  // seu vento (a rajada continua atravessando a tela). aquece(t0, t1) roda os passos de [t0, t1) para encher ao abrir.
+  // comum ({ bytes }): o cache guarda de onde vem cada pixel (o índice na origem) em vez da cor, e as caixas que já
+  // chegam com um cache o mantêm: a mesma geometria em outra paleta (as regiões da corrida, um clima por instância)
+  // reaproveita o que a outra já calculou, com um teto de memória só para todas
+  Deforma.prototype.preassado = function (chave, maxBytes, comum) {
+    this.chave = chave; this.cacheMax = maxBytes; this.comum = comum || null;
+    this.caixas.forEach(function (cx) { if (!comum || !cx.cache) cx.cache = new Map(); });
+    return this;
+  };
+  Deforma.prototype.aquece = function (t0, t1) {
+    for (var p = Math.ceil(t0 * this.fps); p < t1 * this.fps; p++) { this.passo = -1; this.atualiza(p / this.fps); }
+    this.passo = -1;
+  };
+  Deforma.prototype.precisa = function (t) { return Math.floor(t * this.fps) !== this.passo; };
+  Deforma.prototype.atualiza = function (t, origemNova) {
+    var p = Math.floor(t * this.fps); if (p === this.passo && !origemNova) return false;
+    this.passo = p;
+    var o = origemNova || this.o.d, w = this.o.w, h = this.o.h, m = this.m, d = this.saida.d, v = this.v, tq = p / this.fps;
+    if (this.prepara) this.prepara(tq);
+    if (origemNova) { for (var q = 0; q < d.length; q++) d[q] = m[q] ? 0 : o[q]; } else d.set(this.limpo);
+    for (var c = 0; c < this.caixas.length; c++) {
+      var cx = this.caixas[c], id = cx.id, L = cx.lista, k = this.chave && !origemNova ? this.chave(cx) : null, guarda = null, n;
+      var CM = this.comum;
+      if (k !== null) {
+        var achou = cx.cache.get(k);
+        if (achou) {
+          if (CM) { for (n = 0; n < L.length; n++) if (achou[n]) d[L[n]] = o[achou[n] - 1]; }
+          else for (n = 0; n < L.length; n++) if (achou[n]) d[L[n]] = achou[n];
+          this.acertos++; continue;
+        }
+        this.erros++;
+        if ((CM ? CM.bytes : this.cacheBytes) + L.length * 4 <= this.cacheMax) guarda = CM ? new Int32Array(L.length) : new Uint32Array(L.length);
+      }
+      for (n = 0; n < L.length; n++) {
+        var i = L[n], x = i % w, y = (i / w) | 0;
+        this.desloc(x, y, cx, tq, v, i);
+        var sx = x - v[0], sy = y - v[1];
+        if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
+        var s = sy * w + sx;
+        if (m[s] === id) { d[i] = o[s]; if (guarda) guarda[n] = CM ? s + 1 : o[s]; }
+      }
+      if (guarda) { cx.cache.set(k, guarda); this.cacheBytes += guarda.byteLength; if (CM) CM.bytes += guarda.byteLength; }
+    }
+    // o canvas da saída (sem isto, a peça ficava parada na tela: o passo só mudava os dados)
+    var bb = this.bb;
+    if (bb.x1 > bb.x0 && bb.y1 > bb.y0) this.saida.g.putImageData(this.saida.img, 0, 0, bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+    return true;
+  };
+  // em fatias: a cada chamada, as próximas n peças (rodízio), cada uma no seu tempo, e o putImageData só no retângulo
+  // delas — o custo se espalha pelos quadros (sem pico) e cada peça se renova a ~60/(peças/n) vezes por segundo
+  Deforma.prototype.fatia = function (t, n) {
+    if (this.prepara) this.prepara(t);
+    var w = this.o.w, h = this.o.h, m = this.m, o = this.o.d, d = this.saida.d, v = this.v, lim = this.limpo;
+    var x0 = w, y0 = h, x1 = 0, y1 = 0;
+    this.cur = this.cur || 0;
+    for (var k = 0; k < n; k++) {
+      var cx = this.caixas[this.cur]; this.cur = (this.cur + 1) % this.caixas.length;
+      var id = cx.id, L = cx.lista;
+      for (var q = 0; q < L.length; q++) {
+        var i = L[q], x = i % w, y = (i / w) | 0;
+        this.desloc(x, y, cx, t, v, i);
+        var sx = x - v[0], sy = y - v[1], src = sy * w + sx;
+        d[i] = sx >= 0 && sy >= 0 && sx < w && sy < h && m[src] === id ? o[src] : lim[i];
+      }
+      if (cx.x0 < x0) x0 = cx.x0; if (cx.y0 < y0) y0 = cx.y0; if (cx.x1 > x1) x1 = cx.x1; if (cx.y1 > y1) y1 = cx.y1;
+    }
+    if (x1 > x0) this.saida.g.putImageData(this.saida.img, 0, 0, x0, y0, x1 - x0, y1 - y0);
+  };
+
+  // em imagem achatada (sem transparência atrás): lê de src e escreve em dst só dentro das caixas; onde a peça saiu,
+  // buraco(x, y, caixa, src) diz o que aparece (sem ele, fica o pixel de antes: a folha "engrossa" 1 px em vez de furar)
+  Deforma.prototype.aplica = function (src, dst, tq, buraco) {
+    if (this.prepara) this.prepara(tq);
+    var w = this.o.w, h = this.o.h, m = this.m, v = this.v;
+    for (var c = 0; c < this.caixas.length; c++) {
+      var cx = this.caixas[c], id = cx.id, L = cx.lista;
+      for (var n = 0; n < L.length; n++) {
+        var i = L[n], x = i % w, y = (i / w) | 0;
+        this.desloc(x, y, cx, tq, v, i);
+        var sx = x - v[0], sy = y - v[1];
+        if (sx >= 0 && sy >= 0 && sx < w && sy < h && m[sy * w + sx] === id) dst[i] = src[sy * w + sx];
+        else if (m[i] === id) dst[i] = buraco ? buraco(x, y, cx, src) : src[i];
+      }
+    }
+  };
+
+  // máscara e caixas das peças conexas (vizinhança 8) dos pixels que passam no filtro
+  function pecas(base, filtro, margem, minPx) {
+    var w = base.w, h = base.h, m = new Int16Array(w * h), caixas = [], id = 0, pilha = [];
+    var ok = new Uint8Array(w * h);
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) { var v = base.d[y * w + x]; if (v && filtro(x, y, hexDe(v))) ok[y * w + x] = 1; }
+    for (var i = 0; i < w * h; i++) {
+      if (!ok[i] || m[i]) continue;
+      id++; var lista = [i]; m[i] = id; pilha.length = 0; pilha.push(i);
+      var x0 = w, y0 = h, x1 = 0, y1 = 0, sx = 0, sy = 0;
+      while (pilha.length) {
+        var j = pilha.pop(), jx = j % w, jy = (j / w) | 0;
+        x0 = Math.min(x0, jx); y0 = Math.min(y0, jy); x1 = Math.max(x1, jx); y1 = Math.max(y1, jy); sx += jx; sy += jy;
+        for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) {
+          var nx = jx + ox, ny = jy + oy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          var k = ny * w + nx; if (ok[k] && !m[k]) { m[k] = id; pilha.push(k); lista.push(k); }
+        }
+      }
+      if (lista.length < (minPx || 1)) { lista.forEach(function (k) { m[k] = 0; ok[k] = 0; }); id--; continue; }
+      caixas.push({ id: id, n: lista.length, cx: sx / lista.length, cy: sy / lista.length, bx0: x0, by0: y0, bx1: x1, by1: y1,
+        x0: Math.max(0, x0 - margem), y0: Math.max(0, y0 - margem), x1: Math.min(w, x1 + margem + 1), y1: Math.min(h, y1 + margem + 1) });
+    }
+    return { m: m, caixas: caixas };
+  }
+
+  // --- 3. Partículas (vetores fixos; nenhum objeto novo por quadro)
+  var T_BRASA = 1, T_FUMACA = 2, T_BOMBA = 3, T_AREIA = 4, T_FOLHA = 5, T_FAISCA = 6, T_PENA = 7, T_GIRO = 8, T_BOLHA = 9, T_GOTA = 10, T_PETALA = 11;
+  var PDIR = 1;   // sentido do vento das partículas (−1: da direita para a esquerda; regiões na corrida)
+  function Particulas(max) {
+    this.max = max; this.n = 0;
+    this.x = new Float32Array(max); this.y = new Float32Array(max); this.vx = new Float32Array(max); this.vy = new Float32Array(max);
+    this.idade = new Float32Array(max); this.vida = new Float32Array(max); this.tipo = new Uint8Array(max); this.s = new Float32Array(max);
+    this.a = new Float32Array(max); this.r = new Float32Array(max);   // ângulo e raio do redemoinho
+  }
+  Particulas.prototype.nasce = function (tipo, x, y, vx, vy, vida, s) {
+    if (this.n >= this.max) return;
+    var i = this.n++;
+    this.tipo[i] = tipo; this.x[i] = x; this.y[i] = y; this.vx[i] = vx; this.vy[i] = vy; this.vida[i] = vida; this.idade[i] = 0; this.s[i] = s || 0;
+    this.a[i] = (s || 0) * 6.283; this.r[i] = 1 + (s || 0) * 2;
+  };
+  Particulas.prototype.passo = function (dt, t) {
+    for (var i = 0; i < this.n; i++) {
+      this.idade[i] += dt;
+      if (this.idade[i] >= this.vida[i]) {   // troca com a última
+        var u = --this.n;
+        this.tipo[i] = this.tipo[u]; this.x[i] = this.x[u]; this.y[i] = this.y[u]; this.vx[i] = this.vx[u]; this.vy[i] = this.vy[u];
+        this.vida[i] = this.vida[u]; this.idade[i] = this.idade[u]; this.s[i] = this.s[u]; this.a[i] = this.a[u]; this.r[i] = this.r[u]; i--; continue;
+      }
+      var tp = this.tipo[i], w = ventoEm(this.x[i], t);
+      if (tp === T_BRASA || tp === T_FAISCA) { this.vy[i] -= 6 * dt; this.vx[i] += (w * 14 - this.vx[i]) * dt * 0.8 + Math.sin(t * 7 + this.s[i] * 9) * 6 * dt; }
+      else if (tp === T_FUMACA) { this.vy[i] *= (1 - 0.25 * dt); this.vx[i] += (PDIR * w * 9 - this.vx[i]) * dt * 0.5; }
+      else if (tp === T_BOMBA) { this.vy[i] += 46 * dt; }
+      else if (tp === T_AREIA) { this.vx[i] += (PDIR * w * 46 - this.vx[i]) * dt * 1.5; this.vy[i] = Math.sin(t * 5 + this.s[i] * 6) * 4; }
+      else if (tp === T_FOLHA || tp === T_PENA) { this.vx[i] += (PDIR * w * 26 - this.vx[i]) * dt; this.vy[i] = 6 + Math.sin(t * 3 + this.s[i] * 6) * 9; }
+      else if (tp === T_PETALA) { this.vx[i] += (PDIR * w * 16 - this.vx[i]) * dt; this.vy[i] = 5 + Math.sin(t * 2.6 + this.s[i] * 6) * 6; }
+      else if (tp === T_GIRO) { this.vx[i] = w * 24; this.a[i] += (5 + this.s[i] * 3) * dt; this.r[i] = Math.min(10, this.r[i] + 5 * dt); }
+      else if (tp === T_GOTA) { this.vy[i] += 60 * dt; }
+      else if (tp === T_BOLHA) { this.vx[i] = 0; this.vy[i] = 0; }
+      this.x[i] += this.vx[i] * dt; this.y[i] += this.vy[i] * dt;
+    }
+    medidor.particulas += this.n;
+  };
+  var RAMPA_BRASA = [P.amarelo, P.ouro, P.laranjaC, P.laranja, P.vermV, P.vinho];
+  var RAMPA_FUMACA = [P.roxo, P.cinzaE, P.violeta, P.sombra];
+  Particulas.prototype.desenha = function (dx, dy, quadro) {
+    for (var i = 0; i < this.n; i++) {
+      var tp = this.tipo[i], k = this.idade[i] / this.vida[i], x = Math.round(this.x[i] + dx), y = Math.round(this.y[i] + dy);
+      if (tp === T_BRASA || tp === T_FAISCA || tp === T_BOMBA) {
+        var cor = RAMPA_BRASA[Math.min(5, Math.floor(k * (tp === T_FAISCA ? 4 : 6)))];
+        if (tp === T_BRASA && hash3(i, Math.floor(this.s[i] * 99), quadro >> 2) < 0.12) continue;   // cintila
+        R(x, y, tp === T_BOMBA && k < 0.5 ? 2 : 1, tp === T_BOMBA && k < 0.5 ? 2 : 1, cor);
+      } else if (tp === T_FUMACA) {
+        var tam = k < 0.15 ? 2 : k < 0.45 ? 3 : k < 0.8 ? 4 : 3, c = RAMPA_FUMACA[Math.min(3, Math.floor(k * 4))];
+        R(x - (tam >> 1), y - (tam >> 1), tam, tam, c);
+        if (tam >= 3) { R(x - (tam >> 1) - 1, y, 1, 1, c); R(x + tam - (tam >> 1), y - 1, 1, 1, c); }   // borda irregular
+      } else if (tp === T_AREIA) {
+        R(x, y, k > 0.8 && (quadro & 1) ? 0 : 1, 1, this.s[i] < 0.5 ? P.areia : P.areiaE);
+      } else if (tp === T_FOLHA) {
+        var deitada = Math.floor(this.idade[i] * 6 + this.s[i] * 4) & 1;
+        R(x, y, deitada ? 2 : 1, deitada ? 1 : 2, this.s[i] < 0.5 ? P.verdeC : P.oliva);
+      } else if (tp === T_PETALA) {   // pétala de ipê: 1 px que vira de lado (2 × 1) e cintila entre os 2 amarelos
+        var vira = Math.floor(this.idade[i] * 5 + this.s[i] * 4) & 1;
+        R(x, y, vira ? 2 : 1, 1, this.s[i] < 0.6 ? P.ouro : P.laranjaC);
+      } else if (tp === T_PENA) {
+        R(x, y, 1, 1, P.branco);
+      } else if (tp === T_GIRO) {   // folha ou areia girando em volta de um centro que o vento leva, subindo
+        var gx = Math.round(this.x[i] + dx + Math.cos(this.a[i]) * this.r[i]), gy = Math.round(this.y[i] + dy + Math.sin(this.a[i]) * this.r[i] * 0.45 - this.idade[i] * 7);
+        var dt2 = Math.floor(this.a[i] * 2) & 1;
+        if (this.s[i] < 0.5) R(gx, gy, dt2 ? 2 : 1, dt2 ? 1 : 2, this.s[i] < 0.25 ? P.verdeC : P.oliva); else R(gx, gy, 1, 1, this.s[i] < 0.75 ? P.areia : P.areiaE);
+      } else if (tp === T_GOTA) {
+        R(x, y, 1, 1, k < 0.5 ? P.branco : P.claro);
+      } else if (tp === T_BOLHA) {   // bolha de lava: incha 1 → 2 px e estoura em 4 respingos
+        if (k < 0.35) R(x, y, 1, 1, P.ouro);
+        else if (k < 0.7) { R(x, y - 1, 2, 2, P.amarelo); R(x, y - 1, 1, 1, P.branco); }
+        else { var e = k < 0.85 ? 2 : 3; R(x - e, y - 1, 1, 1, P.laranjaC); R(x + e + 1, y - 1, 1, 1, P.laranjaC); R(x, y - e - 1, 1, 1, P.ouro); R(x + 1, y - e, 1, 1, P.laranja); }
+      }
+    }
+  };
+
+  // --- 4. Pássaros: silhuetas de 5 a 7 px em 3 quadros de asa (alto, meio, baixo) + planar; batem as asas em surtos
+  // e planam, com 1 px de sobe-e-desce na batida. Quadros pré-desenhados por cor (1 drawImage por pássaro).
+  var ASAS = {
+    longe: [['#...#', '.#.#.', '..#..'], ['.....', '##.##', '..#..'], ['.....', '..#..', '##.##']],
+    gaivota: [['#.....#', '.#...#.', '..#.#..', '...#...'], ['.......', '##...##', '..###..', '...#...'], ['.......', '...#...', '.##.##.', '#.....#']]
+  };
+  function quadrosAsa(desenho, cor, ponta) {
+    return desenho.map(function (linhas) {
+      var c = tela(linhas[0].length, linhas.length), cg = c.getContext('2d');
+      linhas.forEach(function (l, y) { for (var x = 0; x < l.length; x++) if (l[x] === '#') { cg.fillStyle = (ponta && (x === 0 || x === l.length - 1)) ? ponta : cor; cg.fillRect(x, y, 1, 1); } });
+      return c;
+    });
+  }
+  function Bando(rng, n, conf) {
+    this.q = quadrosAsa(ASAS[conf.tipo], conf.cor, conf.ponta); this.conf = conf; this.b = [];
+    for (var i = 0; i < n; i++) this.b.push({ x: rng() * conf.largura, y: conf.y0 + rng() * (conf.y1 - conf.y0), v: conf.v * (0.75 + rng() * 0.5),
+      fase: rng() * 10, surto: 1.5 + rng() * 2.5, plana: 1 + rng() * 2.5, onda: rng() * 6 });
+  }
+  Bando.prototype.desenha = function (t, cam, W) {
+    var cf = this.conf, L = cf.largura;
+    for (var i = 0; i < this.b.length; i++) {
+      var p = this.b[i], ciclo = p.surto + p.plana, tc = mod(t + p.fase, ciclo), bate = tc < p.surto;
+      var f = bate ? [0, 1, 2, 1][mod(Math.floor(t * cf.qps + p.fase * 3), 4)] : 1;   // (mod: t negativo na contagem da corrida)
+      var x = Math.round(mod(p.x + t * p.v * (cf.dir || 1) - cam * cf.paralaxe, L) - 20);
+      var y = Math.round(p.y + Math.sin(t * 0.4 + p.onda) * 4 + (bate && f === 0 ? -1 : 0));
+      if (x < -10 || x > W + 4) continue;
+      D(this.q[f], x, y);
+    }
+  };
+
+  // revoada em V que atravessa a cena a cada `periodo` s (mais movimento): o líder na frente, os outros em escada atrás,
+  // cada um batendo as asas no seu tempo
+  function Revoada(conf) { this.q = quadrosAsa(ASAS[conf.tipo], conf.cor, conf.ponta); this.c = conf; }
+  Revoada.prototype.desenha = function (t, cam, W) {
+    var c = this.c, tc = mod(t + (c.fase || 0), c.periodo), x0 = -24 + tc * c.v, y0 = c.y + Math.sin(t * 0.5) * 3;
+    if (x0 > W + 40) return;
+    for (var i = 0; i < c.n; i++) {
+      var fila = Math.ceil(i / 2), lado = i % 2 ? 1 : -1;
+      var x = Math.round(x0 - fila * 6), y = Math.round(y0 + lado * fila * 3);
+      var f = [0, 1, 2, 1][mod(Math.floor(t * c.qps + i * 1.7), 4)];
+      if (x > -8 && x < W) D(this.q[f], x, y);
+    }
+  };
+  // jorro de lava do vulcão (mais movimento): coluna de 1–3 px que sobe e cai em `dur` s, quente na base
+  function desenhaJorro(vx, vy, u, alt, q) {
+    var h = Math.round(alt * Math.sin(Math.PI * Math.min(1, u)));
+    for (var k = 0; k < h; k++) {
+      var larg = k < h * 0.35 ? 3 : k < h * 0.75 ? 2 : 1, cor = RAMPA_BRASA[Math.min(4, Math.floor(k / Math.max(1, h) * 3.5 + hash3(k, 3, q) * 1.3))];
+      R(vx - (larg >> 1) + (k > h * 0.5 && hash3(k, 7, q) < 0.3 ? 1 : 0), vy - k, larg, 1, cor);
+    }
+  }
+
+  // --- 5. Céu em faixas (o do jogo) e o sol com o halo em ciclo de cor (o pontilhado do halo gira e "respira")
+  function ceuFaixas(W, H) {
+    var c = tela(W, H), cg = c.getContext('2d'), faixas = [[0, P.ceu1], [26, P.ceu2], [64, P.ceu3], [100, P.claro]];
+    for (var i = 0; i < faixas.length; i++) {
+      var y0 = faixas[i][0], y1 = i + 1 < faixas.length ? faixas[i + 1][0] : H;
+      cg.fillStyle = faixas[i][1]; cg.fillRect(0, y0, W, y1 - y0);
+      if (i + 1 < faixas.length) { cg.fillStyle = faixas[i + 1][1]; for (var x = 0; x < W; x += 2) { cg.fillRect(x, y1 - 2, 1, 1); cg.fillRect(x + 1, y1 - 1, 1, 1); } }
+    }
+    return c;
+  }
+  var SOL = [];   // 4 quadros
+  for (var sq = 0; sq < 4; sq++) {
+    var sc = tela(25, 25), sg = sc.getContext('2d');
+    for (var yy = 0; yy < 25; yy++) for (var xx = 0; xx < 25; xx++) {
+      var dd = Math.hypot(xx - 12, yy - 12), ang = Math.atan2(yy - 12, xx - 12);
+      if (dd <= 7) { sg.fillStyle = P.branco; sg.fillRect(xx, yy, 1, 1); }
+      else if (dd <= 9) { sg.fillStyle = P.amarelo; sg.fillRect(xx, yy, 1, 1); }
+      else if (dd <= 10.6 + (sq === 2 ? 0.8 : sq === 1 || sq === 3 ? 0.4 : 0) && (xx + yy + sq) % 2 === 0) { sg.fillStyle = P.amarelo; sg.fillRect(xx, yy, 1, 1); }
+      else if (dd <= 12.2 && (xx + yy) % 2 === 0 && Math.cos(ang * 8 + sq * Math.PI / 4) > 0.75) { sg.fillStyle = P.amarelo; sg.fillRect(xx, yy, 1, 1); }   // raios que giram
+    }
+    SOL.push(sc);
+  }
+  function SOL_PARADO() { return SOL[0]; }
+
+  // --- 6. Bandeirolas num varal: cada uma com 4 quadros (a ponta vai e volta 1 px), fora de fase, mais rápidas no vento
+  function quadrosBandeirola(cor) {
+    var Q = [];
+    [0, 1, 0, -1].forEach(function (dx, k) {
+      var c = tela(5, 7), cg = c.getContext('2d');
+      var forma = [[0, 4], [0, 4], [1, 3], [1, 3], [2, 2]];   // triângulo de 5 de largura × 5 de altura
+      forma.forEach(function (f, y) {
+        var desv = Math.round(dx * y / 4) + (k === 2 && y >= 3 ? 1 : 0);
+        cg.fillStyle = P.tinta; cg.fillRect(f[0] + desv, y + 1, f[1] - f[0] + 1, 1);
+        if (f[1] - f[0] >= 2) { cg.fillStyle = cor; cg.fillRect(f[0] + 1 + desv, y + 1, f[1] - f[0] - 1, 1); }
+      });
+      cg.fillStyle = P.tinta; cg.fillRect(2 + Math.round(dx * 5 / 4), 6, 1, 1);
+      Q.push(c);
+    });
+    return Q;
+  }
+  var CORES_BAND = [P.vermV, P.ouro, P.ceu2, P.verdeC, P.branco, P.rosaV];
+  var BAND = CORES_BAND.map(quadrosBandeirola);
+  // varal de x0 a x1 com a barriga de "flecha" px; uma bandeirola a cada 7 px
+  var cordas = {};
+  function corda(L, flecha) {
+    var k = L + ':' + flecha; if (cordas[k]) return cordas[k];
+    var c = tela(L + 1, flecha + 2), cg = c.getContext('2d'); cg.fillStyle = P.tinta;
+    for (var x = 0; x <= L; x++) { var u = x / L; cg.fillRect(x, Math.round(flecha * 4 * u * (1 - u)), 1, 1); }
+    return (cordas[k] = c);
+  }
+  function desenhaVaral(x0, x1, y, flecha, t, semente) {
+    var n = Math.floor((x1 - x0) / 7);
+    D(corda(x1 - x0, flecha), x0, y);
+    for (var i = 1; i < n; i++) {
+      var bx = x0 + i * 7 - 2, u2 = (bx + 2 - x0) / (x1 - x0), by = y + Math.round(flecha * 4 * u2 * (1 - u2));
+      var w = ventoEm(bx, t), q = Math.floor(t * (5 + w * 9) + hash(i, semente) * 4) % 4;
+      D(BAND[(i + semente) % BAND.length][q], bx, by);
+    }
+  }
+
+  // --- 7. Biruta: tecido de 4 listras que enche com o vento (de caída a esticada) e tremula 1 px
+  function desenhaBiruta(x, y, t) {
+    R(x, y, 1, 34, P.tinta); R(x + 1, y, 1, 34, P.cinza); R(x - 1, y - 1, 3, 1, P.tinta);
+    var w = vento(t), queda = 1 - w;   // 0 = esticada, 1 = caída
+    for (var i = 0; i < 10; i++) {
+      var u = i / 9, yy = y + Math.round(queda * queda * 11 * u * u + queda * 3 * u + Math.sin(t * (6 + w * 8) - i * 0.9) * (0.3 + w * 0.7) * u);
+      var alt = i < 3 ? 3 : i < 7 ? 2 : 1, xx = x + 2 + Math.round(i * (0.55 + w * 0.45));
+      R(xx, yy, 1, alt, (Math.floor(i / 2.5) % 2) ? P.branco : P.vermV);
+      R(xx, yy + alt, 1, 1, P.tinta);
+    }
+  }
+
+  // --- 8. Placa de madeira pendurada: balança nas correntes e, nas rajadas, gira no eixo (fica estreita e mostra o
+  // cantinho escuro); a ferradura gravada some quando ela está de lado
+  function desenhaPlaca(x, y, t) {
+    var w = vento(t);
+    R(x, y, 1, 26, P.madE); R(x + 1, y, 1, 26, P.mad);                   // poste
+    R(x, y - 1, 22, 1, P.tinta); R(x, y, 22, 2, P.mad); R(x, y, 22, 1, P.madC);   // braço
+    var giro = Math.cos(t * (1.4 + w * 2.2) + Math.sin(t * 0.7)) , abre = 1 - Math.pow(Math.max(0, w - 0.45) / 0.55, 1.2) * (0.5 - 0.5 * giro);
+    var bal = Math.round(Math.sin(t * 2.1) * (0.5 + w * 1.3));
+    var LW = 15, lw = Math.max(1, Math.round(LW * abre)), cx = x + 12 + bal, bx = cx - Math.floor(lw / 2), by = y + 6;
+    // correntes (2 elos)
+    for (var k = 0; k < 2; k++) { var hx = x + 7 + k * 10, tx = bx + (k ? lw - 1 : 0); R(Math.round((hx + tx) / 2), y + 3, 1, 1, P.cinzaE); R(hx, y + 2, 1, 1, P.cinzaE); R(tx, y + 4, 1, 2, P.cinzaE); }
+    if (lw <= 2) { R(bx, by, Math.max(1, lw), 10, P.madE); return; }
+    R(bx, by, lw, 10, P.tinta);
+    R(bx + 1, by + 1, lw - 2, 8, abre > 0.6 ? P.madC : P.mad);
+    R(bx + 1, by + 1, lw - 2, 1, abre > 0.6 ? P.madCC : P.madC);
+    R(bx + 1, by + 5, lw - 2, 1, P.mad);
+    if (lw >= 11) {   // ferradura gravada
+      var fx = bx + Math.floor(lw / 2) - 2;
+      R(fx, by + 2, 1, 4, P.ouro); R(fx + 4, by + 2, 1, 4, P.ouro); R(fx + 1, by + 6, 3, 1, P.ouro);
+      R(fx, by + 2, 1, 1, P.ouroC); R(fx + 4, by + 2, 1, 1, P.ouroC);
+    }
+    if (abre < 0.85) R(giro > 0 ? bx + lw - 2 : bx + 1, by + 1, 1, 8, P.madE);   // a espessura aparece de lado
+  }
+
+  // --- 9. Chama de tocha/braseiro: 5 de largura × até 7 de altura, desenhada por coluna a cada quadro (12 q/s), com a
+  // ponta que tremula e lambe para o lado do vento
+  // 8 quadros × 2 alturas × 2 lados (reto e lambendo para o vento), pré-desenhados: 1 drawImage por chama
+  var CHAMAS = {};
+  function quadroChama(q, tam, lado) {
+    var k = q + ':' + tam + ':' + lado; if (CHAMAS[k]) return CHAMAS[k];
+    var c = tela(7, 9), cg = c.getContext('2d');
+    var alt = [3, 5, 6, 5, 3].map(function (a, i) { return Math.max(1, Math.round((a + (hash3(i, 3, q) < 0.5 ? 1 : 0) - (hash3(i + 9, 5, q) < 0.25 ? 1 : 0)) * tam)); });
+    for (var i = 0; i < 5; i++) for (var j = 0; j < alt[i]; j++) {
+      var u = j / Math.max(1, alt[i] - 1), cor = u < 0.3 ? (i === 2 ? P.amarelo : P.ouro) : u < 0.6 ? P.laranjaC : u < 0.85 ? P.laranja : P.vermV;
+      if (i === 0 || i === 4) cor = u < 0.5 ? P.laranja : P.vermV;
+      cg.fillStyle = cor; cg.fillRect(i + 1 + (j >= alt[i] - 2 ? lado : 0), 8 - j, 1, 1);
+    }
+    return (CHAMAS[k] = c);
+  }
+  function desenhaChama(x, y, t, sem, tam) {
+    var q = Math.floor(t * 12 + sem * 5) % 8, lado = ventoEm(x, t) > 0.62 ? 1 : 0;
+    D(quadroChama(q, tam || 1, lado), x - 3, y - 8);
+  }
+
+  // --- 10. Sombra de contato (integração do personagem): elipse achatada sob os cascos, feita escurecendo um degrau a
+  // própria cor do chão da cena (não é preto com alfa), com o miolo dois degraus; deslocada 2 px para a direita (luz de
+  // cima e da esquerda). Pré-desenhada a partir do fundo parado.
+  var DEGRAU = {
+    e6904e: 'cd683d', fbb954: 'e6904e', cd683d: '9e4539', '9e4539': '6e2727', fdcbb0: 'e6904e', fca790: 'cd683d', ab947a: '966c6c',
+    a2a947: '676633', '91db69': 'a2a947', cddf6c: 'a2a947', '676633': '4c3e24', '239063': '165a4c', '1ebc73': '239063', '547e64': '374e4a',
+    '966c6c': '694f62', f9c22b: 'e6904e', ffffff: 'c7dcd0', c7dcd0: '9babb2', '9babb2': '7f708a', '4c3e24': '2e222f', '6e2727': '45293f'
+  };
+  function sombraContato(fundo, cx, cy, rx, ry) {   // fundo: Buf da cena; devolve { c, x, y }
+    var w = rx * 2 + 1, h = ry * 2 + 1, b = new Buf(w, h);
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+      var ex = (x - rx) / rx, ey = (y - ry) / ry, r2 = ex * ex + ey * ey; if (r2 > 1) continue;
+      var v = fundo.em(cx - rx + x, cy - ry + y); if (!v) continue;
+      var h1 = DEGRAU[hexDe(v)]; if (!h1) continue;
+      var h2 = r2 < 0.35 ? DEGRAU[h1] || h1 : h1;
+      if (r2 > 0.8 && ((x + y) & 1)) continue;   // borda em pontilhado: a sombra se desfaz no chão
+      b.d[y * w + x] = c32(h2);
+    }
+    b.poe();
+    return { c: b.c, x: cx - rx, y: cy - ry };
+  }
+
+  // ================================================================ cavalo: idle em camadas
+  // O molde é um mapa de papéis (0 vazio, 1 contorno, 2 pelagem, 3 sombra, 4 crina, 5 sombra da crina, 6 detalhe,
+  // 7 seda, 8 pele, 9 sela; sprites.js). As peças saem do mapa e das âncoras (nariz, garupa):
+  //   olho  = contorno no meio da cabeça; orelhas = o topo da cabeça; cauda = crina atrás da garupa;
+  //   barriga = o contorno de baixo do tronco entre as patas.
+  // A cada quadro monta-se um mapa novo (respiração + eventos) e ele é pintado com a pelagem: 1 drawImage por cavalo.
+  // olhos que a busca automática não separa das linhas da cara (na integração: âncora "olho" no JSON de cada molde)
+  var OLHO_MANUAL = { 'robusto-folhas:retrato': [54, 14, 55, 14, 56, 14, 54, 15, 55, 15, 56, 15] };
+  function CavaloIdle(molde, estado, cores, semente, opts) {
+    opts = opts || {}; this.nome = (molde.nome || '') + ':' + estado;
+    this.idx = molde[estado]; this.anc = molde.ancoras[estado]; this.w = 64; this.h = 64;
+    this.cores = [0].concat(cores.slice(1).map(c32)); this.rng = rngCosmetica(semente); this.espelho = !!opts.espelho;
+    this.buf = new Buf(64, 64); this.mapa = new Uint8Array(64 * 64); this.ultimaChave = '';
+    this.respira = 3.2 + this.rng() * 1.2; this.faseR = this.rng() * 6;
+    this.eventos = []; this.proximo = 1 + this.rng() * 3; this.ventoCrina = opts.ventoCrina !== false;
+    this.pecas();
+  }
+  CavaloIdle.prototype.em = function (x, y) { return x < 0 || y < 0 || x >= 64 || y >= 64 ? 0 : this.idx[y * 64 + x]; };
+  CavaloIdle.prototype.pecas = function () {
+    var I = this.idx, a = this.anc, nx = a.nose[0], ny = a.nose[1], rx = a.rear[0], ry = a.rear[1], self = this, x, y;
+    // cabeça: topo
+    var topo = 64; for (y = 0; y < 64 && topo === 64; y++) for (x = nx - 12; x <= nx; x++) if (this.em(x, y)) { topo = y; break; }
+    this.orelhas = [];
+    for (y = topo; y <= topo + 2; y++) for (x = nx - 12; x <= nx + 1; x++) { var v = this.em(x, y); if (v) this.orelhas.push(x, y, v); }
+    // olho: entre os grupos de contorno "por dentro" da cara (4 vizinhos pintados), o pequeno (≤ 6 px) mais perto de onde
+    // o olho fica num cavalo de perfil (8 px atrás e 6 acima do nariz); as linhas do cabresto e da cara são compridas
+    // (com 4 vizinhos pintados; se nenhum grupo servir, com 3: o olho de alguns moldes tem um furo transparente)
+    var dentro, grupos, minViz = 4, melhor = null, md;
+    for (; minViz >= 3 && !melhor; minViz--) {
+    dentro = {}; grupos = []; md = 1e9;
+    for (y = ny - 11; y <= ny - 1; y++) for (x = nx - 14; x <= nx - 3; x++)
+      if (this.em(x, y) === 1 && (!!this.em(x - 1, y) + !!this.em(x + 1, y) + !!this.em(x, y - 1) + !!this.em(x, y + 1)) >= minViz) dentro[x + ',' + y] = 1;
+    Object.keys(dentro).forEach(function (k) {
+      if (dentro[k] !== 1) return;
+      var g = [], pilha = [k]; dentro[k] = 2;
+      while (pilha.length) {
+        var c = pilha.pop(), xy = c.split(',').map(Number); g.push(xy[0], xy[1]);
+        for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) { var kk = (xy[0] + ox) + ',' + (xy[1] + oy); if (dentro[kk] === 1) { dentro[kk] = 2; pilha.push(kk); } }
+      }
+      grupos.push(g);
+    });
+    grupos.forEach(function (g) {
+      if (g.length / 2 > 6) return;
+      var mx = 0, my = 0; for (var i = 0; i < g.length; i += 2) { mx += g[i]; my += g[i + 1]; } mx /= g.length / 2; my /= g.length / 2;
+      var d = Math.pow(mx - (nx - 8), 2) + Math.pow(my - (ny - 6), 2) * 1.5; if (d < md && d < 40) { md = d; melhor = g; }
+    });
+    }
+    this.olho = (a.olho && a.olho.length ? a.olho : null) || melhor || OLHO_MANUAL[this.nome] || [];   // a âncora do JSON (etapa 2) vem antes
+    this.olhoBaixo = 0; for (var k = 1; k < this.olho.length; k += 2) this.olhoBaixo = Math.max(this.olhoBaixo, this.olho[k]);
+    // cauda: crina (4/5) atrás da garupa + o contorno que só encosta nela
+    var cauda = new Uint8Array(64 * 64), c0 = 64, c1 = 0;
+    for (y = ry - 10; y < 64; y++) for (x = 0; x <= rx + 7; x++) { var p = this.em(x, y); if (p === 4 || p === 5) cauda[y * 64 + x] = 1; }
+    for (y = ry - 10; y < 64; y++) for (x = 0; x <= rx + 7; x++)   // o detalhe (6) só quando encosta na crina da cauda (os cascos ficam)
+      if (this.em(x, y) === 6 && (cauda[y * 64 + x - 1] || cauda[y * 64 + x + 1] || cauda[(y - 1) * 64 + x] || cauda[(y + 1) * 64 + x])) cauda[y * 64 + x] = 1;
+    for (y = ry - 10; y < 64; y++) for (x = 0; x <= rx + 8; x++) {
+      if (this.em(x, y) !== 1) continue;
+      var toca = false, corpo = false;
+      for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) {
+        if (!ox && !oy) continue; var q = this.em(x + ox, y + oy);
+        if (cauda[(y + oy) * 64 + x + ox]) toca = true; else if (q >= 2 && q !== 4 && q !== 5) corpo = true;
+      }
+      if (toca && !corpo) cauda[y * 64 + x] = 2;
+    }
+    this.cauda = [];
+    for (y = 0; y < 64; y++) for (x = 0; x < 64; x++) if (cauda[y * 64 + x]) { this.cauda.push(x, y, I[y * 64 + x]); c0 = Math.min(c0, y); c1 = Math.max(c1, y); }
+    this.caudaY0 = c0; this.caudaY1 = c1;
+    // barriga: colunas entre as patas (o pixel de baixo do tronco tem 3 vazios embaixo)
+    this.barriga = [];
+    for (x = rx + 8; x <= nx - 16; x++) {
+      for (y = a.footY - 6; y > ry; y--) {
+        if (this.em(x, y) && !this.em(x, y + 1) && !this.em(x, y + 2) && !this.em(x, y + 3)) { this.barriga.push(x, y); break; }
+        if (this.em(x, y) && this.em(x, y + 1)) break;
+      }
+    }
+    // cabeça e pescoço para o aceno (x a partir de nariz − 15, y até nariz + 5)
+    this.cabeca = { x0: nx - 15, y1: ny + 5 };
+    // crina do pescoço (borda de cima) para tremular no vento
+    this.crina = [];
+    for (x = rx + 20; x <= nx - 6; x++) for (y = 0; y < ny + 4; y++) {
+      var vv = this.em(x, y); if (!vv) continue;
+      if (vv === 1 && (this.em(x, y + 1) === 4 || this.em(x, y + 1) === 5)) this.crina.push(x, y);
+      break;
+    }
+  };
+  // eventos raros (o que um cavalo parado faz): piscar, abanar a cauda, girar a orelha, acenar a cabeça
+  var EVENTOS = { piscar: 0.22, cauda: 0.9, orelha: 0.7, cabeca: 1.3, sacode: 0.75 };
+  CavaloIdle.prototype.dispara = function (nome, t) { this.eventos.push({ nome: nome, t0: t, lado: this.rng() < 0.5 ? -1 : 1, forte: (0.6 + this.rng() * 0.4) * (MAIS ? 1.3 : 1) }); };
+  CavaloIdle.prototype.agenda = function (t, auto) {
+    if (!auto) return;
+    if (t >= this.proximo) {
+      var r = this.rng(), nome = MAIS ? (r < 0.26 ? 'piscar' : r < 0.5 ? 'cauda' : r < 0.66 ? 'orelha' : r < 0.84 ? 'cabeca' : 'sacode')
+        : (r < 0.38 ? 'piscar' : r < 0.62 ? 'cauda' : r < 0.85 ? 'orelha' : 'cabeca');
+      this.dispara(nome, t);
+      if (nome === 'piscar' && this.rng() < 0.3) this.dispara('piscar', t + 0.32);   // às vezes pisca duas vezes
+      this.proximo = t + (MAIS ? 1 + this.rng() * 2.5 : 2.5 + this.rng() * 5);   // 3–8 s entre variações (mais movimento: 1–3,5 s)
+      if (MAIS && nome !== 'cauda' && this.rng() < 0.35) this.dispara('cauda', t + 0.2 + this.rng() * 0.4);   // gestos que se juntam
+    }
+  };
+  CavaloIdle.prototype.monta = function (t) {
+    var m = this.mapa, I = this.idx, i, k, x, y;
+    m.set(I);
+    var chave = '';
+    // respiração: a barriga desce 1 px no "inspira" (≈ 40% do ciclo)
+    var fr = mod(t + this.faseR, this.respira) / this.respira, inspira = fr > 0.1 && fr < 0.55;
+    if (inspira) for (k = 0; k < this.barriga.length; k += 2) { x = this.barriga[k]; y = this.barriga[k + 1]; m[(y + 1) * 64 + x] = 1; m[y * 64 + x] = 3; }
+    chave += inspira ? 'r' : '-';
+    // eventos ativos
+    var cauda = 0, orelha = 0, olho = 0, cabeca = 0;
+    for (k = this.eventos.length - 1; k >= 0; k--) {
+      var e = this.eventos[k], u = (t - e.t0) / EVENTOS[e.nome];
+      if (u < 0) continue;
+      if (u >= 1) { this.eventos.splice(k, 1); continue; }
+      if (e.nome === 'piscar') olho = u < 0.25 || u > 0.75 ? 1 : 2;
+      else if (e.nome === 'cauda') cauda = Math.round(e.lado * e.forte * 3 * Math.sin(u * Math.PI * 2) * (1 - u * 0.4));
+      else if (e.nome === 'orelha') orelha = u < 0.75 ? 1 : 0;
+      else if (e.nome === 'cabeca') cabeca = u < 0.15 || u > 0.85 ? 0 : u < 0.3 || u > 0.7 ? 1 : 2;
+      else if (e.nome === 'sacode') { cabeca = Math.floor(u * 6) % 2; orelha = u > 0.2 && u < 0.8 ? 1 : orelha; }   // sacode a cabeça: 3 toques rápidos
+    }
+    // vento na cauda (bem pouco: a ponta vai 1 px)
+    var vc = this.ventoCrina ? Math.round(Math.max(0, vento(t) - 0.55) * 2.2 * Math.max(0, Math.sin(t * 3.1 + this.faseR))) : 0;
+    var dc = cauda || -vc;
+    if (dc) {
+      for (k = 0; k < this.cauda.length; k += 3) { x = this.cauda[k]; y = this.cauda[k + 1]; if (m[y * 64 + x] === this.cauda[k + 2]) m[y * 64 + x] = 0; }
+      var span = Math.max(1, this.caudaY1 - this.caudaY0);
+      for (k = 0; k < this.cauda.length; k += 3) {
+        x = this.cauda[k]; y = this.cauda[k + 1];
+        var u2 = (y - this.caudaY0) / span, dx = Math.round(dc * Math.pow(u2, 1.4)), dy = Math.abs(dc) >= 2 && u2 > 0.8 ? -1 : 0, nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < 64 && ny >= 0 && ny < 64) m[ny * 64 + nx] = this.cauda[k + 2];
+      }
+    }
+    chave += 'c' + dc;
+    // cabeça baixa (aceno de 1–2 px; o pescoço "dobra" na coluna da emenda)
+    if (cabeca) {
+      var cb = this.cabeca;
+      for (y = cb.y1; y >= 0; y--) for (x = cb.x0; x < 64; x++) {
+        var dy2 = x < cb.x0 + 3 ? Math.min(1, cabeca) : cabeca, sy = y - dy2;
+        m[y * 64 + x] = sy >= 0 ? (I[sy * 64 + x] || (y > cb.y1 - dy2 ? m[y * 64 + x] : 0)) : 0;
+      }
+      chave += 'h' + cabeca;
+    }
+    // orelha: as 2 linhas de cima giram 1 px para trás
+    if (orelha) {
+      var o = this.orelhas, yTop = o[1];
+      for (k = 0; k < o.length; k += 3) if (o[k + 1] <= yTop + 1) m[(o[k + 1] + cabeca) * 64 + o[k]] = 0;
+      for (k = 0; k < o.length; k += 3) if (o[k + 1] <= yTop + 1) { var xx = o[k] - 1; if (xx >= 0) m[(o[k + 1] + cabeca) * 64 + xx] = o[k + 2]; }
+      chave += 'o';
+    }
+    // piscar: meio fechado (o de cima vira pálpebra) ou fechado (só a linha de baixo)
+    if (olho) {
+      for (k = 0; k < this.olho.length; k += 2) {
+        x = this.olho[k]; y = this.olho[k + 1];
+        if (olho === 2 ? y < this.olhoBaixo : y < this.olhoBaixo - 1) m[(y + (cabeca || 0)) * 64 + x] = 3;
+      }
+      chave += 'p' + olho;
+    }
+    // crina do pescoço tremulando no vento (1 px, onda que corre para trás)
+    if (this.ventoCrina && vento(t) > 0.5) {
+      var fq = Math.floor(t * 6);
+      for (k = 0; k < this.crina.length; k += 2) {
+        x = this.crina[k]; y = this.crina[k + 1] + (x >= this.cabeca.x0 ? cabeca : 0);
+        if (Math.sin(x * 0.9 + fq * 1.3) > 0.55 && y > 0 && !m[(y - 1) * 64 + x]) { m[(y - 1) * 64 + x] = 1; m[y * 64 + x] = 4; }
+      }
+      chave += 'v' + fq;
+    }
+    return chave;
+  };
+  CavaloIdle.prototype.quadro = function (t, auto) {
+    this.agenda(t, auto);
+    var chave = this.monta(t);
+    if (chave !== this.ultimaChave) {   // só repinta quando o mapa mudou
+      this.ultimaChave = chave;
+      var d = this.buf.d, m = this.mapa, cs = this.cores;
+      for (var i = 0; i < 4096; i++) {
+        var x = i & 63, src = this.espelho ? (i - x) + 63 - x : i;
+        d[i] = m[src] ? cs[m[src]] : 0;
+      }
+      this.buf.poe();
+    }
+    return this.buf.c;
+  };
+  CavaloIdle.prototype.parado = function () {   // a imagem de hoje (sem nada mexendo)
+    var b = new Buf(64, 64);
+    for (var i = 0; i < 4096; i++) { var x = i & 63, src = this.espelho ? (i - x) + 63 - x : i; b.d[i] = this.idx[src] ? this.cores[this.idx[src]] : 0; }
+    b.poe(); return b.c;
+  };
+
+  // pelagens na mestra (contorno, pelagem, sombra, crina, sombra da crina, detalhe, seda, pele, sela)
+  var PELAGEM_DO_ESTILO = { lisa: 'baio', chamas: 'alazao', ondas: 'tordilho', folhas: 'castanho' };
+  var PELAGENS = {
+    baio: [null, P.tinta, P.ouroC, P.madCC, P.areia, P.areiaE, P.branco, P.vermV, P.areia, P.madE],
+    alazao: [null, P.tinta, P.madC, P.mad, P.vinho, P.violetaE, P.claro, P.ceu2, P.areia, P.madE],
+    tordilho: [null, P.tinta, P.cinza, P.roxo, P.ceu3, P.ceu2, P.branco, P.verdeC, P.areia, P.madE],
+    castanho: [null, P.tinta, P.terra, P.violeta, P.verde, P.verdeE, P.sombra, P.ouro, P.areia, P.madE]
+  };
+
+  // ================================================================ cenas
+  var IMG = {};   // Image decodificadas (A.imagens)
+  var CENAS = {};
+  var estado = { cena: 'litoral', t0: 0, ultimo: 0, camera: false, cam: 0, auto: true, lupa: false };
+
+  // ---------------------------------------------------------------- Litoral (corrida)
+  CENAS.litoral = {
+    titulo: 'Litoral · corrida', legenda: 'Prado das Palmeiras, antes da largada',
+    W: 256, lt: 130, nRaias: 3, raia: 22,
+    notas: [
+      '<span class="tag cod">código</span> <b>Mar</b>: ciclo de cor nos pixels do mar (rampa de 8 tons); faixas de brilho descem para a praia e cintilam.',
+      '<span class="tag cod">código</span> <b>Farol</b> gira a luz a cada 2,4 s; <b>veleiros</b> sobem e descem 1 px fora de fase.',
+      '<span class="tag cod">código</span> <b>Coqueiros</b>: as pontas das folhas dobram 1–2 px com o vento; cada coqueiro na sua fase.',
+      '<span class="tag cod">código</span> <b>Capim da praia</b>: rajadas que atravessam a tela da esquerda para a direita (o mesmo vento move tudo).',
+      '<span class="tag cod">código</span> <b>Torcida</b> pula 1 px em grupos; <b>bandeirolas</b> no toldo (4 quadros, fora de fase).',
+      '<span class="tag cod">código</span> <b>Placa de madeira</b> balança e gira nas rajadas; <b>biruta</b> enche e murcha com o vento.',
+      '<span class="tag cod">código</span> <b>Nuvens</b> em 2 velocidades, <b>gaivotas</b> em 2 profundidades, <b>areia</b> soprada e o <b>sol</b> com o halo em ciclo.',
+      '<span class="tag cod">código</span> <b>Cavalos</b> esperando a largada com o idle (respiração, piscar, cauda, orelha, cabeça).',
+      'Sem custo de crédito. A amostra de corrida (câmera andando) mostra que as camadas continuam emendando com a paralaxe.'
+    ],
+    camadas: [
+      ['ceu', 'Céu, sol e nuvens'], ['mar', 'Mar, farol e veleiros'], ['coqueiros', 'Coqueiros ao vento'], ['torcida', 'Torcida e bandeirolas'],
+      ['adereco', 'Placa e biruta'], ['passaros', 'Gaivotas'], ['cavalos', 'Cavalos (idle)'], ['particulas', 'Areia soprada'],
+      ['capim', 'Capim da praia'], ['fundo', 'Fundo parado (pista e cópias)']
+    ],
+    init: function () {
+      var s = this, R_ = A.regioes.litoral, lt = s.lt;
+      s.raia0 = lt + 2; s.pistaFim = s.raia0 + s.nRaias * s.raia; s.frenteY = s.pistaFim + 4; s.H = s.frenteY + 40;
+      s.ceu = ceuFaixas(s.W, lt);
+      var nuv = IMG['litoral/nuvens'];
+      s.nuvemAlta = tela(nuv.width, 15); s.nuvemAlta.getContext('2d').drawImage(nuv, 0, 0);
+      s.nuvemBaixa = tela(nuv.width, nuv.height); s.nuvemBaixa.getContext('2d').drawImage(nuv, 0, 0); s.nuvemBaixa.getContext('2d').clearRect(0, 0, nuv.width, 15);
+      // --- mar (horizonte): rampa de brilho; os pixels do mar são os destes tons abaixo da linha do horizonte, fora da ilha
+      var hz = Buf.de(IMG['litoral/horizonte']);
+      s.hz = hz;
+      var MM = man('litoral/horizonte').mar, RAMPA = MM.rampa;
+      s.mar = new CicloCor(hz, function (x, y, h) {
+        if (y < MM.y[0] || y > MM.y[1]) return -1;
+        if (dentroDe(MM.exclui, x, y)) return -1;   // a ilha do farol e a ponta de terra à direita
+        if (x >= MM.praiaX + (y - MM.praiaY) * MM.praiaInclina && MM.praiaCores.indexOf(h) >= 0) return -1;
+        return RAMPA.indexOf(h) >= 0 ? 0 : -1;
+      }, [RAMPA], function (x, y, r, d, t, j) {
+        if (d < 2) return d;                                       // as sombras do mar ficam
+        if (MAIS) {   // ondulação: uma crista a cada 8 s desce do horizonte até a mureta, mais larga perto
+          var yc = 30 + mod(t, 8) * 7.5, dc = y - yc, larg = 1 + (y - 30) / 30;
+          if (dc <= 0 && dc > -larg && hash(x >> 1, y) < 0.85) return Math.min(7, d + (dc > -1 ? 3 : 2));
+        }
+        if (d >= 6) return hash3(x, y, Math.floor(t * 5 + s.mH[j] * 7)) < 0.35 ? d - 2 : d;   // cintilar dos brilhos
+        var onda = fsin(s.mA[j] - t * s.mS[j] + fsin(s.mB[j] + t * 0.5) * 1.6);
+        if (d >= 4 && onda < -0.6) return d - 1;
+        return onda > 0.72 && hash(Math.floor((x + t * 4) * s.mL[j]), y) < 0.55 ? d + 1 : d;
+      }, 6);
+      // as partes fixas da onda, por pixel (perto = 0 no horizonte e 1 na mureta)
+      var nm = s.mar.n; s.mA = new Float32Array(nm); s.mS = new Float32Array(nm); s.mB = new Float32Array(nm); s.mL = new Float32Array(nm); s.mH = new Float32Array(nm);
+      for (var jm = 0; jm < nm; jm++) {
+        var xm = s.mar.px[jm * 5 + 1], ym = s.mar.px[jm * 5 + 2], pt = (ym - 30) / 58;
+        s.mA[jm] = ym * (2.1 - pt * 1.2); s.mS[jm] = 1.6 + pt * 1.4; s.mB[jm] = xm * (0.11 - pt * 0.05) + ym * 0.7; s.mL[jm] = 1 / (6 + pt * 10); s.mH[jm] = hash(xm, ym);
+      }
+      s.barcos = man('litoral/horizonte').barcos;
+      // --- coqueiros (meio): folhas = verdes acima da linha 72, mais o contorno encostado nelas
+      var MC = man('litoral/meio').coqueiros, meio = Buf.de(IMG['litoral/meio']), VERDES = MC.cores;
+      var pc = pecas(meio, function (x, y, h) {
+        if (y > MC.yMax) return false;
+        if (VERDES.indexOf(h) >= 0) return true;
+        if (h !== MC.contorno) return false;
+        for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) { var v = meio.em(x + ox, y + oy); if (v && VERDES.indexOf(hexDe(v)) >= 0) return true; }
+        return false;
+      }, MC.margem, MC.minPx);
+      pc.caixas.forEach(function (cx, i) {
+        cx.raio = Math.max(cx.bx1 - cx.bx0, cx.by1 - cx.by0) / 2 + 1; cx.fase = hash(i, 3) * 6;
+        cx.coroaY = cx.by0 + (cx.by1 - cx.by0) * 0.45;   // a coroa fica um pouco abaixo do meio da copa
+      });
+      // peso de cada pixel (0 no miolo da copa, 1 nas pontas), calculado uma vez
+      var KX = new Float32Array(meio.w * meio.h), KY = new Float32Array(meio.w * meio.h);
+      pc.caixas.forEach(function (cx) {
+        for (var y = cx.y0; y < cx.y1; y++) for (var x = cx.x0; x < cx.x1; x++) {
+          var dxp = x - cx.cx, dyp = y - cx.coroaY, dist = Math.sqrt(dxp * dxp + dyp * dyp) / cx.raio, w = Math.min(1, Math.max(0, dist - 0.18) / 0.82);
+          KX[y * meio.w + x] = 2.4 * w * (dxp < 0 ? 0.7 : 1); KY[y * meio.w + x] = (dxp > 0 ? 1 : -0.5) * 1.2 * w * w;
+        }
+      });
+      // fase da ondulação por pixel (cresce da coroa para as pontas) e o peso dela (só as pontas)
+      var PH = new Float32Array(meio.w * meio.h), KO = new Float32Array(meio.w * meio.h);
+      pc.caixas.forEach(function (cx) {
+        for (var y = cx.y0; y < cx.y1; y++) for (var x = cx.x0; x < cx.x1; x++) {
+          var dxp = x - cx.cx, dyp = y - cx.coroaY, dist = Math.sqrt(dxp * dxp + dyp * dyp) / cx.raio;
+          PH[y * meio.w + x] = dist * 4.2; KO[y * meio.w + x] = Math.max(0, dist - 0.45) / 0.55;
+        }
+      });
+      s.coqueiros = new Deforma(meio, pc.m, pc.caixas, function (x, y, cx, t, v, i) {
+        var ko = KO[i] * cx.ond;
+        if (ko) { v[0] = Math.round(cx.bal * KX[i] + ko * fsin(PH[i] - cx.tt)); v[1] = Math.round(cx.bal * KY[i] + ko * 0.6 * fsin(PH[i] - cx.tt + 1.3)); }
+        else { v[0] = Math.round(cx.bal * KX[i]); v[1] = Math.round(cx.bal * KY[i]); }
+      }, 6, function (t) {
+        pc.caixas.forEach(function (cx) {
+          var vv = ventoEm(cx.cx, t); cx.bal = vv * (0.55 + 0.45 * Math.sin(t * (1.6 + vv * 1.8) + cx.fase)) * (MAIS ? 1.45 : 1);
+          cx.ond = MAIS ? 0.75 + vv * 0.6 : 0; cx.tt = t * 3.4 + cx.fase;   // mais movimento: as folhas ondulam sempre
+          if (cfg.preassado) { cx.bal = qv(cx.bal, 0.25); cx.ond = qv(cx.ond, 0.3); cx.tt = qfase(cx.tt, 12); }
+        });
+      });
+      // pré-assado: cada coqueiro guarda o desenho de cada (dobra, ondulação, fase); até 1,2 MB
+      if (cfg.preassado) s.coqueiros.preassado(function (cx) { return cx.bal + '|' + cx.ond + '|' + cx.tt.toFixed(3) + (MAIS ? '+' : ''); }, 1.2e6);
+      s.meioY = lt + 26 - meio.h + (R_.posicao.meio || 0);
+      // --- torcida (arquibancada): grupos de 3 colunas pulam 1 px
+      var MA = man('litoral/arquibancada'), MT = MA.torcida, GR = MT.grupo;
+      var arq = Buf.de(IMG['litoral/arquibancada']), mt = new Int16Array(arq.w * arq.h), caixasT = [];
+      for (var y = MT.y[0]; y <= MT.y[1]; y++) for (var x = 0; x < arq.w; x++) if (arq.d[y * arq.w + x]) mt[y * arq.w + x] = 1 + ((x / GR) | 0);
+      for (var gx = 0; gx * GR < arq.w; gx++) caixasT.push({ id: gx + 1, x0: gx * GR, x1: Math.min(arq.w, gx * GR + GR), y0: MT.caixaY[0], y1: MT.caixaY[1], gx: gx });
+      s.torcida = new Deforma(arq, mt, caixasT, function (x, y, cx, t, v) {
+        v[0] = 0; v[1] = cx.pula;
+      }, 6, function (t) {
+        // mais movimento: a "ola" atravessa a arquibancada a cada 9 s (a torcida se levanta 2 px na crista)
+        var ola = MAIS ? mod(t, 9) * 70 - 30 : -999;
+        caixasT.forEach(function (cx) {
+          var q = Math.floor(t * 3 + hash(cx.gx, 1) * 3), d = Math.abs(cx.gx * 3 - ola);
+          cx.pula = d < 5 ? -2 : d < 14 ? -1 : hash3(cx.gx, 7, q) < (MAIS ? 0.24 : 0.16) ? -1 : 0;
+        });
+      });
+      if (cfg.preassado) s.torcida.preassado(function (cx) { return cx.pula; }, 0.2e6);   // 3 estados por grupo
+      s.arqY = lt - 6 - arq.h; s.arqX = MA.x;   // no jogo a 1ª fica em 60; aqui mais à direita para o mar aparecer
+      // --- capim da praia (frente): tudo acima da linha 33 balança, mais no alto
+      var MF = man('litoral/frente').capim, YC = MF.yMax, FX = MF.faixa;
+      var fr = Buf.de(IMG['litoral/frente']), mf = new Int16Array(fr.w * fr.h);
+      for (var y2 = 0; y2 < YC; y2++) for (var x2 = 0; x2 < fr.w; x2++) if (fr.d[y2 * fr.w + x2]) mf[y2 * fr.w + x2] = 1;
+      var ALT = new Float32Array(YC), GC = new Float32Array(fr.w);
+      for (var ya = 0; ya < YC; ya++) { var al = Math.max(0, YC - 1 - ya) / 27; ALT[ya] = al * al; }
+      for (var ym = 0; ym < YC; ym++) for (var xm = 0; xm < fr.w; xm++) if (mf[ym * fr.w + xm]) mf[ym * fr.w + xm] = 1 + ((xm / FX) | 0);
+      var faixas = []; for (var fx = 0; fx < fr.w; fx += FX) faixas.push({ id: 1 + fx / FX, x0: Math.max(0, fx - MF.folga), x1: Math.min(fr.w, fx + FX + MF.folga), y0: 0, y1: YC });
+      s.capim = new Deforma(fr, mf, faixas, function (x, y, cx, t, v) {
+        v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0;
+      }, 6, function (t) {
+        for (var x = 0; x < fr.w; x++) {
+          var w = ventoEm(x * 0.9, t), onda = Math.sin(x * 0.07 - t * 3.2) * 0.5 + 0.5;
+          GC[x] = MAIS ? w * 2.2 + onda * 1.5 + Math.sin(x * 0.23 - t * 5.1) * 0.35 : w * 2.2 + (w - 0.4) * onda * 1.6;   // mais: a onda não para
+        }
+      });
+      // --- pista, cercas e o pé da cena (fundo parado)
+      s.pista = desenhaPistaLitoral(s);
+      s.gaivotas = new Bando(rngCosmetica(11), 3, { tipo: 'gaivota', cor: P.branco, ponta: P.tinta, y0: 40, y1: 80, v: 9, qps: 9, largura: 420, paralaxe: 0.5 });
+      // mais movimento: mais gaivotas, uma revoada em V e pássaros ao longe em bando
+      s.gaivotasMais = new Bando(rngCosmetica(13), 4, { tipo: 'gaivota', cor: P.branco, ponta: P.tinta, y0: 30, y1: 90, v: 12, qps: 10, largura: 380, paralaxe: 0.5, dir: -1 });
+      s.revoada = new Revoada({ tipo: 'gaivota', cor: P.branco, ponta: P.tinta, n: 7, y: 22, v: 22, qps: 9, periodo: 14 });
+      s.bandoLonge = new Revoada({ tipo: 'longe', cor: P.sombra, n: 9, y: 12, v: 9, qps: 7, periodo: 34, fase: 12 });
+      s.longe = new Bando(rngCosmetica(12), 4, { tipo: 'longe', cor: P.sombra, y0: 8, y1: 36, v: 4, qps: 7, largura: 380, paralaxe: 0.08, dir: -1 });
+      s.areia = new Particulas(130); s.rngA = rngCosmetica(21);
+      // --- cavalos na largada
+      var defs = [['padrao-lisa', 'baio', 0], ['esguio-ondas', 'tordilho', 1], ['padrao-chamas', 'alazao', 2]];
+      s.cavalos = defs.map(function (d, j) {
+        var cv = new CavaloIdle(A.moldes[d[0]], 'parado', PELAGENS[d[1]], 100 + j * 17);
+        return { cv: cv, x: [150, 86, 22][j], pe: s.raia0 + (j + 1) * s.raia - 4, ref: cv.anc.footY };
+      });
+      var fundoP = new Buf(s.W, s.H); fundoP.g.drawImage(s.pista, 0, lt - 16); fundoP.img = fundoP.g.getImageData(0, 0, s.W, s.H); fundoP.d = new Uint32Array(fundoP.img.data.buffer);
+      s.cavalos.forEach(function (h) { var a = h.cv.anc.bbox; h.sombra = sombraContato(fundoP, h.x + Math.round(a.x + a.w / 2) + 2, h.pe + 1, Math.round(a.w * 0.42), 3); });
+      s.antes = this.desenhaAntes();
+      aquecer([s.coqueiros, s.torcida], 4);
+      s.agenda = new Agenda(); s.agenda.itens = [s.mar, s.coqueiros, s.capim, s.torcida];
+      s.mar.camada = 'mar'; s.coqueiros.camada = 'coqueiros'; s.capim.camada = 'capim'; s.torcida.camada = 'torcida';
+    },
+    desenhaAntes: function () {
+      var s = this, c = tela(s.W, s.H), g0 = g; g = c.getContext('2d');
+      D(s.ceu, 0, 0); D(SOL_PARADO(), 99, s.lt - 105);
+      repetida(IMG['litoral/nuvens'], 0, s.lt - 110, s.W);
+      repetida(IMG['litoral/horizonte'], 0, s.lt - 32 - 96, s.W);
+      repetida(IMG['litoral/meio'], 0, s.meioY, s.W);
+      D(IMG['litoral/arquibancada'], s.arqX, s.arqY);
+      D(s.pista, 0, s.lt - 16);
+      s.cavalos.forEach(function (h) { D(h.cv.parado(), h.x, h.pe - h.ref); });
+      repetida(IMG['litoral/frente'], 0, s.frenteY - 4, s.W);
+      g = g0; return c;
+    },
+    quadro: function (t, dt, L) {
+      var s = this, cam = estado.cam, W = s.W, lt = s.lt;
+      var vez = s.agenda.roda(t, function (it) { return L[it.camada].ativo; });
+      mede(L.fundo, function () { D(s.ceu, 0, 0); });
+      if (!mede(L.ceu, function () {
+        D(SOL[Math.floor(t * 2.5) % 4], 99, lt - 105);
+        var nuv = IMG['litoral/nuvens'];
+        repetida(s.nuvemAlta, cam * 0.03 + t * 1.2, lt - 110, W);
+        repetida(s.nuvemBaixa, cam * 0.04 + t * 3.5, lt - 110, W);
+      })) { D(SOL_PARADO(), 99, lt - 105); repetida(IMG['litoral/nuvens'], cam * 0.04, lt - 110, W); }
+      if (!mede(L.passaros, function () { s.longe.desenha(t, cam, W); if (MAIS) s.bandoLonge.desenha(t, cam, W); })) {}
+      if (!mede(L.mar, function () {
+        if (vez === s.mar && s.mar.atualiza(t)) {
+          var o = s.mar.saida, d = o.d, wB = o.w;
+          // veleiros: a caixa inteira (barco + o mar em volta) sobe e desce 1 px, cada um na sua fase
+          s.barcos.forEach(function (b, i) {
+            var dy = Math.sin(t * 2.2 + i * 1.7) > 0.2 ? 1 : 0; if (!dy) return;
+            for (var y = b[3]; y > b[1]; y--) for (var x = b[0]; x < b[2]; x++) d[y * wB + x] = d[(y - 1) * wB + x];
+          });
+          // farol: a luz gira (8 passos de 0,3 s)
+          var f = Math.floor(t / 0.3) % 8, L0 = [157, 161], ly = 14;
+          if (f === 1 || f === 5) d[ly * wB + 159] = C.ouro;
+          if (f === 2 || f === 4) { d[ly * wB + 158] = C.amarelo; d[ly * wB + 159] = C.amarelo; d[ly * wB + 160] = C.amarelo; }
+          if (f === 3) { for (var lx = L0[0]; lx <= L0[1]; lx++) d[ly * wB + lx] = C.branco; for (var r = 1; r <= 4; r++) { if (r % 2 || r < 3) { d[ly * wB + L0[0] - r] = C.claro; d[ly * wB + L0[1] + r] = C.claro; } } }
+          o.poe();
+        }
+        repetida(s.mar.saida.c, cam * 0.1, lt - 32 - 96, W);
+      })) repetida(IMG['litoral/horizonte'], cam * 0.1, lt - 32 - 96, W);
+      if (MAIS && L.mar.ativo) mede(L.mar, function () {
+        var y = lt - 128 + 87, q = Math.floor(t * 6), off = Math.floor(cam * 0.1), x = 0;
+        while (x < W) {
+          var k = hash3((x + off) >> 2, 5, q >> 1), n = 2 + Math.floor(k * 6);
+          if (k < 0.55) { R(x, y + (k < 0.2 ? -1 : 0), n, 1, k < 0.3 ? P.branco : P.claro); if (k < 0.12) R(x + 1, y - 2, 1, 1, P.branco); }
+          x += n + 1 + Math.floor(hash(x, q) * 4);
+        }
+      });
+      if (!mede(L.coqueiros, function () { if (vez === s.coqueiros) s.coqueiros.atualiza(t); repetida(s.coqueiros.saida.c, cam * 0.3, s.meioY, W); }))
+        repetida(IMG['litoral/meio'], cam * 0.3, s.meioY, W);
+      var arqX = s.arqX - Math.floor(cam * 0.75) % 2600;
+      if (!mede(L.torcida, function () {
+        if (vez === s.torcida) s.torcida.atualiza(t); D(s.torcida.saida.c, arqX, s.arqY);
+        // dois varais de bandeirolas na beira do toldo
+        desenhaVaral(arqX + 4, arqX + 96, s.arqY - 4, 3, t, 0);
+        desenhaVaral(arqX + 100, arqX + 196, s.arqY - 4, 3, t, 2);   // (o 2º fica fora da tela na largada)
+        R(arqX + 2, s.arqY - 9, 1, 10, P.tinta); R(arqX + 98, s.arqY - 9, 1, 10, P.tinta); R(arqX + 197, s.arqY - 9, 1, 10, P.tinta);
+      })) D(IMG['litoral/arquibancada'], arqX, s.arqY);
+      mede(L.fundo, function () { D(s.pista, -mod(Math.floor(cam), 32), lt - 16); });
+      mede(L.adereco, function () {
+        desenhaPlaca(mod(52 - cam, 600) - 40, lt - 30, t);
+        desenhaBiruta(mod(92 - cam, 600) - 40, lt - 44, t);
+      });
+      if (!mede(L.passaros, function () { s.gaivotas.desenha(t, cam, W); if (MAIS) { s.gaivotasMais.desenha(t, cam, W); s.revoada.desenha(t, cam, W); } })) {}
+      var auto = estado.auto;
+      if (!estado.camera) {
+        if (!mede(L.cavalos, function () { s.cavalos.forEach(function (h) { if (MAIS) D(h.sombra.c, h.sombra.x, h.sombra.y); D(h.cv.quadro(t, auto), h.x, h.pe - h.ref); }); }))
+          s.cavalos.forEach(function (h) { D(h.cv.parado(), h.x, h.pe - h.ref); });
+      }
+      mede(L.particulas, function () {
+        // areia soprada das dunas e redemoinhos baixos na pista, mais nas rajadas
+        var w = vento(t), r = s.rngA;
+        if (r() < dt * (4 + w * 22)) s.areia.nasce(T_AREIA, -4 + r() * 30, s.meioY + 96 + r() * 12, 20 + r() * 20, 0, 1.4 + r() * 2.2, r());
+        if (r() < dt * (2 + w * 10)) s.areia.nasce(T_AREIA, -4 + r() * 60, s.raia0 + r() * (s.pistaFim - s.raia0), 30 + r() * 20, 0, 0.8 + r() * 1.6, r());
+        if (MAIS) {
+          // a onda quebra na mureta (quando a crista chega lá): respingos brancos na frente do mar
+          var fase = mod(t, 8);
+          if (fase > 7.3 && r() < dt * 70) s.areia.nasce(T_GOTA, r() * W, lt - 128 + 88, (r() - 0.5) * 10, -22 - r() * 18, 0.7 + r() * 0.3, r());
+          // rajada forte: folhas dos coqueiros e areia da pista em redemoinho
+          if (rajadaForte(t) && r() < dt * 14) s.areia.nasce(T_GIRO, 10 + r() * 150, s.meioY + 10 + r() * 30, 0, 0, 2.2 + r() * 1.2, r() * 0.5);
+          if (rajadaForte(t) && r() < dt * 18) s.areia.nasce(T_GIRO, 20 + r() * 40, s.pistaFim - 10 - r() * 30, 0, 0, 1.4 + r() * 1, 0.5 + r() * 0.5);
+        }
+        s.areia.passo(dt, t); s.areia.desenha(0, 0, Math.floor(t * 12));
+      });
+      if (!mede(L.capim, function () { if (vez === s.capim) s.capim.atualiza(t); repetida(s.capim.saida.c, cam * 1.25, s.frenteY - 4, W); }))
+        repetida(IMG['litoral/frente'], cam * 1.25, s.frenteY - 4, W);
+    }
+  };
+  // pista do Litoral: faixa de grama atrás da cerca, cerca de trás, chão de areia batida, cerca da frente (código, como no jogo)
+  function desenhaPistaLitoral(s) {
+    var lt = s.lt, o = lt - 16, h = s.frenteY + 6 - o, Wp = s.W + 32, c = tela(Wp, h), cg = c.getContext('2d');
+    function r(x, y, w, hh, cor) { cg.fillStyle = cor; cg.fillRect(x, y - o, w, hh); }
+    r(0, o, Wp, 16, P.verde);
+    for (var x = 0; x < Wp; x++) { var q = hash(x % 32, 7); if (q < 0.35) r(x, o + (q < 0.12 ? 1 : 2), 1, 2, P.verdeC); if (hash(x % 32, 9) < 0.18) r(x, lt - 2, 1, 2, P.verdeE); }
+    r(0, lt, Wp, s.frenteY - lt, P.madC);
+    r(0, lt, Wp, 2, P.mad);
+    for (var y = lt + 2; y < s.frenteY; y++) for (x = 0; x < Wp; x++) { var k = hash(x % 32, y); if (k < 0.012) r(x, y, 1, 1, P.mad); else if (k < 0.022) r(x, y, 2, 1, P.madCC); }
+    for (var j = 1; j < s.nRaias; j++) { var yy = s.raia0 + j * s.raia; for (x = 0; x < Wp; x += 8) r(x + (j % 2) * 4, yy, 4, 1, P.madCC); }
+    var rt = lt - 8;
+    r(0, rt, Wp, 1, P.branco); r(0, rt + 1, Wp, 1, P.claro); r(0, rt + 4, Wp, 1, P.claro);
+    for (x = 0; x < Wp; x += 16) { r(x, rt, 1, 9, P.branco); r(x + 1, rt + 1, 1, 8, P.cinza); }
+    r(0, s.frenteY, Wp, 1, P.branco); r(0, s.frenteY + 1, Wp, 1, P.claro); r(0, s.frenteY - 1, Wp, 1, P.mad);
+    for (x = 8; x < Wp; x += 16) { r(x, s.frenteY, 1, 6, P.branco); r(x + 1, s.frenteY + 1, 1, 5, P.cinza); }
+    return c;
+  }
+
+  // ---------------------------------------------------------------- Planalto (corrida): o cata-vento girando
+  // rotor de 4 pás de treliça, rasterizado direto na grade para cada ângulo (24 passos de 15°): cada pixel é mapeado
+  // para as coordenadas da pá (u ao longo, v de lado) e pintado pela forma da treliça; depois, contorno de 1 px.
+  // Não é a rotação de uma imagem: em cada ângulo o desenho é feito na grade (guia §2).
+  function rotorQuadros(n, R, k0, k1) {   // [k0, k1): só esses quadros (a montagem da corrida faz em partes)
+    var Q = [], L = 2 * R + 5;
+    for (var k = k0 || 0; k < (k1 == null ? n : k1); k++) {
+      var b = new Buf(L, L), c0 = (L - 1) / 2, ang0 = k / n * Math.PI / 2;   // 4 pás: a volta se repete a cada 90°
+      for (var y = 0; y < L; y++) for (var x = 0; x < L; x++) {
+        var dx = x - c0, dy = y - c0, cor = 0;
+        for (var p = 0; p < 4 && !cor; p++) {
+          var a = ang0 + p * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+          var u = dx * ca + dy * sa, v = -dx * sa + dy * ca;            // u: ao longo da pá; v: de lado
+          if (u < -0.5 || u > R) continue;
+          // tons das pás pintadas do Planalto: madeira 966c6c com sombra 694f62, lona 9babb2 com brilho só na borda de cima
+          if (Math.abs(v) <= 0.9) cor = v > 0.2 ? C.violeta : C.terra;   // a vara (luz de cima: a metade de baixo na sombra)
+          else if (u >= 7 && u <= R - 1 && v > 0.9 && v <= 6.2) {       // a vela de treliça (de um lado da vara)
+            var borda = v > 5.3 || u < 7.9 || u > R - 1.9, travessa = (Math.floor(u) % 3) === 0;
+            if (borda) cor = C.violeta; else if (travessa) cor = C.terra; else cor = v < 2.2 ? C.claro : C.cinza;
+          }
+        }
+        if (Math.hypot(dx, dy) <= 2.6) cor = Math.hypot(dx + 0.7, dy + 0.7) <= 1.2 ? C.areiaE : C.cinzaE;   // cubo (luz de cima e da esquerda)
+        b.d[y * L + x] = cor;
+      }
+      var o = new Uint32Array(b.d);                                     // contorno 2e222f
+      for (y = 0; y < L; y++) for (x = 0; x < L; x++) {
+        if (b.d[y * L + x]) continue;
+        for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) {
+          var nx = x + ox, ny = y + oy; if (nx >= 0 && ny >= 0 && nx < L && ny < L && b.d[ny * L + nx] && b.d[ny * L + nx] !== C.tinta) { o[y * L + x] = C.tinta; }
+        }
+      }
+      b.d.set(o); b.poe(); Q.push(b.c);
+    }
+    return Q;
+  }
+
+  CENAS.planalto = {
+    titulo: 'Planalto · cata-vento', legenda: 'Hipódromo do Planalto, longe da arquibancada',
+    W: 256, lt: 130, nRaias: 3, raia: 22,
+    notas: [
+      '<span class="tag pago">PixelLab</span> + <span class="tag cod">código</span> <b>Cata-vento</b>: as pás estavam pintadas por cima das araucárias e eram assimétricas (6 braços). O PixelLab (<code>/inpaint</code>, 3 gerações) refez o fundo atrás delas, o topo da torre foi completado por código, e o rotor novo de 4 pás de treliça é desenhado por código em 24 ângulos, girando mais rápido nas rajadas.',
+      '<span class="tag cod">código</span> <b>Araucárias</b> balançando 1 px na copa; <b>capim alto</b> do primeiro plano em onda contínua; nuvens em 2 velocidades e pássaros.',
+      'Sem arquibancada nesta vista: na corrida ela aparece a cada 2.600 px de paralaxe, e o resto da pista é assim.'
+    ],
+    camadas: [['ceu', 'Céu, sol e nuvens'], ['moinho', 'Cata-vento'], ['copas', 'Araucárias'], ['passaros', 'Pássaros'], ['capim', 'Capim alto'], ['fundo', 'Fundo parado (pista e cópias)']],
+    init: function () {
+      var s = this, lt = s.lt;
+      s.raia0 = lt + 2; s.pistaFim = s.raia0 + s.nRaias * s.raia; s.frenteY = s.pistaFim + 4; s.H = s.frenteY + 40;
+      s.ceu = ceuFaixas(s.W, lt);
+      var nuv = IMG['planalto/nuvens'];
+      s.nuvemAlta = tela(nuv.width, 15); s.nuvemAlta.getContext('2d').drawImage(nuv, 0, 0);
+      s.nuvemBaixa = tela(nuv.width, nuv.height); s.nuvemBaixa.getContext('2d').drawImage(nuv, 0, 0); s.nuvemBaixa.getContext('2d').clearRect(0, 0, nuv.width, 15);
+      s.meioY = lt + 26 - 112;
+      // araucárias: a faixa de cima de cada copa (6 px abaixo do topo da coluna) balança 1 px; fora do cata-vento
+      var MP = man('planalto/meio-sem-pas').copas, YP = MP.yMax, FP = MP.faixa;
+      var mb = Buf.de(IMG['planalto/meio-sem-pas']), VERDE = MP.cores, mm = new Int16Array(mb.w * mb.h), TOPO = new Int16Array(mb.w).fill(999), PESO = new Float32Array(mb.w * mb.h);
+      for (var y = 0; y < YP; y++) for (var x = 0; x < mb.w; x++) {
+        if (dentroDe(MP.exclui, x, y)) continue;   // o cata-vento
+        if (VERDE.indexOf(hexDe(mb.d[y * mb.w + x])) >= 0) { mm[y * mb.w + x] = 1; if (TOPO[x] === 999) TOPO[x] = y; }
+      }
+      for (y = 0; y < YP; y++) for (x = 0; x < mb.w; x++) { var dd = y - TOPO[x]; PESO[y * mb.w + x] = dd >= 0 && dd < FP ? 1 - dd / (FP + 2) : 0; }
+      s.copas = new Deforma(mb, mm, [{ id: 1, x0: 0, x1: mb.w, y0: 0, y1: YP }], function (x, y, cx, t, v, i) {
+        v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.09)) : 0; v[1] = 0;
+      }, 6, function (t) {
+        var c = s.copas.caixas[0]; c.tt = t * 1.3; c.amp = 0.8 + vento(t) * (MAIS ? 0.9 : 0.5);
+        if (cfg.preassado) { c.tt = qfase(c.tt, 12); c.amp = qv(c.amp, 0.25); }
+      });
+      if (cfg.preassado) s.copas.preassado(function (cx) { return cx.amp + '|' + cx.tt.toFixed(3) + (MAIS ? '+' : ''); }, 1.5e6);
+      // capim alto: tudo acima da linha 50 da camada balança, mais no alto, numa onda contínua
+      var MF = man('planalto/frente').capim, YC = MF.yMax, FX = MF.faixa;
+      var fr = Buf.de(IMG['planalto/frente']), mf = new Int16Array(fr.w * fr.h), ALT = new Float32Array(64), GC = new Float32Array(fr.w);
+      for (y = 0; y < YC; y++) { for (x = 0; x < fr.w; x++) if (fr.d[y * fr.w + x]) mf[y * fr.w + x] = 1 + ((x / FX) | 0); var al = Math.max(0, YC - y) / 44; ALT[y] = al * al; }
+      var faixas = []; for (var fx = 0; fx < fr.w; fx += FX) faixas.push({ id: 1 + fx / FX, x0: Math.max(0, fx - MF.folga), x1: Math.min(fr.w, fx + FX + MF.folga), y0: 0, y1: YC });
+      s.capim = new Deforma(fr, mf, faixas, function (x, y, cx, t, v) { v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0; }, 6, function (t) {
+        for (var x = 0; x < fr.w; x++) { var w = ventoEm(x * 0.9, t), onda = Math.sin(x * 0.06 - t * 2.8) * 0.5 + 0.5; GC[x] = MAIS ? w * 2.6 + onda * 1.8 + Math.sin(x * 0.21 - t * 4.6) * 0.4 : w * 2.4 + (w - 0.4) * onda * 1.6; }
+      });
+      s.rotor = rotorQuadros(24, 25); s.ang = 0;
+      s.pista = desenhaPistaLitoral(s);
+      s.longe = new Bando(rngCosmetica(61), 4, { tipo: 'longe', cor: P.sombra, y0: 10, y1: 40, v: 5, qps: 7, largura: 380, paralaxe: 0.08, dir: -1 });
+      s.revoada = new Revoada({ tipo: 'longe', cor: P.sombra, n: 7, y: 18, v: 12, qps: 8, periodo: 20, fase: 5 });
+      aquecer([s.copas], 4);
+      s.agenda = new Agenda(); s.agenda.itens = [s.copas, s.capim]; s.copas.camada = 'copas'; s.capim.camada = 'capim';
+      // antes: as camadas de hoje (o meio com as pás pintadas)
+      var c = tela(s.W, s.H), g0 = g; g = c.getContext('2d');
+      D(s.ceu, 0, 0); D(SOL_PARADO(), 99, lt - 105);
+      repetida(nuv, 0, lt - 110, s.W); repetida(IMG['planalto/horizonte'], 0, lt - 32 - IMG['planalto/horizonte'].height, s.W);
+      repetida(IMG['planalto/meio'], 0, s.meioY, s.W); D(s.pista, 0, lt - 16); repetida(IMG['planalto/frente'], 0, s.frenteY - 4, s.W);
+      g = g0; s.antes = c;
+    },
+    quadro: function (t, dt, L) {
+      var s = this, cam = estado.cam, W = s.W, lt = s.lt, hz = IMG['planalto/horizonte'];
+      var vez = s.agenda.roda(t, function (it) { return L[it.camada].ativo; });
+      mede(L.fundo, function () { D(s.ceu, 0, 0); });
+      if (!mede(L.ceu, function () { D(SOL[Math.floor(t * 2.5) % 4], 99, lt - 105); repetida(s.nuvemAlta, cam * 0.03 + t * 1.2, lt - 110, W); repetida(s.nuvemBaixa, cam * 0.04 + t * 3.5, lt - 110, W); }))
+        { D(SOL_PARADO(), 99, lt - 105); repetida(IMG['planalto/nuvens'], cam * 0.04, lt - 110, W); }
+      mede(L.passaros, function () { s.longe.desenha(t, cam, W); if (MAIS) s.revoada.desenha(t, cam, W); });
+      mede(L.fundo, function () { repetida(hz, cam * 0.1, lt - 32 - hz.height, W); });
+      var semPas = L.moinho.ativo, base = semPas ? IMG['planalto/meio-sem-pas'] : IMG['planalto/meio'];
+      if (!mede(L.copas, function () { if (vez === s.copas) s.copas.atualiza(t); repetida(semPas ? s.copas.saida.c : base, cam * 0.3, s.meioY, W); }))
+        repetida(base, cam * 0.3, s.meioY, W);
+      mede(L.moinho, function () {
+        // gira mais rápido nas rajadas (0,6 a 2,4 voltas de pá por segundo), no pixel inteiro
+        s.ang += dt * (0.5 + vento(t) * (MAIS ? 2.4 : 1.6));
+        var q = s.rotor[Math.floor(s.ang * 24 / (Math.PI / 2)) % 24], ox = -mod(Math.floor(cam * 0.3), 384);
+        for (var x = ox; x < W + 64; x += 384) D(q, x + 193 - (q.width >> 1), s.meioY + 37 - (q.height >> 1));
+      });
+      mede(L.fundo, function () { D(s.pista, -mod(Math.floor(cam), 32), lt - 16); });
+      if (!mede(L.capim, function () { if (vez === s.capim) s.capim.atualiza(t); repetida(s.capim.saida.c, cam * 1.25, s.frenteY - 4, W); }))
+        repetida(IMG['planalto/frente'], cam * 1.25, s.frenteY - 4, W);
+    }
+  };
+
+  // ---------------------------------------------------------------- Estábulo (topo da aba; etapa 3b)
+  // lampiões que tremulam (ciclo de cor por lampião), a coluna de poeira dourada que cintila e cai, poeira no ar na luz
+  // de cada lampião e, nas rajadas, fiapos de feno que voam dos fardos. O cavalo ativo é o do jogo (Sprites).
+  // poeira e feno: posições calculadas do tempo (sem estado), cada grão na sua fase
+  function grao(i, k) { return hash(i * 7 + 3, k * 13 + 5); }
+  CENAS.estabulo = {
+    titulo: 'Estábulo', legenda: 'as baias com os lampiões', W: 256, H: 160, notas: [],
+    camadas: [['lampioes', 'Lampiões'], ['brilho', 'Poeira dourada'], ['poeira', 'Poeira no ar e feno'], ['fundo', 'Fundo parado']],
+    init: function () {
+      var s = this, b = Buf.de(IMG['telas/estabulo']), ME = man('telas/estabulo'); s.base = b; s.M = ME;
+      var LP = ME.lampioes, BR = ME.brilho;
+      s.ciclo = new CicloCor(b, function (x, y, h) {
+        for (var i = 0; i < LP.caixas.length; i++) if (dentro(LP.caixas[i], x, y) && LP.rampa.indexOf(h) >= 0) return 0;
+        if (dentro(BR.caixa, x, y) && BR.rampa.indexOf(h) >= 0) return 1;
+        return -1;
+      }, [LP.rampa, BR.rampa], function (x, y, r, d, t) {
+        if (r === 0) {   // lampião: cada um no seu ritmo, mais forte no meio da chama
+          var id = Math.floor(x / 60), v = fsin(t * 9 + id * 2.1) + 0.6 * fsin(t * 23 + id * 5);
+          return d >= 2 ? Math.max(1, Math.min(4, d + (v > 1.1 ? 1 : v < -1.05 ? -1 : 0))) : d;
+        }
+        // poeira dourada: grãos que cintilam e uma faixa que desce devagar
+        if (hash3(x, y, Math.floor(t * 6)) < 0.1) return Math.min(5, d + 2);
+        return mod(y - Math.floor(t * 10), 11) === 0 && hash(x, 7) < 0.5 ? Math.min(5, d + 1) : d;
+      }, 12);
+      s.saida = new Buf(256, 160);
+      s.antes = tela(256, 160); s.antes.getContext('2d').drawImage(IMG['telas/estabulo'], 0, 0);
+    },
+    quadro: function (t, dt, L) {
+      var s = this, q = Math.floor(t * 12), ME = s.M;
+      if (q !== s.tique) {
+        s.tique = q;
+        mede(L.lampioes, function () { s.ciclo.passo = -1; s.ciclo.atualiza(t); });
+        s.saida.d.set(s.ciclo.saida.d); s.saida.poe();
+      }
+      mede(L.fundo, function () { D(s.saida.c, 0, 0); });
+      mede(L.poeira, function () {
+        var P0 = ME.poeira, i, k;
+        // poeira no ar: 3 grãos por lampião, subindo e descendo devagar na luz (1 px, pisca)
+        for (i = 0; i < P0.luzes.length; i++) for (k = 0; k < 3; k++) {
+          var f = grao(i, k), u = mod(t * (0.05 + f * 0.05) + f, 1);
+          var x = Math.round(P0.luzes[i][0] + fsin(t * 0.7 + f * 6) * 5 + (f - 0.5) * 8), y = Math.round(P0.luzes[i][1] + u * P0.altura);
+          if (fsin(t * 2 + f * 9) > -0.3) R(x, y, 1, 1, '#' + P0.cor[k % 2]);
+        }
+        // feno nas rajadas: fiapos de 2 px que saem dos fardos e voam com o vento
+        var w = vento(t), FN = ME.feno;
+        if (w > 0.7) for (k = 0; k < 5; k++) {
+          var g = grao(9, k), uu = mod(t * (0.5 + g * 0.4) + g, 1), fx = Math.round(FN.de[0] + uu * (FN.ate[0] - FN.de[0]) + g * 12);
+          var fy = Math.round(FN.de[1] + uu * (FN.ate[1] - FN.de[1]) - Math.sin(uu * Math.PI) * 8 + fsin(t * 5 + g * 7) * 1.5);
+          R(fx, fy, 2, 1, '#' + FN.cores[k % FN.cores.length]);
+        }
+      });
+    }
+  };
+
+  // ---------------------------------------------------------------- Loja (topo da aba; etapa 3b)
+  // lanternas penduradas que tremulam, as do balcão que pulsam em verde, poções com brilho e bolhas que sobem, a luz do
+  // chão que respira em ondas do centro, e poeira no facho de luz do balcão.
+  CENAS.loja = {
+    titulo: 'Loja', legenda: 'o balcão do mercador', W: 256, H: 160, notas: [],
+    camadas: [['luzes', 'Lanternas e luz do chão'], ['pocoes', 'Poções'], ['poeira', 'Poeira no ar'], ['fundo', 'Fundo parado']],
+    init: function () {
+      var s = this, b = Buf.de(IMG['telas/loja']), ML = man('telas/loja'); s.base = b; s.M = ML;
+      var LA = ML.lanternas, LV = ML.lanternasVerdes, PO = ML.pocoes, LC = ML.luzChao;
+      function em(lista, x, y) { for (var i = 0; i < lista.length; i++) if (dentro(lista[i], x, y)) return i; return -1; }
+      s.ciclo = new CicloCor(b, function (x, y, h) {
+        if (em(LA.caixas, x, y) >= 0 && LA.rampa.indexOf(h) >= 0) return 0;
+        if (em(LV.caixas, x, y) >= 0 && LV.rampa.indexOf(h) >= 0) return 1;
+        if (em(PO.caixas, x, y) >= 0 && PO.rampa.indexOf(h) >= 0) return 2;
+        if (dentro(LC.caixa, x, y) && LC.rampa.indexOf(h) >= 0) return 3;
+        return -1;
+      }, [LA.rampa, LV.rampa, PO.rampa, LC.rampa], function (x, y, r, d, t) {
+        var v;
+        if (r === 0) { v = fsin(t * 8 + (x > 128 ? 2.7 : 0)) + 0.6 * fsin(t * 19 + (x > 128 ? 1 : 4)); return d >= 2 ? Math.max(1, Math.min(5, d + (v > 1.05 ? 1 : v < -1.1 ? -1 : 0))) : d; }
+        if (r === 1) { v = fsin(t * 1.6 + (x > 128 ? 2 : 0)); return d >= 2 ? Math.max(1, Math.min(5, d + (v > 0.7 ? 1 : 0))) : d; }
+        if (r === 2) {   // poções: bolhas que sobem (1 px claro) e um brilho que corre devagar
+          if (d >= 2 && hash(x, 3) < 0.35 && mod(y + Math.floor(t * 7) + Math.floor(hash(x, 5) * 9), 9) === 0) return 5;
+          return d >= 3 && fsin(x * 0.4 - t * 2.2) > 0.9 ? Math.min(5, d + 1) : d;
+        }
+        var dx = x - LC.centro[0], dy = (y - LC.centro[1]) * 2.5, dist = Math.sqrt(dx * dx + dy * dy);   // luz do chão: ondas do centro
+        v = fsin(dist * 0.09 - t * 1.3);
+        return d >= 2 ? Math.max(1, Math.min(4, d + (v > 0.8 ? 1 : v < -0.9 ? -1 : 0))) : d;
+      }, 12);
+      s.saida = new Buf(256, 160);
+      s.antes = tela(256, 160); s.antes.getContext('2d').drawImage(IMG['telas/loja'], 0, 0);
+    },
+    quadro: function (t, dt, L) {
+      var s = this, q = Math.floor(t * 12), ML = s.M;
+      if (q !== s.tique) {
+        s.tique = q;
+        mede(L.luzes, function () { s.ciclo.passo = -1; s.ciclo.atualiza(t); });
+        s.saida.d.set(s.ciclo.saida.d); s.saida.poe();
+      }
+      mede(L.fundo, function () { D(s.saida.c, 0, 0); });
+      mede(L.poeira, function () {
+        var C = ML.poeira.caixa;
+        for (var k = 0; k < 12; k++) {
+          var f = grao(4, k), u = mod(t * (0.04 + f * 0.05) + f, 1);
+          var x = Math.round(C[0] + f * (C[2] - C[0]) + fsin(t * 0.6 + f * 7) * 6), y = Math.round(C[3] - u * (C[3] - C[1]));
+          if (fsin(t * 1.7 + f * 11) > -0.2) R(x, y, 1, 1, '#' + ML.poeira.cor[k % 2]);
+        }
+      });
+    }
+  };
+
+  function desenhaVulcao(s, t, dt) {
+    var vx = s.vx, vy = s.vy, r = s.rng;
+    // estouros: 3 a 7 s, cada um com um clarão na cratera e um leque de bombas
+    if (t >= s.proxEstouro) { s.estouro = t; s.proxEstouro = t + (MAIS ? 2.5 + r() * 2 : 3 + r() * 4); for (var k = 0; k < (MAIS ? 14 : 9); k++) s.brasas.nasce(T_BOMBA, vx + (r() - 0.5) * 2, vy - 1, (r() - 0.5) * 26, -26 - r() * (MAIS ? 30 : 20), 1.1 + r() * 0.6, r()); }
+    var fl = t - s.estouro < 0.5;
+    s.jorro = MAIS && t - s.estouro < 1.3 ? (t - s.estouro) / 1.3 : -1;   // jorro de lava em cada estouro (desenhado na frente da fumaça)
+    // cratera: 5 px de lava viva no topo do pico, com o brilho em ciclo
+    var q = Math.floor(t * 6);
+    var cr = [[-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [-1, 1], [0, 1], [1, 1]];
+    cr.forEach(function (p, i) { R(vx + p[0], vy + p[1], 1, 1, RAMPA_BRASA[(fl ? 0 : 1) + ((i + q) % 3)]); });
+    R(vx - 3, vy + 1, 1, 1, P.vinho); R(vx + 3, vy + 1, 1, 1, P.vinho);
+    // lava que escorre pela encosta (2 fios), em ciclo de cor descendo
+    var fios = [[-1, 1, -1], [1, 1, 1]];
+    fios.forEach(function (f, j) {
+      var x = vx + f[0], y = vy + f[1];
+      for (var k = 0; k < 8 + j * 3; k++) {
+        y++; if (k % 2 === j) x += f[2];
+        var cor = RAMPA_BRASA[1 + ((k - Math.floor(t * 6) + 60) % 3)];
+        R(x, y, 1, 1, k > 7 ? P.vinho : cor);
+      }
+    });
+    // fumaça contínua: um tufo a cada ~0,12 s, sobe e o vento leva para a direita
+    if (r() < dt * (fl ? 16 : 8) * (MAIS ? 1.8 : 1)) s.brasas.nasce(T_FUMACA, vx + (r() - 0.5) * 3, vy - 2, (r() - 0.3) * 3, -9 - r() * 6, 2.6 + r() * 1.6, r());
+    if (fl && r() < dt * 30) s.brasas.nasce(T_BRASA, vx + (r() - 0.5) * 3, vy - 1, (r() - 0.5) * 10, -18 - r() * 10, 0.8 + r() * 0.6, r());
+  }
+
+  // ---------------------------------------------------------------- Expedição (cena da aba)
+  CENAS.expedicao = {
+    titulo: 'Expedição · cena da aba', legenda: 'o vale com o rio e o vulcão',
+    W: 256, H: 160,
+    notas: [
+      '<span class="tag cod">código</span> <b>Vulcão</b> em erupção contínua: a lava da cratera e das encostas em ciclo de cor, fumaça que sobe pela coluna pintada, bombas e brasas, e um estouro a cada 2–6 s.',
+      '<span class="tag cod">código</span> <b>Rio</b>: o brilho da água corre para a frente (para quem olha), em ciclo de cor.',
+      '<span class="tag cod">código</span> <b>Placas de madeira</b> giram no poste com o vento: encolhem até 3 px na ponta e voltam, cada uma no seu tempo.',
+      '<span class="tag cod">código</span> <b>Capim</b> do primeiro plano em rajadas; <b>pinheiros</b> das bordas com a ponta balançando 1 px; <b>pássaros</b> sobre o vale; <b>folhas</b> e <b>nuvens finas</b> passando.',
+      'As nuvens grandes são pintadas no fundo e não dá para movê-las sem o céu por trás; por isso passam nuvens finas novas na frente delas.'
+    ],
+    camadas: [
+      ['vulcao', 'Vulcão em erupção'], ['rio', 'Rio'], ['placas', 'Placas ao vento'], ['capim', 'Capim e pinheiros'],
+      ['ceu', 'Nuvens finas e pássaros'], ['particulas', 'Fumaça, brasas e folhas'], ['fundo', 'Fundo parado']
+    ],
+    init: function () {
+      var s = this, b = Buf.de(IMG['telas/expedicao']), MX = man('telas/expedicao'); s.base = b;
+      // lava do vulcão (cratera e encostas) e rio: duas rampas no mesmo ciclo
+      var LAVA = MX.lava.rampa;
+      var AGUA = MX.rio.rampa;
+      s.ciclo = new CicloCor(b, function (x, y, h) {
+        if (dentro(MX.lava.caixa, x, y) && LAVA.indexOf(h) >= 0) return 0;
+        if (dentro(MX.rio.caixa, x, y) && AGUA.indexOf(h) >= 0) return 1;
+        return -1;
+      }, [LAVA, AGUA], function (x, y, r, d, t, j) {
+        if (r === 0) {
+          if (!s.lavaOn) return d;
+          var v = fsin(y * 0.7 - t * 3.5 + x * 0.2) + 0.5 * fsin(t * 5 + x);
+          return Math.max(0, Math.min(6, d + (v > 0.9 ? 1 : v < -1 ? -1 : 0)));
+        }
+        if (!s.rioOn || d <= 1) return d;
+        if (MAIS && d >= 3 && hash3(x, y, Math.floor(t * 9 + s.rH[j] * 4)) < 0.05) return 7;   // corredeira: espuma que pisca
+        if (MAIS && d >= 2 && fsin(y * 1.9 - t * 4.5 + x * 0.07) > 0.93) return Math.min(7, d + 3);   // linhas de espuma descendo
+        if (d >= 6) return hash3(x, y, Math.floor(t * 6 + s.rH[j] * 5)) < 0.3 ? d - 2 : d;
+        var onda = fsin(s.rA[j] - t * s.rS[j] + fsin(s.rB[j]) * 1.4);
+        return Math.max(0, Math.min(7, d + (onda > 0.75 ? 1 : onda < -0.8 ? -1 : 0)));
+      }, 12);
+      var n = s.ciclo.n; s.rA = new Float32Array(n); s.rS = new Float32Array(n); s.rB = new Float32Array(n); s.rH = new Float32Array(n);
+      for (var j = 0; j < n; j++) {
+        var x = s.ciclo.px[j * 5 + 1], y = s.ciclo.px[j * 5 + 2], pt = (y - 100) / 46;
+        s.rA[j] = y * (1.6 - pt * 0.8); s.rS[j] = 3 + pt * 2; s.rB[j] = x * 0.2 + y * 0.3; s.rH[j] = hash(x, y);
+      }
+      // placas: os três braços (sem o poste), encolhendo em volta do poste
+      var POSTE = MX.placas.poste, MADEIRA = MX.placas.madeira, EIXO = MX.placas.eixo;
+      var placas = MX.placas.caixas;
+      var mp = new Int16Array(256 * 160), caixasP = [];
+      placas.forEach(function (p, i) {
+        for (var y = p[1]; y < p[3]; y++) for (var x = p[0]; x < p[2]; x++) {
+          if (x >= POSTE[0] && x <= POSTE[1]) continue;
+          if (MADEIRA.indexOf(hexDe(b.d[y * 256 + x])) >= 0) mp[y * 256 + x] = i + 1;
+        }
+        caixasP.push({ id: i + 1, x0: p[0] - 1, x1: p[2] + 1, y0: p[1], y1: p[3], fase: i * 2.1, a: p[0], b: p[2] });
+      });
+      s.mascaraPlacas = mp;
+      s.giro = new Deforma(b, mp, caixasP, function (x, y, cx, t, v) {
+        var dist = x - EIXO, L = dist > 0 ? cx.b - EIXO : EIXO - cx.a;
+        var dd = Math.round(Math.abs(dist) / L * cx.enc);
+        v[0] = dist > 0 ? -dd : dd; v[1] = 0;
+      }, 12, function (t) {
+        caixasP.forEach(function (cx) { var w = vento(t), ang = Math.sin(t * (1.1 + w) * (MAIS ? 1.4 : 1) + cx.fase) * (0.25 + w * 0.75); cx.enc = Math.max(0, ang) * (MAIS ? 5 : 3); });
+      });
+      // onde a placa encolheu aparece o fundo da mesma linha logo além da ponta (o céu ou a mata que ela cobria)
+      s.buracoPlaca = function (x, y, cx, src) {
+        var fx = x < 57 ? cx.a - 1 - ((cx.a - x) & 1) : cx.b + ((x - cx.b) & 1);
+        return src[y * 256 + Math.max(0, Math.min(255, fx))];
+      };
+      // capim do primeiro plano (1) e pontas dos pinheiros das bordas (2)
+      var MCP = MX.capim, MPI = MX.pinheiros, CAPIM = MCP.cores, PINHO = MPI.cores;
+      var mc = new Int16Array(256 * 160);
+      for (var y2 = MCP.y[0]; y2 < MCP.y[1]; y2++) for (var x2 = 0; x2 < 256; x2++) if (CAPIM.indexOf(hexDe(b.d[y2 * 256 + x2])) >= 0 && !dentroDe(MCP.exclui, x2, y2)) mc[y2 * 256 + x2] = 1;
+      for (y2 = MPI.y[0]; y2 < MPI.y[1]; y2++) for (x2 = 0; x2 < 256; x2++) { if (!(x2 < MPI.bordas[0] || x2 > MPI.bordas[1])) continue; if (PINHO.indexOf(hexDe(b.d[y2 * 256 + x2])) >= 0) mc[y2 * 256 + x2] = 2; }
+      // matas do vale (mais movimento): a faixa de cima de cada copa (7 px abaixo do topo da coluna) balança 1 px
+      var MMT = MX.matas, mm = new Int16Array(256 * 160), TOPO = new Int16Array(256).fill(999), PESO = new Float32Array(256 * 160);
+      for (y2 = MMT.y[0]; y2 < MMT.y[1]; y2++) for (x2 = 0; x2 < 256; x2++) {
+        var i2 = y2 * 256 + x2; if (mc[i2] || (x2 >= 26 && x2 <= 102 && y2 < 150 && (mp[i2] || (x2 >= POSTE[0] && x2 <= POSTE[1])))) continue;
+        if (dentro(MMT.excluiVulcao, x2, y2)) continue;   // o vulcão
+        if (PINHO.indexOf(hexDe(b.d[i2])) >= 0) { mm[i2] = 1; if (TOPO[x2] === 999) TOPO[x2] = y2; }
+      }
+      for (y2 = MMT.y[0]; y2 < MMT.y[1]; y2++) for (x2 = 0; x2 < 256; x2++) { var dd2 = y2 - TOPO[x2]; PESO[y2 * 256 + x2] = dd2 >= 0 && dd2 < MMT.faixa ? 1 - dd2 / (MMT.faixa + 2) : 0; }
+      s.mata = new Deforma(b, mm, [{ id: 1, x0: 0, x1: 256, y0: MMT.y[0], y1: MMT.y[1] }], function (x, y, cx, t, v, i) {
+        v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.13 + (TOPO[x] & 7) * 0.4)) : 0; v[1] = 0;
+      }, 12, function (t) { var c = s.mata.caixas[0]; c.tt = t * 1.5; c.amp = 0.8 + vento(t) * 0.6; });
+      var AC = new Float32Array(160), AP = new Float32Array(160), GC = new Float32Array(256);
+      for (y2 = 0; y2 < 160; y2++) { AC[y2] = suave(150, 112, y2); AP[y2] = suave(80, 40, y2); }
+      s.capim = new Deforma(b, mc, [{ id: 1, x0: 0, x1: 256, y0: 106, y1: 160 }, { id: 2, x0: 0, x1: 28, y0: 28, y1: 100 }, { id: 2, x0: 234, x1: 256, y0: 28, y1: 100 }], function (x, y, cx, t, v) {
+        v[0] = Math.round((cx.id === 1 ? AC[y] : AP[y]) * GC[x]); v[1] = 0;
+      }, 12, function (t) {
+        for (var x = 0; x < 256; x++) {
+          var w = ventoEm(x, t);
+          var ondaC = Math.sin(x * 0.11 - t * 3) * 0.5 + 0.5;
+          GC[x] = (x < 28 || x > 233) ? w * 1.3 * (0.6 + 0.4 * Math.sin(t * 1.7 + x * 0.1)) * (MAIS ? 1.6 : 1)
+            : MAIS ? w * 1.6 + ondaC * 1.3 : w * 1.6 + ondaC * w * 1.2;   // mais: o capim ondula sempre
+        }
+      });
+      // nuvens finas (código) na frente das nuvens pintadas; as placas e o poste são redesenhados por cima delas
+      s.fiapos = [];
+      var rr = rngCosmetica(41);
+      for (var i = 0; i < 6; i++) s.fiapos.push({ x: rr() * 320, y: 10 + rr() * 50, w: 14 + Math.floor(rr() * 22), v: 1.2 + rr() * 2.4 });
+      s.passaros = new Bando(rngCosmetica(42), 5, { tipo: 'longe', cor: P.sombra, y0: 66, y1: 96, v: 6, qps: 7, largura: 320, paralaxe: 0 });
+      s.revoada = new Revoada({ tipo: 'longe', cor: P.sombra, n: 9, y: 58, v: 14, qps: 8, periodo: 18 });
+      s.part = new Particulas(140); s.rng = rngCosmetica(43); s.proxEstouro = 1.5; s.estouro = -9;
+      s.antes = tela(256, 160); s.antes.getContext('2d').drawImage(IMG['telas/expedicao'], 0, 0);
+      s.comp = new Buf(256, 160);
+      // o que fica na frente dos fiapos: placas e poste (recortados da cena composta a cada tique)
+      s.posteMask = new Uint8Array(256 * 160);
+      for (y2 = 26; y2 < 150; y2++) for (x2 = 24; x2 < 104; x2++) {
+        var hh = hexDe(b.d[y2 * 256 + x2]);
+        if ((y2 < 84 && x2 >= 26 && x2 < 102 && (mp[y2 * 256 + x2] || (x2 >= POSTE[0] && x2 <= POSTE[1] && MADEIRA.indexOf(hh) >= 0)))) s.posteMask[y2 * 256 + x2] = 1;
+      }
+      s.frente = new Buf(256, 160);
+    },
+    quadro: function (t, dt, L) {
+      var s = this, q = Math.floor(t * 12), lig = '' + L.vulcao.ativo + L.rio.ativo + L.placas.ativo + L.capim.ativo + MAIS;
+      if (q !== s.tique || lig !== s.ligadas) {
+        s.tique = q; s.ligadas = lig; var tq = q / 12;
+        var src = s.base.d, d = s.comp.d;
+        s.lavaOn = L.vulcao.ativo; s.rioOn = L.rio.ativo;
+        if (s.lavaOn || s.rioOn) mede(s.lavaOn ? L.vulcao : L.rio, function () { s.ciclo.passo = -1; s.ciclo.atualiza(t); src = s.ciclo.saida.d; });
+        d.set(src);
+        mede(L.placas, function () {
+          s.giro.aplica(src, d, tq, s.buracoPlaca);
+          // placas e poste por cima dos fiapos (recorte da cena já com o giro)
+          var f = s.frente.d, m = s.posteMask, mp = s.mascaraPlacas;
+          for (var y = 26; y < 84; y++) for (var x = 24; x < 104; x++) { var i = y * 256 + x; f[i] = (m[i] && (!mp[i] || d[i] === src[i] || true)) ? d[i] : 0; }
+          s.frente.poe();
+        });
+        mede(L.capim, function () { s.capim.aplica(src, d, tq); if (MAIS) s.mata.aplica(src, d, tq); });
+        if (!L.placas.ativo) { var f = s.frente.d, m = s.posteMask; for (var i = 0; i < f.length; i++) f[i] = m[i] ? src[i] : 0; s.frente.poe(); }
+        s.comp.poe();
+      }
+      mede(L.fundo, function () { D(s.comp.c, 0, 0); });
+      mede(L.ceu, function () {
+        s.fiapos.forEach(function (f) {
+          var x = Math.round(mod(f.x + t * f.v, 330) - 40), y = Math.round(f.y);
+          R(x, y, f.w, 1, P.claro); R(x + 3, y - 1, f.w - 8, 1, P.branco); R(x + 6, y + 1, f.w - 10, 1, P.cinza);
+        });
+        s.passaros.desenha(t, 0, 256);
+        if (MAIS) s.revoada.desenha(t, 0, 256);
+        D(s.frente.c, 0, 0);
+      });
+      mede(L.vulcao, function () {
+        var r = s.rng, vx = 220, vy = 30;
+        if (t >= s.proxEstouro) { s.estouro = t; s.proxEstouro = t + (MAIS ? 2.2 + r() * 2 : 2 + r() * 4); for (var k = 0; k < (MAIS ? 13 : 8); k++) s.part.nasce(T_BOMBA, vx + (r() - 0.5) * 3, vy, (r() - 0.5) * 24, -24 - r() * (MAIS ? 28 : 18), 1.1 + r() * 0.5, r()); }
+        var fl = t - s.estouro < 0.4;
+        s.jorro = MAIS && t - s.estouro < 1.4 ? (t - s.estouro) / 1.4 : -1;
+        if (fl) { R(vx - 2, vy - 1, 5, 2, P.amarelo); R(vx - 1, vy - 2, 3, 1, P.branco); }
+        if (r() < dt * 9 * (MAIS ? 1.8 : 1)) s.part.nasce(T_FUMACA, vx + 2 + (r() - 0.5) * 4, vy - 6, 2 + r() * 4, -8 - r() * 5, 3 + r() * 1.5, r());
+        if (r() < dt * 10) s.part.nasce(T_BRASA, vx + (r() - 0.5) * 4, vy - 2, (r() - 0.5) * 10, -14 - r() * 10, 0.9 + r() * 0.8, r());
+      });
+      mede(L.particulas, function () {
+        var r = s.rng;
+        if (r() < dt * (0.6 + vento(t) * 2.2) * (MAIS ? 2 : 1)) s.part.nasce(T_FOLHA, -4, 70 + r() * 70, 18 + r() * 10, 0, 9 + r() * 4, r());
+        if (rajadaForte(t) && r() < dt * 16) s.part.nasce(T_GIRO, 10 + r() * 200, 110 + r() * 30, 0, 0, 2 + r() * 1.2, r() * 0.5);   // folhas em redemoinho
+        s.part.passo(dt, t); s.part.desenha(0, 0, Math.floor(t * 12));
+      });
+      if (L.vulcao.ativo && s.jorro >= 0) mede(L.vulcao, function () { desenhaJorro(220, 29, s.jorro, 16, Math.floor(t * 12)); });
+    }
+  };
+
+  // ---------------------------------------------------------------- Cavalos (idle no Haras)
+  CENAS.cavalos = {
+    titulo: 'Cavalos · idle', legenda: 'quatro cavalos no pasto do Haras',
+    W: 256, H: 160,
+    notas: [
+      '<span class="tag cod">código</span> <b>Respiração</b>: a barriga desce 1 px a cada 3–4 s (cada cavalo no seu ritmo).',
+      '<span class="tag cod">código</span> <b>Variações raras</b>, sorteadas a cada 3–8 s pela RNG cosmética (fora da seed das regras): piscar (às vezes duas vezes), abanar a cauda, girar a orelha, baixar a cabeça 1–2 px.',
+      '<span class="tag cod">código</span> <b>Vento</b> na crina do pescoço e na ponta da cauda (o mesmo vento das outras cenas).',
+      '<span class="tag cod">código</span> Tudo sai do molde que já existe (o mapa de papéis), para qualquer pelagem e marca: custo de arte zero, 1 desenho por cavalo.',
+      '<span class="tag pago">PixelLab</span> <b>Piloto pago (6 gerações)</b> no painel de baixo: comer e cavar (8 quadros, 2 seeds cada), cauda e respiração (4 quadros), a partir do molde padrão em cores de papel, então servem a qualquer pelagem. O código não chega a baixar a cabeça até o chão nem a levantar a pata: aí o PixelLab ganha. Na cauda e na respiração o código já basta. Comer (B) deixou pixels soltos no fim.',
+      'Use os botões para disparar cada variação e a lupa para ver os pixels de perto.'
+    ],
+    camadas: [['cavalos', 'Cavalos (idle)'], ['paisagem', 'Árvores e pasto'], ['ceu', 'Pássaros, borboletas e folhas'], ['piloto', 'Painel PixelLab × código'], ['fundo', 'Fundo parado']],
+    init: function () {
+      var s = this;
+      // (no jogo, semCavalos: só a paisagem; os cavalos são os do jogador, desenhados pelo Sprites)
+      var MH = man('telas/haras'), defs = s.semCavalos || !A.moldes ? [] : MH.cavalos;
+      s.cavalos = defs.map(function (d, j) {
+        var cv = new CavaloIdle(A.moldes[d[0]], d[2], PELAGENS[d[1]], 300 + j * 29, { espelho: d[5] });
+        return { cv: cv, x: d[3], pe: d[4], ref: cv.anc.footY };
+      });
+      s.passaros = new Bando(rngCosmetica(51), 3, { tipo: 'longe', cor: P.sombra, y0: 8, y1: 40, v: 7, qps: 7, largura: 320, paralaxe: 0 });
+      s.revoada = new Revoada({ tipo: 'longe', cor: P.sombra, n: 7, y: 20, v: 16, qps: 8, periodo: 16 });
+      s.part = new Particulas(60); s.rng = rngCosmetica(52);
+      // paisagem (mais movimento): o pasto ondula em faixas de brilho que correm (vento no campo) e as copas balançam
+      var hb = Buf.de(IMG['telas/haras']); s.hb = hb; s.comp = new Buf(256, 160);
+      var PA = MH.pasto;
+      s.pasto = new CicloCor(hb, function (x, y, h) { return y >= PA.y[0] && y < PA.y[1] ? (PA.rampa.indexOf(h) >= 0 ? 0 : -1) : -1; },
+        [PA.rampa], function (x, y, r, d, t) {
+          var v = fsin(x * 0.055 - t * 1.9 + y * 0.18) + 0.45 * fsin(x * 0.13 + t * 0.7 - y * 0.3);
+          return Math.max(0, Math.min(3, d + (v > 0.95 ? 1 : v < -1.1 ? -1 : 0)));
+        }, 12);
+      var AV = MH.arvores, VERDE_H = AV.cores, mh = new Int16Array(256 * 160), TOPO = new Int16Array(256).fill(999), PESO = new Float32Array(256 * 160);
+      for (var y = AV.y[0]; y < AV.y[1]; y++) for (var x = 0; x < 256; x++) {
+        if (dentroDe(AV.exclui, x, y)) continue;
+        if (VERDE_H.indexOf(hexDe(hb.d[y * 256 + x])) >= 0) { mh[y * 256 + x] = 1; if (TOPO[x] === 999) TOPO[x] = y; }
+      }
+      for (y = AV.y[0]; y < AV.y[1]; y++) for (x = 0; x < 256; x++) { var dd = y - TOPO[x]; PESO[y * 256 + x] = dd >= 0 && dd < AV.faixa ? 1 - dd / (AV.faixa + 2) : dd >= AV.faixa && dd < 20 ? 0.45 : 0; }
+      s.arvores = new Deforma(hb, mh, [{ id: 1, x0: 0, x1: 102, y0: 40, y1: 96 }, { id: 1, x0: 218, x1: 256, y0: 40, y1: 96 }], function (x, y, cx, t, v, i) {
+        v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.11 + y * 0.05)) : 0; v[1] = 0;
+      }, 12, function (t) { s.arvores.caixas.forEach(function (c) { c.tt = t * 1.4; c.amp = 0.9 + ventoEm(c.x0, t) * 0.7; }); });
+      s.borboletas = MH.borboletas.map(function (b, i) { return { x: b[0], y: b[1], f: b[2], cor: [P.ouro, P.branco, P.ouroC][i % 3] }; });
+      // painel do piloto pago: o mesmo cavalo (padrão, baio) por código à esquerda e com os quadros do PixelLab à direita
+      s.pl = { acoes: {}, ordem: [], buf: tela(256, 88), fundo: tela(256, 88), atual: null, t0: 0, fila: 0, seq: true };
+      if (!defs.length) { s.pl.trocaMolde = function () {}; s.antes = tela(256, 160); s.antes.getContext('2d').drawImage(IMG['telas/haras'], 0, 0); return; }
+      s.pl.fundo.getContext('2d').drawImage(IMG['telas/haras'], 0, -72);
+      var fb = Buf.de(s.pl.fundo); s.pl.sombras = [sombraContato(fb, 40 + 32 + 2, 85, 25, 3), sombraContato(fb, 150 + 32 + 2, 85, 25, 3)];
+      s.pl.trocaMolde = function (mol) {   // o mesmo molde e a mesma pelagem nos dois lados
+        var pel = PELAGENS[PELAGEM_DO_ESTILO[mol.split('-')[1]]], cores = [0].concat(pel.slice(1).map(c32)), Q = A.pilotoIdx[mol] || {};
+        s.pl.molde = mol; s.pl.acoes = {};
+        s.pl.codigo = new CavaloIdle(A.moldes[mol], 'retrato', pel, 777);
+        s.pl.codigoJ = new CavaloIdle(A.moldes[mol], 'parado', pel, 778);   // para o cavar com jóquei
+        Object.keys(Q).forEach(function (k) {
+          s.pl.acoes[k] = Q[k].map(function (idx) { var b = new Buf(64, 64); for (var i = 0; i < 4096; i++) b.d[i] = idx[i] ? cores[idx[i]] : 0; b.poe(); return b.c; });
+        });
+        var pref = ['comer', 'cavar', 'cavarJ', 'cauda', 'respira'];
+        s.pl.ordem = Object.keys(s.pl.acoes).sort(function (a, b) { return pref.indexOf(a.split('-')[0]) - pref.indexOf(b.split('-')[0]) || a.localeCompare(b); });
+        s.pl.fila = 0; s.pl.atual = null;
+      };
+      s.pl.trocaMolde('padrao-lisa');
+      s.antes = tela(256, 160); var ag = s.antes.getContext('2d'); ag.drawImage(IMG['telas/haras'], 0, 0);
+      s.cavalos.forEach(function (h) { ag.drawImage(h.cv.parado(), h.x, h.pe - h.ref); });
+      // sombra de contato de cada cavalo (do fundo parado do Haras), no centro dos cascos + 2 px
+      var fundoH = Buf.de(IMG['telas/haras']);
+      s.cavalos.forEach(function (h) { var a = h.cv.anc.bbox, cx = h.x + (h.cv.espelho ? 63 - (a.x + a.w / 2) : a.x + a.w / 2); h.sombra = sombraContato(fundoH, Math.round(cx) + 2, h.pe + 1, Math.round(a.w * 0.42), 3); });
+    },
+    quadro: function (t, dt, L) {
+      var s = this;
+      if (MAIS && L.paisagem.ativo) {
+        var q = Math.floor(t * 12);
+        if (q !== s.tique) mede(L.paisagem, function () {
+          s.tique = q; s.pasto.passo = -1; s.pasto.atualiza(t);
+          var src = s.pasto.saida.d, d = s.comp.d; d.set(src); s.arvores.aplica(src, d, q / 12); s.comp.poe();
+        });
+        mede(L.fundo, function () { D(s.comp.c, 0, 0); });
+      } else { s.tique = -1; mede(L.fundo, function () { D(IMG['telas/haras'], 0, 0); }); }
+      mede(L.piloto, function () { desenhaPiloto(s, t); });
+      mede(L.ceu, function () {
+        s.passaros.desenha(t, 0, 256);
+        if (!MAIS) return;
+        s.revoada.desenha(t, 0, 256);
+        // borboletas: voo em laço, batendo as asas (aberta 3 px, fechada 1 px), pousando de vez em quando
+        s.borboletas.forEach(function (b, i) {
+          var pousa = Math.sin(t * 0.35 + b.f) > 0.75, bx = Math.round(b.x + Math.sin(t * 0.6 + b.f) * 26 + Math.sin(t * 1.7 + b.f) * 6);
+          var by = Math.round(b.y + Math.sin(t * 1.1 + b.f * 2) * 7 + (pousa ? 6 : 0)), aberta = pousa ? Math.floor(t * 2 + i) % 3 === 0 : Math.floor(t * 12 + i) % 2;
+          if (aberta) { R(bx - 1, by, 1, 1, b.cor); R(bx + 1, by, 1, 1, b.cor); R(bx, by, 1, 1, P.tinta); } else R(bx, by - 1, 1, 2, b.cor);
+        });
+        // folhas soltas das árvores no vento
+        var r = s.rng;
+        if (r() < dt * (0.4 + vento(t) * 2)) s.part.nasce(T_FOLHA, 200 + r() * 60, 40 + r() * 30, 10, 0, 8, r());
+        if (rajadaForte(t) && r() < dt * 10) s.part.nasce(T_GIRO, 60 + r() * 150, 120 + r() * 20, 0, 0, 2 + r(), r() * 0.5);
+        s.part.passo(dt, t); s.part.desenha(0, 0, Math.floor(t * 12));
+      });
+      if (!mede(L.cavalos, function () { s.cavalos.forEach(function (h) { if (MAIS) D(h.sombra.c, h.sombra.x, h.sombra.y); D(h.cv.quadro(t, estado.auto), h.x, h.pe - h.ref); }); }))
+        s.cavalos.forEach(function (h) { D(h.cv.parado(), h.x, h.pe - h.ref); });
+    }
+  };
+
+  // comparação com o piloto pago (só na cena dos cavalos): cada ação toca a 6 q/s e depois o cavalo fica parado
+  // 1,6 s; o cavalo por código faz, ao mesmo tempo, o gesto equivalente que ele sabe fazer (cabeça, cauda)
+  var GESTO_CODIGO = { comer: 'cabeca', cavar: 'orelha', cauda: 'cauda', respira: null };
+  function desenhaPiloto(s, t) {
+    var pl = s.pl; if (!pl.ordem.length || !cfg.pilotoCanvas) return;
+    if (!pl.atual) { pl.atual = pl.ordem[0]; pl.t0 = t; }
+    var Q = pl.acoes[pl.atual], laco = Q.length <= 5 ? 2 : 1, dur = (Q.length * laco) / 6, u = t - pl.t0;
+    if (u > dur + 1.6) {   // próxima
+      if (pl.seq) { pl.fila = (pl.fila + 1) % pl.ordem.length; pl.atual = pl.ordem[pl.fila]; }
+      pl.t0 = t; u = 0; Q = pl.acoes[pl.atual];
+    }
+    var comJ = pl.atual.indexOf('cavarJ') === 0, cod = comJ ? pl.codigoJ : pl.codigo;
+    if (pl.disparado !== pl.t0) { var gst = GESTO_CODIGO[pl.atual.split('-')[0].replace('J', '')]; if (gst) cod.dispara(gst, t); pl.disparado = pl.t0; }
+    var q = u < dur ? Math.floor(u * 6) % Q.length : 0;
+    var g0 = g; g = pl.buf.getContext('2d');
+    D(pl.fundo, 0, 0);
+    pl.sombras.forEach(function (sm) { D(sm.c, sm.x, sm.y); });
+    D(cod.quadro(t, false), 40, 84 - 57);
+    D(Q[q], 150, 84 - 57);
+    g = g0;
+    var cv = cfg.pilotoCanvas, gp = cv.getContext('2d'); gp.imageSmoothingEnabled = false;
+    gp.drawImage(pl.buf, 0, 0, cv.width, cv.height);
+  }
+
+
+  // ================================================================ API
+  // a cena pronta: monta uma vez (init), desenha no buffer dela e copia 1:1; todas as camadas ligadas
+  var camadasTodas = {};
+  // ================================================================ Regiões na corrida (plano, etapa 5; spec §3.1)
+  // As 5 camadas de cada região (nuvens, horizonte, meio, arquibancada, frente) ganham uma versão viva, do mesmo tamanho
+  // e no mesmo lugar da imagem parada: o sprites.js desenha a camada viva no lugar da parada, com a mesma paralaxe e o
+  // mesmo recorte do arco das curvas, e chama desenha(onde, ...) para o que vai por cima (pássaros, placa e biruta na
+  // cerca, fumaça, pétalas, o rotor do cata-vento). Uma RegiaoViva por região e clima: as máscaras saem das cores da
+  // camada no sol (RG.camadas) e a deformação lê e escreve a camada já na paleta do clima (as mesmas cores da parada).
+  // Só apresentação: a RNG é a cosmética (semente fixa por região), nada da seed da corrida.
+  var VENTO_REG = { calmo: 0.45, brisa: 1, ventania: 1.6 };
+  var RV = { k: 1, dir: 1 };   // o vento da corrida em curso (força e sentido), para o que está sendo atualizado
+  function vR(t) { return Math.min(1.4, vento(t) * RV.k); }
+  function vRem(x, t) { return Math.min(1.4, ventoEm(x, t) * RV.k); }
+  var PARALAXE_REG = { nuvens: 0.04, horizonte: 0.1, meio: 0.3, arquibancada: 0.75, frente: 1.25 };
+  var MAX_PART_REG = 60;   // spec §2.4: as do ambiente na corrida (somadas às da corrida, ≤ 150)
+
+  // uma imagem com as cores trocadas pela LUT do clima ('#hex' -> '#hex'); sem LUT, a própria
+  function recolore(c, K) {
+    if (!K) return c;
+    var b = Buf.de(c), memo = {};
+    for (var i = 0; i < b.d.length; i++) {
+      var v = b.d[i]; if (!v) continue;
+      var o = memo[v]; if (o === undefined) { var h = '#' + hexDe(v); o = memo[v] = c32(K[h] || h); }
+      b.d[i] = o;
+    }
+    b.poe(); return b.c;
+  }
+  // a cor do clima (hex sem '#', como no manifesto) e a mesma lista em c32
+  function corK(K, h) { var x = '#' + h.replace('#', ''); return (K && K[x]) || x; }
+
+  // as peças de uma camada: máscara (Int16) + caixas com o tipo do movimento; uma Deforma só por camada
+  function Montagem(sol) { this.b = sol; this.w = sol.w; this.h = sol.h; this.m = new Int16Array(sol.w * sol.h); this.caixas = []; this.fica = {}; }
+  Montagem.prototype.caixa = function (tipo, x0, y0, x1, y1, extra) {
+    var c = { id: this.caixas.length + 1, tipo: tipo, x0: Math.max(0, x0), y0: Math.max(0, y0), x1: Math.min(this.w, x1), y1: Math.min(this.h, y1) };
+    for (var k in extra || {}) c[k] = extra[k];
+    this.caixas.push(c); return c;
+  };
+  Montagem.prototype.cor = function (x, y) { var v = this.b.d[y * this.w + x]; return v ? hexDe(v) : null; };
+  // fica: onde a peça sai, aparece o pixel de antes (torcida, bandeirinhas e copas sobre fundo opaco); sem ele, transparente
+  Montagem.prototype.fecha = function (cli, prepara, chave, maxBytes) {
+    var M = this, caixas = this.caixas.filter(function (c) { return c.n > 0; });
+    if (!caixas.length) return null;
+    var d = new Deforma(cli, this.m, caixas, function (x, y, cx, t, v, i) { cx.desloc(x, y, cx, t, v, i); }, 6, prepara);
+    for (var i = 0; i < this.m.length; i++) if (this.m[i] && M.fica[this.m[i]]) d.limpo[i] = cli.d[i];
+    if (cfg.preassado && chave) d.preassado(chave, maxBytes);
+    return d;
+  };
+  // marca os pixels (x, y) da caixa que passam no filtro; devolve quantos
+  Montagem.prototype.marca = function (cx, filtro, fica) {
+    var n = 0;
+    for (var y = cx.y0; y < cx.y1; y++) for (var x = cx.x0; x < cx.x1; x++) {
+      var i = y * this.w + x; if (this.m[i] || !this.b.d[i]) continue;
+      if (filtro(x, y, hexDe(this.b.d[i]))) { this.m[i] = cx.id; n++; }
+    }
+    cx.n = n; if (fica) this.fica[cx.id] = true;
+    return n;
+  };
+
+  // --- capim/junco/cana do primeiro plano em onda contínua (o mesmo do Litoral e do Planalto da amostra), no sentido do
+  // vento da corrida; conf: { yMax, topo, faixa, folga, amp }
+  function ondaFrente(M, conf, ondas) {
+    var YC = conf.yMax, TOPO = conf.topo || 0, FX = conf.faixa || 48, amp = conf.amp || 1, w = M.w;
+    var ALT = new Float32Array(M.h), GC = new Float32Array(w);
+    for (var y = 0; y < M.h; y++) { var al = y < YC ? Math.min(1, (YC - y) / Math.max(8, YC - TOPO)) : 0; ALT[y] = al * al; }
+    for (var fx = 0; fx < w; fx += FX) {
+      var cx = M.caixa('onda', fx - (conf.folga || 3), 0, fx + FX + (conf.folga || 3), YC, { desloc: function (x, y, c, t, v) { v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0; } });
+      // a faixa marca só as suas colunas; a folga das caixas deixa o capim entrar da vizinha
+      cx.n = M.marca({ x0: fx, x1: Math.min(w, fx + FX), y0: 0, y1: YC, id: cx.id }, function () { return true; });
+    }
+    ondas.push(function (t) {
+      for (var x = 0; x < w; x++) {
+        var vv = vRem(x * 0.9, t), onda = Math.sin(x * 0.065 - t * 3) * 0.5 + 0.5;
+        GC[x] = RV.dir * amp * (vv * 2.4 + onda * 1.6 * Math.min(1, RV.k) + Math.sin(x * 0.22 - t * 4.8) * 0.38);
+      }
+    });
+  }
+  // --- copas: a faixa de cima de cada coluna de folhagem (faixa px abaixo do topo) balança 1–2 px, numa onda que
+  // atravessa a camada; conf: { cores, yMax, faixa, exclui, inclui, amp }
+  function copasTopo(M, conf, pre) {
+    var w = M.w, cores = conf.cores, YP = conf.yMax, FP = conf.faixa || 6, TOPO = new Int16Array(w).fill(999), PESO = new Float32Array(w * M.h);
+    function ok(x, y) {
+      if (conf.inclui && !dentroDe(conf.inclui, x, y)) return false;
+      if (dentroDe(conf.exclui, x, y)) return false;
+      var h = M.cor(x, y); return h && cores.indexOf(h) >= 0;
+    }
+    for (var y = 0; y < YP; y++) for (var x = 0; x < w; x++) if (TOPO[x] === 999 && ok(x, y)) TOPO[x] = y;
+    var est = { amp: 0, tt: 0 }, LARG = 64;
+    for (var x0 = 0; x0 < w; x0 += LARG) {
+      var cx = M.caixa('copa', x0 - 3, 0, x0 + LARG + 3, YP, { desloc: function (x, y, c, t, v, i) { v[0] = PESO[i] ? Math.round(PESO[i] * est.amp * fsin(est.tt + x * 0.09)) * RV.dir : 0; v[1] = 0; } });
+      cx.n = M.marca({ x0: Math.max(0, x0), x1: Math.min(w, x0 + LARG), y0: 0, y1: YP, id: cx.id }, function (x, y) {
+        var dd = y - TOPO[x]; if (dd < 0 || dd >= FP || !ok(x, y)) return false;
+        PESO[y * w + x] = 1 - dd / (FP + 2); return true;
+      }, true);
+      cx.chave = function () { return est.amp + '|' + est.tt.toFixed(3); };
+    }
+    pre.push(function (t) {
+      est.tt = t * 1.3; est.amp = (conf.amp || 1) * (0.8 + vR(t) * 0.9);
+      if (cfg.preassado) { est.tt = qfase(est.tt, 12); est.amp = qv(est.amp, 0.25); }
+    });
+  }
+  // --- torcida: grupos de 3 colunas pulam 1 px; a "ola" atravessa a arquibancada a cada ~9 s (a crista sobe 2 px);
+  // conf: { y: [y0, y1], grupo, fundo: cores da estrutura que não pulam }
+  function torcidaViva(M, conf, pre) {
+    var GR = conf.grupo || 3, fundo = conf.fundo || [], grupos = [];
+    for (var gx = 0; gx * GR < M.w; gx++) {
+      var cx = M.caixa('torcida', gx * GR, conf.y[0] - 2, gx * GR + GR, conf.y[1] + 2, { gx: gx, pula: 0,
+        desloc: function (x, y, c, t, v) { v[0] = 0; v[1] = c.pula; } });
+      cx.n = M.marca({ x0: cx.x0, x1: cx.x1, y0: conf.y[0], y1: conf.y[1] + 1, id: cx.id }, function (x, y, h) { return fundo.indexOf(h) < 0; }, true);
+      cx.chave = function (c) { return c.pula; };
+      grupos.push(cx);
+    }
+    var larg = M.w;
+    pre.push(function (t) {
+      var ola = mod(t, 9) * (larg + 60) / 6 - 30;
+      grupos.forEach(function (cx) {
+        var q = Math.floor(t * 3 + hash(cx.gx, 1) * 3), d = Math.abs(cx.gx * GR - ola);
+        cx.pula = d < 5 ? -2 : d < 14 ? -1 : hash3(cx.gx, 7, q) < 0.24 ? -1 : 0;
+      });
+    });
+  }
+  // --- bandeiras pintadas (no telhado ou em cordões): cada peça conexa tremula; a ponta longe do mastro mexe mais.
+  // conf: { y: [y0, y1], fundo: cores que não são pano, fica, amp, minPx }
+  function bandeirasVivas(M, conf, pre) {
+    var fundo = conf.fundo || [], est = { tt: 0, k: 0 };
+    var pc = pecas(M.b, function (x, y, h) { return y >= conf.y[0] && y <= conf.y[1] && fundo.indexOf(h) < 0; }, 0, conf.minPx || 6);
+    pc.caixas.forEach(function (p, j) {
+      var fase = hash(j, 41) * 6.28, L = Math.max(2, p.bx1 - p.bx0);
+      var cx = M.caixa('bandeira', p.bx0 - 1, p.by0 - 2, p.bx1 + 2, p.by1 + 3, {
+        desloc: function (x, y, c, t, v) {
+          var u = (x - p.bx0) / L; if (conf.cordao) u = 0.6 + 0.4 * Math.sin(u * 3.14);
+          v[0] = 0; v[1] = Math.round(fsin(c.tt - (x - p.bx0) * 0.9) * est.k * u);
+        }
+      });
+      cx.n = M.marca({ x0: p.bx0, x1: p.bx1 + 1, y0: p.by0, y1: p.by1 + 1, id: cx.id }, function (x, y) { return pc.m[y * M.w + x] === p.id; }, conf.fica);
+      cx.chave = function (c) { return est.k + '|' + c.tt.toFixed(2); };
+      cx.fase = fase;
+    });
+    var minhas = M.caixas.filter(function (c) { return c.tipo === 'bandeira'; });
+    pre.push(function (t) {
+      est.k = qv((conf.amp || 1.4) * (0.5 + vR(t) * 0.8), 0.5);
+      minhas.forEach(function (c) { c.tt = qfase(t * (4 + vR(t) * 5) + c.fase, 8); });
+    });
+  }
+  // --- caatinga que treme nas rajadas: faixas de colunas que vão e voltam 1 px quando o vento passa de `limiar`
+  function tremeRajada(M, conf, pre) {
+    var est = [];
+    for (var x0 = 0; x0 < M.w; x0 += 16) {
+      var cx = M.caixa('treme', x0 - 2, conf.y[0], x0 + 18, conf.y[1], { dx: 0, x0b: x0,
+        desloc: function (x, y, c, t, v) { v[0] = c.dx; v[1] = 0; } });
+      cx.n = M.marca({ x0: x0, x1: Math.min(M.w, x0 + 16), y0: conf.y[0], y1: conf.y[1], id: cx.id }, function (x, y, h) {
+        return conf.cores.indexOf(h) >= 0 && !dentroDe(conf.exclui, x, y);
+      }, true);
+      cx.chave = function (c) { return c.dx; };
+      est.push(cx);
+    }
+    pre.push(function (t) {
+      est.forEach(function (c) {
+        var w = vRem(c.x0b, t);
+        c.dx = w > (conf.limiar || 0.75) ? ((Math.floor(t * 8 + hash(c.x0b, 5) * 4) & 1) ? RV.dir : 0) : 0;
+      });
+    });
+  }
+
+  // o capim do primeiro plano num laço próprio (o mesmo movimento de ondaFrente, sem a deformação genérica): cada pixel
+  // de cima da linha yMax vem de dx = ALT[y] × GC[x] colunas atrás, na mesma linha, com a camada emendada nas pontas
+  function OndaRapida(cli, conf) {
+    var w = cli.w, YC = Math.min(cli.h, conf.yMax), TOPO = conf.topo || 0;
+    this.o = cli; this.saida = cli.clone(); this.fps = 6; this.passo = -1; this.YC = YC; this.amp = conf.amp || 1;
+    this.ALT = new Float32Array(cli.h); this.GC = new Float32Array(w);
+    for (var y = 0; y < YC; y++) { var al = Math.min(1, (YC - y) / Math.max(8, YC - TOPO)); this.ALT[y] = al * al; }
+  }
+  OndaRapida.prototype.precisa = function (t) { return Math.floor(t * this.fps) !== this.passo; };
+  OndaRapida.prototype.atualiza = function (t) {
+    var p = Math.floor(t * this.fps); if (p === this.passo) return false;
+    this.passo = p;
+    var tq = p / this.fps, w = this.o.w, o = this.o.d, d = this.saida.d, GC = this.GC, ALT = this.ALT, amp = this.amp;
+    for (var x = 0; x < w; x++) {
+      var vv = vRem(x * 0.9, tq), onda = fsin(x * 0.065 - tq * 3) * 0.5 + 0.5;
+      GC[x] = RV.dir * amp * (vv * 2.4 + onda * 1.6 * Math.min(1, RV.k) + fsin(x * 0.22 - tq * 4.8) * 0.38);
+    }
+    for (var y = 0; y < this.YC; y++) {
+      var a = ALT[y], lin = y * w;
+      for (x = 0; x < w; x++) { var sx = x - Math.round(a * GC[x]); if (sx < 0) sx += w; else if (sx >= w) sx -= w; d[lin + x] = o[lin + sx]; }
+    }
+    this.saida.g.putImageData(this.saida.img, 0, 0, 0, 0, w, this.YC);
+    return true;
+  };
+
+  // linhas que ondulam (reflexo da lagoa, ar quente sobre o sertão): cada linha de [y0, y1) desliza ±1 px numa onda;
+  // feito por cópia de linha num Buf próprio, a 8 q/s
+  function Ondula(cli, conf) {
+    this.o = cli; this.saida = cli.clone(); this.c = conf; this.fps = 8; this.passo = -1;
+  }
+  Ondula.prototype.precisa = function (t) { return Math.floor(t * this.fps) !== this.passo; };
+  Ondula.prototype.atualiza = function (t) {
+    var p = Math.floor(t * this.fps); if (p === this.passo) return false;
+    this.passo = p;
+    var c = this.c, w = this.o.w, o = this.o.d, d = this.saida.d;
+    for (var y = c.y[0]; y < c.y[1]; y++) {
+      var u = (y - c.y[0]) / Math.max(1, c.y[1] - c.y[0]), dx = Math.round((fsin(y * c.f1 + p * c.v1) * 0.55 + fsin(y * c.f2 - p * c.v2) * 0.45) * (c.amp0 + u * c.ampU));
+      var lin = y * w;
+      if (!dx) { for (var x = 0; x < w; x++) d[lin + x] = o[lin + x]; continue; }
+      for (x = 0; x < w; x++) { var sx = mod(x - dx, w); d[lin + x] = o[lin + sx] && o[lin + x] ? o[lin + sx] : o[lin + x]; }
+    }
+    this.saida.g.putImageData(this.saida.img, 0, 0, 0, c.y[0], w, c.y[1] - c.y[0]);
+    return true;
+  };
+
+  // ---------------------------------------------------------------- definição de cada região
+  // monta(s): s.sol / s.cli = Buf de cada camada (no sol e no clima), s.K = LUT do clima; põe em s.vivas as peças
+  // (cada uma com .saida.c e .atualiza(t)) e em s.cima[onde] o que desenha por cima
+  var REGIOES_VIVAS = {};
+  function pecasComuns(s, conf) {
+    // meio, arquibancada e frente: uma Montagem por camada, com os movimentos que a região pede
+    ['meio', 'arquibancada', 'frente'].forEach(function (k) {
+      var cf = conf[k]; if (!cf) return;
+      if (k === 'frente' && cf.length === 1 && cf[0][0] === ondaFrente) {   // o capim: o laço próprio (OndaRapida)
+        s.passo(function () { var d = new OndaRapida(s.cli.frente, cf[0][1]); d.camada = 'frente'; s.vivas.frente = d; });
+        return;
+      }
+      s.passo(function () {   // um passo da montagem por camada
+        var M = new Montagem(s.sol[k]), pre = [];
+        cf.forEach(function (it) { it[0](M, it[1], pre); });
+        var d = M.fecha(s.cli[k], function (t) { for (var i = 0; i < pre.length; i++) pre[i](t); }, function (cx) { return cx.chave ? cx.chave(cx) : null; }, 0.6e6);
+        if (d) { d.camada = k; s.vivas[k] = d; }
+      });
+    });
+  }
+  REGIOES_VIVAS.litoral = function (s) {
+    s.passo(function () { marLitoral(s); });
+    coqueirosLitoral(s);
+    var MT = man('litoral/arquibancada').torcida;
+    pecasComuns(s, {
+      arquibancada: [[torcidaViva, { y: MT.y, grupo: MT.grupo }]],
+      frente: [[ondaFrente, { yMax: man('litoral/frente').capim.yMax, topo: 4, faixa: 48, folga: 3 }]]
+    });
+    s.passo(function () { cimaLitoral(s); });
+  };
+  var GEO_MAR = {};
+  function marLitoral(s) {
+    var MM = man('litoral/horizonte').mar, NV = s.nevoa || {};
+    function hz(h) { return NV[h] || h; }   // a cor do mar no horizonte embutido (com a névoa da distância)
+    var RAMPA = MM.rampa.map(hz), PRAIA = MM.praiaCores.map(hz);
+    var mar = new CicloCor(s.sol.horizonte, function (x, y, h) {
+      if (y < MM.y[0] || y > MM.y[1] || dentroDe(MM.exclui, x, y)) return -1;
+      if (x >= MM.praiaX + (y - MM.praiaY) * MM.praiaInclina && PRAIA.indexOf(h) >= 0) return -1;
+      return RAMPA.indexOf(h) >= 0 ? 0 : -1;
+    }, [RAMPA], function (x, y, r, d, t, j) {
+      if (d < 2) return d;
+      var yc = 30 + mod(t, 8) * 7.5, dc = y - yc, larg = 1 + (y - 30) / 30;
+      if (dc <= 0 && dc > -larg && hash(x >> 1, y) < 0.85) return Math.min(7, d + (dc > -1 ? 3 : 2));
+      if (d >= 6) return hash3(x, y, Math.floor(t * 5 + mH[j] * 7)) < 0.35 ? d - 2 : d;
+      var onda = fsin(mA[j] - t * mS[j] + fsin(mB[j] + t * 0.5) * 1.6);
+      if (d >= 4 && onda < -0.6) return d - 1;
+      return onda > 0.72 && hash(Math.floor((x + t * 4) * mL[j]), y) < 0.55 ? d + 1 : d;
+    }, 6);
+    mar.rampas = [RAMPA.map(function (h) { return c32(corK(s.K, h)); })];
+    mar.saida = s.cli.horizonte.clone();
+    var nm = mar.n, mA = new Float32Array(nm), mS = new Float32Array(nm), mB = new Float32Array(nm), mL = new Float32Array(nm), mH = new Float32Array(nm);
+    for (var j = 0; j < nm; j++) {
+      var xm = mar.px[j * 5 + 1], ym = mar.px[j * 5 + 2], pt = (ym - 30) / 58;
+      mA[j] = ym * (2.1 - pt * 1.2); mS[j] = 1.6 + pt * 1.4; mB[j] = xm * (0.11 - pt * 0.05) + ym * 0.7; mL[j] = 1 / (6 + pt * 10); mH[j] = hash(xm, ym);
+    }
+    // veleiros sobem e descem 1 px; a luz do farol gira (depois de cada passo do mar)
+    var barcos = man('litoral/horizonte').barcos, ouro = c32(corK(s.K, P.ouro)), amar = c32(corK(s.K, P.amarelo)), bco = c32(corK(s.K, P.branco)), clr = c32(corK(s.K, P.claro));
+    // o mar num ciclo de 8 s (a crista leva 8 s do horizonte à mureta): os degraus de cada um dos 48 passos (6 q/s) ficam
+    // guardados, comuns a todos os climas (a escolha dos pixels é a mesma); cada passo só troca as cores pela rampa
+    var MQ = GEO_MAR[mar.n] || (GEO_MAR[mar.n] = []);
+    function atualizaMar(t) {
+      var p = Math.floor(t * 6); if (p === mar.passo) return false;
+      mar.passo = p;
+      var k = mod(p, 48), F = MQ[k], px = mar.px, n = mar.n, R0 = mar.rampas[0], topo = R0.length - 1, j;
+      if (!F) {
+        F = new Uint8Array(n);
+        for (j = 0; j < n; j++) { var dg = mar.cor(px[j * 5 + 1], px[j * 5 + 2], px[j * 5 + 3], px[j * 5 + 4], k / 6, j); F[j] = dg < 0 ? 0 : dg > topo ? topo : dg; }
+        MQ[k] = F;
+      }
+      var d = mar.saida.d;
+      for (j = 0; j < n; j++) d[px[j * 5]] = R0[F[j]];
+      return true;
+    }
+    mar.atualiza = function (t) {
+      if (!atualizaMar(t)) return false;
+      var o = mar.saida, d = o.d, wB = o.w;
+      barcos.forEach(function (b, i) {
+        if (!(Math.sin(t * 2.2 + i * 1.7) > 0.2)) return;
+        for (var y = b[3]; y > b[1]; y--) for (var x = b[0]; x < b[2]; x++) d[y * wB + x] = d[(y - 1) * wB + x];
+      });
+      // a espuma da crista na beira do mar (linha 87), só nos pixels do mar
+      var q6 = Math.floor(t * 6), x = 0;
+      while (x < wB) {
+        var k = hash3(x >> 2, 5, q6 >> 1), n = 2 + Math.floor(k * 6);
+        if (k < 0.55) for (var xx = x; xx < Math.min(wB, x + n); xx++) {
+          var yy = 87 + (k < 0.2 ? -1 : 0); if (eMar[yy * wB + xx]) d[yy * wB + xx] = k < 0.3 ? bco : clr;
+          if (k < 0.12 && xx === x + 1 && eMar[(87 - 2) * wB + xx]) d[(87 - 2) * wB + xx] = bco;
+        }
+        x += n + 1 + Math.floor(hash(x, q6) * 4);
+      }
+      var f = Math.floor(t / 0.3) % 8, ly = 14;
+      if (f === 1 || f === 5) d[ly * wB + 159] = ouro;
+      if (f === 2 || f === 4) { d[ly * wB + 158] = amar; d[ly * wB + 159] = amar; d[ly * wB + 160] = amar; }
+      if (f === 3) { for (var lx = 157; lx <= 161; lx++) d[ly * wB + lx] = bco; for (var r = 1; r <= 4; r++) if (r % 2 || r < 3) { d[ly * wB + 157 - r] = clr; d[ly * wB + 161 + r] = clr; } }
+      o.poe(); return true;
+    };
+    var eMar = new Uint8Array(mar.saida.w * mar.saida.h); for (var jm = 0; jm < mar.n; jm++) eMar[mar.px[jm * 5]] = 1;
+    mar.camada = 'horizonte'; s.vivas.horizonte = mar;
+  }
+  // a geometria dos coqueiros (peças e pesos por pixel) é a mesma em todo clima: feita uma vez e copiada
+  var GEO_COQ = null;
+  function coqueirosLitoral(s) {
+    s.passo(function () { if (!GEO_COQ) GEO_COQ = geoCoqueiros(s.sol.meio); });
+    s.passo(function () { deformaCoqueiros(s, GEO_COQ); });
+  }
+  function geoCoqueiros(meio) {
+    // coqueiros: as pontas das folhas dobram com o vento e ondulam sempre (a deformação da amostra)
+    var MC = man('litoral/meio').coqueiros, VERDES = MC.cores;
+    var pc = pecas(meio, function (x, y, h) {
+      if (y > MC.yMax) return false;
+      if (VERDES.indexOf(h) >= 0) return true;
+      if (h !== MC.contorno) return false;
+      for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) { var v = meio.em(x + ox, y + oy); if (v && VERDES.indexOf(hexDe(v)) >= 0) return true; }
+      return false;
+    }, MC.margem, MC.minPx);
+    var W = meio.w, KX = new Float32Array(W * meio.h), KY = new Float32Array(W * meio.h), PH = new Float32Array(W * meio.h), KO = new Float32Array(W * meio.h);
+    pc.caixas.forEach(function (cx, i) {
+      cx.raio = Math.max(cx.bx1 - cx.bx0, cx.by1 - cx.by0) / 2 + 1; cx.fase = hash(i, 3) * 6; cx.coroaY = cx.by0 + (cx.by1 - cx.by0) * 0.45;
+      for (var y = cx.y0; y < cx.y1; y++) for (var x = cx.x0; x < cx.x1; x++) {
+        var dxp = x - cx.cx, dyp = y - cx.coroaY, dist = Math.sqrt(dxp * dxp + dyp * dyp) / cx.raio, w = Math.min(1, Math.max(0, dist - 0.18) / 0.82), i2 = y * W + x;
+        KX[i2] = 2.4 * w * (dxp < 0 ? 0.7 : 1); KY[i2] = (dxp > 0 ? 1 : -0.5) * 1.2 * w * w; PH[i2] = dist * 4.2; KO[i2] = Math.max(0, dist - 0.45) / 0.55;
+      }
+    });
+    return { pc: pc, KX: KX, KY: KY, PH: PH, KO: KO };
+  }
+  function deformaCoqueiros(s, G) {
+    var KX = G.KX, KY = G.KY, PH = G.PH, KO = G.KO;
+    // as caixas copiadas (cada região viva guarda nelas o próprio estado e o próprio pré-assado; a lista vem junto)
+    G.caches = G.caches || G.pc.caixas.map(function () { return new Map(); }); G.comum = G.comum || { bytes: 0 };
+    var pc = { m: G.pc.m, caixas: G.pc.caixas.map(function (c, i) { var o = {}; for (var k in c) if (k !== 'cache') o[k] = c[k]; o.cache = G.caches[i]; return o; }) };
+    var coq = new Deforma(s.cli.meio, pc.m, pc.caixas, function (x, y, cx, t, v, i) {
+      var ko = KO[i] * cx.ond;
+      v[0] = Math.round((cx.bal * KX[i] + (ko ? ko * fsin(PH[i] - cx.tt) : 0)) * RV.dir);
+      v[1] = Math.round(cx.bal * KY[i] + (ko ? ko * 0.6 * fsin(PH[i] - cx.tt + 1.3) : 0));
+    }, 6, function (t) {
+      pc.caixas.forEach(function (cx) {
+        var vv = vRem(cx.cx, t); cx.bal = vv * (0.55 + 0.45 * Math.sin(t * (1.6 + vv * 1.8) + cx.fase)) * 1.45;
+        cx.ond = 0.75 + vv * 0.6; cx.tt = t * 3.4 + cx.fase;
+        if (cfg.preassado) { cx.bal = qv(cx.bal, 0.4); cx.ond = qv(cx.ond, 0.6); cx.tt = qfase(cx.tt, 8); }
+      });
+    });
+    // (na corrida, estados mais grossos que os da amostra: 8 fases, dobra de 0,4 em 0,4; o cache acerta a maior parte)
+    if (cfg.preassado) coq.preassado(function (cx) { return cx.bal + '|' + cx.ond + '|' + cx.tt.toFixed(3); }, 2.5e6, G.comum);
+    coq.camada = 'meio'; s.vivas.meio = coq;
+    G.pc.caixas.forEach(function (c, i) { c.lista = pc.caixas[i].lista; });   // a próxima cópia já leva a lista
+  }
+  function cimaLitoral(s) {
+    // por cima: a espuma da crista no mar, as gaivotas e os varais de bandeirolas no toldo
+    s.gaivotas = new Bando(rngCosmetica(11), 5, { tipo: 'gaivota', cor: corK(s.K, P.branco), ponta: corK(s.K, P.tinta), y0: 40, y1: 86, v: 11, qps: 9, largura: 440, paralaxe: 0.5 });
+    s.revoada = new Revoada({ tipo: 'gaivota', cor: corK(s.K, P.branco), ponta: corK(s.K, P.tinta), n: 7, y: 22, v: 22, qps: 9, periodo: 24 });
+    s.band = CORES_BAND.map(function (c) { return quadrosBandeirola(corK(s.K, c)).map(function (q) { return recolore(q, s.K); }); });
+    s.cima.meio = function (t, X, Y, Wa, cam) { g.save(); g.translate(0, Y - 44); s.gaivotas.desenha(t, cam, Wa); s.revoada.desenha(t, cam, Wa); g.restore(); };
+    // os dois varais num carimbo (12 q/s): 1 drawImage por quadro
+    s.varal = new Carimbo(200, 18, 0, 9, 12, function (X, Y, t) {
+      varalCom(s.band, X + 4, X + 96, Y - 4, 3, t, 0); varalCom(s.band, X + 100, X + 196, Y - 4, 3, t, 2);
+      R(X + 2, Y - 9, 1, 10, P.tinta); R(X + 98, Y - 9, 1, 10, P.tinta); R(X + 197, Y - 9, 1, 10, P.tinta);
+    });
+    s.cima.arquibancada = function (t, X, Y) { s.varal.em(X, Y, t); };
+    s.areiaY = 96;   // a areia soprada nasce no pé das dunas (meio)
+  }
+  var ROTOR = {};
+  REGIOES_VIVAS.planalto = function (s) {
+    var MP = man('planalto/meio-sem-pas').copas, MT = man('planalto/arquibancada').torcida;
+    pecasComuns(s, {
+      meio: [[copasTopo, { cores: MP.cores, yMax: MP.yMax, faixa: MP.faixa, exclui: MP.exclui }]],
+      arquibancada: [[torcidaViva, MT]],
+      frente: [[ondaFrente, { yMax: man('planalto/frente').capim.yMax, topo: 8, faixa: 48, folga: 4, amp: 1.15 }]]
+    });
+    // o rotor de 4 pás por código no lugar das pás pintadas (meio-sem-pas), girando mais rápido nas rajadas
+    var MR = man('planalto/meio-sem-pas').rotor;
+    // o rotor em 6 partes de 4 quadros (os de código guardados para os outros climas; cada clima só recolore)
+    s.ang = 0; s.rotor = [];
+    for (var parte = 0; parte < 6; parte++) (function (k0) {
+      s.passo(function () {
+        var Q = ROTOR[MR.raio] || (ROTOR[MR.raio] = []);
+        for (var k = k0; k < k0 + 4; k++) { if (!Q[k]) Q[k] = rotorQuadros(24, MR.raio, k, k + 1)[0]; s.rotor[k] = recolore(Q[k], s.K); }
+      });
+    })(parte * 4);
+    s.cima.meio = function (t, X, Y, Wa, cam, dt) {
+      s.ang += dt * (0.5 + vR(t) * 2.4);
+      var q = s.rotor[mod(Math.floor(s.ang * 24 / (Math.PI / 2)), 24)];
+      for (var x = X; x < Wa + 64; x += 384) D(q, x + MR.x - (q.width >> 1), Y + MR.y - (q.height >> 1));
+    };
+    // nuvem baixa passando entre os picos (atrás do horizonte)
+    s.nuvemBaixa = s.cli.nuvens.c;
+    s.antes.horizonte = function (t, X, Y, Wa) {
+      var nv = s.nuvemBaixa, sx = 40, sw = 120, sy = 0, sh = 14, x = Math.round(mod(t * 3 * RV.dir + X, Wa + sw + 40)) - sw - 20;
+      D(nv, sx, sy, sw, sh, x, Y + 10, sw, sh);
+    };
+  };
+  REGIOES_VIVAS.varzea = function (s) {
+    var C_ = man('varzea/meio').copas, A_ = man('varzea/arquibancada'), F_ = man('varzea/frente').capim, H_ = man('varzea/horizonte').reflexo;
+    pecasComuns(s, {
+      meio: [[copasTopo, C_]],
+      arquibancada: [[bandeirasVivas, A_.bandeiras], [torcidaViva, A_.torcida]],
+      frente: [[ondaFrente, F_]]
+    });
+    var hz = new Ondula(s.cli.horizonte, { y: H_.y, f1: 0.9, v1: 0.55, f2: 0.31, v2: 0.21, amp0: 0.6, ampU: 0.6 });
+    hz.camada = 'horizonte'; s.vivas.horizonte = hz;
+    // brilhos que correm na lagoa (traços de 2–4 px que acendem e apagam)
+    s.cima.horizonte = function (t, X, Y, Wa) {
+      var q = Math.floor(t * 4);
+      for (var k = 0; k < 14; k++) {
+        var hx = hash3(k, 3, q >> 2), x = Math.round(mod(hx * 384 + t * 2, 384) + X), y = Y + H_.y[0] + 2 + Math.floor(hash(k, 9) * (H_.y[1] - H_.y[0] - 4));
+        if (hash3(k, 5, q) < 0.45) continue;
+        for (var xx = x; xx < Wa + 384; xx += 384) if (xx > -6 && xx < Wa) R(xx, y, 2 + (k & 1) * 2, 1, k % 3 ? P.cinza : P.claro);
+      }
+    };
+  };
+  REGIOES_VIVAS.cerrado = function (s) {
+    var C_ = man('cerrado/meio').copas, A_ = man('cerrado/arquibancada'), F_ = man('cerrado/frente').capim, N_ = man('cerrado/horizonte').neblina;
+    pecasComuns(s, {
+      meio: [[copasTopo, C_]],
+      arquibancada: [[bandeirasVivas, A_.bandeiras], [torcidaViva, A_.torcida]],
+      frente: [[ondaFrente, F_]]
+    });
+    // neblina baixa nas chapadas: pontilhado de 2 tons que passa devagar (ciclo lento)
+    var NH = N_.y[1] - N_.y[0];
+    s.passo(function () { s.neblina = [0.45, 0.62, 0.8].map(function (dens) {
+      var c = tela(384, NH), cg = c.getContext('2d');
+      for (var y = 0; y < NH; y++) {
+        var dy = Math.sin((y + 0.5) / NH * Math.PI) * dens;
+        for (var x = (y & 1); x < 384; x += 2) {
+          var n = vnoise2(x / 24, y * 0.22, 16);
+          if (n < 1 - dy * 0.85) continue;
+          cg.fillStyle = corK(s.K, n > 0.9 ? P.claro : P.cinza); cg.fillRect(x, y, 1, 1);
+        }
+      }
+      return c;
+    }); });
+    s.cima.horizonte = function (t, X, Y, Wa) {
+      var k = Math.min(2, Math.floor((Math.sin(t * 0.21) * 0.5 + 0.5) * 3)), nb = s.neblina[k];
+      for (var x = -mod(Math.floor(t * 1.5 * RV.dir) - X, 384); x < Wa; x += 384) D(nb, x, Y + N_.y[0]);
+    };
+    // pétalas amarelas caindo dos ipês
+    var ipes = [];
+    s.passo(function () {
+      var m = s.sol.meio;
+      for (var y = 0; y < C_.yMax; y++) for (var x = 0; x < m.w; x++) { var v = m.d[y * m.w + x]; if (v && C_.ipe.indexOf(hexDe(v)) >= 0 && hash(x, y) < 0.05) ipes.push(x, y); }
+    });
+    s.nascer.push(function (t, dt, r, part) {
+      if (ipes.length && r() < dt * (3 + vR(t) * 9)) { var k = Math.floor(r() * ipes.length / 2) * 2; part.nasce(T_PETALA, ipes[k], ipes[k + 1], 4 * RV.dir, 3, 3 + r() * 2, r()); }
+    });
+  };
+  REGIOES_VIVAS.sertao = function (s) {
+    var C_ = man('sertao/meio'), A_ = man('sertao/arquibancada'), F_ = man('sertao/frente').capim, H_ = man('sertao/horizonte');
+    pecasComuns(s, {
+      meio: [[copasTopo, C_.copas], [tremeRajada, C_.caatinga]],
+      arquibancada: [[bandeirasVivas, A_.bandeiras], [torcidaViva, A_.torcida]],
+      frente: [[ondaFrente, F_]]
+    });
+    // ar quente: as linhas do horizonte ondulam 1 px (como a Fornalha)
+    var hz = new Ondula(s.cli.horizonte, { y: H_.calor.y, f1: 0.9, v1: 0.55, f2: 0.31, v2: 0.21, amp0: 0.55, ampU: 0.2 });
+    hz.camada = 'horizonte'; s.vivas.horizonte = hz;
+    // fumaça da chaminé da casa de farinha
+    var CH = H_.chamine;
+    s.nascerH = function (t, dt, r, part) { if (r() < dt * 7) part.nasce(T_FUMACA, CH[0] + r() * 2, CH[1], (r() - 0.5) * 2, -5 - r() * 3, 2.2 + r() * 1.2, r()); };
+    s.areiaY = 98;
+  };
+  // um desenho por código feito numa tela pequena a `fps` (o mesmo quadro serve a todas as cópias): fn(ox, oy, t)
+  // desenha com a origem em (ox, oy) da tela; em(x, y, t) põe a tela com essa origem em (x, y)
+  function Carimbo(w, h, ox, oy, fps, fn) { this.c = tela(w, h); this.w = w; this.h = h; this.ox = ox; this.oy = oy; this.fps = fps; this.fn = fn; this.passo = null; }
+  Carimbo.prototype.em = function (x, y, t) {
+    var p = Math.floor(t * this.fps);
+    if (p !== this.passo) {
+      this.passo = p;
+      var g0 = g, cg = this.c.getContext('2d'); cg.clearRect(0, 0, this.w, this.h); g = cg;
+      this.fn(this.ox, this.oy, p / this.fps);
+      g = g0;
+    }
+    D(this.c, x - this.ox, y - this.oy);
+  };
+  // ruído de valor 2D suave (neblina)
+  function vnoise2(x, y, per) {   // per: período em x (células), para a faixa emendar
+    var xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, x0 = per ? mod(xi, per) : xi, x1 = per ? mod(xi + 1, per) : xi + 1;
+    fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    var a = hash(x0, yi), b = hash(x1, yi), c = hash(x0, yi + 1), d = hash(x1, yi + 1);
+    return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+  }
+  // varal com bandeirolas de um conjunto já na paleta do clima
+  function varalCom(B, x0, x1, y, flecha, t, semente) {
+    var n = Math.floor((x1 - x0) / 7);
+    D(corda(x1 - x0, flecha), x0, y);
+    for (var i = 1; i < n; i++) {
+      var bx = x0 + i * 7 - 2, u2 = (bx + 2 - x0) / (x1 - x0), by = y + Math.round(flecha * 4 * u2 * (1 - u2));
+      var w = vRem(bx, t), q = mod(Math.floor(t * (5 + w * 9) + hash(i, semente) * 4), 4);
+      D(B[(i + semente) % B.length][q], bx, by);
+    }
+  }
+
+  // ---------------------------------------------------------------- a região viva
+  // imgs: { sol: { nuvens, horizonte, meio, arquibancada, frente, meioSemPas? }, clima: { as mesmas, já na paleta do
+  // clima }, nevoa: { hex cru: hex com a névoa } }; lut: '#hex' -> '#hex' do clima (null no sol)
+  function RegiaoViva(id, imgs, lut) {
+    var monta = REGIOES_VIVAS[id];
+    if (!monta) throw new Error('Ambiente.regiao: região sem animação ' + id);
+    var s = this, K = lut || null;
+    s.id = id; s.K = K; s.nevoa = imgs.nevoa || null; s.vivas = {}; s.cima = {}; s.antes = {}; s.nascer = [];
+    s.sol = {}; s.cli = {}; s.passos = []; s.pronta = false;
+    // a montagem em passos (montaPasso: um por chamada, cada um de poucos ms; o jogo roda um por tarefa na contagem da
+    // largada, sem travar quadro); as camadas lidas primeiro, depois as peças da região, depois o fim
+    ['nuvens', 'horizonte', 'meio', 'arquibancada', 'frente'].forEach(function (k) {
+      s.passo(function () {
+        var so = imgs.sol[k], cl = (imgs.clima || {})[k] || so;
+        if (k === 'meio' && imgs.sol.meioSemPas) { so = imgs.sol.meioSemPas; cl = (imgs.clima || {}).meioSemPas || recolore(so, K); }
+        s.sol[k] = Buf.de(so); s.cli[k] = cl === so ? s.sol[k] : Buf.de(cl);
+      });
+    });
+    s.passo(function () { monta(s); });
+    s.fim = function () { fimRegiao(s, id, K); };
+  }
+  RegiaoViva.prototype.passo = function (fn) { this.passos.push(fn); };
+  RegiaoViva.prototype.montaPasso = function () {
+    if (this.pronta) return true;
+    var s = this, KR0 = KR, m0 = MAIS; KR = s.K; MAIS = true;
+    try { var f = s.passos.shift(); if (f) f(); else { s.fim(); s.pronta = true; } } finally { KR = KR0; MAIS = m0; }
+    return s.pronta;
+  };
+  RegiaoViva.prototype.montaTudo = function () { while (!this.montaPasso()); return this; };
+  function fimRegiao(s, id, K) {
+    // nuvens em 2 velocidades: as linhas de cima (faixaAlta) andam mais devagar
+    var FA = (MAN.imagens[id + '/nuvens'] || {}).faixaAlta || 15, nv = s.cli.nuvens.c;
+    s.nuvemAlta = tela(nv.width, FA); s.nuvemAlta.getContext('2d').drawImage(nv, 0, 0);
+    s.nuvemBaixa2 = tela(nv.width, nv.height); s.nuvemBaixa2.getContext('2d').drawImage(nv, 0, 0); s.nuvemBaixa2.getContext('2d').clearRect(0, 0, nv.width, FA);
+    // pássaros ao longe e a revoada em V (a cada 15–35 s)
+    var rr = rngCosmetica(hash(id.length, id.charCodeAt(0)) * 1e6 | 0);
+    s.longe = new Bando(rr, 4, { tipo: 'longe', cor: corK(K, P.sombra), y0: 8, y1: 40, v: 4, qps: 7, largura: 420, paralaxe: 0.08, dir: -1 });
+    s.bandoLonge = new Revoada({ tipo: 'longe', cor: corK(K, P.sombra), n: 9, y: 14, v: 10, qps: 7, periodo: 15 + rr() * 20, fase: rr() * 10 });
+    // placa pendurada e biruta atrás da cerca de trás (a cada 600 px da pista); a biruta aponta para o vento
+    // (em carimbos de 12 q/s: ~50 retângulos viram 2 drawImage por quadro)
+    s.placa = new Carimbo(27, 30, 1, 2, 12, desenhaPlaca);
+    s.biruta = new Carimbo(15, 38, 2, 2, 12, desenhaBiruta);
+    s.cima.cerca = function (t, X, Y, Wa, cam, dt, dyArte) {
+      for (var x = mod(52 + X + 40, 600) - 40; x < Wa + 30; x += 600) s.placa.em(x, Y - 30 - dyArte(x + 12), t);
+      for (x = mod(92 + X + 40, 600) - 40; x < Wa + 30; x += 600) {
+        var dy = dyArte(x);
+        if (RV.dir < 0) { g.save(); g.translate(2 * x + 1, 0); g.scale(-1, 1); }
+        s.biruta.em(x, Y - 44 - dy, t);
+        if (RV.dir < 0) g.restore();
+      }
+    };
+    s.part = new Particulas(MAX_PART_REG); s.rng = rngCosmetica(77 + id.length);
+    s.agenda = new Agenda(); s.agenda.itens = Object.keys(s.vivas).map(function (k) { return s.vivas[k]; });
+    s.t = 0; s.dt = 0;
+    // (sem aquecer: o pré-assado enche na própria corrida, e a montagem fica curta)
+  }
+  // um passo: t em segundos (o tempo real da corrida), vento { intensity, dir } da corrida
+  RegiaoViva.prototype.atualiza = function (t, dt, v) {
+    var s = this, m0 = MAIS, KR0 = KR;
+    MAIS = true; KR = s.K; RV.k = VENTO_REG[(v && v.intensity) || 'brisa'] || 1; RV.dir = v && v.dir < 0 ? -1 : 1; PDIR = RV.dir;
+    s.t = t; s.dt = Math.min(0.1, Math.max(0, dt || 0));
+    var vez = cfg.regiaoSem.camadas ? null : s.agenda.roda(t);
+    if (vez) {   // (msPor / msMax: o tempo de cada camada e da cópia para a vitrine, somado e o pior, para medir no aparelho)
+      var t0 = performance.now(), mudou = vez.atualiza(t), t1 = performance.now();
+      if (mudou) vitrine(vez);
+      var t2 = performance.now(), mp = s.msPor || (s.msPor = {}), mx = s.msMax || (s.msMax = {});
+      mp[vez.camada] = (mp[vez.camada] || 0) + t1 - t0; mp.vitrine = (mp.vitrine || 0) + t2 - t1;
+      mx[vez.camada] = Math.max(mx[vez.camada] || 0, t1 - t0); mx.vitrine = Math.max(mx.vitrine || 0, t2 - t1);
+    }
+    // partículas: fumaça (horizonte), pétalas e areia (meio), cada uma nas coordenadas da sua camada
+    var r = s.rng, dtt = s.dt, p = s.part;
+    for (var i = 0; i < s.nascer.length; i++) s.nascer[i](t, dtt, r, p);
+    if (s.nascerH) s.nascerH(t, dtt, r, p);
+    if (s.areiaY && r() < dtt * (2 + vR(t) * 6)) p.nasce(T_AREIA, -4 + r() * 384, s.areiaY + r() * 10, 20 * RV.dir, 0, 1.2 + r() * 2, r());
+    p.passo(dtt, t);
+    MAIS = m0; KR = KR0; PDIR = 1;
+  };
+  RegiaoViva.prototype.tem = function (onde) { return !!this.cima[onde]; };
+  RegiaoViva.prototype.camada = function (k) { var d = this.vivas[k]; return d ? (d.vit || d.saida.c) : (this.cli[k] ? this.cli[k].c : null); };
+  // a camada viva numa tela comum (sem willReadFrequently), copiada só quando o passo muda: a tela de pixels do Buf fica
+  // na memória da CPU, e desenhá-la a cada quadro custava o envio inteiro a cada quadro
+  function vitrine(d) {
+    var c = d.saida.c;
+    if (!d.vit) { d.vit = cfg.criaCanvas(c.width, c.height); d.vitG = d.vit.getContext('2d'); }
+    d.vitG.clearRect(0, 0, c.width, c.height); d.vitG.drawImage(c, 0, 0);
+  }
+  // o que vai por cima de uma camada, em ctx com a escala de arte (P), com a camada repetida a partir de X (pixels de
+  // arte; X ≤ 0) e o topo em Y; Wa = largura da tela em pixels de arte; cam = o rolar da câmera em pixels de arte
+  RegiaoViva.prototype.desenha = function (onde, ctx, P_, X, Y, Wa, cam, dyArte) {
+    if (cfg.regiaoSem.cima) return;
+    var s = this, fn = onde === 'antesHorizonte' ? s.antes.horizonte : s.cima[onde];
+    var temPart = onde === 'horizonte' || onde === 'meio';
+    if (!fn && !temPart && onde !== 'ceu') return;
+    var g0 = g, m0 = MAIS, KR0 = KR; g = ctx; MAIS = true; KR = s.K;
+    ctx.save(); ctx.scale(P_, P_);
+    if (onde === 'ceu') { ctx.translate(0, Y); s.longe.desenha(s.t, cam, Wa); s.bandoLonge.desenha(s.t, cam, Wa); ctx.translate(0, -Y); }
+    if (fn) fn(s.t, X, Y, Wa, cam, s.dt, dyArte || function () { return 0; });
+    if (temPart && s.part.n) {
+      // cada partícula nasce na sua camada: a fumaça (T_FUMACA) no horizonte, o resto no meio; repete a cada 384
+      var p = s.part, quer = onde === 'horizonte';
+      for (var k = 0; k < p.n; k++) {
+        if ((p.tipo[k] === T_FUMACA) !== quer) continue;
+        for (var x = X; x < Wa + 8; x += 384) {
+          var px = x + p.x[k]; if (px < -6 || px > Wa + 6) continue;
+          desenhaUma(p, k, x, Y, Math.floor(s.t * 12));
+        }
+      }
+    }
+    ctx.restore(); g = g0; MAIS = m0; KR = KR0;
+  };
+  // sol com o halo girando (4 quadros), só no sol
+  RegiaoViva.prototype.quadroSol = function (t) { return SOL[mod(Math.floor(t * 2.5), 4)]; };
+  // nuvens em 2 velocidades no lugar da camada repetida: desloc = o da camada parada (paralaxe + vento)
+  RegiaoViva.prototype.nuvens = function (ctx, desloc, y, W, P_) {
+    var s = this;
+    rep(ctx, s.nuvemAlta, desloc * 0.6, y, W, P_);
+    rep(ctx, s.nuvemBaixa2, desloc, y, W, P_);
+  };
+  function rep(ctx, img, desloc, y, W, P_) {
+    var w = img.width * P_, x = -mod(Math.floor(desloc) * P_, w);
+    for (; x < W; x += w) ctx.drawImage(img, x, y, w, img.height * P_);
+  }
+  // uma partícula k de p com a origem em (dx, dy)
+  var umaP = null;
+  function desenhaUma(p, k, dx, dy, quadro) {
+    if (!umaP) umaP = new Particulas(1);
+    umaP.n = 1; umaP.tipo[0] = p.tipo[k]; umaP.x[0] = p.x[k]; umaP.y[0] = p.y[k]; umaP.idade[0] = p.idade[k]; umaP.vida[0] = p.vida[k]; umaP.s[0] = p.s[k]; umaP.a[0] = p.a[k]; umaP.r[0] = p.r[k];
+    umaP.desenha(dx, dy, quadro);
+  }
+
+  // ================================================================ Mapas das trilhas (plano, etapa 4; spec §3.4)
+  // O fundo de cada trilha (256 × 384, vista de cima): a imagem do mapa com o que mexe; a frente 2 (mapa.js) desenha por
+  // cima a pista que se pinta, as bases, os oponentes e o cavalo. Ambiente.cena('mapa:<elemento>', { imagem, caminho })
+  // (caminho: Uint8Array 256 × 384, 1 = pista, de Mapa.mascaraCaminho(): nada que mexe nasce embaixo dela). Quem chama:
+  // atualiza(t, dt) e desenha(g, vis) a cada quadro (vis = { x0, x1, y0, y1 }, o trecho visível), ou parada(g).
+  // Num tique de 8 q/s a imagem é refeita (ciclo de cor, deformações); as partículas andam a cada quadro.
+  function mapaBase(s, opts) {
+    var img = (opts && opts.imagem) || IMG['mapa/' + s.el];
+    if (!img) throw new Error('Ambiente: o mapa ' + s.el + ' sem imagem (passe { imagem })');
+    s.base = Buf.de(img); s.saida = s.base.clone(); s.W = s.base.w; s.H = s.base.h;
+    s.caminho = (opts && opts.caminho) || null;
+    s.antes = tela(s.W, s.H); s.antes.getContext('2d').drawImage(img, 0, 0);
+    s.tiqueQ = -1;
+    s.direto = true;   // desenha direto no buffer de quem chama (sem a cópia da cena inteira a cada quadro)
+  }
+  // fora da pista (com folga de f px) e dentro do mapa
+  function foraDoCaminho(s, x, y, f) {
+    x = Math.round(x); y = Math.round(y);
+    if (x < 0 || y < 0 || x >= s.W || y >= s.H) return false;
+    if (!s.caminho) return true;
+    for (var dy = -(f || 0); dy <= (f || 0); dy++) for (var dx = -(f || 0); dx <= (f || 0); dx++) {
+      var xx = x + dx, yy = y + dy;
+      if (xx >= 0 && yy >= 0 && xx < s.W && yy < s.H && s.caminho[yy * s.W + xx]) return false;
+    }
+    return true;
+  }
+  // lista de pixels (índices) da base com as cores dadas
+  function pixelsDe(b, cores) {
+    var cs = cores.map(c32), out = [];
+    for (var i = 0; i < b.d.length; i++) if (cs.indexOf(b.d[i]) >= 0) out.push(i);
+    return new Int32Array(out);
+  }
+  // distância (em passos de 4 vizinhos) de cada pixel da lista até a borda da própria cor, até no máximo `max`
+  function pertoDaBorda(b, ok, max) {
+    var w = b.w, h = b.h, d = new Uint8Array(w * h);
+    for (var i = 0; i < w * h; i++) if (ok[i]) {
+      var x = i % w, y = (i / w) | 0, k = max + 1;
+      for (var r = 1; r <= max && k > max; r++) {
+        if (x - r < 0 || !ok[i - r] || x + r >= w || !ok[i + r] || y - r < 0 || !ok[i - r * w] || y + r >= h || !ok[i + r * w]) k = r;
+      }
+      d[i] = k;
+    }
+    return d;
+  }
+  // um tique da imagem (8 q/s): base → ciclo de cor → deformações → saída
+  function mapaTique(s, t, passos) {
+    var q = Math.floor(t * 8); if (q === s.tiqueQ) return false;
+    s.tiqueQ = q;
+    var tq = q / 8;
+    // a deformação (pré-assada, com o pixel de antes onde a peça sai) refaz a saída inteira a partir da base; o ciclo de
+    // cor escreve por cima (as peças que mexem não pisam nos pixels do ciclo)
+    if (s.deforma) { s.deforma.passo = -1; s.deforma.atualiza(tq); } else s.saida.d.set(s.base.d);
+    for (var k = 0; k < passos.length; k++) passos[k](s.saida.d, tq);
+    s.saida.poe();
+    return true;
+  }
+  // a deformação de um mapa: o pixel de antes fica onde a peça sai, e a saída do mapa passa a ser a dela
+  function mapaDeforma(s, d) {
+    for (var i = 0; i < d.m.length; i++) if (d.m[i]) d.limpo[i] = s.base.d[i];
+    d.saida.d.set(s.base.d); d.saida.poe();
+    s.deforma = d; s.saida = d.saida;
+    return d;
+  }
+  function mapaDesenha(s, t, dt, tiqueFn, particulasFn) {
+    tiqueFn(t);
+    D(s.saida.c, 0, 0);
+    if (particulasFn) particulasFn(t, dt);
+  }
+
+  // ---------------------------------------------------------------- mapa da água
+  CENAS['mapa:agua'] = {
+    W: 256, H: 384, el: 'agua',
+    camadas: [['agua', 'Correnteza e espuma'], ['plantas', 'Coqueiros e junco'], ['peixe', 'Peixe que pula']],
+    init: function () {
+      var s = this, b, i;
+      mapaBase(s, s.opts); b = s.base;
+      var AG = c32('#9babb2'), LIN = c32('#c7dcd0'), BR = c32('#ffffff'), AREIA = c32('#fdcbb0'), CONT = c32('#2e222f');
+      s.cAg = AG; s.cLin = LIN; s.cBr = BR;
+      var w = s.W, ok = new Uint8Array(w * s.H);
+      for (i = 0; i < b.d.length; i++) if (b.d[i] === AG || b.d[i] === LIN) ok[i] = 1;
+      // correnteza: 1 em 9 pixels da água vira um brilho que corre rio abaixo (fase pela posição ao longo da água)
+      var br = [], ph = [], espuma = [], linhas = [];
+      for (i = 0; i < ok.length; i++) {
+        if (!ok[i]) continue;
+        var x = i % w, y = (i / w) | 0;
+        if (b.d[i] === LIN) { linhas.push(i); continue; }
+        var margem = false;
+        for (var o = -1; o <= 1 && !margem; o++) for (var p = -1; p <= 1; p++) { var j = (y + o) * w + x + p; if (j >= 0 && j < ok.length && !ok[j] && (b.d[j] === AREIA || b.d[j] === CONT)) { margem = true; break; } }
+        if (margem) { espuma.push(i); continue; }
+        if (hash(x, y) < 0.045 && y + 1 < s.H && ok[i + w]) { br.push(i); ph.push(y * 0.31 + Math.sin(x * 0.07) * 3 + hash(y, x) * 2); }
+      }
+      s.br = new Int32Array(br); s.ph = new Float32Array(ph); s.espuma = new Int32Array(espuma); s.linhas = new Int32Array(linhas);
+      // coqueiros (copas grandes) giram 1 px em volta do tronco; juncos (peças pequenas) tremem
+      var VERDE = ['547e64', '165a4c'];
+      var pc = pecas(b, function (x, y, h) { return VERDE.indexOf(h) >= 0; }, 2, 18);
+      pc.caixas.forEach(function (cx, k) {
+        cx.coq = cx.n >= 150; cx.fase = hash(k, 5) * 6.28;
+        cx.raio = Math.max(cx.bx1 - cx.bx0, cx.by1 - cx.by0) / 2 + 1;
+      });
+      mapaDeforma(s, new Deforma(b, pc.m, pc.caixas, function (x, y, cx, t, v) {
+        if (cx.coq) {
+          var dxp = x - cx.cx, dyp = y - cx.cy, r = Math.sqrt(dxp * dxp + dyp * dyp) / cx.raio;
+          if (r < 0.45) { v[0] = 0; v[1] = 0; return; }
+          v[0] = Math.round(Math.cos(cx.a) * cx.k); v[1] = Math.round(Math.sin(cx.a) * cx.k);
+        } else { v[0] = y < cx.cy ? cx.dx : 0; v[1] = 0; }
+      }, 8, function (t) {
+        pc.caixas.forEach(function (cx) {
+          var vv = vento(t - cx.cx / 90);
+          if (cx.coq) { cx.a = qfase(t * (0.9 + vv) + cx.fase, 8); cx.k = qv(0.6 + vv * 0.7, 0.5); }
+          else cx.dx = (Math.floor(t * 6 + cx.fase) & 1) && vv > 0.5 ? 1 : 0;
+        });
+      }));
+      if (cfg.preassado) s.deforma.preassado(function (cx) { return cx.coq ? cx.a.toFixed(2) + '|' + cx.k : cx.dx; }, 0.4e6);
+      // peixe: onde pode pular (água funda: fora da margem e da pista, com água em volta)
+      var lagos = [];
+      for (i = 0; i < br.length; i++) { var xi = br[i] % w, yi = (br[i] / w) | 0; if (foraDoCaminho(s, xi, yi, 6) && ok[br[i] - 4] && ok[br[i] + 4] && ok[br[i] - 4 * w] && ok[br[i] + 4 * w]) lagos.push(xi, yi); }
+      s.lagos = lagos; s.rng = rngCosmetica(41); s.peixe = null; s.proxPeixe = 2; s.gotas = new Particulas(24);
+    },
+    tique: function (t) {
+      var s = this;
+      return mapaTique(s, t, [function (A, tq) {
+        var AG = s.cAg, LIN = s.cLin, BR = s.cBr, i, n;
+        // brilhos que descem com a correnteza (dois tons), as linhas claras do desenho tremulando
+        // (traço de 2 px no sentido da correnteza; o branco só na crista)
+        for (n = 0; n < s.br.length; n++) { var o = fsin(s.ph[n] - tq * 2.6); if (o > 0.8) { A[s.br[n]] = o > 0.97 ? BR : LIN; A[s.br[n] + s.W] = LIN; } }
+        for (n = 0; n < s.linhas.length; n++) { i = s.linhas[n]; if (hash3(i & 1023, i >> 10, Math.floor(tq * 2)) < 0.1) A[i] = AG; }
+        // espuma na margem: pulsa em ondas que correm pela beira
+        for (n = 0; n < s.espuma.length; n++) { i = s.espuma[n]; var x = i % s.W, y = (i / s.W) | 0; if (fsin(x * 0.21 + y * 0.17 - tq * 3.2) > 0.6 && hash(x, y) < 0.7) A[i] = hash3(x, y, Math.floor(tq * 4)) < 0.5 ? BR : LIN; }
+      }]);
+    },
+    quadro: function (t, dt) {
+      var s = this, r = s.rng;
+      mapaDesenha(s, t, dt, function (tt) { s.tique(tt); }, function (tt, dtt) {
+        // um peixe a cada 3–7 s: arco de 0,8 s, com respingo na saída e na volta
+        if (!s.peixe && tt >= s.proxPeixe && s.lagos.length) {
+          var k = Math.floor(r() * s.lagos.length / 2) * 2, dir = r() < 0.5 ? -1 : 1;
+          s.peixe = { x: s.lagos[k], y: s.lagos[k + 1], t0: tt, dir: dir };
+          for (var g2 = 0; g2 < 5; g2++) s.gotas.nasce(T_GOTA, s.peixe.x, s.peixe.y, (r() - 0.5) * 14, -10 - r() * 10, 0.5, r());
+        }
+        if (s.peixe) {
+          var u = (tt - s.peixe.t0) / 0.8;
+          if (u >= 1) {
+            for (var g3 = 0; g3 < 5; g3++) s.gotas.nasce(T_GOTA, s.peixe.x + s.peixe.dir * 8, s.peixe.y, (r() - 0.5) * 14, -8 - r() * 8, 0.5, r());
+            s.peixe = null; s.proxPeixe = tt + 3 + r() * 4;
+          } else {
+            var fx = Math.round(s.peixe.x + s.peixe.dir * 8 * u), fy = Math.round(s.peixe.y - Math.sin(u * Math.PI) * 6);
+            R(fx - 1, fy, 3, 1, P.cinza); R(fx + (s.peixe.dir > 0 ? 1 : -1), fy - 1, 1, 1, P.claro); R(fx - s.peixe.dir * 2, fy + (u < 0.5 ? 1 : -1), 1, 1, P.cinzaE);
+          }
+        }
+        s.gotas.passo(Math.min(0.1, dtt), tt); s.gotas.desenha(0, 0, Math.floor(tt * 12));
+      });
+    }
+  };
+
+  // ---------------------------------------------------------------- mapa do fogo
+  CENAS['mapa:fogo'] = {
+    W: 256, H: 384, el: 'fogo',
+    camadas: [['lava', 'Lava nas rachaduras'], ['brasas', 'Brasas e fumaça'], ['tufos', 'Tufos secos']],
+    init: function () {
+      var s = this, b, i;
+      mapaBase(s, s.opts); b = s.base;
+      var RAMPA = ['#6e2727', '#e83b3b', '#f79617', '#f9c22b', '#fbff86'].map(c32), w = s.W;
+      s.rampaLava = RAMPA;
+      // lava: o brilho corre pela rachadura a partir dos nós (os pixels mais quentes); fase = distância até o nó
+      var lava = pixelsDe(b, ['#e83b3b', '#f79617', '#f9c22b']), ok = new Uint8Array(b.d.length), dist = new Int16Array(b.d.length).fill(-1), fila = [];
+      for (i = 0; i < lava.length; i++) ok[lava[i]] = 1;
+      for (i = 0; i < lava.length; i++) if (b.d[lava[i]] === RAMPA[3]) { dist[lava[i]] = 0; fila.push(lava[i]); }
+      for (var f = 0; f < fila.length; f++) {
+        var p = fila[f], x = p % w, y = (p / w) | 0;
+        [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].forEach(function (d) {
+          var xx = x + d[0], yy = y + d[1], q = yy * w + xx;
+          if (xx >= 0 && yy >= 0 && xx < w && yy < s.H && ok[q] && dist[q] < 0) { dist[q] = dist[p] + 1; fila.push(q); }
+        });
+      }
+      s.lava = lava; s.lavaD = new Uint8Array(lava.length); s.lavaF = new Float32Array(lava.length);
+      for (i = 0; i < lava.length; i++) { s.lavaD[i] = RAMPA.indexOf(b.d[lava[i]]); s.lavaF[i] = Math.max(0, dist[lava[i]]) * 0.55 + hash(lava[i], 3) * 0.6; }
+      // as fendas mais quentes soltam brasas e fumaça (fora da pista)
+      var quentes = [];
+      for (i = 0; i < lava.length; i++) if (b.d[lava[i]] === RAMPA[3]) { var xq = lava[i] % w, yq = (lava[i] / w) | 0; if (foraDoCaminho(s, xq, yq, 3)) quentes.push(xq, yq); }
+      s.quentes = quentes; s.brasas = new Particulas(40); s.rng = rngCosmetica(43);
+      // tufos secos tremem nas rajadas (a parte de cima de cada um)
+      var pc = pecas(b, function (x, y, h) { return h === 'ab947a'; }, 2, 6);
+      pc.caixas.forEach(function (cx, k) { cx.fase = hash(k, 9) * 6.28; });
+      mapaDeforma(s, new Deforma(b, pc.m, pc.caixas, function (x, y, cx, t, v) { v[0] = y < cx.cy ? cx.dx : 0; v[1] = 0; }, 8, function (t) {
+        pc.caixas.forEach(function (cx) { var vv = vento(t - cx.cx / 90); cx.dx = vv > 0.55 ? ((Math.floor(t * 7 + cx.fase) & 1) ? 1 : -1) * (vv > 0.8 ? 1 : (Math.floor(t * 3 + cx.fase) & 1)) : 0; });
+      }));
+      if (cfg.preassado) s.deforma.preassado(function (cx) { return cx.dx; }, 0.1e6);
+    },
+    tique: function (t) {
+      var s = this;
+      return mapaTique(s, t, [function (A, tq) {
+        var R0 = s.rampaLava, L = s.lava;
+        for (var n = 0; n < L.length; n++) {
+          var o = fsin(s.lavaF[n] - tq * 3.4), d = s.lavaD[n] + (o > 0.55 ? 1 : o < -0.7 ? -1 : 0);
+          A[L[n]] = R0[d < 1 ? 1 : d > 4 ? 4 : d];
+        }
+      }]);
+    },
+    quadro: function (t, dt) {
+      var s = this, r = s.rng;
+      mapaDesenha(s, t, dt, function (tt) { s.tique(tt); }, function (tt, dtt) {
+        var Q = s.quentes;
+        if (Q.length) {
+          if (r() < dtt * 9) { var k = Math.floor(r() * Q.length / 2) * 2; s.brasas.nasce(T_BRASA, Q[k], Q[k + 1], (r() - 0.5) * 4, -6 - r() * 8, 1 + r() * 1.4, r()); }
+          if (r() < dtt * 2.5) { var k2 = Math.floor(r() * Q.length / 2) * 2; s.brasas.nasce(T_FUMACA, Q[k2], Q[k2 + 1] - 2, (r() - 0.5) * 2, -4 - r() * 3, 1.8 + r(), r()); }
+        }
+        s.brasas.passo(Math.min(0.1, dtt), tt); s.brasas.desenha(0, 0, Math.floor(tt * 12));
+      });
+    }
+  };
+
+  // ---------------------------------------------------------------- mapa da grama
+  CENAS['mapa:grama'] = {
+    W: 256, H: 384, el: 'grama',
+    camadas: [['copas', 'Copas e capim'], ['nuvens', 'Sombras de nuvem'], ['bichos', 'Borboletas e folhas']],
+    init: function () {
+      var s = this, b, i;
+      mapaBase(s, s.opts); b = s.base;
+      var w = s.W, COPA = ['374e4a', '547e64', '165a4c'].map(function (h) { return c32('#' + h); });
+      var ok = new Uint8Array(b.d.length);
+      for (i = 0; i < b.d.length; i++) if (COPA.indexOf(b.d[i]) >= 0) ok[i] = 1;
+      // a borda das copas (até 2 px da beira) balança 1 px numa onda que atravessa o mapa; o miolo fica
+      var perto = pertoDaBorda(b, ok, 2), m = new Int16Array(b.d.length), caixas = [], LADO = 64;
+      for (var by = 0; by < s.H; by += LADO) for (var bx = 0; bx < w; bx += LADO) {
+        var id = caixas.length + 1, n = 0;
+        for (var y = by; y < Math.min(s.H, by + LADO); y++) for (var x = bx; x < Math.min(w, bx + LADO); x++) { var j = y * w + x; if (ok[j] && perto[j] <= 2) { m[j] = id; n++; } }
+        if (n) caixas.push({ id: id, x0: Math.max(0, bx - 2), y0: Math.max(0, by - 2), x1: Math.min(w, bx + LADO + 2), y1: Math.min(s.H, by + LADO + 2), cx: bx + LADO / 2, n: n });
+      }
+      // (ids das caixas sem pixels ficam de fora; a máscara só tem ids das caixas)
+      var PESO = new Float32Array(b.d.length);
+      for (i = 0; i < b.d.length; i++) if (m[i]) PESO[i] = perto[i] === 1 ? 1 : 0.6;
+      var est = { tt: 0, amp: 0 };
+      mapaDeforma(s, new Deforma(b, m, caixas, function (x, y, cx, t, v, i2) {
+        v[0] = Math.round(PESO[i2] * est.amp * fsin(est.tt + x * 0.08 + y * 0.05)); v[1] = 0;
+      }, 8, function (t) {
+        est.tt = qfase(t * 1.6, 12); est.amp = qv(0.7 + vento(t) * 0.8, 0.5);
+      }));
+      if (cfg.preassado) s.deforma.preassado(function () { return est.amp + '|' + est.tt.toFixed(3); }, 1.2e6);
+      // sombras de nuvem: o mapa um degrau mais escuro, recortado por 2 nuvens pontilhadas que atravessam o mapa
+      var esc = { '#676633': '#4c3e24', '#a2a947': '#676633', '#374e4a': '#313638', '#547e64': '#374e4a', '#165a4c': '#313638',
+        '#92a984': '#547e64', '#966c6c': '#694f62', '#ab947a': '#966c6c', '#4c3e24': '#2e222f', '#3e3546': '#2e222f' };
+      var Bd = b.clone();
+      for (i = 0; i < Bd.d.length; i++) { var hx = '#' + hexDe(Bd.d[i]); if (esc[hx]) Bd.d[i] = c32(esc[hx]); }
+      Bd.poe(); s.escura = Bd.c;
+      s.nuvens = [0, 1].map(function (k) {
+        var nw = 120 + k * 40, nh = 70 + k * 20, c = tela(nw, nh), cg = c.getContext('2d'); cg.fillStyle = '#000';
+        for (var y2 = 0; y2 < nh; y2++) for (var x2 = 0; x2 < nw; x2++) {
+          var u = (x2 - nw / 2) / (nw / 2), v = (y2 - nh / 2) / (nh / 2), d = u * u + v * v + (vnoise2(x2 * 0.08 + k * 9, y2 * 0.1) - 0.5) * 0.7;
+          if (d < 0.75 && ((x2 + y2) & 1) === 0) cg.fillRect(x2, y2, 1, 1);
+        }
+        return { c: c, w: nw, h: nh, v: 5 + k * 3, y0: 60 + k * 190, fase: k * 230 };
+      });
+      s.tmp = tela(w, s.H);
+      // borboletas e folhas
+      s.borb = [0, 1, 2].map(function (k) { return { cor: [P.ouro, P.branco, P.rosaV][k], f: hash(k, 7) * 9, cx: 40 + k * 80, cy: 80 + k * 110 }; });
+      s.folhas = new Particulas(16); s.rng = rngCosmetica(47);
+    },
+    tique: function (t) {
+      var s = this, q = Math.floor(t * 8);
+      var mudou = mapaTique(s, t, []);
+      if (!mudou) return false;
+      // as sombras das nuvens sobre a imagem já deformada
+      var tg = s.tmp.getContext('2d'), tq = q / 8;
+      tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, s.W, s.H);
+      s.nuvens.forEach(function (n) {
+        var x = Math.round(mod(tq * n.v + n.fase, s.W + n.w) - n.w), y = Math.round(n.y0 + Math.sin(tq * 0.05 + n.fase) * 20 + tq * n.v * 0.6) % (s.H + n.h) - n.h * 0.5;
+        tg.drawImage(n.c, x, Math.round(y));
+      });
+      tg.globalCompositeOperation = 'source-in'; tg.drawImage(s.escura, 0, 0); tg.globalCompositeOperation = 'source-over';
+      s.saida.g.drawImage(s.tmp, 0, 0);
+      return true;
+    },
+    quadro: function (t, dt) {
+      var s = this, r = s.rng;
+      mapaDesenha(s, t, dt, function (tt) { s.tique(tt); }, function (tt, dtt) {
+        // borboletas: voo em oito com as asas batendo (2 quadros), fora da pista
+        s.borb.forEach(function (bo, k) {
+          var a = tt * 0.7 + bo.f, x = Math.round(bo.cx + Math.sin(a) * 30 + Math.sin(a * 2.3) * 8), y = Math.round(bo.cy + Math.sin(a * 2) * 18 + Math.cos(a * 1.3) * 6);
+          if (!foraDoCaminho(s, x, y, 1)) return;
+          var aberta = Math.floor(tt * 10 + k) & 1;
+          if (aberta) { R(x - 1, y, 1, 1, bo.cor); R(x + 1, y, 1, 1, bo.cor); R(x, y, 1, 1, P.tinta); } else { R(x, y - 1, 1, 2, bo.cor); }
+        });
+        if (r() < dtt * (0.8 + vento(tt) * 2)) { var fx = r() * s.W, fy = r() * s.H; if (foraDoCaminho(s, fx, fy, 2)) s.folhas.nasce(T_FOLHA, fx, fy, 6, 3, 2.5 + r() * 2, r()); }
+        s.folhas.passo(Math.min(0.1, dtt), tt); s.folhas.desenha(0, 0, Math.floor(tt * 12));
+      });
+    }
+  };
+
+  function cena(id, opts) {
+    opts = opts || {};
+    var c = CENAS[id];
+    if (!c) throw new Error('Ambiente.cena: cena desconhecida ' + id);
+    c.id = id;
+    if (opts.manifesto) c.manifesto = opts.manifesto;
+    if (opts.semCavalos) c.semCavalos = true;
+    if (opts.imagem || opts.caminho) c.opts = opts;   // os mapas das trilhas: a imagem e a máscara do caminho
+    if (!c.pronta) { c.init(); c.pronta = true; }
+    var buf = tela(c.W, c.H), cam = {}, tUlt = 0, dtUlt = 0;
+    (c.camadas || []).forEach(function (d) { cam[d[0]] = new Camada(d[0], d[1]); });
+    camadasTodas[id] = cam;
+    return {
+      W: c.W, H: c.H, def: c, buffer: buf, camadas: cam,
+      atualiza: function (t, dt) { tUlt = t; dtUlt = dt; },
+      // cx: a câmera (número) das cenas das abas, ou o trecho visível { x0, x1, y0, y1 } dos mapas das trilhas
+      desenha: function (ctx, cx) {
+        var g0 = g; g = c.direto && ctx ? ctx : buf.getContext('2d'); MAIS = opts.mais !== false;
+        estado.cam = typeof cx === 'number' ? cx : 0; estado.vis = cx && typeof cx === 'object' ? cx : null;
+        c.quadro(tUlt, dtUlt, cam);
+        g = g0;
+        if (ctx && !c.direto) ctx.drawImage(buf, 0, 0);
+      },
+      parada: function (ctx) { if (ctx && c.antes) ctx.drawImage(c.antes, 0, 0); }
+    };
+  }
+
+  return {
+    config: function (o) { Object.keys(o || {}).forEach(function (k) { cfg[k] = o[k]; }); },
+    dados: function (d) { A = d || {}; if (A.manifesto) MAN = A.manifesto; return A; },
+    manifesto: function (m) { MAN = m || { imagens: {} }; },
+    mais: function (b) { MAIS = !!b; },
+    usa: function (ctx) { g = ctx; },
+    cena: cena, CENAS: CENAS, IMG: IMG,
+    // opts.aosPoucos: devolve a região por montar (montaPasso até pronta); sem ele, já montada
+    regiao: function (id, imgs, lut, opts) { var r = new RegiaoViva(id, imgs, lut); return opts && opts.aosPoucos ? r : r.montaTudo(); }, REGIOES_VIVAS: REGIOES_VIVAS, Buf: Buf, estado: estado, medidor: medidor, Camada: Camada, tela: tela,
+    rngCosmetica: rngCosmetica, vento: vento, ventoEm: ventoEm,
+    CicloCor: CicloCor, Deforma: Deforma, Agenda: Agenda, Particulas: Particulas, Bando: Bando, Revoada: Revoada
+  };
+}));
