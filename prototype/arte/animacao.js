@@ -935,6 +935,111 @@
     return c;
   }
 
+  // ---------------------------------------------------------------- Planalto (corrida): o cata-vento girando
+  // rotor de 4 pás de treliça, rasterizado direto na grade para cada ângulo (24 passos de 15°): cada pixel é mapeado
+  // para as coordenadas da pá (u ao longo, v de lado) e pintado pela forma da treliça; depois, contorno de 1 px.
+  // Não é a rotação de uma imagem: em cada ângulo o desenho é feito na grade (guia §2).
+  function rotorQuadros(n, R) {
+    var Q = [], L = 2 * R + 5;
+    for (var k = 0; k < n; k++) {
+      var b = new Buf(L, L), c0 = (L - 1) / 2, ang0 = k / n * Math.PI / 2;   // 4 pás: a volta se repete a cada 90°
+      for (var y = 0; y < L; y++) for (var x = 0; x < L; x++) {
+        var dx = x - c0, dy = y - c0, cor = 0;
+        for (var p = 0; p < 4 && !cor; p++) {
+          var a = ang0 + p * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+          var u = dx * ca + dy * sa, v = -dx * sa + dy * ca;            // u: ao longo da pá; v: de lado
+          if (u < -0.5 || u > R) continue;
+          // tons das pás pintadas do Planalto: madeira 966c6c com sombra 694f62, lona 9babb2 com brilho só na borda de cima
+          if (Math.abs(v) <= 0.9) cor = v > 0.2 ? C.violeta : C.terra;   // a vara (luz de cima: a metade de baixo na sombra)
+          else if (u >= 7 && u <= R - 1 && v > 0.9 && v <= 6.2) {       // a vela de treliça (de um lado da vara)
+            var borda = v > 5.3 || u < 7.9 || u > R - 1.9, travessa = (Math.floor(u) % 3) === 0;
+            if (borda) cor = C.violeta; else if (travessa) cor = C.terra; else cor = v < 2.2 ? C.claro : C.cinza;
+          }
+        }
+        if (Math.hypot(dx, dy) <= 2.6) cor = Math.hypot(dx + 0.7, dy + 0.7) <= 1.2 ? C.areiaE : C.cinzaE;   // cubo (luz de cima e da esquerda)
+        b.d[y * L + x] = cor;
+      }
+      var o = new Uint32Array(b.d);                                     // contorno 2e222f
+      for (y = 0; y < L; y++) for (x = 0; x < L; x++) {
+        if (b.d[y * L + x]) continue;
+        for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) {
+          var nx = x + ox, ny = y + oy; if (nx >= 0 && ny >= 0 && nx < L && ny < L && b.d[ny * L + nx] && b.d[ny * L + nx] !== C.tinta) { o[y * L + x] = C.tinta; }
+        }
+      }
+      b.d.set(o); b.poe(); Q.push(b.c);
+    }
+    return Q;
+  }
+
+  CENAS.planalto = {
+    titulo: 'Planalto · cata-vento', legenda: 'Hipódromo do Planalto, longe da arquibancada',
+    W: 256, lt: 130, nRaias: 3, raia: 22,
+    notas: [
+      '<span class="tag pago">PixelLab</span> + <span class="tag cod">código</span> <b>Cata-vento</b>: as pás estavam pintadas por cima das araucárias e eram assimétricas (6 braços). O PixelLab (<code>/inpaint</code>, 3 gerações) refez o fundo atrás delas, o topo da torre foi completado por código, e o rotor novo de 4 pás de treliça é desenhado por código em 24 ângulos, girando mais rápido nas rajadas.',
+      '<span class="tag cod">código</span> <b>Araucárias</b> balançando 1 px na copa; <b>capim alto</b> do primeiro plano em onda contínua; nuvens em 2 velocidades e pássaros.',
+      'Sem arquibancada nesta vista: na corrida ela aparece a cada 2.600 px de paralaxe, e o resto da pista é assim.'
+    ],
+    camadas: [['ceu', 'Céu, sol e nuvens'], ['moinho', 'Cata-vento'], ['copas', 'Araucárias'], ['passaros', 'Pássaros'], ['capim', 'Capim alto'], ['fundo', 'Fundo parado (pista e cópias)']],
+    init: function () {
+      var s = this, lt = s.lt;
+      s.raia0 = lt + 2; s.pistaFim = s.raia0 + s.nRaias * s.raia; s.frenteY = s.pistaFim + 4; s.H = s.frenteY + 40;
+      s.ceu = ceuFaixas(s.W, lt);
+      var nuv = IMG['planalto/nuvens'];
+      s.nuvemAlta = tela(nuv.width, 15); s.nuvemAlta.getContext('2d').drawImage(nuv, 0, 0);
+      s.nuvemBaixa = tela(nuv.width, nuv.height); s.nuvemBaixa.getContext('2d').drawImage(nuv, 0, 0); s.nuvemBaixa.getContext('2d').clearRect(0, 0, nuv.width, 15);
+      s.meioY = lt + 26 - 112;
+      // araucárias: a faixa de cima de cada copa (6 px abaixo do topo da coluna) balança 1 px; fora do cata-vento
+      var mb = Buf.de(IMG['planalto/meio-sem-pas']), VERDE = ['374e4a', '165a4c', '547e64', '676633', '239063'], mm = new Int16Array(mb.w * mb.h), TOPO = new Int16Array(mb.w).fill(999), PESO = new Float32Array(mb.w * mb.h);
+      for (var y = 0; y < 70; y++) for (var x = 0; x < mb.w; x++) {
+        if (x >= 160 && x <= 236) continue;
+        if (VERDE.indexOf(hexDe(mb.d[y * mb.w + x])) >= 0) { mm[y * mb.w + x] = 1; if (TOPO[x] === 999) TOPO[x] = y; }
+      }
+      for (y = 0; y < 70; y++) for (x = 0; x < mb.w; x++) { var dd = y - TOPO[x]; PESO[y * mb.w + x] = dd >= 0 && dd < 6 ? 1 - dd / 8 : 0; }
+      s.copas = new Deforma(mb, mm, [{ id: 1, x0: 0, x1: mb.w, y0: 0, y1: 70 }], function (x, y, cx, t, v, i) {
+        v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.09)) : 0; v[1] = 0;
+      }, 8, function (t) { var c = s.copas.caixas[0]; c.tt = t * 1.3; c.amp = 0.8 + vento(t) * (MAIS ? 0.9 : 0.5); });
+      // capim alto: tudo acima da linha 50 da camada balança, mais no alto, numa onda contínua
+      var fr = Buf.de(IMG['planalto/frente']), mf = new Int16Array(fr.w * fr.h), ALT = new Float32Array(64), GC = new Float32Array(fr.w);
+      for (y = 0; y < 50; y++) { for (x = 0; x < fr.w; x++) if (fr.d[y * fr.w + x]) mf[y * fr.w + x] = 1 + ((x / 48) | 0); var al = Math.max(0, 50 - y) / 44; ALT[y] = al * al; }
+      var faixas = []; for (var fx = 0; fx < fr.w; fx += 48) faixas.push({ id: 1 + fx / 48, x0: Math.max(0, fx - 4), x1: Math.min(fr.w, fx + 52), y0: 0, y1: 50 });
+      s.capim = new Deforma(fr, mf, faixas, function (x, y, cx, t, v) { v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0; }, 8, function (t) {
+        for (var x = 0; x < fr.w; x++) { var w = ventoEm(x * 0.9, t), onda = Math.sin(x * 0.06 - t * 2.8) * 0.5 + 0.5; GC[x] = MAIS ? w * 2.6 + onda * 1.8 + Math.sin(x * 0.21 - t * 4.6) * 0.4 : w * 2.4 + (w - 0.4) * onda * 1.6; }
+      });
+      s.rotor = rotorQuadros(24, 25); s.ang = 0;
+      s.pista = desenhaPistaLitoral(s);
+      s.longe = new Bando(rngCosmetica(61), 4, { tipo: 'longe', cor: P.sombra, y0: 10, y1: 40, v: 5, qps: 7, largura: 380, paralaxe: 0.08, dir: -1 });
+      s.revoada = new Revoada({ tipo: 'longe', cor: P.sombra, n: 7, y: 18, v: 12, qps: 8, periodo: 20, fase: 5 });
+      s.agenda = new Agenda(); s.agenda.itens = [s.copas, s.capim]; s.copas.camada = 'copas'; s.capim.camada = 'capim';
+      // antes: as camadas de hoje (o meio com as pás pintadas)
+      var c = tela(s.W, s.H), g0 = g; g = c.getContext('2d');
+      D(s.ceu, 0, 0); D(SOL_PARADO(), 99, lt - 105);
+      repetida(nuv, 0, lt - 110, s.W); repetida(IMG['planalto/horizonte'], 0, lt - 32 - IMG['planalto/horizonte'].height, s.W);
+      repetida(IMG['planalto/meio'], 0, s.meioY, s.W); D(s.pista, 0, lt - 16); repetida(IMG['planalto/frente'], 0, s.frenteY - 4, s.W);
+      g = g0; s.antes = c;
+    },
+    quadro: function (t, dt, L) {
+      var s = this, cam = estado.cam, W = s.W, lt = s.lt, hz = IMG['planalto/horizonte'];
+      var vez = s.agenda.roda(t, function (it) { return L[it.camada].ativo; });
+      mede(L.fundo, function () { D(s.ceu, 0, 0); });
+      if (!mede(L.ceu, function () { D(SOL[Math.floor(t * 2.5) % 4], 99, lt - 105); repetida(s.nuvemAlta, cam * 0.03 + t * 1.2, lt - 110, W); repetida(s.nuvemBaixa, cam * 0.04 + t * 3.5, lt - 110, W); }))
+        { D(SOL_PARADO(), 99, lt - 105); repetida(IMG['planalto/nuvens'], cam * 0.04, lt - 110, W); }
+      mede(L.passaros, function () { s.longe.desenha(t, cam, W); if (MAIS) s.revoada.desenha(t, cam, W); });
+      mede(L.fundo, function () { repetida(hz, cam * 0.1, lt - 32 - hz.height, W); });
+      var semPas = L.moinho.ativo, base = semPas ? IMG['planalto/meio-sem-pas'] : IMG['planalto/meio'];
+      if (!mede(L.copas, function () { if (vez === s.copas) s.copas.atualiza(t); repetida(semPas ? s.copas.saida.c : base, cam * 0.3, s.meioY, W); }))
+        repetida(base, cam * 0.3, s.meioY, W);
+      mede(L.moinho, function () {
+        // gira mais rápido nas rajadas (0,6 a 2,4 voltas de pá por segundo), no pixel inteiro
+        s.ang += dt * (0.5 + vento(t) * (MAIS ? 2.4 : 1.6));
+        var q = s.rotor[Math.floor(s.ang * 24 / (Math.PI / 2)) % 24], ox = -mod(Math.floor(cam * 0.3), 384);
+        for (var x = ox; x < W + 64; x += 384) D(q, x + 193 - (q.width >> 1), s.meioY + 37 - (q.height >> 1));
+      });
+      mede(L.fundo, function () { D(s.pista, -mod(Math.floor(cam), 32), lt - 16); });
+      if (!mede(L.capim, function () { if (vez === s.capim) s.capim.atualiza(t); repetida(s.capim.saida.c, cam * 1.25, s.frenteY - 4, W); }))
+        repetida(IMG['planalto/frente'], cam * 1.25, s.frenteY - 4, W);
+    }
+  };
+
   // ---------------------------------------------------------------- Fornalha (arena do ginásio de fogo)
   CENAS.fornalha = {
     titulo: 'Fornalha · arena', legenda: 'arena do ginásio de Fogo, com o vulcão ao fundo',
@@ -1330,7 +1435,7 @@
   }
 
   // ================================================================ interface
-  var ORDEM = ['litoral', 'fornalha', 'expedicao', 'cavalos'];
+  var ORDEM = ['litoral', 'planalto', 'fornalha', 'expedicao', 'cavalos'];
   var el = function (id) { return document.getElementById(id); };
   var cvAntes = el('antes'), cvDepois = el('depois'), gA = cvAntes.getContext('2d'), gD = cvDepois.getContext('2d');
   var buf = null, cenaAtual = null, camadas = {}, linhas = {}, escala = 1;
@@ -1374,6 +1479,7 @@
   // o que a variante "mais movimento" acrescenta em cada cena
   var NOTAS_MAIS = {
     litoral: 'Rajada forte a cada ~15 s que dobra coqueiros, capim, bandeirolas e biruta juntos; ondas grandes que descem até a mureta e quebram com respingo; "ola" na torcida; revoada de gaivotas em V e bando ao longe; folhas e areia em redemoinho; cavalos com gestos a cada 1–3,5 s.',
+    planalto: 'Rotor mais rápido nas rajadas fortes, araucárias balançando mais, revoada.',
     fornalha: 'Jorro de lava a cada estouro (2,5–4,5 s), mais bombas e fumaça; bolhas que estouram no fosso; mais brasas.',
     expedicao: 'Jorro de lava no vulcão, mais fumaça e bombas; espuma de corredeira no rio; placas girando mais; capim com rajadas fortes; revoada sobre o vale; folhas em redemoinho.',
     cavalos: 'Gestos a cada 1–3,5 s e mais fortes, gestos que se juntam (cauda junto com outro), sacudir a cabeça; borboletas, folhas soltas e revoada.'
@@ -1382,6 +1488,7 @@
   var CONTINUO = {
     litoral: 'Folhas dos coqueiros ondulando da coroa para as pontas, capim da praia numa onda que não para, espuma correndo na mureta e o mar com brilho e ondulação.',
     expedicao: 'Copas das matas e dos pinheiros balançando 1 px na faixa de cima, fora de fase; capim em onda contínua; linhas de espuma descendo o rio.',
+    planalto: 'Araucárias balançando na copa e capim alto em onda contínua.',
     cavalos: 'Pasto com faixas de brilho que correm (o vento no campo) e as copas das árvores balançando.',
     fornalha: 'Sem vegetação nem água: a lava do fosso e das encostas já corre o tempo todo.'
   };
@@ -1399,7 +1506,7 @@
       bA = botao('Versão anterior', !cena.mais, function () { cena.mais = false; bA.setAttribute('aria-pressed', 'true'); bM.setAttribute('aria-pressed', 'false'); });
     var grupo = document.createElement('div'); grupo.className = 'estilo'; grupo.setAttribute('role', 'group'); grupo.setAttribute('aria-label', 'Versão');
     grupo.appendChild(bM); grupo.appendChild(bA); ctl.appendChild(grupo);
-    if (cena.id === 'litoral') {
+    if (cena.id === 'litoral' || cena.id === 'planalto') {
       ctl.appendChild(botao('Câmera em corrida', estado.camera, function (b) { estado.camera = !estado.camera; b.setAttribute('aria-pressed', estado.camera); }));
     }
     if (cena.id === 'litoral' || cena.id === 'cavalos') {
@@ -1458,7 +1565,8 @@
   var reduzido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function loop() {
     var t = agora(), dt = Math.min(0.05, t - ultimoT || 0.016); ultimoT = t;
-    if (estado.camera && estado.cena === 'litoral') estado.cam += dt * 16 * 12; else if (estado.cena === 'litoral') estado.cam = 0;
+    var corrida = estado.cena === 'litoral' || estado.cena === 'planalto';
+    if (estado.camera && corrida) estado.cam += dt * 16 * 12; else if (corrida) estado.cam = 0;
     medidor.chamadas = 0; medidor.particulas = 0;
     var t0 = performance.now();
     for (var k in camadas) camadas[k].acc = 0;

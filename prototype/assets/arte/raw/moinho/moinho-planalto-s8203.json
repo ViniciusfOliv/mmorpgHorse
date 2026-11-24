@@ -1,0 +1,43 @@
+{
+  "endpoint": "/inpaint",
+  "data": "2026-11-24T01:10:25.906Z",
+  "pedido": {
+    "description": "dense dark green araucaria tree canopies with flat tops, soft white low mist, pale blue sky, side view pixel art landscape",
+    "negative_description": "windmill, sails, blades, wooden planks, cross, beams, text",
+    "image_size": {
+      "width": 100,
+      "height": 112
+    },
+    "inpainting_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 2645 bytes, sha256 17b234634c63a73a>",
+      "format": "png"
+    },
+    "mask_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 598 bytes, sha256 a6d96e544848b073>",
+      "format": "png"
+    },
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 197 bytes, sha256 d577ce51acd15b0f>",
+      "format": "png"
+    },
+    "view": "side",
+    "outline": "lineless",
+    "shading": "medium shading",
+    "detail": "medium detail",
+    "seed": 8203
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 5114 bytes, sha256 8c776a8ba07f8e89>",
+      "format": "png"
+    }
+  }
+}

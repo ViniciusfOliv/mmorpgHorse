@@ -1,0 +1,43 @@
+{
+  "endpoint": "/inpaint",
+  "data": "2026-11-24T01:09:09.420Z",
+  "pedido": {
+    "description": "tall araucaria pine trees with dark green flat canopies, soft white low mist between the trunks, pale blue sky, wooden windmill tower without sails, side view, pixel art",
+    "negative_description": "windmill sails, blades, cross, text",
+    "image_size": {
+      "width": 100,
+      "height": 112
+    },
+    "inpainting_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 3352 bytes, sha256 a16b59f01425a58e>",
+      "format": "png"
+    },
+    "mask_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 576 bytes, sha256 5fd34db8db256df5>",
+      "format": "png"
+    },
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 197 bytes, sha256 d577ce51acd15b0f>",
+      "format": "png"
+    },
+    "view": "side",
+    "outline": "lineless",
+    "shading": "medium shading",
+    "detail": "medium detail",
+    "seed": 8201
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 6081 bytes, sha256 5d080094e0a084ca>",
+      "format": "png"
+    }
+  }
+}

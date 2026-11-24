@@ -16,6 +16,8 @@ const uri = (f, tipo = 'image/png') => `data:${tipo};base64,${fs.readFileSync(f)
 const manifesto = JSON.parse(fs.readFileSync(path.join(ARTE, 'regioes.json'), 'utf8'));
 const imagens = {};
 for (const c of ['nuvens', 'horizonte', 'meio', 'arquibancada', 'frente']) imagens['litoral/' + c] = uri(path.join(ARTE, 'litoral', c + '.png'));
+for (const c of ['nuvens', 'horizonte', 'meio', 'frente']) imagens['planalto/' + c] = uri(path.join(ARTE, 'planalto', c + '.png'));
+imagens['planalto/meio-sem-pas'] = uri(path.join(ARTE, 'planalto', 'meio-sem-pas.png'));   // arte-animacao-moinho.mjs
 imagens['ginasios/fogo'] = uri(path.join(ARTE, 'ginasios', 'finais', 'fogo.png'));
 imagens['telas/expedicao'] = uri(path.join(ARTE, 'telas', 'finais', 'cena-expedicao.png'));
 imagens['telas/haras'] = uri(path.join(ARTE, 'telas', 'finais', 'cena-haras.png'));

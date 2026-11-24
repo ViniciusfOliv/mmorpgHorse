@@ -20,7 +20,8 @@ import { decodePng, encodePng, encodeGray } from './png.mjs';
 import { normalizar, paraCinza, PAPEIS } from './moldes-lib.mjs';
 import { DIR_MOLDES, DIR_MOLDES_RAW, ANIMA, estado, chamar, executarReal, quadrosDoJob, geracoesDe, gravarCru, lerCru, bufDe, imagem } from './pixellab-comum.mjs';
 
-const ESTADO = 'retrato';
+// estado do molde: 'retrato' (sem jóquei: Estábulo, Haras, cenas) ou 'parado' (com jóquei: antes da largada)
+const JOQUEI_PARADO = ', the small jockey stays seated still in the saddle, holding the reins';
 const BASE_ACAO = 'side view horse facing right, standing in place, same body, same colors, flat colors, no anti-aliasing, seamless loop, ';
 const ACOES = {
   comer: { quadros: 8, acao: 'lowers its head and neck all the way down to the ground to graze grass, then lifts its head back up' },
@@ -34,6 +35,8 @@ const LOTES = {
   piloto: [['padrao-lisa', 'comer', [8101]], ['padrao-lisa', 'comer', [8102]], ['padrao-lisa', 'cavar', [8111]], ['padrao-lisa', 'cavar', [8112]],
     ['padrao-lisa', 'cauda', [8121]], ['padrao-lisa', 'respira', [8131]]],
   todos: MOLDES.flatMap(m => [[m, 'comer', [8102, 8103, 8104]], [m, 'cavar', [8111, 8113, 8114]]]),
+  // opcional aprovado em 2026-11-24: o cavar com jóquei, antes da largada (estado parado)
+  joquei: MOLDES.map(m => [m, 'cavar', [8111, 8113], 'parado']),
 };
 
 const args = process.argv.slice(2);
@@ -45,9 +48,9 @@ const DIR_FINAL = path.join(DIR_MOLDES, 'idle');
 
 // o molde (cinza = papel × 25) pintado nas cores de papel
 const primeiros = {};
-function primeiroQuadro(molde) {
-  if (primeiros[molde]) return primeiros[molde];
-  const im = decodePng(fs.readFileSync(path.join(DIR_MOLDES, `molde-${molde}-${ESTADO}.png`)));
+function primeiroQuadro(molde, est) {
+  if (primeiros[molde + est]) return primeiros[molde + est];
+  const im = decodePng(fs.readFileSync(path.join(DIR_MOLDES, `molde-${molde}-${est}.png`)));
   const rgba = new Uint8Array(64 * 64 * 4);
   for (let i = 0; i < 64 * 64; i++) {
     if (im.rgba[i * 4 + 3] < 128) continue;
@@ -55,12 +58,13 @@ function primeiroQuadro(molde) {
     if (!h) continue;
     rgba.set([parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 255], i * 4);
   }
-  return (primeiros[molde] = encodePng({ width: 64, height: 64, rgba }));
+  return (primeiros[molde + est] = encodePng({ width: 64, height: 64, rgba }));
 }
-const pedidoDe = (molde, acao, seed) => ({
-  first_frame: imagem(primeiroQuadro(molde)), action: BASE_ACAO + ACOES[acao].acao, frame_count: ACOES[acao].quadros, seed, no_background: true, drift_threshold: 0,
+const pedidoDe = (molde, acao, seed, est = 'retrato') => ({
+  first_frame: imagem(primeiroQuadro(molde, est)), action: BASE_ACAO + ACOES[acao].acao + (est === 'parado' ? JOQUEI_PARADO : ''),
+  frame_count: ACOES[acao].quadros, seed, no_background: true, drift_threshold: 0,
 });
-const baseDe = (molde, acao, seed) => `idle-${molde}-${ESTADO}-${acao}-s${seed}`;
+const baseDe = (molde, acao, seed, est = 'retrato') => `idle-${molde}-${est}-${acao}-s${seed}`;
 
 // pixels soltos: tudo que não está na maior peça conexa (vizinhança 8) do quadro. Com limpar, apaga essas peças quando
 // somam até LIMPA_MAX px — no comer, são fiapos de capim saindo da boca nos últimos quadros, soltos do corpo (os crus
@@ -85,15 +89,15 @@ function soltos(idx, limpar) {
   if (limpar && fora && fora <= LIMPA_MAX) for (let i = 0; i < 4096; i++) if (idx[i] && vis[i] !== maior) idx[i] = 0;
   return fora;
 }
-function finalizar(molde, acao, seed, pngs) {
+function finalizar(molde, acao, seed, pngs, est = 'retrato') {
   fs.mkdirSync(DIR_FINAL, { recursive: true });
   let pior = 0, removidos = 0;
   pngs.forEach((buf, i) => {
     const im = decodePng(buf);
-    if (im.width !== 64 || im.height !== 64) throw new Error(`${baseDe(molde, acao, seed)}-${i}: ${im.width}×${im.height}, esperado 64×64`);
+    if (im.width !== 64 || im.height !== 64) throw new Error(`${baseDe(molde, acao, seed, est)}-${i}: ${im.width}×${im.height}, esperado 64×64`);
     const n = normalizar(im.rgba, 64, 64);
     if (i > 0) { const f = soltos(n.idx, true); removidos += f <= LIMPA_MAX ? f : 0; pior = Math.max(pior, soltos(n.idx)); }
-    fs.writeFileSync(path.join(DIR_FINAL, `${molde}-${ESTADO}-${acao}-s${seed}-${i}.png`), encodeGray({ width: 64, height: 64, data: paraCinza(n.idx) }));
+    fs.writeFileSync(path.join(DIR_FINAL, `${molde}-${est}-${acao}-s${seed}-${i}.png`), encodeGray({ width: 64, height: 64, data: paraCinza(n.idx) }));
   });
   finalizar.removidos = removidos;
   return pior;   // o maior número de pixels soltos que sobrou num quadro (depois da limpeza)
@@ -107,9 +111,9 @@ async function saldo() {
 
 const plano = LOTES[lote];
 console.log(`Lote ${lote}: ${plano.length} animações em ${ANIMA} (1 geração cada) = ${plano.length} gerações, mais as refações de defeituosos (até o teto).`);
-for (const [m, a, seeds] of plano) {
-  const cru = lerCru(DIR_MOLDES_RAW, baseDe(m, a, seeds[0]), pedidoDe(m, a, seeds[0]));
-  console.log(`  ${m.padEnd(16)} ${a.padEnd(8)} seed ${seeds[0]}  ${ACOES[a].quadros} quadros ${cru ? '(já gerado: raw/)' : ''}`);
+for (const [m, a, seeds, est = 'retrato'] of plano) {
+  const cru = lerCru(DIR_MOLDES_RAW, baseDe(m, a, seeds[0], est), pedidoDe(m, a, seeds[0], est));
+  console.log(`  ${m.padEnd(16)} ${a.padEnd(8)} ${est.padEnd(8)} seed ${seeds[0]}  ${ACOES[a].quadros} quadros ${cru ? '(já gerado: raw/)' : ''}`);
 }
 if (!gerar && !reprocessar) {
   console.log(`\nDry-run: nada foi chamado. Para gerar (gasta gerações): NODE_USE_ENV_PROXY=1 node prototype/tools/arte-animacao-piloto.mjs --lote ${lote} --gerar --teto N`);
@@ -118,8 +122,8 @@ if (!gerar && !reprocessar) {
 if (gerar) { estado.redeLiberada = true; console.log('\nSaldo antes:', await saldo()); }
 let gastas = 0, parou = false;
 // uma tentativa: o cru se já existe, senão gera (respeitando o teto); devolve os pixels soltos ou null (não feito)
-async function tenta(m, a, seed) {
-  const base = baseDe(m, a, seed), pedido = pedidoDe(m, a, seed);
+async function tenta(m, a, seed, est = 'retrato') {
+  const base = baseDe(m, a, seed, est), pedido = pedidoDe(m, a, seed, est);
   let pngs;
   if (lerCru(DIR_MOLDES_RAW, base, pedido)) pngs = crusDe(base);
   else if (reprocessar) return null;
@@ -131,28 +135,28 @@ async function tenta(m, a, seed) {
     pngs = quadrosDoJob(resultado.job).map((img, i) => bufDe(img, `${base} quadro ${i}`));
     gravarCru(DIR_MOLDES_RAW, base, ANIMA, pedido, resultado.job, pngs.map((b, i) => [`${base}-${i}.png`, b]));
   }
-  const solto = finalizar(m, a, seed, pngs);
+  const solto = finalizar(m, a, seed, pngs, est);
   console.log(`    ${base}: ${pngs.length} quadros, ${solto ? solto + ' px soltos' : 'limpo'}${finalizar.removidos ? ` (${finalizar.removidos} px de fiapos soltos apagados)` : ''}`);
   return solto;
 }
 // 1ª passada: a seed do lote em todos; 2ª: as reservas só nos que vieram com pixels soltos
 const escolhas = {};
 const arqEsc = path.join(DIR_FINAL, `escolhas-${lote}.json`);
-for (const [m, a, seeds] of plano) {
-  const r = await tenta(m, a, seeds[0]);
+for (const [m, a, seeds, est] of plano) {
+  const r = await tenta(m, a, seeds[0], est);
   if (r === null) continue;
   (escolhas[m] ||= {})[a] = { seed: seeds[0], soltos: r, tentativas: [[seeds[0], r]] };
 }
-for (const [m, a, seeds] of plano) {
+for (const [m, a, seeds, est] of plano) {
   const e = escolhas[m] && escolhas[m][a]; if (!e || !e.soltos) continue;
   for (const sd of seeds.slice(1)) {
     if (!e.soltos) break;
-    const r = await tenta(m, a, sd); if (r === null) break;
+    const r = await tenta(m, a, sd, est); if (r === null) break;
     e.tentativas.push([sd, r]);
     if (r < e.soltos) { e.seed = sd; e.soltos = r; }
   }
 }
-if (lote === 'todos') { fs.writeFileSync(arqEsc, JSON.stringify(escolhas, null, 2) + '\n'); console.log(`\nEscolhas em ${path.relative(process.cwd(), arqEsc)}`); }
+if (lote !== 'piloto') { fs.writeFileSync(arqEsc, JSON.stringify(escolhas, null, 2) + '\n'); console.log(`\nEscolhas em ${path.relative(process.cwd(), arqEsc)}`); }
 const ruins = Object.entries(escolhas).flatMap(([m, o]) => Object.entries(o).filter(([, e]) => e.soltos).map(([a, e]) => `${m} ${a} (${e.soltos} px)`));
 if (ruins.length) console.log('Ainda com pixels soltos:', ruins.join(', '));
 if (parou) console.log(`Teto de ${teto} gerações atingido: o que faltou ficou de fora (rode de novo com teto maior, depois de perguntar).`);
