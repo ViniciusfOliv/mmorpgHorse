@@ -16254,9 +16254,16 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     setTimeout(function () {
       if (viagem !== v) return;
       if (ui.screen !== tela) { viagem = null; return; }   // o jogador foi para outra aba no meio: a viagem para
-      troca(); acordaLaco();
+      v.trocou = true; troca(); acordaLaco();
     }, MP.VIAGEM[tipo].troca * 1000);
     setTimeout(function () { if (viagem !== v) return; viagem = null; if (fim) fim(); }, MP.VIAGEM[tipo].fim * 1000 + 30);
+  }
+  // um toque novo durante a viagem: antes da troca de tela é ignorado (true); depois dela, a viagem acaba ali (sem esperar a
+  // íris) e o toque segue normalmente (false)
+  function viagemSegura() {
+    if (!viagem) return false;
+    if (viagem.trocou) { viagem = null; return false; }
+    return true;
   }
   function passoDaViagem(lado) {
     if (!viagem) return null;
@@ -20552,7 +20559,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       }
       // ---- Ginásios (aba Expedição): abrir a trilha, abrir o detalhe da etapa próxima, voltar ----
       case 'ginasio-abrir': {
-        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || viagem) break;
+        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || viagemSegura()) break;
         var abreGin = function () { ui.gym = { id: id, etapa: null, time: [], res: null, msg: null }; go('ginasio'); };
         // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola o mínimo
         // para ela aparecer inteira (depois da viagem, se houver); o foco fica no título
@@ -20633,7 +20640,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         if ((ui.screen === 'corrida' || ui.screen === 'entreduelos' || ui.screen === 'desafio') && ui.gym && ui.gym.ver) ginPulaTudo();
         break;
       case 'ginasio-voltar': {
-        if (viagem) break;
+        if (viagemSegura()) break;
         // da trilha para o mapa: a viagem de volta (do detalhe, do preparo e do resumo, a volta é direta, como antes)
         var gV = ui.gym;
         if (MP && !reduced() && ui.screen === 'ginasio' && gV && gV.etapa === null && !gV.res && mapaArte.trilhas[gV.id] && temMapaMundo() &&

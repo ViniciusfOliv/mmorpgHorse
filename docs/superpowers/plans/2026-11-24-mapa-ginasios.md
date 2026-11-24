@@ -187,8 +187,9 @@ e os JSONs dos 12 moldes; `prototype/tools/arte-embutida.mjs` (`lerMoldes`); `pr
   ampliada); para chegar lá, o ciclo de cor do mundo foi para 8 passos/s, a névoa para 3 passos/s calculada por bloco de 2 × 2
   e enviada só na faixa onde existe, e a água só percorre os pixels que podem mudar. A 60 q/s (como a amostra media) o
   quadro fica em ~0,4 ms. O teto de 0,35 ms da spec era da amostra; a régua do teste ficou em 1,2 ms.
-- A viagem troca de tela por relógio (não depende do desenho); um toque durante a viagem é ignorado; com o mapa fora da
-  tela, ou com movimento reduzido, a troca é direta.
+- A viagem troca de tela por relógio (não depende do desenho). Um toque antes da troca é ignorado; depois dela (a íris
+  abrindo), o toque acaba a viagem ali e segue. O 1º `check.sh` do bloco pegou isso: o bloco `acabamento` voltava e abria
+  outro ginásio logo em seguida. Com o mapa fora da tela, ou com movimento reduzido, a troca é direta.
 
 ## Fora deste plano
 - O fundo animado dentro das trilhas (frente 1, depois do bloco A).
