@@ -68,6 +68,9 @@ sem zoom nem íris.
   altura, sem rolagem) a cada quadro do seu laço, e `parada(ctx)` com movimento reduzido; depois desenha por cima a pista,
   as paradas, os treinadores, o cavalo e a poeira. O ciclo de cor da água e da lava que a amostra faz na trilha sai do
   código desta frente.
+  Para a frente 1 não pôr junco, peixe ou flor embaixo da pista, esta frente expõe a **máscara do caminho** de cada
+  trilha (256 × 384, 1 = pista, a mesma curva da pintura); se alguma parada cair sobre a água, a frente 1 expõe o
+  "escurecer" do buffer dela para as sombras. A frente 1 começa os mapas depois de o plano desta frente ser aprovado.
 - **Pista de terra:** curva Catmull-Rom pelas paradas, desenhada tile a tile (7 px) com borda recortada; o trecho já
   vencido é chão pisado; no Remanso, ponte de tábuas sobre a água. Ao vencer uma etapa, o trecho até a parada seguinte
   se pinta em ~1 s (com movimento reduzido, aparece pronto).
