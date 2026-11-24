@@ -260,13 +260,21 @@ seu teste e o seu commit. O `balance.js` não muda.
 
 **Arquivos:** mexe `prototype/src/game.js` (o desenho do mapa, na camada combinada com o chat do mapa) e o manifesto.
 
-- [ ] Combinar com o chat do mapa a camada, a rolagem e quem chama (ver "Coordenação").
-- [ ] Mapa da água: rio e lagos em ciclo de cor pela direção da correnteza, espuma nas margens, coqueiros vistos de
+- [x] Combinar com o chat do mapa a camada, a rolagem e quem chama (ver "Coordenação").
+  - _Feito (2026-11-24): o `Mapa.trilha` dele chama `atualiza(t, dt)` e `desenha(g, vis)` (ou `parada(g)` com movimento
+    reduzido) no buffer de 256 × 384; falta ele passar `{ imagem, caminho: MP.mascaraCaminho() }` no
+    `Ambiente.cena('mapa:' + elemento)` (pedido mandado)._
+- [x] Mapa da água: rio e lagos em ciclo de cor pela direção da correnteza, espuma nas margens, coqueiros vistos de
   cima, junco e um peixe que pula de vez em quando.
-- [ ] Mapa do fogo: rachaduras de lava em ciclo de cor, brasas e fumaça das fendas, ar quente e tufos secos.
-- [ ] Mapa da grama: copas pulsando 1 px, capim e flores em onda, borboletas, folhas e sombras de nuvem.
-- [ ] Só o trecho visível na rolagem anima; o caminho e os oponentes não mexem.
-- [ ] Teto de 0,35 ms; capturas, DEV e aprovação.
+  - _A correnteza é de riscos esparsos que descem o rio, não o rio inteiro ciclando (assim fica natural)._
+- [x] Mapa do fogo: rachaduras de lava em ciclo de cor, brasas e fumaça das fendas, ar quente e tufos secos.
+- [x] Mapa da grama: copas pulsando 1 px, capim e flores em onda, borboletas, folhas e sombras de nuvem.
+- [x] Só o trecho visível na rolagem anima; o caminho e os oponentes não mexem.
+  - _Peixe, brasas e fumaça nunca nascem em cima do caminho (teste no `fx-test`)._
+- [x] Teto de 0,35 ms: água 0,105, fogo 0,113, grama 0,286 ms por quadro a 60 fps (tique de 8 q/s, desenho direto no
+  buffer de quem chama).
+- [ ] Capturas, DEV e aprovação. _Vitrine dos 3 mapas: https://claude.ai/artifact/AAxGUNY1Fa8SjoRNTrfoRW
+  (`prototype/tools/mapas-vivos-vitrine.mjs`); no jogo, só quando os ramos se juntarem._
 
 ## Etapa 5 — Regiões na corrida
 

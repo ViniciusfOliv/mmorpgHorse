@@ -141,9 +141,14 @@ melhor que o acumulador da v3. A correção das subidas entrou na `main` (e157f3
 coordenação. A spec do mapa foi aprovada: a etapa 4 segue quando o plano do chat do mapa definir a camada. Capturas
 oficiais com o tempo congelado: `?quadro=<segundos>` no jogo (o laço "vivo" parado nesse instante) e o `ui-test`
 abrindo as páginas com `quadro=3` quando grava em `prototype/screens/` (o bloco `ambiente` abre sem). Fora:
-garças da Várzea (cabeça que abaixa) e a revoada de garças. **Próximo:** etapa 4 (mapas das trilhas) quando a spec do
-mapa for aprovada; o chat do mapa já respondeu a camada (imagens iguais, só corte lateral, ele chama
-`atualiza`/`desenha`/`parada`, ciclo de cor da água e da lava fica comigo, máscara do caminho se eu pedir). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
+garças da Várzea (cabeça que abaixa) e a revoada de garças. **Etapa 4 (mapas das trilhas) feita no ramo (2026-11-24):**
+`Ambiente.CENAS['mapa:agua'|'mapa:fogo'|'mapa:grama']` no `ambiente.js` (correnteza em riscos, espuma, coqueiros e junco,
+peixe; lava em ciclo de cor pela distância da fenda, brasas, fumaça, tufos; copas ao vento, sombras de nuvem, borboletas,
+folhas), tique de 8 q/s, desenho direto no buffer do mapa; custo 0,105/0,113/0,286 ms por quadro (teto 0,35); 2 testes
+no `fx-test` (determinismo, paleta, nada nasce no caminho). Vitrine: https://claude.ai/artifact/AAxGUNY1Fa8SjoRNTrfoRW
+(`prototype/tools/mapas-vivos-vitrine.mjs`). **Pendente da frente 2:** passar `{ imagem, caminho: MP.mascaraCaminho() }`
+no `Ambiente.cena('mapa:' + g.element)` do `trilhaObj` (pedido mandado); sem a imagem a cena lança e o mapa fica parado.
+Quando os ramos se juntarem: 'frente'/'costas' na condição do `vivo` do `drawHorseMolde`. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
