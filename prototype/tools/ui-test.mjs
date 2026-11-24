@@ -40,7 +40,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
+  'corrompido', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-camera', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
@@ -6166,6 +6166,59 @@ try {
       problems.push('teto-desenho: ' + e.message)
     } finally {
       await pg.context().close()
+    }
+  }
+
+  // ---------------- animação ambiente nas abas e no desafio (plano da animação ambiente, etapa 3) ----------------
+  // As cenas animadas por código (prototype/src/ambiente.js) no topo da Expedição e do Haras e na arena da Fornalha: a
+  // tela anima (o canvas muda), o custo equivalente por quadro a 60 q/s fica abaixo de 1,5 × o teto da spec §2.4 (0,35 ms
+  // nas abas, 0,40 na arena; no contêiner), e em "Reduzidas" (movimento reduzido) cada tela fica parada, sem o motor.
+  if (quer('ambiente')) {
+    const label = 'ambiente'
+    const TETO = { expedicao: 0.35, cavalos: 0.35, fornalha: 0.40 }
+    const hashCv = (pg, sel) => pg.locator(sel).first().evaluate((c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let x = 0; for (let k = 0; k < d.length; k += 31) x = (x * 31 + d[k]) >>> 0; return x })
+    const quadros = async (pg, sel, n = 10) => { const hs = new Set(); for (let i = 0; i < n; i++) { await pg.waitForTimeout(200); hs.add(await hashCv(pg, sel)) } return hs.size }
+    const abreDesafio = async (pg) => {
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+      await pg.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click()
+      await pg.waitForFunction(() => !!document.getElementById('t-ginasio'), null, { timeout: 4000 })
+      await pg.locator('[data-acao="ginasio-etapa"]').first().click(); await pg.waitForSelector('#t-etapa')
+      for (const u of await pg.evaluate(() => [...document.querySelectorAll('#tela [data-acao="ginasio-time"]')].map((x) => x.getAttribute('data-id')).slice(0, 3))) await pg.locator(`#tela [data-acao="ginasio-time"][data-id="${u}"]`).click().catch(() => {})
+      await pg.locator('#tela [data-acao="ginasio-desafiar"]').click(); await pg.waitForSelector('#t-desafio', { timeout: 6000 })
+    }
+    for (const reduzido of [false, true]) {
+      const lab = label + (reduzido ? '-reduzidas' : '')
+      const pg = await newPage(browser, { width: 1000, height: 800 }, lab, { query: '?dev=1', reducedMotion: reduzido ? 'reduce' : 'no-preference' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        const vistos = {}, ms = {}, CENA = { expedicao: 'expedicao', haras: 'cavalos' }
+        const leMs = async (id) => { const m = await pg.evaluate(() => window.__galope.ambienteMs()); if (m[id]) ms[id] = m[id] }
+        for (const aba of ['expedicao', 'haras']) {
+          await pg.locator(`[data-acao="aba"][data-id="${aba}"]`).click(); await pg.waitForTimeout(2500)
+          vistos[aba] = await quadros(pg, 'canvas.cena-aba')
+          await leMs(CENA[aba])   // logo depois da tela (voltar a ela recomeça a medida)
+          await checkOverflow(pg, `${lab} ${aba}`)
+        }
+        await abreDesafio(pg); await pg.waitForTimeout(2500)
+        vistos.desafio = await quadros(pg, '#tela canvas')
+        await leMs('fornalha')
+        notes[lab] = { vistos, ms }
+        if (!reduzido) {
+          for (const [k, n] of Object.entries(vistos)) if (n < 3) problems.push(`[${lab}] ${k}: a cena não anima (${n} quadros diferentes em 2 s)`)
+          for (const [id, teto] of Object.entries(TETO)) {
+            const m = ms[id]
+            if (!m || m.por60 == null) problems.push(`[${lab}] ${id}: sem medida de custo (${JSON.stringify(m)})`)
+            else if (m.por60 > 1.5 * teto) problems.push(`[${lab}] ${id}: ${m.por60.toFixed(3)} ms por quadro a 60 q/s, acima de 1,5 × o teto ${teto}`)
+          }
+        } else {
+          for (const [k, n] of Object.entries(vistos)) if (n !== 1) problems.push(`[${lab}] ${k}: em movimento reduzido a tela mexeu (${n} quadros diferentes)`)
+          if (Object.keys(ms).length) problems.push(`[${lab}] em movimento reduzido o motor do ambiente rodou: ${Object.keys(ms).join(', ')}`)
+        }
+      } catch (e) {
+        problems.push(`[${lab}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
     }
   }
 

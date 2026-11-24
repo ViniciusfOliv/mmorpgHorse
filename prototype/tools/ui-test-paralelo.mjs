@@ -29,6 +29,7 @@ const EM_SERIE = {
   'portes-corrida': 'ms por quadro com 8 Míticos de portes alternados contra o teto TETO_MS (6 ms)',
   'crescimento-jogo': 'abrir a sala custa < 15 ms em média (performance.now())',
   'fluxo-desempenho': 'desenho por quadro a 1280 com chuva e ventania: "Completas" − "Reduzidas" <= 6 ms',
+  ambiente: 'o custo das cenas animadas (ms por quadro a 60 q/s, performance.now()) contra 1,5 × o teto da spec',
   'ginasio-corrida': 'três duelos assistidos sem tocar: o duelo em x2 mais curto que em x1 (segundos reais, performance.now()) e a faixa do lugar no fim de cada um'
 }
 

@@ -3502,6 +3502,36 @@
     }
     return im.complete && im.naturalWidth ? im : null;
   }
+  // Animação ambiente (spec 2026-11-23-animacao-ambiente; plano, etapa 3): as cenas animadas por código
+  // (prototype/src/ambiente.js) no topo das abas e na arena do desafio. Uma por cena, montada quando a imagem dela chega;
+  // o laço "vivo" (~14 q/s) chama. Só apresentação: a RNG é a cosmética do motor, nada da seed. Movimento reduzido ou
+  // sem o motor: a imagem parada de sempre. ambMs: o custo de cada cena (o ui-test confere o equivalente por quadro a
+  // 60 q/s, o do orçamento da spec §2.4: o tempo gasto por segundo ÷ 60).
+  var AMB_ABA = { expedicao: ['expedicao', 'telas/expedicao'], haras: ['cavalos', 'telas/haras'] };
+  var AMB_ARENA = { fogo: ['fornalha', 'ginasios/fogo'] };
+  var ambCenas = {}, ambMs = {};
+  function ambienteDe(par, img) {
+    var AMB = window.Ambiente;
+    if (!AMB || !par || !img) return null;
+    if (hasOwn(ambCenas, par[0])) return ambCenas[par[0]] || null;
+    try {
+      AMB.dados({ manifesto: window.__ANIM_MANIFESTO });
+      AMB.IMG[par[1]] = img;
+      ambCenas[par[0]] = AMB.cena(par[0], { mais: true, semCavalos: true });
+      ambCenas[par[0]].tAnt = null;
+    } catch (e) { ambCenas[par[0]] = false; if (window.console) console.warn('ambiente ' + par[0] + ': ' + e.message); }
+    return ambCenas[par[0]] || null;
+  }
+  // um quadro da cena no buffer dela (resolução de arte) e a cópia ampliada em ctx: (x, y) e escala k em pixels do canvas
+  function desenhaAmbiente(c, ctx, t, x, y, k) {
+    var dt = c.tAnt == null ? 0.07 : Math.min(0.25, Math.max(0, t - c.tAnt)), t0 = window.performance.now();
+    c.tAnt = t;
+    c.atualiza(t, dt); c.desenha(null, 0);
+    var agora = window.performance.now(), ms = agora - t0, id = c.def.id, st = ambMs[id] || (ambMs[id] = { soma: 0, n: 0, ini: t0, fim: t0 });
+    if (agora - st.fim > 2000) { st.soma = 0; st.n = 0; st.ini = t0; }   // voltou a esta tela: mede de novo
+    st.soma += ms; st.n++; st.fim = agora;
+    ctx.drawImage(c.buffer, x, y, c.W * k, c.H * k);
+  }
   function temTela(tipo, id) { var m = window.__TELAS; return !!(m && m[tipo] && hasOwn(m[tipo], id) && typeof m[tipo][id] === 'string'); }
   // a cena da aba e a placa do título juntas num painel com moldura (refino de 2026-11-23, escolha do Vinicius: a cena solta
   // parecia deslocada do fundo); sem a arte, só o título
@@ -3519,18 +3549,29 @@
     return { W: W, ox: Math.floor((TELA_W - W) / 2) };
   }
   // o cavalo parado 1:1 com o corpo centrado em cx e os cascos em base (pixels de arte do canvas)
-  function cavaloParado(ctx, k, h, vis, cx, base, t, chao) {
+  // cena: a luz da cena no cavalo (Luz.CONDICOES; padrão o Estábulo); espelha: virado para a esquerda; palha: a linha de
+  // palha na frente dos cascos (o Estábulo), senão só os tufos do chão
+  function cavaloParado(ctx, k, h, vis, cx, base, t, chao, cena, espelha, palha) {
     vis.reduzido = reduced();
-    SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
-      jockey: false, silks: PLAYER_SILKS, chao: chao, cena: 'estabulo', anima: 'cena',   // vivo: idle e gestos (animação ambiente, etapa 2)
-      quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
+    var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
+      jockey: false, silks: PLAYER_SILKS, chao: chao, cena: cena === undefined ? 'estabulo' : cena, anima: 'cena', espelhado: !!espelha,   // vivo: idle e gestos (animação ambiente, etapa 2)
+      quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
+    if (!espelha) SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
+    else { ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1); SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); ctx.restore(); }
     // a palha do chão na frente dos cascos (Regra 7)
-    if (chao) SP.drawTufosFrente(ctx, cx, base, 46, chao, k, 1, true);
+    if (chao) SP.drawTufosFrente(ctx, cx, base, 46, chao, k, Math.round(cx), palha !== false);
+  }
+  // os cavalos do pasto do Haras (animação ambiente, etapa 3): até 2 do jogador, os que não estão ativos (com 1 só, ele)
+  function cavalosDoHaras() {
+    if (!state || !state.mounts || !state.mounts.length) return [];
+    var outros = state.mounts.filter(function (m) { return m.uid !== state.activeId; });
+    return (outros.length ? outros : state.mounts).slice(0, 2);
   }
   function drawCenaAba(cv) {
     var aba = cv.getAttribute('data-cena-aba'), L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, CENA_ABA_H), k = s.k, ctx = s.ctx;
     cv.setAttribute('data-arte', L.W + 'x' + CENA_ABA_H);
     var h = aba === 'estabulo' ? playerHorse() : null, vis = h ? opcoesVisuais(h, null) : null;
+    var pasto = aba === 'haras' ? cavalosDoHaras().map(function (m) { return { h: m, vis: opcoesVisuais(m, null) }; }) : [];
     var item = {
       drawn: false,
       draw: function (t) {
@@ -3539,14 +3580,21 @@
         item.drawn = !!img; item.t = t;
         ctx.clearRect(0, 0, cv.width, cv.height);
         if (!img) return;
-        ctx.drawImage(img, -L.ox * k, 0, TELA_W * k, CENA_ABA_H * k);
+        var amb = reduced() ? null : ambienteDe(AMB_ABA[aba], img);
+        if (amb) desenhaAmbiente(amb, ctx, t, -L.ox * k, 0, k);
+        else ctx.drawImage(img, -L.ox * k, 0, TELA_W * k, CENA_ABA_H * k);
         // o cavalo ativo no meio da baia, com os cascos acima da placa do título (que cobre as últimas ~40 linhas)
         // a sombra na cor do chão da cena, lida da imagem sob os cascos (uma vez; guia de integração, Regra 2)
         if (h) cavaloParado(ctx, k, h, vis, TELA_W / 2 - L.ox, 112, reduced() ? 0.5 : t, SP.corDoChaoEm(img, TELA_W / 2 - 16, TELA_W / 2 + 16, 113, 118));
+        // no pasto do Haras, de frente um para o outro, na luz do dia (sem tinta de cena)
+        pasto.forEach(function (p, i) {
+          var cx = (i ? 178 : 78) - L.ox, base = 116;
+          cavaloParado(ctx, k, p.h, p.vis, cx, base, (reduced() ? 0.5 : t) + i * 7.3, SP.corDoChaoEm(img, cx + L.ox - 16, cx + L.ox + 16, base + 1, base + 4), null, i === 1, false);
+        });
       }
     };
     item.draw(0);
-    if (h) vivo(item, cv);
+    if (h || pasto.length || AMB_ABA[aba]) vivo(item, cv);   // o cavalo ativo (Estábulo) ou a cena animada (Expedição, Haras)
     telaItems.push(item);
   }
   function trilhaMapaHtml(id) {
@@ -3697,7 +3745,9 @@
         var tt = reduced() ? 0.5 : t, P = CENA_POS;
         ctx.clearRect(0, 0, cv.width, cv.height);
         arena = arena || arenaImg(e.gymId);
-        if (arena) ctx.drawImage(arena, -ox * k, -CENA_CORTE * k, CENA_W * k, (CENA_H + CENA_CORTE) * k);
+        var ambA = arena && !reduced() ? ambienteDe(AMB_ARENA[e.gymId], arena) : null;
+        if (ambA) desenhaAmbiente(ambA, ctx, tt, -ox * k, -CENA_CORTE * k, k);
+        else if (arena) ctx.drawImage(arena, -ox * k, -CENA_CORTE * k, CENA_W * k, (CENA_H + CENA_CORTE) * k);
         else { ctx.fillStyle = C.painel; ctx.fillRect(0, 0, cv.width, cv.height); }
         cavalo(e.b, visB, P.rival.cx, P.rival.base, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
         img = img || treinadorImg(ginTreinadorId(e.dono));
@@ -8656,6 +8706,12 @@
       afkTick: function () { afkTick(); },
       afkVoltou: function () { afkVoltou(); },
       bonusConta: function () { return bonusConta(); },
+      // custo das cenas animadas (etapa 3): por desenho e o equivalente por quadro a 60 q/s (ms gastos por segundo ÷ 60)
+      ambienteMs: function () {
+        var o = {};
+        Object.keys(ambMs).forEach(function (k) { var st = ambMs[k], seg = (st.fim - st.ini) / 1000; o[k] = { porDesenho: st.n ? st.soma / st.n : 0, n: st.n, por60: seg > 0.5 ? st.soma / seg / 60 : null }; });
+        return o;
+      },
       GEAR_ON: GEAR_ON, GEAR_PVP: GEAR_PVP
     };
     // rascunho dos pontos livres da tela da Montaria (null sem rascunho), para o teste ler

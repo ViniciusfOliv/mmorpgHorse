@@ -1450,7 +1450,8 @@
     camadas: [['cavalos', 'Cavalos (idle)'], ['paisagem', 'Árvores e pasto'], ['ceu', 'Pássaros, borboletas e folhas'], ['piloto', 'Painel PixelLab × código'], ['fundo', 'Fundo parado']],
     init: function () {
       var s = this;
-      var MH = man('telas/haras'), defs = MH.cavalos;
+      // (no jogo, semCavalos: só a paisagem; os cavalos são os do jogador, desenhados pelo Sprites)
+      var MH = man('telas/haras'), defs = s.semCavalos || !A.moldes ? [] : MH.cavalos;
       s.cavalos = defs.map(function (d, j) {
         var cv = new CavaloIdle(A.moldes[d[0]], d[2], PELAGENS[d[1]], 300 + j * 29, { espelho: d[5] });
         return { cv: cv, x: d[3], pe: d[4], ref: cv.anc.footY };
@@ -1478,6 +1479,7 @@
       s.borboletas = MH.borboletas.map(function (b, i) { return { x: b[0], y: b[1], f: b[2], cor: [P.ouro, P.branco, P.ouroC][i % 3] }; });
       // painel do piloto pago: o mesmo cavalo (padrão, baio) por código à esquerda e com os quadros do PixelLab à direita
       s.pl = { acoes: {}, ordem: [], buf: tela(256, 88), fundo: tela(256, 88), atual: null, t0: 0, fila: 0, seq: true };
+      if (!defs.length) { s.pl.trocaMolde = function () {}; s.antes = tela(256, 160); s.antes.getContext('2d').drawImage(IMG['telas/haras'], 0, 0); return; }
       s.pl.fundo.getContext('2d').drawImage(IMG['telas/haras'], 0, -72);
       var fb = Buf.de(s.pl.fundo); s.pl.sombras = [sombraContato(fb, 40 + 32 + 2, 85, 25, 3), sombraContato(fb, 150 + 32 + 2, 85, 25, 3)];
       s.pl.trocaMolde = function (mol) {   // o mesmo molde e a mesma pelagem nos dois lados
@@ -1535,7 +1537,7 @@
   // 1,6 s; o cavalo por código faz, ao mesmo tempo, o gesto equivalente que ele sabe fazer (cabeça, cauda)
   var GESTO_CODIGO = { comer: 'cabeca', cavar: 'orelha', cauda: 'cauda', respira: null };
   function desenhaPiloto(s, t) {
-    var pl = s.pl; if (!pl.ordem.length) return;
+    var pl = s.pl; if (!pl.ordem.length || !cfg.pilotoCanvas) return;
     if (!pl.atual) { pl.atual = pl.ordem[0]; pl.t0 = t; }
     var Q = pl.acoes[pl.atual], laco = Q.length <= 5 ? 2 : 1, dur = (Q.length * laco) / 6, u = t - pl.t0;
     if (u > dur + 1.6) {   // próxima
@@ -1565,6 +1567,7 @@
     if (!c) throw new Error('Ambiente.cena: cena desconhecida ' + id);
     c.id = id;
     if (opts.manifesto) c.manifesto = opts.manifesto;
+    if (opts.semCavalos) c.semCavalos = true;
     if (!c.pronta) { c.init(); c.pronta = true; }
     var buf = tela(c.W, c.H), cam = {}, tUlt = 0, dtUlt = 0;
     (c.camadas || []).forEach(function (d) { cam[d[0]] = new Camada(d[0], d[1]); });
