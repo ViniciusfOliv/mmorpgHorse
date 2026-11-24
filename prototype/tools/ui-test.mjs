@@ -6069,18 +6069,55 @@ try {
         const rv = window.__galope.race, s = rv._state, L = window.__galope.ui.lobby, desenha = rv.frame
         rv.frame = function () {}
         const P = CanvasRenderingContext2D.prototype, nomes = ['fillRect', 'drawImage'], orig = {}, cont = {}
-        nomes.forEach((n) => { orig[n] = P[n]; P[n] = function () { cont[n]++; return orig[n].apply(this, arguments) } })
+        // (2026-11-24) no laço da corrida, nenhum drawImage que leia o buffer do quadro antes da cópia final para a tela
+        // (#pista) e nenhum preenchimento por padrão no quadro (canvas do tamanho do quadro): no celular com GPU os dois
+        // obrigavam a terminar o quadro no meio e a subida custava até 20 ms (docs/memoria/bugs.md, "Desempenho da corrida")
+        let autoCopia = 0, padrao = 0, fontes = []
+        const telaPista = document.getElementById('pista')
+        nomes.forEach((n) => { orig[n] = P[n]; P[n] = function () {
+          cont[n]++
+          if (n === 'drawImage' && arguments[0] instanceof HTMLCanvasElement) fontes.push([arguments[0], this.canvas])
+          if (n === 'fillRect' && typeof CanvasPattern !== 'undefined' && this.fillStyle instanceof CanvasPattern && this.canvas.width === s.W && this.canvas.height === s.H) padrao++
+          return orig[n].apply(this, arguments)
+        } })
         const fim = Math.max(...L.sim.finishTimes), por = []
         try {
           for (let T = 1; T < fim; T += 2) {
             s.phase = 'corrida'; s.simT = T; s.tReal = T * 0.3; s.last = 0; s.flash = 0; s.winnerSeen = true; s.mult = 1
-            nomes.forEach((n) => { cont[n] = 0 })
+            nomes.forEach((n) => { cont[n] = 0 }); fontes = []
             desenha(1)
+            // o buffer do quadro é a fonte da cópia para a tela; lido antes disso (em outro canvas), é leitura no meio do quadro
+            const buf = (fontes.find((f) => f[1] === telaPista) || [])[0]
+            if (buf) autoCopia += fontes.filter((f) => f[0] === buf && f[1] !== telaPista).length
             por.push({ T, fillRect: cont.fillRect, drawImage: cont.drawImage, auras: window.RaceFx._stats.auras })
           }
         } finally { nomes.forEach((n) => { P[n] = orig[n] }); rv.frame = desenha }
-        return { por, canvas: [s.W, s.H, s.S] }
+        return { por, canvas: [s.W, s.H, s.S], autoCopia, padrao }
       })
+      if (r.autoCopia || r.padrao) problems.push(`teto-desenho: ${r.autoCopia} leitura(s) do buffer do quadro no meio dele e ${r.padrao} preenchimento(s) por padrão no laço da corrida (com as subidas)`)
+      // o relevo (tela à parte) e a hachura (tira pré-desenhada) de hoje desenham igual ao jeito antigo (cópia do canvas e
+      // padrão), pixel a pixel, em pontos de subida das 5 regiões e do cenário por código (com uma subida dentro de curva)
+      const iguais = await pg.evaluate(() => {
+        const SP = window.Sprites, out = []
+        const casos = [['litoral', 960, null], ['cerrado', 1080, null], [null, 1150, null], [null, 985, null], ['sertao', 1000, [1050, 1300]], ['varzea', 1230, null], ['planalto', 1010, null]]
+        for (const [reg, cam, curva] of casos) {
+          if (reg && !SP.regiaoPronta(reg)) { out.push(reg + ': região não carregou'); continue }
+          const h = {}
+          for (const modo of ['antigo', 'novo']) {
+            const c = document.createElement('canvas'); c.width = 900; c.height = 600; const ctx = c.getContext('2d')
+            SP.drawTrack(ctx, { width: 900, height: 600, cameraX: cam, pxPerMeter: 6, camPx: cam * 6, lanes: 8, laneTop: 300, laneH: 30, surface: 'terra',
+              finishM: 3000, hills: [[1000, 1250], [2350, 2600]], curves: curva ? window.RaceFx.curveRuns([curva]) : [], t: 5, weather: 'chuva', pixel: 3,
+              highlightLane: 2, hillMaxLift: 20, wind: { intensity: 'ventania', dir: 1 }, curveScale: 1, regiao: reg,
+              relevo: modo === 'antigo' ? 'copia' : undefined, hachura: modo === 'antigo' ? 'padrao' : undefined })
+            const d = ctx.getImageData(0, 0, 900, 600).data; let x = 2166136261
+            for (let i = 0; i < d.length; i++) { x ^= d[i]; x = Math.imul(x, 16777619) }
+            h[modo] = x >>> 0
+          }
+          if (h.antigo !== h.novo) out.push((reg || 'código') + ' em ' + cam + ' m')
+        }
+        return out
+      })
+      if (iguais.length) problems.push('teto-desenho: o relevo ou a hachura das subidas mudou o desenho em: ' + iguais.join(', '))
       const max = (k) => r.por.reduce((m, q) => (q[k] > m[k] ? q : m), r.por[0])
       const med = (k) => { const v = r.por.map((q) => q[k]).sort((a, b) => a - b); return v[v.length >> 1] }
       notes.tetoDesenho = { canvas: r.canvas, quadros: r.por.length, fillRect: { med: med('fillRect'), max: max('fillRect').fillRect, em: max('fillRect').T },

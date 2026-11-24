@@ -2273,12 +2273,27 @@
   // listra é inteira, de uma vez; nas pontas, a coluna j de cada listra (j = 0..3P−1) vale para os começos em
   // [ini, fim), ou seja, para x em [ini + j, fim + j) — a listra que começa antes de ini não aparece e a que
   // começa antes de fim sai inteira (passa de x1, como antes)
-  function hachura(ctx, h, y, alt, P, cor) {
-    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j;
-    var lis = hachuraPadrao(ctx, P, false, cor), col = hachuraPadrao(ctx, P, true, cor);
+  // Com o navegador (document), cada faixa é colada de uma tira pré-desenhada (o padrão repetido em W + 10P × alt) com
+  // drawImage no mesmo lugar: o mesmo desenho, pixel a pixel. Os ~19 preenchimentos por padrão (createPattern) com a
+  // origem deslocada custavam até 20 ms por quadro numa subida num celular com GPU (S24 FE, 2026-11-24; no contêiner,
+  // sem GPU, quase nada). padrao = true: o jeito antigo (o ui-test compara os dois); sem document, o padrão.
+  var hachuraTiras = {};
+  function hachuraTira(P, coluna, cor, w, alt) {
+    var step = 10 * P, k = P + (coluna ? 'c' : 'l') + (cor || '') + '|' + alt, c = hachuraTiras[k];
+    if (c && c.width >= w + step) return c;
+    c = makeCanvas(w + step, alt);
+    var g = c.getContext('2d'); g.fillStyle = hachuraPadrao(g, P, coluna, cor); g.fillRect(0, 0, c.width, alt);
+    return (hachuraTiras[k] = c);
+  }
+  function hachura(ctx, h, y, alt, P, cor, padrao) {
+    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j, step = 10 * P;
+    var imagem = !padrao && typeof document !== 'undefined' && !!ctx.canvas, Wc = imagem ? ctx.canvas.width : 0;
+    var lis = imagem ? hachuraTira(P, false, cor, Wc, alt) : hachuraPadrao(ctx, P, false, cor);
+    var col = imagem ? hachuraTira(P, true, cor, Wc, alt) : hachuraPadrao(ctx, P, true, cor);
     function faixa(pat, dx, xa, xb) {
       if (xb <= xa) return;
       var ox = h.org + dx;
+      if (imagem) { ctx.drawImage(pat, mod(xa - ox, step), 0, xb - xa, alt, xa, y, xb - xa, alt); return; }
       ctx.fillStyle = pat;
       ctx.translate(ox, y); ctx.fillRect(xa - ox, 0, xb - xa, alt); ctx.translate(-ox, -y);
     }
@@ -2295,6 +2310,29 @@
   // numa subida em 1280 px; ~11 ms assim). Sem document (Node), copia do próprio canvas. Devolve o nº de
   // trechos. (O arco das curvas não copia pixels: cada peça da faixa já é desenhada no lugar — mais barato.)
   var rascunho = null;
+  // Com o navegador, o relevo não copia o próprio canvas: com uma subida na tela, o drawTrack desenha numa tela à parte
+  // (telaFora) e cola no fim (compoeRelevo), com as colunas da faixa levantadas — o mesmo desenho, pixel a pixel. Ler o
+  // canvas do próprio quadro, num celular com GPU, obriga a terminar o quadro no meio. o.relevo === 'copia': o jeito
+  // antigo (deslocaFaixa; o ui-test compara os dois); sem document, também.
+  var foraRel = null;
+  function telaFora(W, Hh) {
+    if (!foraRel) foraRel = document.createElement('canvas');
+    if (foraRel.width !== W || foraRel.height !== Hh) { foraRel.width = W; foraRel.height = Hh; }
+    return foraRel.getContext('2d');
+  }
+  function compoeRelevo(dst, src, W, Hh, y0, P, dyPx, fundo) {
+    var h = Hh - y0;
+    crisp(dst);
+    dst.drawImage(src, 0, 0, W, y0, 0, 0, W, y0);
+    function trecho(xa, xb, dy) {
+      var w = xb - xa; if (w <= 0) return;
+      dst.drawImage(src, xa, y0, w, h, xa, y0 - dy, w, h);
+      if (dy > 0) { dst.fillStyle = fundo; dst.fillRect(xa, Hh - dy, w, dy); }
+    }
+    var xa = 0, dyA = dyPx(0);
+    for (var x = P; x < W; x += P) { var dy = dyPx(x); if (dy !== dyA) { trecho(xa, x, dyA); xa = x; dyA = dy; } }
+    trecho(xa, W, dyA);
+  }
   function deslocaFaixa(ctx, W, Hh, y0, P, dyPx, fundo) {
     var trechos = [], xa = -1, dyA = 0;
     for (var x = 0; x < W; x += P) {
@@ -2490,6 +2528,12 @@
     // (o zoom da corrida), o jogo manda o rolar acumulado (o.camPx): cam × ppm daria um salto no fundo a cada mudança de ppm
     var camPx = o.camPx != null ? +o.camPx : cam * ppm, vento = ventoPista(o.wind);
     function sx(m) { return Math.round((m - cam) * ppm); }
+    // com uma subida na tela, a pista inteira vai para a tela à parte e é colada no fim com o relevo (compoeRelevo)
+    var alvoRel = null, liftCol = null;
+    if ((o.hills || []).length && o.hillRelief !== false && o.relevo !== 'copia' && typeof document !== 'undefined' && document.createElement) {
+      liftCol = function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, o.hills, o.hillMaxLift) * P; };
+      for (var xq = 0; xq < W; xq += P) if (liftCol(xq) > 0) { alvoRel = ctx; ctx = telaFora(W, Hh); break; }
+    }
     crisp(ctx);
     // (weather junta a névoa ao nublado, para o cenário por código; a troca de paleta da região usa o clima de verdade)
     var clima = o.weather || 'sol', RG = regiaoPronta(o.regiao), camArt = camPx / P, lutRG = RG ? lutClima(clima) : null;
@@ -2697,6 +2741,12 @@
 
     // --- subidas
     var hills = o.hills || [];
+    // as tiras da hachura saem já no 1º quadro da corrida (a contagem da largada) e a cada troca de clima, não no 1º
+    // quadro de uma subida (montar custava ~28 ms naquele quadro no celular)
+    if (hills.length && o.hachura !== 'padrao' && typeof document !== 'undefined') {
+      var corHa = RG ? K(SC.dark) : null;
+      hachuraTira(P, false, corHa, W, trackH); hachuraTira(P, true, corHa, W, trackH);
+    }
     for (var hi = 0; hi < hills.length; hi++) {
       var a = sx(hills[hi][0]), bb = sx(hills[hi][1]);
       if (bb < -60 * P || a > W + 60 * P) continue;
@@ -2704,7 +2754,7 @@
       if (x1 > x0) {
         if (!RG) { ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH); }
         // hachura diagonal ancorada no mundo
-        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null);
+        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null, o.hachura === 'padrao');
       }
       // linhas amarelas de início/fim
       ctx.fillStyle = '#f9c22b';
@@ -2889,7 +2939,8 @@
     }
 
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
-    if (hills.length && o.hillRelief !== false) {
+    if (alvoRel) { compoeRelevo(alvoRel, ctx.canvas, W, Hh, laneTop - 8 * P, P, liftCol, innerC); ctx = alvoRel; }
+    else if (hills.length && o.hillRelief !== false) {
       deslocaFaixa(ctx, W, Hh, laneTop - 8 * P, P, function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, hills, o.hillMaxLift) * P; }, innerC);
     }
   }
