@@ -127,7 +127,12 @@ da sombra, da faixa de contato e da poeira de pouso). Cenário escolhido na gave
 efeitos, 82 blocos); corrida a 1280 com chuva e ventania, com e sem a região viva na mesma página (3× cada):
 ~2,45 ms contra ~2,15 ms no regime (+0,25–0,3 ms, o custo do ambiente). DEV v6 publicado no artefato de teste. **Etapa 6, a parte sem o aparelho:** spike do teste de engine na v4
 (regiões + ambiente vivo + o que a etapa 0 pôs na corrida; botão "Etapa 6: rodada de 60 s" com o veredito), publicado
-em https://claude.ai/artifact/4CGJheLECVrZRwuynZi3jH, esperando a rodada no celular do Vinicius (`docs/teste-engine.md` §7.1). Fora:
+em https://claude.ai/artifact/4CGJheLECVrZRwuynZi3jH, rodada no celular do Vinicius (`docs/teste-engine.md` §7.1). **Achado da etapa 6 (S24 FE):** a rodada de 60 s
+reprovou pelo cenário nas **subidas**: a hachura diagonal pintada com ~19 preenchimentos por padrão custava até 20–28 ms
+por quadro no aparelho (no contêiner, nada). Corrigida sem mudar o desenho (tira pré-desenhada + relevo em tela à parte),
+com testes no bloco `teto`; commits isolados 40f9fe46 + e157f3f5 sobre a `main` no ramo `claude/fix-subidas-gpu`
+(push com OK do Vinicius, para a coordenação levar à `main`) e integrados aqui. Spike com o diagnóstico, as subidas e a
+medição por parte do cenário (`o.perfil` do `drawTrack`). Falta a Etapa 6 de 60 s de novo no aparelho. Fora:
 garças da Várzea (cabeça que abaixa) e a revoada de garças. **Próximo:** etapa 4 (mapas das trilhas) quando a spec do
 mapa for aprovada; o chat do mapa já respondeu a camada (imagens iguais, só corte lateral, ele chama
 `atualiza`/`desenha`/`parada`, ciclo de cor da água e da lava fica comigo, máscara do caminho se eu pedir). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
