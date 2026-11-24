@@ -311,6 +311,10 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
       for (var k = 0; k < perto.length; k++) if (perto[k]) lista.push((cx.y0 + ((k / cw) | 0)) * w + cx.x0 + k % cw);
       cx.lista = new Int32Array(lista);
     });
+    // o retângulo de todas as caixas: o putImageData de cada passo vai só nele
+    var bb = { x0: w, y0: h, x1: 0, y1: 0 };
+    caixas.forEach(function (cx) { bb.x0 = Math.min(bb.x0, cx.x0); bb.y0 = Math.min(bb.y0, cx.y0); bb.x1 = Math.max(bb.x1, cx.x1); bb.y1 = Math.max(bb.y1, cx.y1); });
+    this.bb = bb;
   }
   Deforma.prototype.precisa = function (t) { return Math.floor(t * this.fps) !== this.passo; };
   Deforma.prototype.atualiza = function (t, origemNova) {
@@ -330,6 +334,9 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
         if (m[s] === id) d[i] = o[s];
       }
     }
+    // o canvas da saída (sem isto, a peça ficava parada na tela: o passo só mudava os dados)
+    var bb = this.bb;
+    if (bb.x1 > bb.x0 && bb.y1 > bb.y0) this.saida.g.putImageData(this.saida.img, 0, 0, bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
     return true;
   };
   // em fatias: a cada chamada, as próximas n peças (rodízio), cada uma no seu tempo, e o putImageData só no retângulo
