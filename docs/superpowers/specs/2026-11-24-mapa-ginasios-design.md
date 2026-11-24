@@ -109,6 +109,10 @@ sem zoom nem íris.
   suas âncoras (cabeça e orelhas no topo, cauda embaixo e ao centro na de costas, olhos na de frente) e os gestos que
   não fazem sentido de frente ou de costas (aceno de lado, cauda na de frente) ficam desligados por vista. Os gestos do
   PixelLab (comer, cavar) são de lado e não entram nessas vistas.
+  As âncoras já existem, no formato combinado com a frente 1: `prototype/assets/arte/desafio/bakeoff/meshy-ancoras.json`
+  (`footY`, `bbox`, `olho`, `orelhas`, `crina`, `respira` e, nas costas, `cauda`; caixas com fim exclusivo), geradas por
+  `prototype/tools/arte-desafio-ancoras.mjs`, com a folha de conferência `meshy-ancoras.png`. O olho não aparece a ~54 px
+  (lista vazia, sem piscar); o padrao-folhas de frente ficou sem crina.
 
 ## 5. Estados e o que cada tela mostra
 | Situação | Mapa-múndi | Trilha | Cena |
