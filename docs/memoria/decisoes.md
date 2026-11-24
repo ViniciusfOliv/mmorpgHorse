@@ -1262,4 +1262,7 @@ Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, 
 - 2026-11-24 · Leitura por valor pelo degrau do piso das raias (−1, 0, +1) escolhido por tabela, sem clarear na escada sol → nublado → chuva · é o remédio do guia que serve a todas as pelagens de uma vez; um degrau único para todos os climas piorava o sol na grama.
 - 2026-11-24 · Casco sem patinar só na gaveta DEV ("galope casado"); a cadência natural continua · casar exige ~36 q/s (a reprodução é ~2× comprimida); muda o visual do galope, então é decisão do Vinicius.
 - 2026-11-24 · Poeira e pousos medidos dos moldes na carga (`passadaDe`), não gravados no JSON · mesmo resultado, sem regerar os JSONs; testado no fx-test.
+- 2026-11-24 · Casco: opção C (meio-termo) como padrão do jogo; natural, meio e casada na gaveta DEV · escolha do Vinicius ("Prossiga", pela coordenação).
+- 2026-11-24 · Pré-assado por estado quantizado da peça (Deforma.preassado), não por quadros de tempo com vento fixo · quadros por tempo matariam a rajada que atravessa a tela e só os coqueiros passariam de 2 MB; por estado, cada peça segue o seu vento, com teto de memória.
+- 2026-11-24 · O motor (ambiente.js) entra no build do jogo só quando o jogo o usar (etapas 2–3) · evita ~60 KB sem uso no jogo.html.
 

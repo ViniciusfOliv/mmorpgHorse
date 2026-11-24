@@ -89,8 +89,15 @@ galope a ~36 q/s porque a corrida é reproduzida ~2× comprimida (o chão anda ~
 hoje o casco patina ~15 px por quadro; a gaveta DEV tem "galope casado com o chão" para comparar (0,25 px). `check.sh` completo
 OK (8/8, 81 blocos; desenho por quadro a 1280 com chuva e ventania 2,05 ms, era 1,62). **DEV de teste do ramo:**
 https://claude.ai/artifact/JRBwAmXN9cRi4ABWuD5cEn; **prancha antes × depois** (1×, 3×, cinza, C1–C12):
-https://claude.ai/artifact/CexCcMiyqTZcwrGcfKR5tn (`node prototype/tools/prancha-etapa0.mjs`). **Próximo:** o retorno da
-etapa 0 e a decisão do casco, depois a etapa 1. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
+https://claude.ai/artifact/CexCcMiyqTZcwrGcfKR5tn (`node prototype/tools/prancha-etapa0.mjs`). **Etapa 0 aprovada
+(2026-11-24, "Prossiga")**; casco: **opção C** (meio-termo, média geométrica entre a cadência natural e a casada: patina
+4,6 px em vez de 14,7), com as 3 na gaveta DEV. **Etapa 1 feita** (motor): `prototype/src/ambiente.js` (UMD; o motor e as
+cenas saíram da amostra sem mudar um pixel, conferido por hash), API `Ambiente.cena(id)`, manifesto
+`prototype/assets/arte/animacao.json` (peças, rampas e pontos por imagem; as cenas leem dali), folha de máscaras
+(`prototype/tools/arte-animacao-mascaras.mjs`), pré-assado por estado da peça (coqueiros, torcida, araucárias; ≤ 1,42 MB
+por tela), testes no fx-test e no arte-check. **Achado e corrigido:** desde que o "fatia" saiu, as peças da deformação
+do Litoral e do Planalto ficavam paradas na tela da amostra (faltava o putImageData). O motor ainda não está no build do
+jogo (entra quando o jogo usar, etapas 2–3). **Próximo:** etapa 2 (cavalos). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um

@@ -173,6 +173,13 @@ seu teste e o seu commit. O `balance.js` não muda.
 
 ## Etapa 1 — Motor no jogo
 
+> **Feita no ramo em 2026-11-24** (a754772 … 80cf1ca). O motor e as cenas foram para `ambiente.js` sem mudar um pixel
+> (hash das 5 cenas igual). Desvios: o pré-assado é por estado quantizado de cada peça (não por quadros de tempo com 3
+> ventos), para a rajada seguir atravessando a tela; ganho medido: torcida 96% de acerto, copas 52%, coqueiros 40%; o
+> custo total do Litoral quase não muda (está espalhado em camadas pequenas: a medida que decide é a do celular, na
+> etapa 6). O motor entra no build do jogo na etapa 2/3, quando for usado. Corrigido: a deformação não punha o passo no
+> canvas (peças paradas na amostra).
+
 **Arquivos:**
 - novos: `prototype/src/ambiente.js`, `prototype/assets/arte/animacao.json`, `prototype/tools/arte-animacao-mascaras.mjs`;
 - mexe: `prototype/build.mjs` e `prototype/tools/arte-embutida.mjs` (embutir o manifesto e as imagens novas),
