@@ -16,8 +16,14 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   automática não separa o olho das linhas da cara do robusto-folhas).
 - **Na Fornalha, o pico da esquerda vira vulcão por código** (cratera, fios de lava, fumaça, bombas) — a arena gerada
   não tem vulcão; dá para desligar e comparar, e o `/v2/vfx` fica de reserva se o Vinicius não gostar.
-- **A versão atual é a principal; a "mais movimento" fica como opção para comparar** (Vinicius, 2026-11-23) — as duas
-  na mesma página com um seletor por cena, ambas no orçamento.
+- **"Mais movimento" é a versão do jogo, com a vegetação e a água mexendo sempre** (Vinicius, 2ª rodada, 2026-11-23) —
+  substitui a decisão anterior (atual como principal); a anterior fica só na amostra para comparar.
+- **No comer do PixelLab, os fiapos de capim soltos da boca são apagados por código** (peças desconectadas do corpo de
+  até 60 px) — as refações com outras seeds não resolveram e gastariam além do teto; o corpo é sempre a maior peça.
+- **Pré-assar os loops periódicos (coqueiros, copas, capim, bandeiras, torcida) no início da tela** — em tempo real o
+  Litoral fica no limite do orçamento (≈ 2 ms no celular médio); com os quadros prontos, o custo vira um `drawImage`.
+- **A versão atual é a principal; a "mais movimento" fica como opção para comparar** (Vinicius, 2026-11-23; trocada
+  pela de cima na 2ª rodada) — as duas na mesma página com um seletor por cena, ambas no orçamento.
 - **Comer e cavar dos cavalos pelo PixelLab, o resto do idle por código** (piloto de 6 gerações, 2026-11-23) — o
   `animate-with-text-v3` a partir do molde em cores de papel baixa a cabeça até o capim e pateia de forma natural, e os
   quadros voltam aos papéis (servem a qualquer pelagem); piscar, cauda, orelha, respiração e aceno o código já faz.

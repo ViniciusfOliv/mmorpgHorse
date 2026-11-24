@@ -188,11 +188,11 @@ Os ícones dos oponentes e o caminho no mapa não mexem. Estado e escolha ficam 
 | Lote | Ferramenta | Gerações | Estado |
 |---|---|---|---|
 | Piloto do idle (padrão-lisa: comer ×2, cavar ×2, cauda, respiração) | PixelLab `animate-with-text-v3` | 6 | feito (915 → 909) |
-| Comer e cavar nos 12 moldes (retrato), com refação dos defeituosos | PixelLab `animate-with-text-v3` | __LOTE__ | __LOTE_ESTADO__ |
+| Comer e cavar nos 12 moldes (retrato), com refação dos defeituosos | PixelLab `animate-with-text-v3` | 30 (o teto: 24 + 6 refações; padrão-lisa reaproveitou o piloto) | feito (909 → 879); os 24 limpos depois de apagar por código os fiapos de capim soltos da boca no comer |
 | Opcionais (3.6) | PixelLab | 18–24 | só com confirmação |
 | Todo o resto (5 regiões, 3 arenas, 4 cenas, 3 mapas, idle por código) | código | 0 | — |
 
-Sem Retro Diffusion e sem Canva. Saldo de referência: PixelLab __SALDO__/2000.
+Sem Retro Diffusion e sem Canva. Saldo de referência: PixelLab 879/2000 (2026-11-24). Total gasto na frente: 36 gerações.
 
 ## 5. Testes e regras
 

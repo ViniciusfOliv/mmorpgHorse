@@ -24,8 +24,16 @@ cavalos a cada 1–3,5 s e o "sacudir a cabeça"); medidas no contêiner (atual 
 **Piloto pago rodado** (confirmado pelo Vinicius): 6 gerações do `animate-with-text-v3` no molde padrão-lisa
 (`prototype/tools/arte-animacao-piloto.mjs`; PixelLab 915 → 909), quadros em `prototype/assets/pixellab/idle/`, no
 painel "PixelLab × código" da cena dos cavalos: comer (8102) e cavar (8111) bons e naturais, o que o código não faz;
-cauda e respiração o código já resolve. **Próximo:** a spec de todas as imagens (entrega 2) em `docs/superpowers/specs/`,
-com a versão atual como base e a "mais movimento" como opção, a decidir com o Vinicius na comparação. O olho de cada molde deve virar âncora no JSON (a busca automática
+cauda e respiração o código já resolve. **2ª rodada (2026-11-23/24):** o Vinicius
+escolheu a **"mais movimento"** como padrão e pediu a **vegetação e a água mexendo sempre** (feito: folhas dos coqueiros
+ondulando, capim em onda contínua, espuma na mureta, matas e pinheiros balançando, espuma descendo o rio, pasto do Haras
+com faixas de brilho; amostra na versão 3, abrindo na escolhida; Litoral em 0,46–0,54 ms ≈ 1,8–2,1 ms no celular, no
+limite: o remédio é pré-assar os loops, na spec). **Lote pago autorizado e rodado**: comer e cavar nos 12 moldes, 30
+gerações (o teto; PixelLab 909 → 879), os 24 limpos depois de apagar por código os fiapos de capim soltos da boca no
+comer; painel com o seletor dos 12 moldes na amostra. **Spec da entrega 2 escrita**:
+`docs/superpowers/specs/2026-11-23-animacao-ambiente-design.md` (todas as imagens, arquitetura `ambiente.js` +
+manifesto + pré-assado, orçamento por tela, custo, testes, ordem). **Próximo:** aprovação da spec pelo Vinicius; depois
+o plano. Nada no jogo antes disso. Total gasto na frente: 36 gerações do PixelLab. O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
