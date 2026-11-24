@@ -280,7 +280,7 @@
     }
     return c.poe();
   }
-  function decorarMundo(m) {
+  function decorarMundo(m, semGinasios) {
     var b = m.b, V = GEO.vulcao, T = m.T, rng = rngCosmetica(4242);
     var livre = function (x, y, r) {   // chão sem estrada, água, lava, rocha nem clareira por perto
       for (var j = -r; j <= r; j++) for (var i = -r; i <= r; i++) {
@@ -341,7 +341,7 @@
     });
     arvores.sort(function (a, c) { return a.y - c.y; });
     m.arvores = arvores;
-    ginasiosNoChao(m);
+    if (!semGinasios) ginasiosNoChao(m); else m.cerca = [];
   }
   // os ginásios, o píer, a ponte e o rancho (a parte parada; bandeiras, fogo e líder são desenhados a cada quadro)
   function ginasiosNoChao(m) {
@@ -1145,7 +1145,7 @@
     ajusta(); window.addEventListener('resize', ajusta);
     montaUI();
     requestAnimationFrame(quadro);
-    window.__mapa = { _t: { camadas: camadas, ciclo: function (t) { cicloT = -9; cicloMundo(t); }, nevoa: function (t) { nevT = -9; atualizaNevoa(t); atualizaNevoa(t); }, mundo: quadroMundo, trilha: quadroTrilha, copia: function () { ctx.drawImage(arte, 0, 0, W, H, 0, 0, W * s, H * s); } }, entra: entra, sai: sai, vence: vence, preset: function (n) { usaPreset(n); montaUI(); }, est: function () { return est; }, reduz: function (v) { reduzido = v; montaUI(); }, tela: function () { return telaAtual; } };
+    window.__mapa = { _t: { exportar: function () { var m2 = gerarMundo(); decorarMundo(m2, true); m2.b.poe(); m2.arvores.forEach(function (a) { m2.b.g.drawImage(a.c.c, a.x - a.r, a.y - a.r); }); return m2.b.c.toDataURL('image/png'); }, camadas: camadas, ciclo: function (t) { cicloT = -9; cicloMundo(t); }, nevoa: function (t) { nevT = -9; atualizaNevoa(t); atualizaNevoa(t); }, mundo: quadroMundo, trilha: quadroTrilha, copia: function () { ctx.drawImage(arte, 0, 0, W, H, 0, 0, W * s, H * s); } }, entra: entra, sai: sai, vence: vence, preset: function (n) { usaPreset(n); montaUI(); }, est: function () { return est; }, reduz: function (v) { reduzido = v; montaUI(); }, tela: function () { return telaAtual; } };
     window.__mapaPronto = true;
   }
 })();
