@@ -1506,7 +1506,7 @@
     if (lider) { var li = lider.c; li.__pe = lider.pe; li.__cx = 16; deitaSombra(li, A.lider[0], A.lider[1]); dg.drawImage(li, A.lider[0] - 16, A.lider[1] - lider.pe + resp2); }
     if (fr) pisa(fr, A.op[0], A.op[1], resp);
     if (cs) pisa(cs, A.nos[0], A.nos[1], resp2);
-    placa(8, 8, 104, 'Brasa da Labareda', 'Nv 20', 0.82, 'comum');
+    placa(8, 8, 128, 'Brasa da Labareda', 'Nv 20', 0.82, 'comum');
     placa(140, 116, 108, 'Brasa', 'Nv 12', 0.64, desafio.rar);
     dCtx.imageSmoothingEnabled = false;
     dCtx.drawImage(dArte, 0, 0, DW, DH, 0, 0, DW * dS, DH * dS);
