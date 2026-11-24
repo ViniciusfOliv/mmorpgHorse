@@ -3507,7 +3507,7 @@
   // o laço "vivo" (~14 q/s) chama. Só apresentação: a RNG é a cosmética do motor, nada da seed. Movimento reduzido ou
   // sem o motor: a imagem parada de sempre. ambMs: o custo de cada cena (o ui-test confere o equivalente por quadro a
   // 60 q/s, o do orçamento da spec §2.4: o tempo gasto por segundo ÷ 60).
-  var AMB_ABA = { expedicao: ['expedicao', 'telas/expedicao'], haras: ['cavalos', 'telas/haras'] };
+  var AMB_ABA = { expedicao: ['expedicao', 'telas/expedicao'], haras: ['cavalos', 'telas/haras'], estabulo: ['estabulo', 'telas/estabulo'], loja: ['loja', 'telas/loja'] };
   var AMB_ARENA = { fogo: ['fornalha', 'ginasios/fogo'] };
   var ambCenas = {}, ambMs = {};
   function ambienteDe(par, img) {

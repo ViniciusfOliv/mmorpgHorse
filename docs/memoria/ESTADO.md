@@ -106,7 +106,12 @@ garupa). **Etapa 3a feita:** o motor e o manifesto
 entram no build; topo da Expedição e do Haras (com até 2 cavalos do jogador vivos no pasto) e a arena da Fornalha
 animam no laço "vivo" (`AMB_ABA`/`AMB_ARENA` no game.js); bloco `ambiente` no ui-test (em série; 0,21 / 0,12 / 0,14 ms
 por quadro a 60 q/s; "Reduzidas" parado). O vulcão da Fornalha fica no corte de cima da arena do desafio (não aparece
-nela). **Próximo:** etapa 3b, as cenas novas (Estábulo, Loja, Remanso, Capoeira). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
+nela). **Etapa 3b feita:** cenas novas do
+Estábulo (lampiões, poeira dourada, poeira no ar, feno nas rajadas) e da Loja (lanternas, lanternas verdes, poções com
+bolhas e brilho, luz do chão — atrás da placa do título —, poeira no facho), no manifesto e no jogo; as 4 abas animam
+(0,04 / 0,07 / 0,24 / 0,11 ms por quadro a 60 q/s). Remanso e Capoeira ficaram fora: a cena de desafio vai ser trocada
+pela da frente 2 (o `IdleMolde` já aceita as vistas de frente e de costas dela). **Próximo:** etapa 4 (mapas das
+trilhas), combinada com o chat do mapa. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um

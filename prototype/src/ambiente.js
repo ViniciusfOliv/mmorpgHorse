@@ -1250,6 +1250,110 @@
       if (L.vulcao.ativo && s.jorro >= 0) mede(L.vulcao, function () { desenhaJorro(s.vx, s.vy - 1, s.jorro, 13, Math.floor(t * 12)); });
     }
   };
+  // ---------------------------------------------------------------- Estábulo (topo da aba; etapa 3b)
+  // lampiões que tremulam (ciclo de cor por lampião), a coluna de poeira dourada que cintila e cai, poeira no ar na luz
+  // de cada lampião e, nas rajadas, fiapos de feno que voam dos fardos. O cavalo ativo é o do jogo (Sprites).
+  // poeira e feno: posições calculadas do tempo (sem estado), cada grão na sua fase
+  function grao(i, k) { return hash(i * 7 + 3, k * 13 + 5); }
+  CENAS.estabulo = {
+    titulo: 'Estábulo', legenda: 'as baias com os lampiões', W: 256, H: 160, notas: [],
+    camadas: [['lampioes', 'Lampiões'], ['brilho', 'Poeira dourada'], ['poeira', 'Poeira no ar e feno'], ['fundo', 'Fundo parado']],
+    init: function () {
+      var s = this, b = Buf.de(IMG['telas/estabulo']), ME = man('telas/estabulo'); s.base = b; s.M = ME;
+      var LP = ME.lampioes, BR = ME.brilho;
+      s.ciclo = new CicloCor(b, function (x, y, h) {
+        for (var i = 0; i < LP.caixas.length; i++) if (dentro(LP.caixas[i], x, y) && LP.rampa.indexOf(h) >= 0) return 0;
+        if (dentro(BR.caixa, x, y) && BR.rampa.indexOf(h) >= 0) return 1;
+        return -1;
+      }, [LP.rampa, BR.rampa], function (x, y, r, d, t) {
+        if (r === 0) {   // lampião: cada um no seu ritmo, mais forte no meio da chama
+          var id = Math.floor(x / 60), v = fsin(t * 9 + id * 2.1) + 0.6 * fsin(t * 23 + id * 5);
+          return d >= 2 ? Math.max(1, Math.min(4, d + (v > 1.1 ? 1 : v < -1.05 ? -1 : 0))) : d;
+        }
+        // poeira dourada: grãos que cintilam e uma faixa que desce devagar
+        if (hash3(x, y, Math.floor(t * 6)) < 0.1) return Math.min(5, d + 2);
+        return mod(y - Math.floor(t * 10), 11) === 0 && hash(x, 7) < 0.5 ? Math.min(5, d + 1) : d;
+      }, 12);
+      s.saida = new Buf(256, 160);
+      s.antes = tela(256, 160); s.antes.getContext('2d').drawImage(IMG['telas/estabulo'], 0, 0);
+    },
+    quadro: function (t, dt, L) {
+      var s = this, q = Math.floor(t * 12), ME = s.M;
+      if (q !== s.tique) {
+        s.tique = q;
+        mede(L.lampioes, function () { s.ciclo.passo = -1; s.ciclo.atualiza(t); });
+        s.saida.d.set(s.ciclo.saida.d); s.saida.poe();
+      }
+      mede(L.fundo, function () { D(s.saida.c, 0, 0); });
+      mede(L.poeira, function () {
+        var P0 = ME.poeira, i, k;
+        // poeira no ar: 3 grãos por lampião, subindo e descendo devagar na luz (1 px, pisca)
+        for (i = 0; i < P0.luzes.length; i++) for (k = 0; k < 3; k++) {
+          var f = grao(i, k), u = mod(t * (0.05 + f * 0.05) + f, 1);
+          var x = Math.round(P0.luzes[i][0] + fsin(t * 0.7 + f * 6) * 5 + (f - 0.5) * 8), y = Math.round(P0.luzes[i][1] + u * P0.altura);
+          if (fsin(t * 2 + f * 9) > -0.3) R(x, y, 1, 1, '#' + P0.cor[k % 2]);
+        }
+        // feno nas rajadas: fiapos de 2 px que saem dos fardos e voam com o vento
+        var w = vento(t), FN = ME.feno;
+        if (w > 0.7) for (k = 0; k < 5; k++) {
+          var g = grao(9, k), uu = mod(t * (0.5 + g * 0.4) + g, 1), fx = Math.round(FN.de[0] + uu * (FN.ate[0] - FN.de[0]) + g * 12);
+          var fy = Math.round(FN.de[1] + uu * (FN.ate[1] - FN.de[1]) - Math.sin(uu * Math.PI) * 8 + fsin(t * 5 + g * 7) * 1.5);
+          R(fx, fy, 2, 1, '#' + FN.cores[k % FN.cores.length]);
+        }
+      });
+    }
+  };
+
+  // ---------------------------------------------------------------- Loja (topo da aba; etapa 3b)
+  // lanternas penduradas que tremulam, as do balcão que pulsam em verde, poções com brilho e bolhas que sobem, a luz do
+  // chão que respira em ondas do centro, e poeira no facho de luz do balcão.
+  CENAS.loja = {
+    titulo: 'Loja', legenda: 'o balcão do mercador', W: 256, H: 160, notas: [],
+    camadas: [['luzes', 'Lanternas e luz do chão'], ['pocoes', 'Poções'], ['poeira', 'Poeira no ar'], ['fundo', 'Fundo parado']],
+    init: function () {
+      var s = this, b = Buf.de(IMG['telas/loja']), ML = man('telas/loja'); s.base = b; s.M = ML;
+      var LA = ML.lanternas, LV = ML.lanternasVerdes, PO = ML.pocoes, LC = ML.luzChao;
+      function em(lista, x, y) { for (var i = 0; i < lista.length; i++) if (dentro(lista[i], x, y)) return i; return -1; }
+      s.ciclo = new CicloCor(b, function (x, y, h) {
+        if (em(LA.caixas, x, y) >= 0 && LA.rampa.indexOf(h) >= 0) return 0;
+        if (em(LV.caixas, x, y) >= 0 && LV.rampa.indexOf(h) >= 0) return 1;
+        if (em(PO.caixas, x, y) >= 0 && PO.rampa.indexOf(h) >= 0) return 2;
+        if (dentro(LC.caixa, x, y) && LC.rampa.indexOf(h) >= 0) return 3;
+        return -1;
+      }, [LA.rampa, LV.rampa, PO.rampa, LC.rampa], function (x, y, r, d, t) {
+        var v;
+        if (r === 0) { v = fsin(t * 8 + (x > 128 ? 2.7 : 0)) + 0.6 * fsin(t * 19 + (x > 128 ? 1 : 4)); return d >= 2 ? Math.max(1, Math.min(5, d + (v > 1.05 ? 1 : v < -1.1 ? -1 : 0))) : d; }
+        if (r === 1) { v = fsin(t * 1.6 + (x > 128 ? 2 : 0)); return d >= 2 ? Math.max(1, Math.min(5, d + (v > 0.7 ? 1 : 0))) : d; }
+        if (r === 2) {   // poções: bolhas que sobem (1 px claro) e um brilho que corre devagar
+          if (d >= 2 && hash(x, 3) < 0.35 && mod(y + Math.floor(t * 7) + Math.floor(hash(x, 5) * 9), 9) === 0) return 5;
+          return d >= 3 && fsin(x * 0.4 - t * 2.2) > 0.9 ? Math.min(5, d + 1) : d;
+        }
+        var dx = x - LC.centro[0], dy = (y - LC.centro[1]) * 2.5, dist = Math.sqrt(dx * dx + dy * dy);   // luz do chão: ondas do centro
+        v = fsin(dist * 0.09 - t * 1.3);
+        return d >= 2 ? Math.max(1, Math.min(4, d + (v > 0.8 ? 1 : v < -0.9 ? -1 : 0))) : d;
+      }, 12);
+      s.saida = new Buf(256, 160);
+      s.antes = tela(256, 160); s.antes.getContext('2d').drawImage(IMG['telas/loja'], 0, 0);
+    },
+    quadro: function (t, dt, L) {
+      var s = this, q = Math.floor(t * 12), ML = s.M;
+      if (q !== s.tique) {
+        s.tique = q;
+        mede(L.luzes, function () { s.ciclo.passo = -1; s.ciclo.atualiza(t); });
+        s.saida.d.set(s.ciclo.saida.d); s.saida.poe();
+      }
+      mede(L.fundo, function () { D(s.saida.c, 0, 0); });
+      mede(L.poeira, function () {
+        var C = ML.poeira.caixa;
+        for (var k = 0; k < 12; k++) {
+          var f = grao(4, k), u = mod(t * (0.04 + f * 0.05) + f, 1);
+          var x = Math.round(C[0] + f * (C[2] - C[0]) + fsin(t * 0.6 + f * 7) * 6), y = Math.round(C[3] - u * (C[3] - C[1]));
+          if (fsin(t * 1.7 + f * 11) > -0.2) R(x, y, 1, 1, '#' + ML.poeira.cor[k % 2]);
+        }
+      });
+    }
+  };
+
   function desenhaVulcao(s, t, dt) {
     var vx = s.vx, vy = s.vy, r = s.rng;
     // estouros: 3 a 7 s, cada um com um clarão na cratera e um leque de bombas

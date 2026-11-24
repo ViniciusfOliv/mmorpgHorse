@@ -236,7 +236,8 @@ seu teste e o seu commit. O `balance.js` não muda.
 
 > **3a feita no ramo em 2026-11-24** (4c7091b): Expedição, Haras (com os cavalos do jogador) e Fornalha no jogo, bloco
 > `ambiente` no ui-test. O custo é medido como equivalente por quadro a 60 q/s (o laço "vivo" do jogo roda a ~14 q/s).
-> Falta a 3b: as cenas novas do Estábulo, da Loja, do Remanso e da Capoeira (máscaras e adereços por código).
+> **3b feita** (Estábulo e Loja). Remanso e Capoeira saíram: a cena de desafio vai ser a nova da frente 2 (arena 0 em
+> perspectiva); o `IdleMolde` serve às vistas de frente e de costas dela (combinado com o chat do mapa).
 
 **Arquivos:** mexe `prototype/src/game.js` (topo das abas e cena do desafio) e o manifesto (entradas novas).
 

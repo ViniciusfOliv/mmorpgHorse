@@ -6170,12 +6170,12 @@ try {
   }
 
   // ---------------- animação ambiente nas abas e no desafio (plano da animação ambiente, etapa 3) ----------------
-  // As cenas animadas por código (prototype/src/ambiente.js) no topo da Expedição e do Haras e na arena da Fornalha: a
+  // As cenas animadas por código (prototype/src/ambiente.js) no topo das 4 abas e na arena da Fornalha: a
   // tela anima (o canvas muda), o custo equivalente por quadro a 60 q/s fica abaixo de 1,5 × o teto da spec §2.4 (0,35 ms
   // nas abas, 0,40 na arena; no contêiner), e em "Reduzidas" (movimento reduzido) cada tela fica parada, sem o motor.
   if (quer('ambiente')) {
     const label = 'ambiente'
-    const TETO = { expedicao: 0.35, cavalos: 0.35, fornalha: 0.40 }
+    const TETO = { expedicao: 0.35, cavalos: 0.35, estabulo: 0.35, loja: 0.35, fornalha: 0.40 }
     const hashCv = (pg, sel) => pg.locator(sel).first().evaluate((c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let x = 0; for (let k = 0; k < d.length; k += 31) x = (x * 31 + d[k]) >>> 0; return x })
     const quadros = async (pg, sel, n = 10) => { const hs = new Set(); for (let i = 0; i < n; i++) { await pg.waitForTimeout(200); hs.add(await hashCv(pg, sel)) } return hs.size }
     const abreDesafio = async (pg) => {
@@ -6191,9 +6191,9 @@ try {
       const pg = await newPage(browser, { width: 1000, height: 800 }, lab, { query: '?dev=1', reducedMotion: reduzido ? 'reduce' : 'no-preference' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
-        const vistos = {}, ms = {}, CENA = { expedicao: 'expedicao', haras: 'cavalos' }
+        const vistos = {}, ms = {}, CENA = { expedicao: 'expedicao', haras: 'cavalos', estabulo: 'estabulo', loja: 'loja' }
         const leMs = async (id) => { const m = await pg.evaluate(() => window.__galope.ambienteMs()); if (m[id]) ms[id] = m[id] }
-        for (const aba of ['expedicao', 'haras']) {
+        for (const aba of ['estabulo', 'loja', 'expedicao', 'haras']) {
           await pg.locator(`[data-acao="aba"][data-id="${aba}"]`).click(); await pg.waitForTimeout(2500)
           vistos[aba] = await quadros(pg, 'canvas.cena-aba')
           await leMs(CENA[aba])   // logo depois da tela (voltar a ela recomeça a medida)

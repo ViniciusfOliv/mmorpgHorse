@@ -3,19 +3,83 @@
   "imagens": {
     "litoral/horizonte": {
       "mar": {
-        "rampa": ["2e222f", "3e3546", "0b5e65", "547e64", "0eaf9b", "9babb2", "c7dcd0", "ffffff"],
-        "y": [30, 88],
-        "exclui": [[122, 0, 207, 46], [268, 0, 99999, 50]],
+        "rampa": [
+          "2e222f",
+          "3e3546",
+          "0b5e65",
+          "547e64",
+          "0eaf9b",
+          "9babb2",
+          "c7dcd0",
+          "ffffff"
+        ],
+        "y": [
+          30,
+          88
+        ],
+        "exclui": [
+          [
+            122,
+            0,
+            207,
+            46
+          ],
+          [
+            268,
+            0,
+            99999,
+            50
+          ]
+        ],
         "praiaX": 296,
         "praiaInclina": 0.6,
         "praiaY": 50,
-        "praiaCores": ["fdcbb0", "ab947a"]
+        "praiaCores": [
+          "fdcbb0",
+          "ab947a"
+        ]
       },
-      "barcos": [[113, 30, 123, 40], [232, 30, 243, 40], [273, 32, 283, 42], [221, 39, 231, 48]]
+      "barcos": [
+        [
+          113,
+          30,
+          123,
+          40
+        ],
+        [
+          232,
+          30,
+          243,
+          40
+        ],
+        [
+          273,
+          32,
+          283,
+          42
+        ],
+        [
+          221,
+          39,
+          231,
+          48
+        ]
+      ]
     },
     "litoral/meio": {
       "coqueiros": {
-        "cores": ["165a4c", "239063", "1ebc73", "91db69", "547e64", "676633", "0b5e65", "0eaf9b", "30e1b9", "8ff8e2"],
+        "cores": [
+          "165a4c",
+          "239063",
+          "1ebc73",
+          "91db69",
+          "547e64",
+          "676633",
+          "0b5e65",
+          "0eaf9b",
+          "30e1b9",
+          "8ff8e2"
+        ],
         "yMax": 74,
         "contorno": "2e222f",
         "margem": 3,
@@ -23,64 +87,637 @@
       }
     },
     "litoral/arquibancada": {
-      "torcida": { "y": [34, 54], "grupo": 3, "caixaY": [33, 55] },
+      "torcida": {
+        "y": [
+          34,
+          54
+        ],
+        "grupo": 3,
+        "caixaY": [
+          33,
+          55
+        ]
+      },
       "x": 168
     },
     "litoral/frente": {
-      "capim": { "yMax": 34, "faixa": 48, "folga": 3 }
+      "capim": {
+        "yMax": 34,
+        "faixa": 48,
+        "folga": 3
+      }
     },
-    "litoral/nuvens": { "faixaAlta": 15 },
+    "litoral/nuvens": {
+      "faixaAlta": 15
+    },
     "planalto/meio-sem-pas": {
       "copas": {
-        "cores": ["374e4a", "165a4c", "547e64", "676633", "239063"],
+        "cores": [
+          "374e4a",
+          "165a4c",
+          "547e64",
+          "676633",
+          "239063"
+        ],
         "yMax": 70,
-        "exclui": [[160, 0, 237, 70]],
+        "exclui": [
+          [
+            160,
+            0,
+            237,
+            70
+          ]
+        ],
         "faixa": 6
       }
     },
-    "planalto/meio": { "estatica": "o meio de hoje, com as pás pintadas (a cena parada)" },
-    "planalto/frente": {
-      "capim": { "yMax": 50, "faixa": 48, "folga": 4 }
+    "planalto/meio": {
+      "estatica": "o meio de hoje, com as pás pintadas (a cena parada)"
     },
-    "planalto/horizonte": { "estatica": "horizonte do Planalto" },
-    "planalto/nuvens": { "faixaAlta": 15 },
+    "planalto/frente": {
+      "capim": {
+        "yMax": 50,
+        "faixa": 48,
+        "folga": 4
+      }
+    },
+    "planalto/horizonte": {
+      "estatica": "horizonte do Planalto"
+    },
+    "planalto/nuvens": {
+      "faixaAlta": 15
+    },
     "ginasios/fogo": {
       "lava": {
-        "rampa": ["6e2727", "e83b3b", "f79617", "fbb954", "fbff86"],
-        "cores": ["e83b3b", "6e2727"],
-        "centro": [128, 113],
-        "raio": [100, 50],
-        "anel": [0.78, 1.12],
+        "rampa": [
+          "6e2727",
+          "e83b3b",
+          "f79617",
+          "fbb954",
+          "fbff86"
+        ],
+        "cores": [
+          "e83b3b",
+          "6e2727"
+        ],
+        "centro": [
+          128,
+          113
+        ],
+        "raio": [
+          100,
+          50
+        ],
+        "anel": [
+          0.78,
+          1.12
+        ],
         "anelYMin": 70,
-        "frente": [110, 140, 146, 160],
-        "encosta": { "yMax": 72, "yMin": 6, "xEsq": 44, "xDir": 214 }
+        "frente": [
+          110,
+          140,
+          146,
+          160
+        ],
+        "encosta": {
+          "yMax": 72,
+          "yMin": 6,
+          "xEsq": 44,
+          "xDir": 214
+        }
       },
       "emblemas": {
-        "rampa": ["e83b3b", "f79617", "fbb954", "fbff86", "f9c22b"],
-        "caixas": [[22, 52, 40, 76], [68, 38, 84, 60], [119, 34, 137, 56], [164, 38, 182, 60], [216, 52, 234, 76]]
+        "rampa": [
+          "e83b3b",
+          "f79617",
+          "fbb954",
+          "fbff86",
+          "f9c22b"
+        ],
+        "caixas": [
+          [
+            22,
+            52,
+            40,
+            76
+          ],
+          [
+            68,
+            38,
+            84,
+            60
+          ],
+          [
+            119,
+            34,
+            137,
+            56
+          ],
+          [
+            164,
+            38,
+            182,
+            60
+          ],
+          [
+            216,
+            52,
+            234,
+            76
+          ]
+        ]
       },
-      "chamas": [[10, 50], [51, 58], [204, 58], [246, 50], [16, 99], [241, 99], [108, 31], [149, 31]],
-      "vulcao": [80, 16],
-      "muralha": { "y": [20, 34], "cores": ["3e3546", "2e222f"] }
+      "chamas": [
+        [
+          10,
+          50
+        ],
+        [
+          51,
+          58
+        ],
+        [
+          204,
+          58
+        ],
+        [
+          246,
+          50
+        ],
+        [
+          16,
+          99
+        ],
+        [
+          241,
+          99
+        ],
+        [
+          108,
+          31
+        ],
+        [
+          149,
+          31
+        ]
+      ],
+      "vulcao": [
+        80,
+        16
+      ],
+      "muralha": {
+        "y": [
+          20,
+          34
+        ],
+        "cores": [
+          "3e3546",
+          "2e222f"
+        ]
+      }
     },
     "telas/expedicao": {
-      "lava": { "rampa": ["7a3045", "b33831", "ea4f36", "fb6b1d", "f79617", "f9c22b", "fbff86"], "caixa": [187, 19, 238, 90] },
-      "rio": { "rampa": ["0b5e65", "0b8a8f", "0eaf9b", "4d9be6", "8fd3ff", "8ff8e2", "c7dcd0", "ffffff"], "caixa": [91, 101, 182, 146] },
-      "placas": {
-        "caixas": [[30, 37, 100, 54], [33, 52, 82, 67], [28, 67, 95, 82]],
-        "poste": [52, 63],
-        "eixo": 57.5,
-        "madeira": ["9e4539", "cd683d", "6e2727", "4c3e24", "e6904e", "2e222f", "753c54", "45293f", "7a3045", "966c6c", "ab947a", "694f62", "3e3546"]
+      "lava": {
+        "rampa": [
+          "7a3045",
+          "b33831",
+          "ea4f36",
+          "fb6b1d",
+          "f79617",
+          "f9c22b",
+          "fbff86"
+        ],
+        "caixa": [
+          187,
+          19,
+          238,
+          90
+        ]
       },
-      "capim": { "cores": ["a2a947", "cddf6c", "d5e04b", "676633", "92a984", "fbff86", "91db69", "b2ba90"], "y": [108, 160], "exclui": [[50, 108, 65, 160]] },
-      "pinheiros": { "cores": ["165a4c", "374e4a", "313638", "239063", "547e64", "0b5e65"], "y": [30, 100], "bordas": [26, 236] },
-      "matas": { "y": [26, 112], "faixa": 7, "excluiVulcao": [187, 0, 240, 90] }
+      "rio": {
+        "rampa": [
+          "0b5e65",
+          "0b8a8f",
+          "0eaf9b",
+          "4d9be6",
+          "8fd3ff",
+          "8ff8e2",
+          "c7dcd0",
+          "ffffff"
+        ],
+        "caixa": [
+          91,
+          101,
+          182,
+          146
+        ]
+      },
+      "placas": {
+        "caixas": [
+          [
+            30,
+            37,
+            100,
+            54
+          ],
+          [
+            33,
+            52,
+            82,
+            67
+          ],
+          [
+            28,
+            67,
+            95,
+            82
+          ]
+        ],
+        "poste": [
+          52,
+          63
+        ],
+        "eixo": 57.5,
+        "madeira": [
+          "9e4539",
+          "cd683d",
+          "6e2727",
+          "4c3e24",
+          "e6904e",
+          "2e222f",
+          "753c54",
+          "45293f",
+          "7a3045",
+          "966c6c",
+          "ab947a",
+          "694f62",
+          "3e3546"
+        ]
+      },
+      "capim": {
+        "cores": [
+          "a2a947",
+          "cddf6c",
+          "d5e04b",
+          "676633",
+          "92a984",
+          "fbff86",
+          "91db69",
+          "b2ba90"
+        ],
+        "y": [
+          108,
+          160
+        ],
+        "exclui": [
+          [
+            50,
+            108,
+            65,
+            160
+          ]
+        ]
+      },
+      "pinheiros": {
+        "cores": [
+          "165a4c",
+          "374e4a",
+          "313638",
+          "239063",
+          "547e64",
+          "0b5e65"
+        ],
+        "y": [
+          30,
+          100
+        ],
+        "bordas": [
+          26,
+          236
+        ]
+      },
+      "matas": {
+        "y": [
+          26,
+          112
+        ],
+        "faixa": 7,
+        "excluiVulcao": [
+          187,
+          0,
+          240,
+          90
+        ]
+      }
     },
     "telas/haras": {
-      "pasto": { "rampa": ["676633", "a2a947", "91db69", "cddf6c"], "y": [104, 134] },
-      "arvores": { "cores": ["165a4c", "239063", "1ebc73", "676633", "547e64", "374e4a", "a2a947"], "y": [40, 96], "exclui": [[100, 40, 221, 96]], "faixa": 8 },
-      "cavalos": [["robusto-folhas", "castanho", "retrato", 4, 150, false], ["padrao-lisa", "baio", "retrato", 62, 156, true], ["esguio-ondas", "tordilho", "retrato", 118, 152, false], ["padrao-chamas", "alazao", "parado", 186, 158, false]],
-      "borboletas": [[40, 112, 0], [170, 120, 2.1], [230, 108, 4.3]]
+      "pasto": {
+        "rampa": [
+          "676633",
+          "a2a947",
+          "91db69",
+          "cddf6c"
+        ],
+        "y": [
+          104,
+          134
+        ]
+      },
+      "arvores": {
+        "cores": [
+          "165a4c",
+          "239063",
+          "1ebc73",
+          "676633",
+          "547e64",
+          "374e4a",
+          "a2a947"
+        ],
+        "y": [
+          40,
+          96
+        ],
+        "exclui": [
+          [
+            100,
+            40,
+            221,
+            96
+          ]
+        ],
+        "faixa": 8
+      },
+      "cavalos": [
+        [
+          "robusto-folhas",
+          "castanho",
+          "retrato",
+          4,
+          150,
+          false
+        ],
+        [
+          "padrao-lisa",
+          "baio",
+          "retrato",
+          62,
+          156,
+          true
+        ],
+        [
+          "esguio-ondas",
+          "tordilho",
+          "retrato",
+          118,
+          152,
+          false
+        ],
+        [
+          "padrao-chamas",
+          "alazao",
+          "parado",
+          186,
+          158,
+          false
+        ]
+      ],
+      "borboletas": [
+        [
+          40,
+          112,
+          0
+        ],
+        [
+          170,
+          120,
+          2.1
+        ],
+        [
+          230,
+          108,
+          4.3
+        ]
+      ]
+    },
+    "telas/estabulo": {
+      "lampioes": {
+        "rampa": [
+          "cd683d",
+          "e6904e",
+          "fbb954",
+          "fbff86",
+          "ffffff"
+        ],
+        "caixas": [
+          [
+            0,
+            34,
+            10,
+            54
+          ],
+          [
+            58,
+            34,
+            70,
+            54
+          ],
+          [
+            118,
+            34,
+            130,
+            54
+          ],
+          [
+            180,
+            34,
+            192,
+            54
+          ],
+          [
+            240,
+            34,
+            252,
+            54
+          ]
+        ]
+      },
+      "brilho": {
+        "rampa": [
+          "6e2727",
+          "9e4539",
+          "cd683d",
+          "e6904e",
+          "fbb954",
+          "fbff86"
+        ],
+        "caixa": [
+          176,
+          46,
+          194,
+          112
+        ]
+      },
+      "poeira": {
+        "luzes": [
+          [
+            4,
+            56
+          ],
+          [
+            64,
+            56
+          ],
+          [
+            124,
+            56
+          ],
+          [
+            186,
+            56
+          ],
+          [
+            246,
+            56
+          ]
+        ],
+        "altura": 40,
+        "cor": [
+          "fbb954",
+          "fdcbb0"
+        ]
+      },
+      "feno": {
+        "de": [
+          6,
+          86
+        ],
+        "ate": [
+          120,
+          70
+        ],
+        "cores": [
+          "cddf6c",
+          "a2a947",
+          "b2ba90"
+        ]
+      }
+    },
+    "telas/loja": {
+      "lanternas": {
+        "rampa": [
+          "6e2727",
+          "b33831",
+          "fb6b1d",
+          "f79617",
+          "f9c22b",
+          "fbff86"
+        ],
+        "caixas": [
+          [
+            4,
+            30,
+            18,
+            54
+          ],
+          [
+            238,
+            30,
+            252,
+            54
+          ]
+        ]
+      },
+      "lanternasVerdes": {
+        "rampa": [
+          "313638",
+          "374e4a",
+          "547e64",
+          "92a984",
+          "b2ba90",
+          "c7dcd0"
+        ],
+        "caixas": [
+          [
+            38,
+            70,
+            52,
+            92
+          ],
+          [
+            204,
+            70,
+            218,
+            92
+          ]
+        ]
+      },
+      "pocoes": {
+        "rampa": [
+          "6e2727",
+          "cd683d",
+          "e6904e",
+          "f79617",
+          "f9c22b",
+          "fbff86"
+        ],
+        "caixas": [
+          [
+            92,
+            48,
+            110,
+            62
+          ],
+          [
+            50,
+            14,
+            120,
+            30
+          ],
+          [
+            150,
+            14,
+            200,
+            30
+          ],
+          [
+            176,
+            40,
+            206,
+            62
+          ]
+        ]
+      },
+      "luzChao": {
+        "rampa": [
+          "966c6c",
+          "ab947a",
+          "e6904e",
+          "fbb954",
+          "fdcbb0"
+        ],
+        "caixa": [
+          40,
+          128,
+          216,
+          160
+        ],
+        "centro": [
+          128,
+          150
+        ]
+      },
+      "poeira": {
+        "caixa": [
+          60,
+          92,
+          200,
+          130
+        ],
+        "cor": [
+          "fbb954",
+          "fdcbb0"
+        ]
+      }
     }
   }
 }
