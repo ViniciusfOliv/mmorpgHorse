@@ -19611,7 +19611,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola o mínimo
         // para ela aparecer inteira (depois da viagem, se houver); o foco fica no título
         var mostraProx = function () { mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"], .etapa[data-estado="revanche"]')); };
-        if (MP && !reduced() && mapaArte.mundo && naTela(telaEl.querySelector('canvas[data-mapa-mundo]'))) { comecaViagem('entra', id, 'expedicao', abreGin, mostraProx); break; }
+        // a rolagem vai junto com a troca de tela (como sem viagem): a etapa da vez aparece inteira logo que a trilha abre
+        if (MP && !reduced() && mapaArte.mundo && naTela(telaEl.querySelector('canvas[data-mapa-mundo]'))) { comecaViagem('entra', id, 'expedicao', function () { abreGin(); mostraProx(); }, null); break; }
         abreGin(); mostraProx();
         break;
       }
