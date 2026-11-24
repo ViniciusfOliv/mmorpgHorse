@@ -96,14 +96,17 @@ const CHECK = [
   ['C11', 'Sem patinar, grade e ritmo comuns', 'parcial', 'só no "galope casado" do DEV (0,25 px); a cadência natural patina ~15 px: decisão pendente'],
   ['C12', 'Registrado em assets.md', 'sim', 'nenhum asset novo nesta etapa (só código)']
 ];
-const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Prancha da etapa 0</title>
+// (a página do artefato: o publish põe o doctype, o head e o body em volta; aqui vão só o title, o style e o conteúdo)
+const html = `<title>Prancha da etapa 0</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <style>
-:root{--fundo:#f4f1ea;--texto:#2e222f;--suave:#694f62;--cartao:#fff;--borda:#d9d0c4;--ok:#1e7a4c;--nao:#b33831}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fundo:#1c1820;--texto:#ece6ef;--suave:#b8a9bd;--cartao:#28222d;--borda:#3e3546;--ok:#4fd18b;--nao:#f57d4a}}
-:root[data-theme="dark"]{--fundo:#1c1820;--texto:#ece6ef;--suave:#b8a9bd;--cartao:#28222d;--borda:#3e3546;--ok:#4fd18b;--nao:#f57d4a}
-body{margin:0;background:var(--fundo);color:var(--texto);font:15px/1.5 system-ui,sans-serif}
-main{max-width:1240px;margin:0 auto;padding:16px}
+/* prancha de contato: pares antes × depois em grade de 2 colunas, uma coluna no celular */
+:root{--fundo:#eceef2;--texto:#2e222f;--suave:#625565;--cartao:#fbfbfd;--borda:#c9ccd6;--ok:#1e7a4c;--nao:#b33831}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fundo:#1b1c24;--texto:#ece6ef;--suave:#b0a8bd;--cartao:#262733;--borda:#3e3f52;--ok:#4fd18b;--nao:#f57d4a;color-scheme:dark}}
+:root[data-theme="dark"]{--fundo:#1b1c24;--texto:#ece6ef;--suave:#b0a8bd;--cartao:#262733;--borda:#3e3f52;--ok:#4fd18b;--nao:#f57d4a;color-scheme:dark}
+body{background:var(--fundo);color:var(--texto);font:15px/1.5 system-ui,sans-serif}
+main{max-width:1240px;margin:0 auto;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2{text-wrap:balance}.tabela{overflow-x:auto}
 h1{font-size:22px;margin:8px 0}h2{font-size:17px;margin:24px 0 8px}
 .ctl{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 16px}.ctl label{display:flex;gap:6px;align-items:center}
 .par{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -116,15 +119,15 @@ img,canvas{max-width:100%;image-rendering:pixelated;display:block}
 table{border-collapse:collapse;width:100%;background:var(--cartao)}td,th{border:1px solid var(--borda);padding:6px 8px;text-align:left;vertical-align:top}
 .s{font-weight:700}.s.sim{color:var(--ok)}.s.nao{color:var(--nao)}
 .refs{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media (max-width:720px){.refs{grid-template-columns:1fr}}
-</style></head><body><main>
+</style><main>
 <h1>Prancha de aceite: etapa 0 (integração visual)</h1>
 <p>Antes: a base deste ramo na <code>main</code>. Depois: o ramo <code>claude/animacao-ambiente</code> com a etapa 0 (sombra opaca, 4 tons, LUT por rampa, contato com o chão, leitura por valor). Mesma seed (777), mesmo momento da corrida (7 s).</p>
 <div class="ctl"><label><input type="checkbox" id="cinza"> Escala de cinza (leitura por valor)</label></div>
 <div id="cenas"></div>
 <h2>Checklist C1–C12</h2>
-<table><thead><tr><th>Item</th><th>O quê</th><th>Situação</th><th>Como</th></tr></thead><tbody>
+<div class="tabela"><table><thead><tr><th>Item</th><th>O quê</th><th>Situação</th><th>Como</th></tr></thead><tbody>
 ${CHECK.map(([c, o, s, n]) => `<tr><td>${c}</td><td>${o}</td><td class="s ${s === 'sim' ? 'sim' : 'nao'}">${s}</td><td>${n}</td></tr>`).join('')}
-</tbody></table>
+</tbody></table></div>
 <h2>Referências do Vinicius</h2>
 <div class="refs">${refs.map((r) => `<figure><figcaption>${r.nome}</figcaption><img src="${r.src}" alt="${r.nome}"></figure>`).join('')}</div>
 </main>
@@ -148,6 +151,6 @@ DADOS.forEach(function (c) {
   });
 });
 document.getElementById('cinza').addEventListener('change', function (e) { document.body.classList.toggle('cinza', e.target.checked); });
-</script></body></html>`;
+</script>`;
 fs.writeFileSync(path.join(SAIDA, 'prancha-etapa0.html'), html);
 console.log('prancha: ' + path.join(SAIDA, 'prancha-etapa0.html') + ' (' + Math.round(html.length / 1024) + ' KB)');

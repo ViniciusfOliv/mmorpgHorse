@@ -86,8 +86,11 @@ de cena e contraluz (Fornalha, Estábulo, Remanso); 0.5 contato por raia, poeira
 da cerca, palha/tufos na frente dos cascos, amostra em 6/12 q/s; 0.6 leitura por valor (degrau do piso das raias por
 tabela, L* ≥ 5 onde dá; terra ao sol de 0 para 13,9). **Decisão pendente do Vinicius (C11):** casco sem patinar exige
 galope a ~36 q/s porque a corrida é reproduzida ~2× comprimida (o chão anda ~400 px de arte/s); na cadência natural de
-hoje o casco patina ~15 px por quadro; a gaveta DEV tem "galope casado com o chão" para comparar (0,25 px). **Próximo:**
-o retorno da etapa 0 (DEV de teste publicado), depois a etapa 1. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
+hoje o casco patina ~15 px por quadro; a gaveta DEV tem "galope casado com o chão" para comparar (0,25 px). `check.sh` completo
+OK (8/8, 81 blocos; desenho por quadro a 1280 com chuva e ventania 2,05 ms, era 1,62). **DEV de teste do ramo:**
+https://claude.ai/artifact/JRBwAmXN9cRi4ABWuD5cEn; **prancha antes × depois** (1×, 3×, cinza, C1–C12):
+https://claude.ai/artifact/CexCcMiyqTZcwrGcfKR5tn (`node prototype/tools/prancha-etapa0.mjs`). **Próximo:** o retorno da
+etapa 0 e a decisão do casco, depois a etapa 1. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
