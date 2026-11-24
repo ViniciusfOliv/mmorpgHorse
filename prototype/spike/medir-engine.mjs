@@ -52,7 +52,7 @@ for (const nome of so) {
   if (captura && nome === so[0]) await page.screenshot({ path: captura, fullPage: true })
   const t0 = Date.now()
   // --etapa6: só a rodada da etapa 6 da animação ambiente (60 s travada em 60 FPS no pior caso de hoje)
-  const r = await page.evaluate(([f, e6]) => e6 === 'diag' ? window.__spikeEngine.bateria({ fases: window.__spikeEngine.diag, fator: f, titulo: 'Diagnóstico' }) : e6 ? window.__spikeEngine.bateria({ fases: [window.__spikeEngine.etapa6], fator: f, titulo: 'Etapa 6' }) : window.__spikeEngine.bateria({ fator: f }), [fator, args.includes('--diag') ? 'diag' : args.includes('--etapa6')])
+  const r = await page.evaluate(([f, e6]) => e6 === 'subidas' ? window.__spikeEngine.bateria({ fases: window.__spikeEngine.subidas, fator: f, titulo: 'Subidas' }) : e6 === 'diag' ? window.__spikeEngine.bateria({ fases: window.__spikeEngine.diag, fator: f, titulo: 'Diagnóstico' }) : e6 ? window.__spikeEngine.bateria({ fases: [window.__spikeEngine.etapa6], fator: f, titulo: 'Etapa 6' }) : window.__spikeEngine.bateria({ fator: f }), [fator, args.includes('--subidas') ? 'subidas' : args.includes('--diag') ? 'diag' : args.includes('--etapa6')])
   const texto = await page.evaluate(() => window.__spikeEngine.texto())
   console.log(`\n===== ${nome}${semVsync ? ' SEM VSYNC' : ''} (CPU ${c.cpu}×, moldes ${moldes ? 'sim' : 'NÃO'}, ${((Date.now() - t0) / 1000).toFixed(0)} s) =====`)
   console.log(texto)

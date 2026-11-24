@@ -314,7 +314,7 @@
     if (C.cenario) {
       SP.drawTrack(ctx, { width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: cam * ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: PISO, finishM: D, hills: MORROS, curves: CURVAS, distanceMarkersEvery: 200, t: T, weather: clima, pixel: S,
-        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente });
+        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo });
       SP.drawSombraCerca(ctx, W, laneTop, cam * ppm, S, chao);
     } else {
       ctx.fillStyle = '#6fa8d8'; ctx.fillRect(0, 0, W, laneTop);
@@ -616,6 +616,11 @@
     fase6('D5. cenário por código (sem as imagens das regiões)', { camadas: sem(['ambiente']), regiao: 'nenhuma' }),
     fase6('D6. sem cenário', { camadas: sem(['cenario', 'ambiente']) })
   ];
+  // as subidas (a pista anda 50 m/s: 17 s = 850 m, um pouco antes da 1ª subida, que vai até 1.250 m)
+  var SUBIDAS = [
+    fase6('S1. subida com o relevo (como o jogo)', { camadas: TUDO, t0: 17, s: 20 }),
+    fase6('S2. subida sem o relevo (pista plana)', { camadas: TUDO, t0: 17, s: 20, semRelevo: true })
+  ];
   var RODADA = null;
   function aplicar(c) {
     if (c.n) CFG.n = c.n;
@@ -623,6 +628,7 @@
     if (c.clima) CFG.clima = c.clima;
     if (c.limite) CFG.limite = c.limite;
     if (c.regiao) CFG.regiao = c.regiao;
+    CFG.semRelevo = !!c.semRelevo;
     if (window.Ambiente) window.Ambiente.config({ regiaoSem: c.regiaoSem || {} });
     if (c.camadas) CAMADAS.forEach(function (k) { if (k in c.camadas) CFG.camadas[k] = !!c.camadas[k]; });
     montar(); reinicia(); marcaBotoes();
@@ -638,7 +644,8 @@
           i++;
           if (i >= fases.length) { GRAV = null; RODADA = null; return ok(res); }
           var f = fases[i];
-          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao, regiaoSem: f.regiaoSem });
+          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao, regiaoSem: f.regiaoSem, semRelevo: f.semRelevo });
+          if (f.t0) R.T = f.t0;   // começa noutro ponto da pista (as subidas ficam em 1.000–1.250 m e 2.350–2.600 m)
           GRAV = novaGravacao(f.nome); GRAV.res = L.W + '×' + L.H + ' (S' + L.S + ')';
           zeraAmbiente();
           var restante = f.s * 1000 * fator + 500;
@@ -730,7 +737,7 @@
   var travado = false;
   function travar(v) {
     travado = v;
-    document.querySelectorAll('.controles button, #b-bateria, #b-livre, #b-etapa6, #b-diag').forEach(function (b) { b.disabled = v; });
+    document.querySelectorAll('.controles button, #b-bateria, #b-livre, #b-etapa6, #b-diag, #b-subidas').forEach(function (b) { b.disabled = v; });
   }
   function marcaBotoes() {
     document.querySelectorAll('.seg').forEach(function (g) {
@@ -755,6 +762,7 @@
   el('b-bateria').addEventListener('click', function () { rodar(FASES, 1, 'Bateria'); });
   el('b-etapa6').addEventListener('click', function () { rodar([ETAPA6], 1, 'Etapa 6'); });
   el('b-diag').addEventListener('click', function () { rodar(DIAG, 1, 'Diagnóstico'); });
+  el('b-subidas').addEventListener('click', function () { rodar(SUBIDAS, 1, 'Subidas'); });
   el('b-livre').addEventListener('click', function () {
     rodar([{ nome: 'Rodada livre: ' + CFG.n + ' cavalos, escala ' + CFG.escala + ', limite ' + CFG.limite + ', camadas ' + CAMADAS.filter(function (c) { return CFG.camadas[c]; }).join('+'), s: 60 }], 1, 'Rodada livre');
   });
@@ -800,7 +808,7 @@
     api.pronto = true;
   }
   var api = {
-    pronto: false, cfg: CFG, aplicar: aplicar, fases: FASES, etapa6: ETAPA6, diag: DIAG,
+    pronto: false, cfg: CFG, aplicar: aplicar, fases: FASES, etapa6: ETAPA6, diag: DIAG, subidas: SUBIDAS,
     bateria: function (o) { o = o || {}; return rodar(o.fases || FASES, o.fator || 1, o.titulo || 'Bateria'); },
     ultimo: function () { return ULTIMO; }, texto: function () { return ULTIMO ? textoResumo(ULTIMO) : ''; },
     moldes: function () { return SP.moldsReady; }
