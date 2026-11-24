@@ -26,9 +26,11 @@ tail -n 1 "$SHOTS_DIR/unit.txt"
 node prototype/tools/afk-test.js > "$SHOTS_DIR/afk.txt" || { cat "$SHOTS_DIR/afk.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/afk.txt"
 
-step "3/8 Efeitos da corrida"
+step "3/8 Efeitos da corrida e desenho do mapa"
 node prototype/tools/fx-test.js > "$SHOTS_DIR/fx.txt" || { cat "$SHOTS_DIR/fx.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/fx.txt"
+node prototype/tools/mapa-test.js > "$SHOTS_DIR/mapa.txt" || { cat "$SHOTS_DIR/mapa.txt"; exit 1; }
+tail -n 1 "$SHOTS_DIR/mapa.txt"
 
 step "4/8 dist e wiki em dia com o src"
 if ! git diff --quiet -- prototype/dist docs/wiki.md || [ -n "$(git ls-files --others --exclude-standard -- prototype/dist docs/wiki.md)" ]; then
