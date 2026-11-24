@@ -838,9 +838,14 @@
       if (c && vivo && c.__vivo && c.__qt === qt) return c;
       if (!c) { c = tela(64, 64); cavalos.set(chave, c); }
       var q2 = c.getContext('2d'); q2.imageSmoothingEnabled = false;
-      var o = {}; for (var kk in op) if (kk !== 'chave') o[kk] = op[kk];
-      o.scale = 1; o.idle = true; o.t = vivo ? t : 0.5; o.shadow = false; o.vista = vista; o.quadro = { topo: -1e6, base: 60, grade: 1, centro: 32 };
-      if (vivo) o.anima = 'cena';
+      // as opções do drawHorse montadas uma vez por cavalo e modo (o Sprites guarda o que depende só delas); só o t muda
+      var o = vivo ? c.__oVivo : c.__oParado;
+      if (!o) {
+        o = {}; for (var kk in op) if (kk !== 'chave') o[kk] = op[kk];
+        o.scale = 1; o.idle = true; o.shadow = false; o.vista = vista; o.quadro = { topo: -1e6, base: 60, grade: 1, centro: 32 };
+        if (vivo) { o.anima = 'cena'; c.__oVivo = o; } else c.__oParado = o;
+      }
+      o.t = vivo ? t : 0.5;
       c.__vivo = vivo; c.__qt = qt;
       if (vivo && SP && SP.quadroIdle) {   // o idle não mudou: o cavalo já desenhado serve
         var qi = SP.quadroIdle(o);

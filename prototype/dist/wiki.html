@@ -2248,9 +2248,38 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     }
     return chave;
   };
+  // só a chave do quadro t, sem montar o mapa (a mesma do monta; o moldes-test confere): quem já tem o quadro pintado
+  // dessa chave não precisa montar nada. Tira da lista os eventos que acabaram, como o monta.
+  IdleMolde.prototype.chave = function (t) {
+    if (this.gesto) {
+      var q = Math.min(this.gesto.q.length - 1, Math.floor((t - this.gesto.t0) * IDLE_GESTO_QPS)), Q = this.gesto.q[q];
+      if (Q && Q.length === this.mapa.length) return 'g' + this.gesto.nome + q;
+      return null;   // o gesto acaba no monta
+    }
+    var fr = mod(t + this.faseR, this.respira) / this.respira, chave = fr > 0.1 && fr < 0.55 ? 'r' : '-', k;
+    var cauda = 0, orelha = 0, olho = 0, cabeca = 0;
+    for (k = this.eventos.length - 1; k >= 0; k--) {
+      var e = this.eventos[k], u = (t - e.t0) / IDLE_EVENTOS[e.nome];
+      if (u < 0) continue;
+      if (u >= 1) { this.eventos.splice(k, 1); continue; }
+      if (e.nome === 'piscar') olho = u < 0.25 || u > 0.75 ? 1 : 2;
+      else if (e.nome === 'cauda') cauda = Math.round(e.lado * e.forte * 3 * Math.sin(u * Math.PI * 2) * (1 - u * 0.4));
+      else if (e.nome === 'orelha') orelha = u < 0.75 ? 1 : 0;
+      else if (e.nome === 'cabeca') cabeca = u < 0.15 || u > 0.85 ? 0 : u < 0.3 || u > 0.7 ? 1 : 2;
+      else if (e.nome === 'sacode') { cabeca = Math.floor(u * 6) % 2; orelha = u > 0.2 && u < 0.8 ? 1 : orelha; }
+    }
+    var vc = this.pode('cauda') ? Math.round(Math.max(0, ventoCena(t) - 0.55) * 2.2 * Math.max(0, Math.sin(t * 3.1 + this.faseR))) : 0;
+    chave += 'c' + (cauda || -vc);
+    if (cabeca && this.cabeca) chave += 'h' + cabeca;
+    if (orelha) chave += 'o';
+    if (olho) chave += 'p' + olho;
+    if (this.pode('crina') && ventoCena(t) > 0.5) chave += 'v' + Math.floor(t * 6) % 5;
+    return chave;
+  };
   var DOIS_PI = Math.PI * 2;
   // um animador por cavalo e estado (a semente das marcas, a pose e o molde); quem some da tela sai no limpar do cache
   var idleRegistro = new Map();
+  var ccCena = new WeakMap();   // opções da cena -> chave das cores (moldeIdle)
   function moldeIdle(nome, estado, o) {
     var M = moldes[nome], sem = (o.semente >>> 0) || 0, k = nome + '|' + estado + '|' + sem + '|' + (o.anima === 'cena' ? 'c' : '');
     var r = idleRegistro.get(k);
@@ -2274,7 +2303,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     var t = Number(o.t) || 0;
     // sem marcas nas vistas de frente e de costas (decisão do Vinicius para a v1 da cena de desafio nova)
     var oP = IDLE_GESTOS_ESTADO[estado] ? Object.assign({}, o, { marcas: null }) : o;
-    var cc = '#' + chaveCores(o), vista = estado === 'frente' || estado === 'costas';
+    // a cena guarda as mesmas opções do cavalo (só o t muda): a chave das cores sai uma vez por objeto de opções
+    var cc = o.anima === 'cena' ? ccCena.get(o) : null, vista = estado === 'frente' || estado === 'costas';
+    if (cc == null) { cc = '#' + chaveCores(o); if (o.anima === 'cena') ccCena.set(o, cc); }
     if (o.anima === 'cena' && !r.aquecido) {
       // as cenas (poucos cavalos): os estados dos próximos segundos pintados já na montagem, por um animador à parte com a
       // mesma semente (os eventos saem da RNG cosmética e do t: os mesmos do animador de verdade) — sem isso, o 1º ciclo
@@ -2288,9 +2319,13 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
       }
     }
     r.anim.agenda(t);
-    var chave = r.anim.monta(t) + cc;
+    // a chave primeiro (barata); o mapa só é montado para um quadro que ainda não foi pintado
+    var ch = r.anim.chave(t), chave = ch == null ? null : ch + cc;
+    if (chave === r.chave && r.canvas) return r.canvas;
+    var pronto = chave != null ? r.pintados.get(chave) : null;
+    if (!pronto) chave = r.anim.monta(t) + cc;
     if (chave !== r.chave || !r.canvas) {
-      r.chave = chave; r.canvas = r.pintados.get(chave);
+      r.chave = chave; r.canvas = pronto || r.pintados.get(chave);
       if (!r.canvas) {
         r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP, vista);
         if (r.pintados.size >= 96) r.pintados.delete(r.pintados.keys().next().value);   // sai o mais antigo

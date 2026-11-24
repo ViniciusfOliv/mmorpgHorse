@@ -3100,6 +3100,18 @@ console.log('\n## Idle dos moldes no jogo (Sprites.IdleMolde; animação ambient
       assert.notDeepStrictEqual(roda(M, est, 78).ch, ch, `${est}: outra semente, outra sequência`);
     }
   });
+  test('IdleMolde.chave(t) dá a mesma chave do monta(t) (a cena só monta o mapa de um quadro ainda não pintado), nos 12 moldes e com gesto', () => {
+    for (const c of CH) for (const est of ['retrato', 'parado']) {
+      const M = molde(c), gestos = est === 'retrato' ? { comer: Array.from({ length: 9 }, () => M.retrato.slice()) } : null
+      const a = new SP.IdleMolde(M, est, 41, gestos), b = new SP.IdleMolde(M, est, 41, gestos)
+      for (let t = 0; t < 60; t += 1 / 14) {
+        a.agenda(t); b.agenda(t)
+        const k = a.chave(t), m = b.monta(t)
+        if (k != null) assert.strictEqual(k, m, `${c} ${est} t=${t.toFixed(2)}`)
+        a.monta(t)   // o a segue o mesmo caminho (o gesto que acaba no monta)
+      }
+    }
+  });
   test('vistas de frente e de costas (âncoras explícitas da frente 2): só os gestos do estado; respiração sobe o topo; cauda só nas costas', () => {
     // um corpo 20×12 sintético com orelhas, crina e cauda marcadas
     const W = 30, H = 30, idx = new Uint8Array(W * H);
