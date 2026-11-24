@@ -224,7 +224,13 @@ folhas), tique de 8 q/s, desenho direto no buffer do mapa; custo 0,105/0,113/0,2
 no `fx-test` (determinismo, paleta, nada nasce no caminho). Vitrine: https://claude.ai/artifact/AAxGUNY1Fa8SjoRNTrfoRW
 (`prototype/tools/mapas-vivos-vitrine.mjs`). `check.sh` completo OK (168 de efeitos, 82 blocos de interface); DEV
 versão 7. A frente 2 já passa `{ imagem, caminho: MP.mascaraCaminho() }` no `trilhaObj` (entra no `claude/mapa-ginasios`
-depois do bloco B); no jogo, os mapas só mexem quando os ramos se juntarem.
+depois do bloco B). **Junção com o mapa dos ginásios (2026-11-24, pedido da coordenação):** `claude/mapa-ginasios`
+(blocos A e B, 4a7f485) juntado neste ramo (19417636), sem rebase; conflitos resolvidos preservando os dois lados (a cena do
+desafio nova do `mapa.js` fica, com a luz de cena e o clima dos cavalos do `pintaMolde`; a escada de clima da corrida
+volta; o `?quadro=` congela o laço vivo novo). O fundo das 3 trilhas anima no jogo; o idle vivo vale nas vistas de frente
+e de costas (`drawHorseMolde`; o `mapa.js` redesenha o cavalo da cena pelo idle, sem o balanço da figura inteira). A
+arena antiga da Fornalha saiu do motor (`CENAS.fornalha`, a entrada `ginasios/fogo` do manifesto e da folha das máscaras;
+a amostra antiga fica sem ela). Nada na `main`: a coordenação leva depois do OK do Vinicius.
 Quando os ramos se juntarem: 'frente'/'costas' na condição do `vivo` do `drawHorseMolde`. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 

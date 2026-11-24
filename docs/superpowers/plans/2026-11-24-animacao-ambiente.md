@@ -274,7 +274,7 @@ seu teste e o seu commit. O `balance.js` não muda.
 - [x] Teto de 0,35 ms: água 0,105, fogo 0,113, grama 0,286 ms por quadro a 60 fps (tique de 8 q/s, desenho direto no
   buffer de quem chama).
 - [ ] Capturas, DEV e aprovação. _Vitrine dos 3 mapas: https://claude.ai/artifact/AAxGUNY1Fa8SjoRNTrfoRW
-  (`prototype/tools/mapas-vivos-vitrine.mjs`); no jogo, só quando os ramos se juntarem._
+  (`prototype/tools/mapas-vivos-vitrine.mjs`). Ramos juntados em 2026-11-24 (19417636): o fundo anima no jogo._
 
 ## Etapa 5 — Regiões na corrida
 
