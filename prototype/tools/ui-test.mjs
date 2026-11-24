@@ -13886,7 +13886,7 @@ try {
   // O artefato do claude.ai não repassa ?dev=1: o jogo-dev.html liga o modo DEV sozinho (window.__GALOPE_DEV), com o
   // save de teste e um aviso no lugar de "Voltar ao jogo real". O jogo.html sem query não tem nada do DEV.
   if (quer('fluxo-build-teste')) {
-    const jd = await newPage(browser, { width: 390, height: 844 }, 'jogo-dev', { pagina: 'jogo-dev.html' })
+    const jd = await newPage(browser, { width: 390, height: 844 }, 'jogo-dev', { pagina: 'jogo-dev.html', vivo: true })   // (vivo: sem query nenhuma, nem o quadro das capturas)
     try {
       await jd.waitForSelector('#t-estabulo', { timeout: 5000 })   // perfil DEV novo: Brasa, sem a escolha inicial
       if (((await jd.locator('.dev-faixa').textContent()) || '').trim() !== 'MODO DEV — save de teste') problems.push('jogo-dev: sem a faixa "MODO DEV — save de teste"')
@@ -13900,7 +13900,7 @@ try {
       problems.push('jogo-dev: ' + e.message)
     }
     await jd.context().close()
-    const jr = await newPage(browser, { width: 390, height: 844 }, 'jogo', { pagina: 'jogo.html' })
+    const jr = await newPage(browser, { width: 390, height: 844 }, 'jogo', { pagina: 'jogo.html', vivo: true })
     try {
       await jr.waitForSelector('.inicial', { timeout: 5000 })
       if ((await jr.locator('.dev-painel, .dev-faixa, .dev-botao').count()) !== 0) problems.push('jogo: modo DEV no jogo.html sem query')
