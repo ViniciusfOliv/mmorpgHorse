@@ -6060,9 +6060,9 @@ try {
       // contato com o chão (Regras 7 e 12): em ~2 s de corrida, a cada quadro, o contato de cada raia vem logo depois do
       // cavalo dela (atrás do da raia de baixo); o casco do jogador fica coberto por um torrão em parte dos quadros, nunca
       // em todos; e a patinação do casco de apoio (quanto ele anda na tela além do chão, por troca de quadro do molde),
-      // medida na cadência natural e na "galope casado" do DEV, que tem de ficar em até 1,5 px de arte em média
+      // medida nas 3 cadências do DEV: a casada tem de ficar em até 1,5 px de arte em média, e a do meio (o padrão) abaixo da natural
       const contato = async (casada) => pg.evaluate(async (cas) => {
-        window.__galope.ui.dev.cadenciaCasada = cas
+        window.__galope.ui.dev.cadencia = cas
         const FX = window.RaceFx, amostras = [], ordemRuim = []
         await new Promise((ok) => {
           const t0 = performance.now()
@@ -6091,10 +6091,12 @@ try {
         const media = slips.length ? slips.reduce((u, v) => u + v, 0) / slips.length : null
         return { quadros: amostras.length, cobertos: cob, ordemRuim: ordemRuim.slice(0, 2), nOrdemRuim: ordemRuim.length, trocas: trocas.length, slips: slips.length, patinaMedia: media }
       }, casada)
-      const natural = await contato(false), casada = await contato(true)
-      notes[label + '-contato'] = { natural, casada }
+      const natural = await contato('natural'), meio = await contato('meio'), casada = await contato('casada')
+      notes[label + '-contato'] = { natural, meio, casada }
       if (natural.nOrdemRuim) problems.push(`[${label}] contato da raia fora de ordem (cavalo → contato, raia a raia): ${natural.ordemRuim.join(' | ')}`)
       if (!natural.quadros || natural.cobertos === 0 || natural.cobertos === natural.quadros) problems.push(`[${label}] casco do jogador coberto pelo contato em ${natural.cobertos} de ${natural.quadros} quadros (esperado em parte, nunca em todos)`)
+      // o meio-termo (o padrão do jogo) patina menos que a natural
+      if (meio.slips >= 3 && natural.slips >= 3 && !(Math.abs(meio.patinaMedia) < Math.abs(natural.patinaMedia))) problems.push(`[${label}] cadência do meio-termo patina ${meio.patinaMedia} px, não menos que a natural (${natural.patinaMedia})`)
       if (casada.slips < 3 || Math.abs(casada.patinaMedia) > 1.5) problems.push(`[${label}] galope casado: o casco de apoio patina ${casada.patinaMedia} px de arte por quadro do molde em média (${casada.slips} medidas; esperado até 1,5)`)
       await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
       await pg.waitForSelector('#t-resultado')
