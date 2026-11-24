@@ -3,6 +3,15 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Mapa dos ginásios, amostra v1 (frente 2)
+- **Amostra por código primeiro, com a arte já paga nas trilhas** — o mapa-múndi não existia; desenhado por código ele
+  mostra as interações (névoa, transições, trilha) sem gastar, e as máscaras de água e lava saem exatas para o ciclo de
+  cor. A arte final do mapa-múndi pode vir de um piloto pago, só com a confirmação do Vinicius.
+- **Névoa só visual** — as três trilhas continuam abertas desde o começo (spec dos ginásios); a névoa afina a cada etapa
+  vencida e some com a insígnia.
+- **Cavalo ao lado do tablado, virado para o oponente** — 1:1 ele tem ~60 px; na pista, cobria o oponente.
+- **Transição em escala inteira (1×→2×→3×) + íris na cor do elemento**, no pixel mostrado — guia §2 (sem zoom borrado).
+
 ## 2026-11-24 — Como usar o PixelLab (pergunta do Vinicius)
 - **Produção pela API v2 com scripts versionados** (dry-run, `--gerar`, `--teto`, `--reprocessar`), com a chave
   injetada pelo proxy da sessão — não pelo MCP: cada geração fica reprodutível, com custo controlado e registrada em

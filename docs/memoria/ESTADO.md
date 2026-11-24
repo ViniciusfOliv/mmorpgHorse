@@ -14,6 +14,20 @@ aprovados pelo Vinicius; a implementação parte da `main` (que já tem as skill
 ficou só como ideia.
 
 
+**Mapa dos ginásios, frente 2 das visuais (2026-11-24, ramo `claude/mapa-ginasios`, fora da `main`): amostra v1
+publicada** em https://claude.ai/artifact/XkbbtUoHuAxcYFQ45thNTF (`prototype/arte/mapa-amostra.html`, gerada por
+`node prototype/tools/mapa-amostra-build.mjs` a partir de `prototype/arte/mapa.html` + `mapa.js`; não toca em `src/` nem
+`dist/`). Mostra: o mapa-múndi em tela única (ilha 256 × 384 por código: Fornalha no vulcão, Remanso no lago, Capoeira na
+mata), vivo (mar, rio e lava em ciclo de cor, copas no vento, fumaça e bombas do vulcão, nuvens com sombra, pássaros),
+névoa sobre o que não foi conquistado (só visual), medalhão do líder (cabeça do corpo 1:1), insígnia e "!" da revanche;
+tocar num ginásio → aproximação 1×→2×→3× e íris na cor do elemento → a trilha (mapa de hoje, com ciclo de cor) com a pista
+de terra que se pinta tile a tile ao vencer (ponte de tábuas sobre a água no Remanso), os estados das paradas e o cavalo
+ativo (molde do jogo) trotando até o próximo oponente; e a volta. Lista de botões, teclado e leitor de tela; medidor de
+custo (desenho do quadro ~0,2–0,4 ms no mundo e ~0,25–0,6 na trilha no contêiner). Ao lado, as capturas de hoje. Custo
+zero. **Próximo:** retorno do Vinicius; perguntado se quer um piloto pago (PixelLab) para a arte final do mapa-múndi.
+Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
+o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
+
 _Atualizado em 2026-11-23 (ajustes de interface, lote 1)._
 
 **Em andamento (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE**, no branch `claude/afk` (chat
