@@ -1679,9 +1679,9 @@
   IdleMolde.prototype.monta = function (t) {
     var m = this.mapa, I = this.idx, W = this.w, k, x, y;
     if (this.gesto) {
-      var q = Math.min(this.gesto.q.length - 1, Math.floor((t - this.gesto.t0) * IDLE_GESTO_QPS));
-      m.set(this.gesto.q[q]);
-      return 'g' + this.gesto.nome + q;
+      var q = Math.min(this.gesto.q.length - 1, Math.floor((t - this.gesto.t0) * IDLE_GESTO_QPS)), Q = this.gesto.q[q];
+      if (Q && Q.length === m.length) { m.set(Q); return 'g' + this.gesto.nome + q; }
+      this.gesto = null;   // quadro que não chegou: o gesto acaba e volta ao idle
     }
     m.set(I);
     var chave = '';
@@ -1757,7 +1757,11 @@
       var gestos = null;
       if (o.anima === 'cena' && M.gestos) {
         gestos = {};
-        (estado === 'retrato' ? ['comer', 'cavar'] : ['cavarJ']).forEach(function (g) { if (M.gestos[g] && M.gestos[g].length) gestos[g] = M.gestos[g]; });
+        // só o gesto com todos os quadros decodificados (a lista pode ter furo enquanto decodifica ou se um quadro falhou)
+        (estado === 'retrato' ? ['comer', 'cavar'] : ['cavarJ']).forEach(function (g) {
+          var q = M.gestos[g];
+          if (q && q.length && q.every(function (x) { return x && x.length === M.w * M.h; })) gestos[g] = q;
+        });
         if (!Object.keys(gestos).length) gestos = null;
       }
       r = { anim: new IdleMolde(M, estado, sem * 2654435761 + estado.length, gestos), chave: '', canvas: null };

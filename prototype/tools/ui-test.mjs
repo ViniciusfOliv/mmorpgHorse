@@ -123,7 +123,7 @@ async function newPage(browser, viewport, label, extra = {}) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, ...ctxExtra })
   const page = await ctx.newPage()
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
-  page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}`))
+  page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}` + (process.env.UI_PILHA ? ' ' + e.stack : '')))
   for (const padrao of bloquear) await ctx.route(padrao, (r) => r.abort())   // sem rede para esses endereços
   if (init) await page.addInitScript(init)
   if (relogio) await page.clock.install({ time: relogio })
