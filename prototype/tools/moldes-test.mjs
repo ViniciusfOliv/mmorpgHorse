@@ -3098,6 +3098,27 @@ console.log('\n## Idle dos moldes no jogo (Sprites.IdleMolde; animação ambient
       assert.notDeepStrictEqual(roda(M, est, 78).ch, ch, `${est}: outra semente, outra sequência`);
     }
   });
+  test('vistas de frente e de costas (âncoras explícitas da frente 2): só os gestos do estado; respiração sobe o topo; cauda só nas costas', () => {
+    // um corpo 20×12 sintético com orelhas, crina e cauda marcadas
+    const W = 30, H = 30, idx = new Uint8Array(W * H);
+    for (let y = 10; y < 22; y++) for (let x = 5; x < 25; x++) idx[y * W + x] = y === 10 || x === 5 || x === 24 ? 1 : 2;
+    for (let y = 6; y < 10; y++) for (let x = 18; x < 22; x++) idx[y * W + x] = 1;   // orelhas
+    for (let y = 12; y < 22; y++) for (let x = 2; x < 5; x++) idx[y * W + x] = 4;     // cauda
+    const anc = { footY: 21, bbox: [2, 6, 25, 22], olho: [], orelhas: [18, 6, 22, 9], crina: [10, 10, 16, 12], respira: [6, 24, 12] };
+    const M = { w: W, h: H, frente: idx, costas: idx, ancoras: { frente: anc, costas: Object.assign({}, anc, { cauda: [2, 12, 5, 22] }) } };
+    for (const est of ['frente', 'costas']) {
+      const a = new SP.IdleMolde(M, est, 3), ch = []; let subiu = false, mexeuCauda = false;
+      for (let t = 0; t < 60; t += 0.1) {
+        a.agenda(t); const k = a.monta(t); ch.push(k);
+        if (/^r/.test(k) && a.mapa[9 * W + 12]) subiu = true;   // inspira: a linha de cima (10) sobe para a 9
+        if (/c-?[1-9]/.test(k)) mexeuCauda = true;
+      }
+      const tudo = ch.join('');
+      assert.ok(!/h[12]/.test(tudo), `${est}: sem aceno de cabeça`); assert.ok(!/p[12]/.test(tudo), `${est}: sem piscar (olho vazio)`);
+      assert.ok(subiu, `${est}: a respiração sobe o topo do corpo`); assert.ok(/o/.test(tudo), `${est}: a orelha gira`);
+      assert.strictEqual(mexeuCauda, est === 'costas', `${est}: cauda ${est === 'costas' ? 'abana' : 'parada'}`);
+    }
+  });
   test('gesto do PixelLab: entra entre 6 e 18 s, toca os quadros a 6 q/s e volta ao idle; nada de gesto de código durante ele', () => {
     const M = molde('padrao-lisa'), q = Array.from({ length: 9 }, () => M.retrato.slice());
     const { ch } = roda(M, 'retrato', 5, { comer: q }, 60);

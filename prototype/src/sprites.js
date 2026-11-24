@@ -1575,9 +1575,18 @@
   }
   var IDLE_EVENTOS = { piscar: 0.22, cauda: 0.9, orelha: 0.7, cabeca: 1.3, sacode: 0.75 };
   var IDLE_GESTO_QPS = 6;   // os quadros do PixelLab, na base comum de 6/12 q/s
+  // Vistas de frente e de costas (a cena de desafio nova, frente 2): as âncoras trazem as peças explícitas — olho [x, y…],
+  // orelhas e crina [x0, y0, x1, y1), respira [x0, x1, y] (a linha de cima do corpo sobe 1 px), cauda [x0, y0, x1, y1)
+  // nas costas — e os gestos daquele estado (IDLE_GESTOS_ESTADO). De lado, as peças saem da busca de perfil.
+  var IDLE_GESTOS_ESTADO = {
+    frente: ['respira', 'piscar', 'orelha', 'crina'],
+    costas: ['respira', 'cauda', 'orelha', 'crina']
+  };
   function IdleMolde(M, estado, semente, gestos) {
     var idx = M[estado], a = M.ancoras[estado];
     this.M = M; this.estado = estado; this.idx = idx; this.w = M.w; this.h = M.h; this.anc = a;
+    var lista = IDLE_GESTOS_ESTADO[estado];
+    this.pode = function (g) { return !lista || lista.indexOf(g) >= 0; };
     this.rng = rngCosmetica(semente);
     this.respira = 3.2 + this.rng() * 1.2; this.faseR = this.rng() * 6;
     this.eventos = []; this.proximo = 1 + this.rng() * 3;
@@ -1587,6 +1596,7 @@
   }
   IdleMolde.prototype.em = function (x, y) { return x < 0 || y < 0 || x >= this.w || y >= this.h ? 0 : this.idx[y * this.w + x]; };
   IdleMolde.prototype.pecas = function () {
+    if (Array.isArray(this.anc.respira)) return this.pecasExplicitas();
     var I = this.idx, a = this.anc, W = this.w, nx = a.nose[0], ny = a.nose[1], rx = a.rear[0], ry = a.rear[1], x, y, v;
     var topo = this.h; for (y = 0; y < this.h && topo === this.h; y++) for (x = nx - 12; x <= nx; x++) if (this.em(x, y)) { topo = y; break; }
     this.orelhas = [];
@@ -1624,6 +1634,28 @@
       break;
     }
   };
+  // as peças das âncoras explícitas (frente e costas)
+  IdleMolde.prototype.pecasExplicitas = function () {
+    var a = this.anc, W = this.w, H = this.h, I = this.idx, self = this, x, y, v;
+    function caixa(c, fn) { if (!Array.isArray(c)) return; for (var yy = Math.max(0, c[1]); yy < Math.min(H, c[3]); yy++) for (var xx = Math.max(0, c[0]); xx < Math.min(W, c[2]); xx++) fn(xx, yy); }
+    this.orelhas = [];
+    caixa(a.orelhas, function (xx, yy) { v = self.em(xx, yy); if (v) self.orelhas.push(xx, yy, v); });
+    this.olho = (a.olho || []).slice();
+    this.olhoBaixo = 0; for (var k = 1; k < this.olho.length; k += 2) this.olhoBaixo = Math.max(this.olhoBaixo, this.olho[k]);
+    // cauda (costas): o contorno, a crina e o detalhe da caixa (nos moldes a cauda pode ser 4, 5 ou 6)
+    this.cauda = []; var c0 = H, c1 = 0;
+    caixa(a.cauda, function (xx, yy) { v = I[yy * W + xx]; if (v === 1 || v === 4 || v === 5 || v === 6) { self.cauda.push(xx, yy, v); c0 = Math.min(c0, yy); c1 = Math.max(c1, yy); } });
+    this.caudaY0 = c0; this.caudaY1 = c1;
+    // respiração: em cada coluna da linha, o topo do corpo (até a linha y) sobe 1 px
+    this.respiraCols = [];
+    var R = a.respira;
+    for (x = R[0]; x < R[1]; x++) for (y = 0; y <= R[2]; y++) if (this.em(x, y)) { this.respiraCols.push(x, y); break; }
+    this.barriga = [];
+    // crina: a borda de cima de cada coluna da caixa
+    this.crina = [];
+    if (Array.isArray(a.crina)) for (x = a.crina[0]; x < a.crina[2]; x++) for (y = a.crina[1]; y < a.crina[3]; y++) if (this.em(x, y)) { this.crina.push(x, y); break; }
+    this.cabeca = null;
+  };
   IdleMolde.prototype.dispara = function (nome, t) { this.eventos.push({ nome: nome, t0: t, lado: this.rng() < 0.5 ? -1 : 1, forte: (0.6 + this.rng() * 0.4) * 1.3 }); };
   // a agenda da versão "mais movimento" (a escolhida): um gesto a cada 1–3,5 s, às vezes dois juntos; os do PixelLab
   // (quando há) a cada 15–30 s, um de cada vez, e os de código esperam o fim dele
@@ -1637,10 +1669,11 @@
     }
     if (this.gesto || t < this.proximo) return;
     var r = this.rng(), nome = r < 0.26 ? 'piscar' : r < 0.5 ? 'cauda' : r < 0.66 ? 'orelha' : r < 0.84 ? 'cabeca' : 'sacode';
-    this.dispara(nome, t);
+    if (nome === 'piscar' && !this.olho.length) nome = 'orelha';   // sem olho na âncora, sem piscar
+    if (this.pode(nome)) this.dispara(nome, t);
     if (nome === 'piscar' && this.rng() < 0.3) this.dispara('piscar', t + 0.32);
     this.proximo = t + 1 + this.rng() * 2.5;
-    if (nome !== 'cauda' && this.rng() < 0.35) this.dispara('cauda', t + 0.2 + this.rng() * 0.4);
+    if (nome !== 'cauda' && this.rng() < 0.35 && this.pode('cauda')) this.dispara('cauda', t + 0.2 + this.rng() * 0.4);
   };
   // o mapa do quadro t e a chave do que mudou (a pintura só refaz quando a chave muda)
   IdleMolde.prototype.monta = function (t) {
@@ -1654,6 +1687,10 @@
     var chave = '';
     var fr = mod(t + this.faseR, this.respira) / this.respira, inspira = fr > 0.1 && fr < 0.55;
     if (inspira) for (k = 0; k < this.barriga.length; k += 2) { x = this.barriga[k]; y = this.barriga[k + 1]; m[(y + 1) * W + x] = 1; m[y * W + x] = 3; }
+    if (inspira && this.respiraCols) for (k = 0; k < this.respiraCols.length; k += 2) {   // frente e costas: o topo sobe 1 px
+      x = this.respiraCols[k]; y = this.respiraCols[k + 1];
+      if (y > 0) { m[(y - 1) * W + x] = I[y * W + x]; m[y * W + x] = I[(y + 1) * W + x] || I[y * W + x]; }
+    }
     chave += inspira ? 'r' : '-';
     var cauda = 0, orelha = 0, olho = 0, cabeca = 0;
     for (k = this.eventos.length - 1; k >= 0; k--) {
@@ -1666,7 +1703,7 @@
       else if (e.nome === 'cabeca') cabeca = u < 0.15 || u > 0.85 ? 0 : u < 0.3 || u > 0.7 ? 1 : 2;
       else if (e.nome === 'sacode') { cabeca = Math.floor(u * 6) % 2; orelha = u > 0.2 && u < 0.8 ? 1 : orelha; }
     }
-    var vc = Math.round(Math.max(0, ventoCena(t) - 0.55) * 2.2 * Math.max(0, Math.sin(t * 3.1 + this.faseR)));
+    var vc = this.pode('cauda') ? Math.round(Math.max(0, ventoCena(t) - 0.55) * 2.2 * Math.max(0, Math.sin(t * 3.1 + this.faseR))) : 0;
     var dc = cauda || -vc;
     if (dc) {
       for (k = 0; k < this.cauda.length; k += 3) { x = this.cauda[k]; y = this.cauda[k + 1]; if (m[y * W + x] === this.cauda[k + 2]) m[y * W + x] = 0; }
@@ -1678,7 +1715,7 @@
       }
     }
     chave += 'c' + dc;
-    if (cabeca) {
+    if (cabeca && this.cabeca) {
       var cb = this.cabeca;
       for (y = cb.y1; y >= 0; y--) for (x = cb.x0; x < W; x++) {
         var dy2 = x < cb.x0 + 3 ? Math.min(1, cabeca) : cabeca, sy = y - dy2;
@@ -1700,10 +1737,10 @@
       chave += 'p' + olho;
     }
     // crina do pescoço no vento: 5 fases que se repetem (a chave fica num conjunto pequeno)
-    if (ventoCena(t) > 0.5) {
+    if (this.pode('crina') && ventoCena(t) > 0.5) {
       var fq = Math.floor(t * 6) % 5;
       for (k = 0; k < this.crina.length; k += 2) {
-        x = this.crina[k]; y = this.crina[k + 1] + (x >= this.cabeca.x0 ? cabeca : 0);
+        x = this.crina[k]; y = this.crina[k + 1] + (this.cabeca && x >= this.cabeca.x0 ? cabeca : 0);
         if (Math.sin(x * 0.9 + fq * DOIS_PI / 5) > 0.55 && y > 0 && !m[(y - 1) * W + x]) { m[(y - 1) * W + x] = 1; m[y * W + x] = 4; }
       }
       chave += 'v' + fq;
@@ -1730,7 +1767,9 @@
     var t = Number(o.t) || 0;
     r.anim.agenda(t);
     var chave = r.anim.monta(t) + '#' + chaveCores(o);
-    if (chave !== r.chave || !r.canvas) { r.chave = chave; r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], o); }
+    // sem marcas nas vistas de frente e de costas (decisão do Vinicius para a v1 da cena de desafio nova)
+    var oP = IDLE_GESTOS_ESTADO[estado] ? Object.assign({}, o, { marcas: null }) : o;
+    if (chave !== r.chave || !r.canvas) { r.chave = chave; r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP); }
     return r.canvas;
   }
 
