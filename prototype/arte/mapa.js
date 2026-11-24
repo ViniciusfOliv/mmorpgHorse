@@ -1372,7 +1372,7 @@
   // da borda de baixo; a arena viva ao fundo. Integração pelo guia (docs/arte/integracao.md): base de chão na rampa da
   // arena com face e contato, sombras de silhueta deslocadas (+3, +2) no chão escurecido, luz da esquerda, tudo 1:1.
   var DW = 256, DH = 160, dArte = tela(DW, DH), dg = dArte.getContext('2d'), dCv = null, dCtx = null, dS = 2;
-  var desafio = { costas: 0, frente: 'molde', arena: 'a1', base: null, esc: null, quentes: [], fundo: null, t0: 0 };
+  var desafio = { costas: 0, frente: 'molde', arena: 'a0', rar: 'raro', base: null, esc: null, quentes: [], fundo: null, t0: 0 };
   var dSomC = tela(100, 100), dSomG = dSomC.getContext('2d');
   function dR(x, y, w, h, c) { dg.fillStyle = c; dg.fillRect(x | 0, y | 0, w, h); }
   function preparaDesafio() {
@@ -1441,9 +1441,13 @@
     return (moldeEsqC = c);
   }
   function pe(im) { if (im.__pe != null) return im.__pe; var b = Buf.de(im), p0 = 0, x0 = im.width, x1 = 0; for (var p = 0; p < b.d.length; p++) if (b.d[p]) { p0 = (p / b.w) | 0; var x = p % b.w; x0 = Math.min(x0, x); x1 = Math.max(x1, x); } im.__pe = p0; im.__cx = (x0 + x1) / 2; return p0; }
-  function placa(x, y, w, nome, sub, folego) {
+  // o nome na cor da raridade (tokens --r-* do game.css); no texto, o Mítico usa o violeta claro da mesma paleta
+  // (a884f3), porque o 905ea9 some sobre a placa
+  var COR_RAR = { comum: '#9babb2', magico: '#1ebc73', raro: '#4d9be6', lendario: '#f79617', mitico: '#a884f3' };
+  var NOME_RAR = { comum: 'Comum', magico: 'Mágico', raro: 'Raro', lendario: 'Lendário', mitico: 'Mítico' };
+  function placa(x, y, w, nome, sub, folego, rar) {
     dR(x - 1, y - 1, w + 2, 24, '#2e222f'); dR(x, y, w, 22, '#3e3546'); dR(x, y, w, 1, '#484a77');
-    SP.drawText(dg, nome, x + 4, y + 3, { fonte: 'g7', scale: 1, color: '#ffffff', shadow: '#2e222f' });
+    SP.drawText(dg, nome, x + 4, y + 3, { fonte: 'g7', scale: 1, color: COR_RAR[rar] || '#ffffff', shadow: '#2e222f' });
     SP.drawText(dg, sub, x + w - 4, y + 3, { fonte: 'g7', scale: 1, color: '#c7dcd0', shadow: '#2e222f', align: 'right' });
     dR(x + 4, y + 15, w - 8, 4, '#2e222f'); dR(x + 5, y + 16, Math.round((w - 10) * folego), 2, folego > 0.5 ? '#91db69' : '#f9c22b');
   }
@@ -1502,8 +1506,8 @@
     if (lider) { var li = lider.c; li.__pe = lider.pe; li.__cx = 16; deitaSombra(li, A.lider[0], A.lider[1]); dg.drawImage(li, A.lider[0] - 16, A.lider[1] - lider.pe + resp2); }
     if (fr) pisa(fr, A.op[0], A.op[1], resp);
     if (cs) pisa(cs, A.nos[0], A.nos[1], resp2);
-    placa(8, 8, 104, 'Capitã Labareda', 'Nv 20', 0.82);
-    placa(140, 116, 108, 'Brasa', 'Nv 12', 0.64);
+    placa(8, 8, 104, 'Brasa da Labareda', 'Nv 20', 0.82, 'comum');
+    placa(140, 116, 108, 'Brasa', 'Nv 12', 0.64, desafio.rar);
     dCtx.imageSmoothingEnabled = false;
     dCtx.drawImage(dArte, 0, 0, DW, DH, 0, 0, DW * dS, DH * dS);
   }
@@ -1519,7 +1523,8 @@
       ctl.appendChild(botao('◀ De costas', function () { desafio.costas = mod(desafio.costas - 1, 16); monta(); }));
       var sp = document.createElement('span'); sp.textContent = 'candidato ' + (desafio.costas + 1) + ' de 16'; ctl.appendChild(sp);
       ctl.appendChild(botao('De costas ▶', function () { desafio.costas = mod(desafio.costas + 1, 16); monta(); }));
-      [['a1', 'Arena 1'], ['a0', 'Arena 0']].forEach(function (a) { ctl.appendChild(botao(a[1], function () { desafio.arena = a[0]; preparaDesafio(); monta(); }, { pressed: desafio.arena === a[0] })); });
+      ctl.appendChild(botao('Raridade: ' + NOME_RAR[desafio.rar], function () { var L = Object.keys(NOME_RAR); desafio.rar = L[(L.indexOf(desafio.rar) + 1) % L.length]; monta(); }));
+      [['a0', 'Arena 0 (escolhida)'], ['a1', 'Arena 1']].forEach(function (a) { ctl.appendChild(botao(a[1], function () { desafio.arena = a[0]; preparaDesafio(); monta(); }, { pressed: desafio.arena === a[0] })); });
       ctl.appendChild(botao('Oponente: ' + ({ molde: 'molde (mesmo traço)', 7: '8 direções, frente-esq.', 0: '8 direções, frente' })[desafio.frente], function () { desafio.frente = desafio.frente === 'molde' ? 7 : desafio.frente === 7 ? 0 : 'molde'; monta(); }));
     };
     monta();
