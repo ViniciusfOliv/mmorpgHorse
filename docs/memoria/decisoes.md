@@ -3,6 +3,17 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Mapa dos ginásios, rodada 2 (frente 2)
+- **Ilha B, ginásios Fogo s9921, Água s9932 e Capoeira refeita s9953** (escolhas do Vinicius).
+- **Referências do Vinicius (vitrine do PixelLab) só como alvo de comparação, nunca como `style_image`** — não são
+  nossas; a âncora de estilo passa a ser a ilha B e os nossos assets aprovados.
+- **Mapa pintado é o principal; o mapa de peças fica só como exemplo** — com peças standard de 16 px, a grade aparece
+  e as rampas variam entre conjuntos (a rocha saiu verde num e laranja noutro).
+- **Cena de desafio na direção de batalha de RPG de criaturas** (pedido do Vinicius): só a convenção de layout do
+  gênero; arte e interface nossas (guia de arte). O de costas sai bem com `generate-with-style-v2` no estilo do molde; as
+  8 direções do template horse pedem frente e lado como referência (422 sem a frente), então vieram pela descrição e
+  com outro traço.
+
 ## 2026-11-24 — Mapa dos ginásios, piloto pago (frente 2)
 - **Ilha pintada pelo Pixen (1 geração) e não pelo Pro (15 por imagem em 256 × 384)** — o Pixen já fez os mapas das
   trilhas; com 1 geração por tentativa, 4 seeds cabem no teto. O Pixflux partindo do mapa por código quase não mudou a

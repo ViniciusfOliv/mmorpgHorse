@@ -1,0 +1,35 @@
+{
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "a tall dark green pine tree, isolated game map object seen from high top-down, light from the upper left, cozy RPG overworld pixel art, transparent background, no shadow",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "view": "high top-down",
+    "outline": "selective outline",
+    "detail": "highly detailed",
+    "no_background": true,
+    "seed": 9972
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<1740 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  },
+  "arquivos": [
+    {
+      "nome": "obj-arvore-b-00.png",
+      "cam": "/image"
+    }
+  ],
+  "geracoes": 1
+}

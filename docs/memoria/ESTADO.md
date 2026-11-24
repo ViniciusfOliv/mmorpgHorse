@@ -32,7 +32,13 @@ retoques e a spec. **Guia de integração (`docs/arte/integracao.md`, na `main`)
 3 do artefato):** ginásios com sombra de silhueta e capim na base, estandartes do líder no lugar dos medalhões, espuma
 nas margens, névoa em massas de 2 × 2, bases de pedra e sombras dos treinadores e do cavalo na trilha, pista com borda
 recortada e trecho fechado como chão pisado. Pendentes do Vinicius: D1 (REST pintado × Map Workshop) e D5 (origem das
-referências); nada mais é gasto antes.
+referências); nada mais é gasto antes. **Decisões de 2026-11-24 (via coordenação, confirmadas aqui):** ilha B; ginásios
+Fogo s9921 e Água s9932; Capoeira refeita (s9953, 3 gerações); referências do Vinicius são da vitrine do PixelLab e
+ficam só como alvo de comparação; mapa pintado é o principal, com o exemplo de mapa de peças feito (9 gerações) para
+comparar; **a cena de desafio passa a ser desta frente**, na direção de batalha de RPG de criaturas (oponente de frente no
+alto à direita, o nosso de costas embaixo): piloto da Brasa feito (12 gerações), na amostra (versão 5). Gasto da
+rodada 2: 24 gerações (saldo 848 → 824). Próximo: escolha do candidato de costas e da vista de frente, estimativa do
+lote (12 moldes, de costas e de frente, com idle) e a spec.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

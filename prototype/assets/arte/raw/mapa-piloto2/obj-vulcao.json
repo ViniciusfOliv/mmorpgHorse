@@ -1,0 +1,35 @@
+{
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "a smoking volcano cone with glowing lava streams flowing down, seen from high above, isolated game map object seen from high top-down, light from the upper left, cozy RPG overworld pixel art, transparent background, no shadow",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "high top-down",
+    "outline": "selective outline",
+    "detail": "highly detailed",
+    "no_background": true,
+    "seed": 9974
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<4288 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  },
+  "arquivos": [
+    {
+      "nome": "obj-vulcao-00.png",
+      "cam": "/image"
+    }
+  ],
+  "geracoes": 1
+}

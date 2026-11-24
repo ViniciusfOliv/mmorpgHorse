@@ -1,0 +1,90 @@
+{
+  "endpoint": "/create-character-with-8-directions",
+  "pedido": {
+    "description": "a chestnut racing horse with a bright orange mane and tail, ridden by a small jockey in yellow silks and a yellow helmet",
+    "image_size": {
+      "width": 96,
+      "height": 96
+    },
+    "mode": "standard",
+    "view": "low top-down",
+    "template_id": "horse",
+    "outline": "single color outline",
+    "shading": "detailed shading",
+    "detail": "high detail",
+    "seed": 9982
+  },
+  "resposta": {
+    "id": "d32fca40-00aa-41ee-a104-5c61a2288f8a",
+    "name": "a chestnut racing horse with a bright orange mane ...",
+    "state_name": "Idle",
+    "prompt": "a chestnut racing horse with a bright orange mane and tail, ridden by a small jockey in yellow silks and a yellow helmet",
+    "size": {
+      "width": 136,
+      "height": 136
+    },
+    "directions": 8,
+    "created_at": "2026-11-24T01:48:00.770858+00:00",
+    "updated_at": "2026-11-24T01:50:42.712378+00:00",
+    "animation_count": 0,
+    "template_id": "horse",
+    "view": "low top-down",
+    "status": "completed",
+    "rotation_urls": {
+      "south": "https://backblaze.pixellab.ai/file/pixellab-characters/b011d7ac-f655-4af7-8834-057eca1a6cb8/d32fca40-00aa-41ee-a104-5c61a2288f8a/rotations/south.png?t=1795485042",
+      "west": "https://backblaze.pixellab.ai/file/pixellab-characters/b011d7ac-f655-4af7-8834-057eca1a6cb8/d32fca40-00aa-41ee-a104-5c61a2288f8a/rotations/west.png?t=1795485042",
+      "east": "https://backblaze.pixellab.ai/file/pixellab-characters/b011d7ac-f655-4af7-8834-057eca1a6cb8/d32fca40-00aa-41ee-a104-5c61a2288f8a/rotations/east.png?t=1795485042",
+      "north": "https://backblaze.pixellab.ai/file/pixellab-characters/b011d7ac-f655-4af7-8834-057eca1a6cb8/d32fca40-00aa-41ee-a104-5c61a2288f8a/rotations/north.png?t=1795485042",
+      "south-east": "https://backblaze.pixellab.ai/file/pixellab-characters/b011d7ac-f655-4af7-8834-057eca1a6cb8/d32fca40-00aa-41ee-a104-5c61a2288f8a/rotations/south-east.png?t=1795485042",
+      "north-east": "https://backblaze.pixellab.ai/file/pixellab-characters/b011d7ac-f655-4af7-8834-057eca1a6cb8/d32fca40-00aa-41ee-a104-5c61a2288f8a/rotations/north-east.png?t=1795485042",
+      "north-west": "https://backblaze.pixellab.ai/file/pixellab-characters/b011d7ac-f655-4af7-8834-057eca1a6cb8/d32fca40-00aa-41ee-a104-5c61a2288f8a/rotations/north-west.png?t=1795485042",
+      "south-west": "https://backblaze.pixellab.ai/file/pixellab-characters/b011d7ac-f655-4af7-8834-057eca1a6cb8/d32fca40-00aa-41ee-a104-5c61a2288f8a/rotations/south-west.png?t=1795485042"
+    },
+    "style_settings": {
+      "detail": "high detail",
+      "outline": "single color outline",
+      "shading": "detailed shading"
+    },
+    "guidance": null,
+    "ai_freedom": null,
+    "tags": [],
+    "group_id": "f939c149-e4d7-4b88-90c2-b8eba5757958",
+    "skeletons": null,
+    "animations": []
+  },
+  "arquivos": [
+    {
+      "nome": "brasa-8dir-96-00.png",
+      "cam": "/rotation_urls/south"
+    },
+    {
+      "nome": "brasa-8dir-96-01.png",
+      "cam": "/rotation_urls/west"
+    },
+    {
+      "nome": "brasa-8dir-96-02.png",
+      "cam": "/rotation_urls/east"
+    },
+    {
+      "nome": "brasa-8dir-96-03.png",
+      "cam": "/rotation_urls/north"
+    },
+    {
+      "nome": "brasa-8dir-96-04.png",
+      "cam": "/rotation_urls/south-east"
+    },
+    {
+      "nome": "brasa-8dir-96-05.png",
+      "cam": "/rotation_urls/north-east"
+    },
+    {
+      "nome": "brasa-8dir-96-06.png",
+      "cam": "/rotation_urls/north-west"
+    },
+    {
+      "nome": "brasa-8dir-96-07.png",
+      "cam": "/rotation_urls/south-west"
+    }
+  ],
+  "geracoes": 1
+}

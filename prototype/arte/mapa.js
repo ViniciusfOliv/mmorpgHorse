@@ -433,6 +433,11 @@
   Object.keys(M.icones).forEach(function (t) { if (M.icones[t]) carrega('i-' + t, M.icones[t]); });
   Object.keys(M.piloto.usados).forEach(function (t) { carrega('p-' + t, M.piloto.usados[t]); });
   ['fogo', 'agua', 'grama'].forEach(function (el) { carrega('g-' + el, M.piloto.usados['ginasio-' + el]); });
+  carrega('d-arena', M.desafio.arena);
+  M.desafio.costas.forEach(function (u, i) { carrega('d-costas-' + i, u); });
+  M.desafio.oito.forEach(function (u, i) { carrega('d-oito-' + i, u); });
+  // os moldes do PixelLab (os mesmos do jogo): sem eles o sprites.js cai no cavalo desenhado por código
+  if (SP.loadMolds && window.__MOLDES) { faltam++; SP.loadMolds(window.__MOLDES, function () { if (--faltam === 0) pronto(); }); }
   document.getElementById('hojeMundo').src = M.hoje.mundo;
   document.getElementById('hojeTrilha').src = M.hoje.trilha;
 
@@ -791,15 +796,17 @@
     a: { img: 'terreno-s9902', nome: 'Ilha A (s9902)', cratera: [131, 40], pos: { fogo: [98, 130], agua: [138, 190], grama: [166, 282] },
       reg: [150, 240], lavaAte: 175 },
     b: { img: 'terreno-s9901', nome: 'Ilha B (s9901)', cratera: [87, 41], pos: { fogo: [180, 112], agua: [118, 184], grama: [130, 284] },
-      reg: [146, 214], lavaAte: 160 }
+      reg: [146, 214], lavaAte: 160 },
+    m: { img: 'montado', nome: 'Mapa de peças', cratera: [170, 44], pos: { fogo: [96, 104], agua: [100, 198], grama: [86, 302] },
+      reg: [142, 250], lavaAte: 110 }
   };
-  var GIN_IMG = { fogo: 'ginasio-fogo-s9921', agua: 'ginasio-agua-s9932', grama: 'ginasio-grama-s9941' };
+  var GIN_IMG = { fogo: 'ginasio-fogo-s9921', agua: 'ginasio-agua-s9932', grama: 'ginasio-grama-s9953' };
   var VAR = { id: 'v1' }, varCache = {}, MARCA_V1 = MARCA;
   var AGUA_NAVY = ['323353', '484a77', '4d65b4'].map(k), AGUA_TEAL = ['0b5e65', '0b8a8f', '0eaf9b', '8fd3ff'].map(k);
   var LAVA_R = ['b33831', 'ea4f36', 'fb6b1d', 'f79617', 'f9c22b', 'fbff86'].map(k);
   function objetoGinasio(el) {   // o objeto 64 × 64 com alfa binário; o da Capoeira veio com a mata em volta: recorte oval
     var b = Buf.de(IMG['g-' + el]);
-    if (el === 'grama') for (var y = 0; y < 64; y++) for (var x = 0; x < 64; x++) if (Math.pow((x - 32) / 29, 2) + Math.pow((y - 35) / 25, 2) > 1) b.d[y * 64 + x] = 0;
+    if (false) for (var y = 0; y < 64; y++) for (var x = 0; x < 64; x++) if (Math.pow((x - 32) / 29, 2) + Math.pow((y - 35) / 25, 2) > 1) b.d[y * 64 + x] = 0;
     var x0 = 64, x1 = 0, y0 = 64, y1 = 0;
     for (var p = 0; p < b.d.length; p++) if (b.d[p]) { var xx = p % 64, yy = (p / 64) | 0; x0 = Math.min(x0, xx); x1 = Math.max(x1, xx); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy); }
     return { c: b.poe().c, b: b, x0: x0, x1: x1, y0: y0, y1: y1 };
@@ -1097,6 +1104,7 @@
     var hx = cx - 40, hy = base - 60;
     cavG.setTransform(1, 0, 0, 1, 0, 0); cavG.globalCompositeOperation = 'source-over'; cavG.clearRect(0, 0, 80, 70);
     if (cav.olhaEsq) { cavG.translate(80, 0); cavG.scale(-1, 1); }
+    o.quadro = { topo: -1e6, base: 60, grade: 1, centro: 40 };   // no quadro próprio: cascos em y 60, centro em x 40
     SP.drawHorse(cavG, 20, 24, o);
     cavG.setTransform(1, 0, 0, 1, 0, 0);
     var tr0 = trilhas[atual];
@@ -1232,7 +1240,8 @@
     }
     selTrilhaAtiva = document.activeElement === cv || document.activeElement && document.activeElement.closest && !!document.activeElement.closest('#lista');
     if (telaAtual === 'mundo') quadroMundo(t, dt); else { quadroTrilha(t, dt); desenhaExplosao(t); }
-    var msJS = performance.now() - t0;
+    var msJS0 = performance.now() - t0;
+    var msJS = msJS0;
     // cópia ampliada num inteiro (s × z), recortando em volta do foco
     var vw = W / z, vh = H / z, sx = Math.round(lim(foco[0] - vw / 2, 0, W - vw)), sy = Math.round(lim(foco[1] - vh / 2, 0, H - vh));
     ctx.imageSmoothingEnabled = false;
@@ -1241,6 +1250,7 @@
     var ms = performance.now() - t0;
     amostras.push(msJS); copias.push(ms - msJS); if (amostras.length > 90) { amostras.shift(); copias.shift(); }
     if (!trans) pico = Math.max(pico * 0.995, msJS);
+    quadroDesafio(t);
     if (++contaUI % 20 === 0) atualizaMedidor();
     requestAnimationFrame(quadro);
   }
@@ -1325,7 +1335,7 @@
         li.appendChild(b); lista.appendChild(li);
       });
     }
-    if (telaAtual === 'mundo') [['b', 'Ilha B (escolhida)'], ['a', 'Ilha A'], ['v1', 'v1: por código']].forEach(function (v) {
+    if (telaAtual === 'mundo') [['b', 'Ilha B (escolhida)'], ['m', 'Mapa de peças'], ['a', 'Ilha A'], ['v1', 'v1: por código']].forEach(function (v) {
       ctl.appendChild(botao(v[1], function () { usaVariante(v[0]); montaUI(); anuncia('Mapa: ' + v[1]); }, { pressed: VAR.id === v[0] }));
     });
     ctl.appendChild(botao('Animações reduzidas', function () { reduzido = !reduzido; montaUI(); }, { pressed: reduzido }));
@@ -1337,7 +1347,7 @@
   }
   function montaNotas() {
     var N = telaAtual === 'mundo' ? [
-      VAR.id === 'v1' ? '<span class="tag cod">código</span> <b>Terreno da ilha</b> gerado por código (v1): relevo com luz da esquerda, praia, rio, lago, serras, vulcão, mata.'
+      VAR.id === 'm' ? '<span class="tag pago">piloto pago</span> <b>Mapa de peças</b> (exemplo pedido): 5 conjuntos de terreno de 16 px (mar/areia, areia/grama, grama/rocha, rocha/lava, grama/terra; 1 geração cada) postos por cantos por código, seguindo a geografia da v1, e 4 objetos (árvores, serra, vulcão). Fica com cara de grade de peças e a rocha saiu verde: a ilha pintada continua melhor.' : VAR.id === 'v1' ? '<span class="tag cod">código</span> <b>Terreno da ilha</b> gerado por código (v1): relevo com luz da esquerda, praia, rio, lago, serras, vulcão, mata.'
         : '<span class="tag pago">piloto pago</span> <b>Ilha pintada</b> pelo PixelLab (Pixen, 256 × 384, 1 geração cada) e <b>ginásios</b> como objetos 64 × 64 (arena de pedra, plataforma de tábuas, picadeiro com cerca), assentados por código: sombra de contato com a luz da esquerda e cores na Resurrect 64. Sobre a pintura, o código anima a água, a lava, a fumaça, as nuvens e a névoa.',
       '<span class="tag cod">código</span> <b>Mundo vivo</b>: mar com arrebentação e brilho, correnteza no rio, ondinhas no lago e lava descendo do vulcão (ciclo de cor, 12 q/s); copas no vento em faixas; fumaça e bombas do vulcão; nuvens com a sombra correndo no chão; pássaros.',
       '<span class="tag cod">código</span> <b>Névoa</b> sobre o que não foi conquistado: densa com 0 de 5, mais rala a cada etapa vencida, some com a insígnia. Só visual: as três trilhas continuam abertas desde o começo, como hoje.',
@@ -1352,6 +1362,98 @@
     ];
     if (telaAtual === 'mundo' && VAR.id !== 'v1') N.push('<b>Ainda por código na versão final</b>: as árvores da ilha pintada não balançam nesta amostra (a técnica de deformação da frente da animação faz isso na implementação).');
     document.getElementById('notas').innerHTML = N.map(function (n) { return '<li>' + n + '</li>'; }).join('');
+  }
+  // ================================================================ cena de desafio, nova direção (piloto, 2026-11-24)
+  // Convenção do gênero de batalha de criaturas (só o layout, nada de arte nem interface de outro jogo): o cavalo do
+  // oponente de frente numa base de chão no alto à direita, com o treinador ao lado; o nosso, de costas, numa base perto
+  // da borda de baixo; a arena viva ao fundo. Integração pelo guia (docs/arte/integracao.md): base de chão na rampa da
+  // arena com face e contato, sombras de silhueta deslocadas (+3, +2) no chão escurecido, luz da esquerda, tudo 1:1.
+  var DW = 256, DH = 160, dArte = tela(DW, DH), dg = dArte.getContext('2d'), dCv = null, dCtx = null, dS = 2;
+  var desafio = { costas: 0, frente: 7, base: null, esc: null, quentes: [], fundo: null, t0: 0 };
+  var dSomC = tela(100, 100), dSomG = dSomC.getContext('2d');
+  function dR(x, y, w, h, c) { dg.fillStyle = c; dg.fillRect(x | 0, y | 0, w, h); }
+  function preparaDesafio() {
+    var b = Buf.de(IMG['d-arena']), e = new Buf(DW, DH), viv = new Buf(DW, DH), q = [], QU = [K.f9c22b, K.fbff86, K.fb6b1d, K.f79617];
+    for (var p = 0; p < DW * DH; p++) {
+      e.d[p] = escurecer((b.d[p] | 0xff000000) >>> 0);
+      if (((p / DW) | 0) < 70 && QU.indexOf(b.d[p]) >= 0) q.push(p);
+    }
+    viv.d.set(b.d); e.poe(); viv.poe();
+    desafio.base = b; desafio.esc = e; desafio.viv = viv; desafio.quentes = q;
+  }
+  function baseDeChao(cx, cy, rx, ry) {   // disco de chão da própria arena: tampo claro, borda e face escuras, sombra à direita
+    var B = desafio.base, E = desafio.esc;
+    for (var y = Math.floor(cy - ry); y <= cy + ry + 3; y++) for (var x = Math.floor(cx - rx - 1); x <= cx + rx + 4; x++) {
+      if (x < 0 || y < 0 || x >= DW || y >= DH) continue;
+      var e0 = Math.pow((x + 0.5 - cx) / rx, 2) + Math.pow((y + 0.5 - cy) / ry, 2), e1 = Math.pow((x + 0.5 - cx - 3) / rx, 2) + Math.pow((y + 0.5 - cy - 3) / ry, 2);
+      var c = null, chao = B.d[y * DW + x];
+      if (e0 <= 1) c = e0 > 0.82 ? (x < cx && y < cy ? lighten(chao) : escurecer(chao)) : (e0 < 0.25 && x < cx ? lighten(chao) : chao);
+      else if (e1 <= 1) c = escurecer(escurecer(chao));
+      if (c) dR(x, y, 1, 1, hexC(c));
+    }
+  }
+  var LIGHT = {};
+  function lighten(c) {   // 1 degrau acima (a mais próxima mais clara da paleta, na mesma família)
+    if (LIGHT[c] !== undefined) return LIGHT[c];
+    var r = c & 255, g2 = (c >>> 8) & 255, b2 = (c >>> 16) & 255, alvo = [r * 1.18 + 18, g2 * 1.15 + 14, b2 * 1.1 + 8], melhor = c, md = 1e9;
+    R64.forEach(function (h) { var v = rgbDe(h), dd = Math.pow(v[0] - alvo[0], 2) + Math.pow(v[1] - alvo[1], 2) + Math.pow(v[2] - alvo[2], 2); if (dd < md) { md = dd; melhor = K[h]; } });
+    return (LIGHT[c] = melhor);
+  }
+  function spriteComSombra(im, x, y) {   // sombra: a silhueta deslocada (+3, +2) no chão escurecido; depois o sprite
+    dSomG.globalCompositeOperation = 'copy'; dSomG.drawImage(im, 0, 0);
+    dSomG.globalCompositeOperation = 'source-in'; dSomG.drawImage(desafio.esc.c, -(x + 3), -(y + 2));
+    dSomG.globalCompositeOperation = 'source-over';
+    dg.drawImage(dSomC, 0, 0, im.width, im.height, x + 3, y + 2, im.width, im.height);
+    dg.drawImage(im, x, y);
+  }
+  function pe(im) { if (im.__pe != null) return im.__pe; var b = Buf.de(im), p0 = 0, x0 = im.width, x1 = 0; for (var p = 0; p < b.d.length; p++) if (b.d[p]) { p0 = (p / b.w) | 0; var x = p % b.w; x0 = Math.min(x0, x); x1 = Math.max(x1, x); } im.__pe = p0; im.__cx = (x0 + x1) / 2; return p0; }
+  function placa(x, y, w, nome, sub, folego) {
+    dR(x - 1, y - 1, w + 2, 24, '#2e222f'); dR(x, y, w, 22, '#3e3546'); dR(x, y, w, 1, '#484a77');
+    SP.drawText(dg, nome, x + 4, y + 3, { fonte: 'g7', scale: 1, color: '#ffffff', shadow: '#2e222f' });
+    SP.drawText(dg, sub, x + w - 4, y + 3, { fonte: 'g7', scale: 1, color: '#c7dcd0', shadow: '#2e222f', align: 'right' });
+    dR(x + 4, y + 15, w - 8, 4, '#2e222f'); dR(x + 5, y + 16, Math.round((w - 10) * folego), 2, folego > 0.5 ? '#91db69' : '#f9c22b');
+  }
+  function quadroDesafio(t) {
+    if (!dCv || !desafio.base) return;
+    if (!reduzido) {   // o brilho da lava do fundo corre (ciclo de cor)
+      var d = desafio.viv.d, B = desafio.base.d, L = [K.fb6b1d, K.f79617, K.f9c22b, K.fbff86];
+      for (var i = 0; i < desafio.quentes.length; i++) { var p = desafio.quentes[i], x = p % DW, y = (p / DW) | 0, f = mod(x * 0.3 + y * 0.5 - t * 5, 8), o = L.indexOf(B[p]); d[p] = L[lim((o < 0 ? 1 : o) + (f < 1.5 ? 1 : f > 6 ? -1 : 0), 0, 3)]; }
+      desafio.viv.poe();
+    }
+    dg.drawImage(desafio.viv.c, 0, 0);
+    var resp = reduzido ? 0 : (Math.floor(t * 1.4) & 1), resp2 = reduzido ? 0 : (Math.floor(t * 1.4 + 0.5) & 1);
+    // oponente: base no alto à direita, cavalo de frente (3/4) e a líder ao lado
+    baseDeChao(184, 82, 34, 9);
+    var fr = IMG['d-oito-' + desafio.frente], lider = corpo(GYM.fogo.etapas[4], false);
+    if (lider) spriteComSombra(lider.c, 206 - 16, 82 - lider.pe - 1 + resp2);
+    if (fr) { pe(fr); spriteComSombra(fr, Math.round(176 - fr.__cx), 84 - fr.__pe + resp); }
+    // o nosso: base perto da borda de baixo, de costas, olhando para o oponente
+    baseDeChao(76, 150, 48, 12);
+    var cs = IMG['d-costas-' + desafio.costas];
+    if (cs) { pe(cs); spriteComSombra(cs, Math.round(76 - cs.__cx), 153 - cs.__pe + resp2); }
+    // placas no nosso estilo (Galmuri, painel azul), opostas a cada cavalo
+    placa(8, 8, 104, 'Capitã Labareda', 'Nv 20', 0.82);
+    placa(140, 116, 108, 'Brasa', 'Nv 12', 0.64);
+    dCtx.imageSmoothingEnabled = false;
+    dCtx.drawImage(dArte, 0, 0, DW, DH, 0, 0, DW * dS, DH * dS);
+  }
+  function iniciaDesafio() {
+    dCv = document.getElementById('desafio'); if (!dCv) return;
+    dCtx = dCv.getContext('2d'); preparaDesafio();
+    var aj = function () { var r = window.devicePixelRatio || 1, larg = dCv.parentElement.clientWidth || 300; dS = Math.max(1, Math.floor(larg * r / DW)); dCv.width = DW * dS; dCv.height = DH * dS; dCv.style.width = (DW * dS / r) + 'px'; dCv.style.height = (DH * dS / r) + 'px'; };
+    aj(); window.addEventListener('resize', aj);
+    document.getElementById('hojeDesafio').src = M.desafio.hoje;
+    var ctl = document.getElementById('ctlDesafio');
+    var monta = function () {
+      ctl.innerHTML = '';
+      ctl.appendChild(botao('◀ De costas', function () { desafio.costas = mod(desafio.costas - 1, 16); monta(); }));
+      var sp = document.createElement('span'); sp.textContent = 'candidato ' + (desafio.costas + 1) + ' de 16'; ctl.appendChild(sp);
+      ctl.appendChild(botao('De costas ▶', function () { desafio.costas = mod(desafio.costas + 1, 16); monta(); }));
+      ctl.appendChild(botao('Oponente: ' + ['frente', 'lado', 'lado', 'costas', 'frente-dir.', 'costas-dir.', 'costas-esq.', 'frente-esq.'][desafio.frente], function () { desafio.frente = desafio.frente === 7 ? 0 : desafio.frente === 0 ? 4 : 7; monta(); }));
+    };
+    monta();
+    var c8 = document.getElementById('candDesafio');
+    c8.innerHTML = M.desafio.costas.concat(M.desafio.oito, M.desafio.oito96).map(function (u, i) { return '<figure class="cand"><img src="' + u + '" style="width:' + (i < 16 ? 128 : 184) + 'px" alt=""><figcaption>' + (i < 16 ? 'de costas ' + (i + 1) : (i < 24 ? '8 direções 64 · ' : '8 direções 96 · ') + ['sul', 'oeste', 'leste', 'norte', 'sudeste', 'nordeste', 'noroeste', 'sudoeste'][(i - 16) % 8]) + '</figcaption></figure>'; }).join('');
   }
   function montaCandidatos() {
     var el = document.getElementById('candidatos'); if (!el) return;
@@ -1368,11 +1470,11 @@
     escuro.poe();
     varCache.v1 = { pesos: pesoReg, lavado: lavado, escuro: escuro };
     usaVariante('b');
-    montaCandidatos();
+    montaCandidatos(); iniciaDesafio();
     ajusta(); window.addEventListener('resize', ajusta);
     montaUI();
     requestAnimationFrame(quadro);
-    window.__mapa = { _t: { exportar: function () { var m2 = gerarMundo(); decorarMundo(m2, true); m2.b.poe(); m2.arvores.forEach(function (a) { m2.b.g.drawImage(a.c.c, a.x - a.r, a.y - a.r); }); return m2.b.c.toDataURL('image/png'); }, camadas: camadas, ciclo: function (t) { cicloT = -9; cicloMundo(t); }, nevoa: function (t) { nevT = -9; atualizaNevoa(t); atualizaNevoa(t); }, mundo: quadroMundo, trilha: quadroTrilha, copia: function () { ctx.drawImage(arte, 0, 0, W, H, 0, 0, W * s, H * s); } }, entra: entra, sai: sai, vence: vence, preset: function (n) { usaPreset(n); montaUI(); }, est: function () { return est; }, reduz: function (v) { reduzido = v; montaUI(); }, tela: function () { return telaAtual; } };
+    window.__mapa = { _t: { cavaloPng: function (lado, idle) { var c = tela(lado, lado), q = c.getContext('2d'); q.imageSmoothingEnabled = false; var cx = lado / 2, base = lado - 4; SP.drawHorse(q, cx - 20, base - 36, { palette: CAVALO.palette, element: CAVALO.element, scale: 1, jockey: true, silks: '#f9c22b', idle: idle !== false, t: 0.5, frame: 3, quadro: { topo: -1e6, base: base, grade: 1, centro: cx } }); return c.toDataURL('image/png'); }, exportar: function () { var m2 = gerarMundo(); decorarMundo(m2, true); m2.b.poe(); m2.arvores.forEach(function (a) { m2.b.g.drawImage(a.c.c, a.x - a.r, a.y - a.r); }); return m2.b.c.toDataURL('image/png'); }, camadas: camadas, ciclo: function (t) { cicloT = -9; cicloMundo(t); }, nevoa: function (t) { nevT = -9; atualizaNevoa(t); atualizaNevoa(t); }, mundo: quadroMundo, trilha: quadroTrilha, copia: function () { ctx.drawImage(arte, 0, 0, W, H, 0, 0, W * s, H * s); } }, entra: entra, sai: sai, vence: vence, preset: function (n) { usaPreset(n); montaUI(); }, est: function () { return est; }, reduz: function (v) { reduzido = v; montaUI(); }, tela: function () { return telaAtual; } };
     window.__mapaPronto = true;
   }
 })();

@@ -28,11 +28,19 @@ const dados = {
   piloto: (() => {
     const D = path.join(PROTO, 'assets', 'arte', 'mapa-mundo');
     const usados = { 'terreno-s9902': 'terreno/terreno-s9902', 'terreno-s9901': 'terreno/terreno-s9901', 'ginasio-fogo': 'ginasios/ginasio-fogo-s9921',
-      'ginasio-agua': 'ginasios/ginasio-agua-s9932', 'ginasio-grama': 'ginasios/ginasio-grama-s9941' };
+      'ginasio-agua': 'ginasios/ginasio-agua-s9932', 'ginasio-grama': 'ginasios/ginasio-grama-s9953-00', 'montado': 'montado' };
     const todos = [];
-    for (const l of ['terreno', 'base', 'ginasios']) for (const f of fs.readdirSync(path.join(D, l)).filter(f => f.endsWith('.png')).sort()) todos.push({ nome: f.replace('.png', ''), uri: uri(path.join(D, l, f)) });
+    for (const l of ['terreno', 'base', 'ginasios', 'pecas']) if (fs.existsSync(path.join(D, l))) for (const f of fs.readdirSync(path.join(D, l)).filter(f => f.endsWith('.png')).sort()) todos.push({ nome: f.replace('.png', ''), uri: uri(path.join(D, l, f)) });
     return { usados: Object.fromEntries(Object.entries(usados).map(([k, v]) => [k, uri(path.join(D, v + '.png'))])),
-      escolhidos: ['terreno-s9902', 'terreno-s9901', 'ginasio-fogo-s9921', 'ginasio-agua-s9932', 'ginasio-grama-s9941'], todos };
+      escolhidos: ['terreno-s9901', 'ginasio-fogo-s9921', 'ginasio-agua-s9932', 'ginasio-grama-s9953-00'], todos };
+  })(),
+  desafio: (() => {
+    const P = path.join(PROTO, 'assets', 'arte', 'desafio', 'piloto');
+    return { arena: uri(path.join(PROTO, 'assets', 'arte', 'ginasios', 'finais', 'fogo.png')),
+      costas: Array.from({ length: 16 }, (_, i) => uri(path.join(P, `brasa-costas-estilo-${String(i).padStart(2, '0')}.png`))),
+      oito: Array.from({ length: 8 }, (_, i) => uri(path.join(P, `brasa-8dir-64-${String(i).padStart(2, '0')}.png`))),
+      oito96: Array.from({ length: 8 }, (_, i) => uri(path.join(P, `brasa-8dir-96-${String(i).padStart(2, '0')}.png`))),
+      hoje: uri(path.join(PROTO, 'screens', 'final-26b-cena-desafio.png')) };
   })(),
   hoje: {
     mundo: uri(path.join(PROTO, 'screens', 'final-24-expedicao-ginasios.png')),

@@ -1,5 +1,5 @@
 {
-  "pl": 628,
+  "pl": 653,
   "usd": 9.760000000000007,
   "chamadas": [
     {
@@ -836,6 +836,86 @@
       "base": "mapa-mundo/ginasio-grama-s9942",
       "geracoes": 1,
       "data": "2026-11-24T01:13:17.288Z"
+    },
+    {
+      "base": "mapa-piloto2/ginasio-grama-s9951",
+      "geracoes": 1,
+      "data": "2026-11-24T01:41:07.797Z"
+    },
+    {
+      "base": "mapa-piloto2/ginasio-grama-s9952",
+      "geracoes": 1,
+      "data": "2026-11-24T01:41:33.758Z"
+    },
+    {
+      "base": "mapa-piloto2/ginasio-grama-s9953",
+      "geracoes": 1,
+      "data": "2026-11-24T01:41:58.641Z"
+    },
+    {
+      "base": "mapa-piloto2/tiles-mar-areia",
+      "geracoes": 1,
+      "data": "2026-11-24T01:42:50.202Z"
+    },
+    {
+      "base": "mapa-piloto2/tiles-areia-grama",
+      "geracoes": 1,
+      "data": "2026-11-24T01:43:13.047Z"
+    },
+    {
+      "base": "mapa-piloto2/tiles-grama-rocha",
+      "geracoes": 1,
+      "data": "2026-11-24T01:43:45.960Z"
+    },
+    {
+      "base": "mapa-piloto2/tiles-rocha-lava",
+      "geracoes": 1,
+      "data": "2026-11-24T01:44:13.874Z"
+    },
+    {
+      "base": "mapa-piloto2/tiles-grama-terra",
+      "geracoes": 1,
+      "data": "2026-11-24T01:44:36.432Z"
+    },
+    {
+      "base": "mapa-piloto2/obj-arvore-a",
+      "geracoes": 1,
+      "data": "2026-11-24T01:44:49.699Z"
+    },
+    {
+      "base": "mapa-piloto2/obj-arvore-b",
+      "geracoes": 1,
+      "data": "2026-11-24T01:45:07.909Z"
+    },
+    {
+      "base": "mapa-piloto2/obj-serra",
+      "geracoes": 1,
+      "data": "2026-11-24T01:45:36.946Z"
+    },
+    {
+      "base": "mapa-piloto2/obj-vulcao",
+      "geracoes": 1,
+      "data": "2026-11-24T01:45:58.733Z"
+    },
+    {
+      "base": "mapa-piloto2/brasa-8dir-64",
+      "geracoes": 1,
+      "data": "2026-11-24T01:47:33.337Z"
+    },
+    {
+      "base": "mapa-piloto2/brasa-8dir-64",
+      "geracoes": 1,
+      "data": "2026-11-24T01:47:56.757Z"
+    },
+    {
+      "base": "mapa-piloto2/brasa-8dir-96",
+      "geracoes": 1,
+      "data": "2026-11-24T01:50:48.151Z"
+    },
+    {
+      "base": "mapa-piloto2/brasa-costas-estilo",
+      "geracoes": 10,
+      "data": "2026-11-24T01:52:37.790Z"
     }
   ]
 }

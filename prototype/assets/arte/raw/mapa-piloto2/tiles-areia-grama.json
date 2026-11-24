@@ -1,0 +1,879 @@
+{
+  "endpoint": "/create-tileset",
+  "pedido": {
+    "lower_description": "pale golden sandy beach",
+    "upper_description": "lush green meadow grass",
+    "transition_description": "grass tufts over sand",
+    "tile_size": {
+      "width": 16,
+      "height": 16
+    },
+    "mode": "standard",
+    "view": "high top-down",
+    "detail": "highly detailed",
+    "shading": "detailed shading",
+    "transition_size": 0.25,
+    "raggedness": 0.5,
+    "seed": 9962
+  },
+  "resposta": {
+    "usage": null,
+    "tileset": {
+      "total_tiles": 16,
+      "tile_size": {
+        "width": 16,
+        "height": 16
+      },
+      "terrain_types": [
+        "lower",
+        "upper"
+      ],
+      "tiles": [
+        {
+          "id": "13",
+          "name": "wang_13",
+          "image": {
+            "type": "base64",
+            "base64": "<948 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "upper",
+            "NE": "upper",
+            "SW": "lower",
+            "SE": "upper"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              1,
+              1,
+              255
+            ],
+            "row_2": [
+              255,
+              0,
+              1,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 4,
+            "col": 2
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "10",
+          "name": "wang_10",
+          "image": {
+            "type": "base64",
+            "base64": "<936 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "upper",
+            "NE": "lower",
+            "SW": "upper",
+            "SE": "lower"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              1,
+              0,
+              255
+            ],
+            "row_2": [
+              255,
+              1,
+              0,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 2,
+            "col": 6
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "4",
+          "name": "wang_4",
+          "image": {
+            "type": "base64",
+            "base64": "<896 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "lower",
+            "NE": "upper",
+            "SW": "lower",
+            "SE": "lower"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              0,
+              1,
+              255
+            ],
+            "row_2": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 4,
+            "col": 1
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "12",
+          "name": "wang_12",
+          "image": {
+            "type": "base64",
+            "base64": "<868 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "upper",
+            "NE": "upper",
+            "SW": "lower",
+            "SE": "lower"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              1,
+              1,
+              255
+            ],
+            "row_2": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 3,
+            "col": 5
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "6",
+          "name": "wang_6",
+          "image": {
+            "type": "base64",
+            "base64": "<948 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "lower",
+            "NE": "upper",
+            "SW": "upper",
+            "SE": "lower"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              0,
+              1,
+              255
+            ],
+            "row_2": [
+              255,
+              1,
+              0,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 5,
+            "col": 2
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "8",
+          "name": "wang_8",
+          "image": {
+            "type": "base64",
+            "base64": "<832 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "upper",
+            "NE": "lower",
+            "SW": "lower",
+            "SE": "lower"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              1,
+              0,
+              255
+            ],
+            "row_2": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 3,
+            "col": 6
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "2bb9e6bc-01a4-40bd-b0f7-f89c2f9d387a",
+          "name": "wang_0",
+          "image": {
+            "type": "base64",
+            "base64": "<632 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "lower",
+            "NE": "lower",
+            "SW": "lower",
+            "SE": "lower"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "row_2": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 6,
+            "col": 3
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "1",
+          "name": "wang_1",
+          "image": {
+            "type": "base64",
+            "base64": "<892 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "lower",
+            "NE": "lower",
+            "SW": "lower",
+            "SE": "upper"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "row_2": [
+              255,
+              0,
+              1,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 1,
+            "col": 1
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "11",
+          "name": "wang_11",
+          "image": {
+            "type": "base64",
+            "base64": "<960 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "upper",
+            "NE": "lower",
+            "SW": "upper",
+            "SE": "upper"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              1,
+              0,
+              255
+            ],
+            "row_2": [
+              255,
+              1,
+              1,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 2,
+            "col": 3
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "3",
+          "name": "wang_3",
+          "image": {
+            "type": "base64",
+            "base64": "<932 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "lower",
+            "NE": "lower",
+            "SW": "upper",
+            "SE": "upper"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "row_2": [
+              255,
+              1,
+              1,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 1,
+            "col": 2
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "2",
+          "name": "wang_2",
+          "image": {
+            "type": "base64",
+            "base64": "<892 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "lower",
+            "NE": "lower",
+            "SW": "upper",
+            "SE": "lower"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "row_2": [
+              255,
+              1,
+              0,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 1,
+            "col": 3
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "5",
+          "name": "wang_5",
+          "image": {
+            "type": "base64",
+            "base64": "<940 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "lower",
+            "NE": "upper",
+            "SW": "lower",
+            "SE": "upper"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              0,
+              1,
+              255
+            ],
+            "row_2": [
+              255,
+              0,
+              1,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 2,
+            "col": 1
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "6ffc21fa-aad3-4b84-bca6-624923f22fd3",
+          "name": "wang_15",
+          "image": {
+            "type": "base64",
+            "base64": "<828 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "upper",
+            "NE": "upper",
+            "SW": "upper",
+            "SE": "upper"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              1,
+              1,
+              255
+            ],
+            "row_2": [
+              255,
+              1,
+              1,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 2,
+            "col": 2
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "14",
+          "name": "wang_14",
+          "image": {
+            "type": "base64",
+            "base64": "<920 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "upper",
+            "NE": "upper",
+            "SW": "upper",
+            "SE": "lower"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              1,
+              1,
+              255
+            ],
+            "row_2": [
+              255,
+              1,
+              0,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 3,
+            "col": 4
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "9",
+          "name": "wang_9",
+          "image": {
+            "type": "base64",
+            "base64": "<1016 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "upper",
+            "NE": "lower",
+            "SW": "lower",
+            "SE": "upper"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              1,
+              0,
+              255
+            ],
+            "row_2": [
+              255,
+              0,
+              1,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 4,
+            "col": 4
+          },
+          "description": null,
+          "connections": null
+        },
+        {
+          "id": "7",
+          "name": "wang_7",
+          "image": {
+            "type": "base64",
+            "base64": "<940 chars>",
+            "format": "png"
+          },
+          "corners": {
+            "NW": "lower",
+            "NE": "upper",
+            "SW": "upper",
+            "SE": "upper"
+          },
+          "pattern_4x4": {
+            "row_0": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "row_1": [
+              255,
+              0,
+              1,
+              255
+            ],
+            "row_2": [
+              255,
+              1,
+              1,
+              255
+            ],
+            "row_3": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          "original_position": {
+            "row": 2,
+            "col": 4
+          },
+          "description": null,
+          "connections": null
+        }
+      ]
+    },
+    "metadata": {
+      "edge_types": [
+        "lower",
+        "upper"
+      ],
+      "terrain_prompts": {
+        "lower": "fine pale golden sand dunes with intricate ripple patterns, deeply furrowed troughs, and scattered sun-bleached shell fragments casting sharp shadows",
+        "upper": "lush green meadow grass with dense blade-by-blade texture, shadowed rich soil beneath, and bright sunlit tips catching high contrast highlights",
+        "transition": "thin low ledge of mixed grass tufts and sandy pockets with layered root marks and deeply cast shadows along the shallow cut edge"
+      },
+      "terrain_ids": {
+        "lower": "2bb9e6bc-01a4-40bd-b0f7-f89c2f9d387a",
+        "upper": "6ffc21fa-aad3-4b84-bca6-624923f22fd3"
+      },
+      "transition_size": 0.25,
+      "view": "high top-down",
+      "generation_parameters": {
+        "tile_strength": 1,
+        "tileset_adherence": 100,
+        "text_guidance_scale": 8,
+        "tileset_adherence_freedom": 500
+      },
+      "created_at": "2026-11-24T01:42:50.384464+00:00"
+    },
+    "sheet": null
+  },
+  "arquivos": [
+    {
+      "nome": "tiles-areia-grama-00.png",
+      "cam": "/tileset/tiles/0/image"
+    },
+    {
+      "nome": "tiles-areia-grama-01.png",
+      "cam": "/tileset/tiles/1/image"
+    },
+    {
+      "nome": "tiles-areia-grama-02.png",
+      "cam": "/tileset/tiles/2/image"
+    },
+    {
+      "nome": "tiles-areia-grama-03.png",
+      "cam": "/tileset/tiles/3/image"
+    },
+    {
+      "nome": "tiles-areia-grama-04.png",
+      "cam": "/tileset/tiles/4/image"
+    },
+    {
+      "nome": "tiles-areia-grama-05.png",
+      "cam": "/tileset/tiles/5/image"
+    },
+    {
+      "nome": "tiles-areia-grama-06.png",
+      "cam": "/tileset/tiles/6/image"
+    },
+    {
+      "nome": "tiles-areia-grama-07.png",
+      "cam": "/tileset/tiles/7/image"
+    },
+    {
+      "nome": "tiles-areia-grama-08.png",
+      "cam": "/tileset/tiles/8/image"
+    },
+    {
+      "nome": "tiles-areia-grama-09.png",
+      "cam": "/tileset/tiles/9/image"
+    },
+    {
+      "nome": "tiles-areia-grama-10.png",
+      "cam": "/tileset/tiles/10/image"
+    },
+    {
+      "nome": "tiles-areia-grama-11.png",
+      "cam": "/tileset/tiles/11/image"
+    },
+    {
+      "nome": "tiles-areia-grama-12.png",
+      "cam": "/tileset/tiles/12/image"
+    },
+    {
+      "nome": "tiles-areia-grama-13.png",
+      "cam": "/tileset/tiles/13/image"
+    },
+    {
+      "nome": "tiles-areia-grama-14.png",
+      "cam": "/tileset/tiles/14/image"
+    },
+    {
+      "nome": "tiles-areia-grama-15.png",
+      "cam": "/tileset/tiles/15/image"
+    }
+  ],
+  "geracoes": 1
+}
