@@ -6765,6 +6765,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
  *   Luz.degrau(hex, n)     a cor n degraus acima (n > 0) ou abaixo (n < 0) na rampa principal; para nas pontas
  *   Luz.valor(hex)         luminância relativa (0 a 1), para comparar valor (Regra 14)
  *   Luz.sombraDoChao(hex)  { projetada, contato }: 1 e 2 degraus abaixo da cor do chão (Regra 2)
+ *   Luz.lutCondicao(cond)  { hex: hex } das 64 cores na condição (sol, nublado, chuva, nevoa, noite, tarde, calor), por
+ *                          degrau de rampa (Regra 8); Luz.CONDICOES tem os passos de cada uma
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -6781,7 +6783,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     vermelho: ['#45293f', '#6e2727', '#b33831', '#ea4f36', '#f57d4a', '#fca790', '#fdcbb0'],
     carmim: ['#45293f', '#7a3045', '#ae2334', '#e83b3b', '#f68181', '#fca790'],
     fogo: ['#6e2727', '#b33831', '#fb6b1d', '#f79617', '#f9c22b', '#fbff86'],
-    oliva: ['#2e222f', '#4c3e24', '#676633', '#a2a947', '#d5e04b', '#fbff86'],
+    oliva: ['#2e222f', '#313638', '#4c3e24', '#676633', '#a2a947', '#d5e04b', '#fbff86'],
     verde: ['#313638', '#165a4c', '#239063', '#1ebc73', '#91db69', '#cddf6c'],
     musgo: ['#313638', '#374e4a', '#547e64', '#92a984', '#b2ba90', '#c7dcd0'],
     mar: ['#323353', '#0b5e65', '#0b8a8f', '#0eaf9b', '#30e1b9', '#8ff8e2'],
@@ -6828,7 +6830,87 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return { projetada: p, contato: c };
   }
 
-  return { RAMPAS: RAMPAS, rampaDe: rampaDe, degrau: degrau, valor: valor, sombraDoChao: sombraDoChao };
+  // LUT de luz e clima por degrau de rampa (Regra 8): cada cor anda n degraus DENTRO da sua rampa principal, em vez de
+  // ir para a "mais próxima" de uma mistura (o jeito antigo fundia metade dos tons: nublado 64 → 32 cores, névoa → 22).
+  // Abaixo da ponta escura a rampa segue para #2e222f e acima da clara para #ffffff, então só as pontas se fundem.
+  // Cada condição: { passos, tinta }
+  //   passos  um número para todas as rampas, ou { padrao, <rampa>: n } quando a condição muda o matiz (a tarde esfria
+  //           só as rampas frias; o calor esquenta só as quentes)
+  //   tinta   { <rampa>: <rampa alvo> }: antes dos passos, a cor vai para a rampa alvo na mesma posição relativa (a névoa
+  //           tira a saturação: as quentes viram a neutra quente, o verde vira musgo, as frias a neutra fria)
+  //   ate     (opcional) a tinta só vale até essa fração da rampa (0 = a ponta escura, 1 = a clara)
+  // As condições que a corrida usa hoje são sol, nublado, chuva e nevoa (GameData.WEATHERS); tarde, noite e calor ficam
+  // prontas para as cenas. CONDICAO_FIGURA: a LUT dos cavalos e das pessoas, em primeiro plano, mais branda que a do
+  // fundo (na chuva a figura escurece 1 degrau, não 2; na névoa, que fica atrás, não muda) — ainda escurece junto.
+  var FRIAS = ['neutroFrio', 'musgo', 'mar', 'azul', 'roxo'], QUENTES = ['terra', 'vermelho', 'carmim', 'fogo', 'oliva', 'rosa', 'magenta'];
+  function porRampas(lista, n, padrao) { var o = { padrao: padrao || 0 }; lista.forEach(function (r) { o[r] = n; }); return o; }
+  function tintaDe(lista, alvo, o) { o = o || {}; lista.forEach(function (r) { o[r] = alvo; }); return o; }
+  var CONDICOES = {
+    sol: { passos: 0 },
+    nublado: { passos: -1 },
+    chuva: { passos: -2 },
+    nevoa: { passos: 1, tinta: tintaDe(QUENTES, 'neutroQuente', tintaDe(['mar', 'azul', 'roxo'], 'neutroFrio', { verde: 'musgo' })) },
+    noite: { passos: -3 },
+    tarde: { passos: porRampas(FRIAS, -1, 0) },
+    calor: { passos: porRampas(QUENTES, 1, 0) },
+    // só para figuras (CONDICAO_FIGURA)
+    'chuva-figura': { passos: -1 },
+    // tinta ambiente das cenas paradas, nas figuras (cavalo, treinador): só o começo escuro de cada rampa (ate) muda de
+    // matiz (o terço escuro: as sombras), a base e as luzes ficam (a luz da cena entra pelo contraluz, CONTRALUZ abaixo)
+    //   Fornalha: as sombras frias puxam para o vinho e o roxo da lava (6e2727/45293f)
+    //   Estábulo: âmbar dos lampiões, as sombras frias viram neutras quentes
+    //   Remanso: frio da água, as sombras quentes puxam para o roxo e o azul
+    fornalha: { passos: 0, ate: 0.34, tinta: tintaDe(['neutroFrio', 'azul', 'roxo', 'mar', 'musgo'], 'terra', { verde: 'oliva' }) },
+    estabulo: { passos: 0, ate: 0.34, tinta: tintaDe(['neutroFrio', 'azul', 'mar', 'musgo'], 'neutroQuente') },
+    remanso: { passos: 0, ate: 0.34, tinta: tintaDe(['terra', 'vermelho', 'fogo', 'rosa', 'magenta', 'carmim'], 'roxo', { oliva: 'musgo' }) }
+  };
+  // contraluz de 1 px nas figuras, só com fonte emissiva na cena (lava, lampião, pôr do sol), do lado da fonte e só onde o
+  // pixel já é o degrau mais claro (Regra 8); a cor é a do brilho da fonte
+  var CONTRALUZ = { fornalha: { lado: 'esquerda', cor: '#f79617' }, estabulo: { lado: 'cima', cor: '#fbb954' } };
+  var CONDICAO_FIGURA = { sol: 'sol', nublado: 'nublado', chuva: 'chuva-figura', nevoa: 'sol', noite: 'chuva', tarde: 'tarde', calor: 'sol' };
+  var PONTA_ESCURA = '#2e222f', PONTA_CLARA = '#ffffff';
+  function estendida(nome) {
+    var r = RAMPAS[nome].slice();
+    if (r[0] !== PONTA_ESCURA) r.unshift(PONTA_ESCURA);
+    if (r[r.length - 1] !== PONTA_CLARA) r.push(PONTA_CLARA);
+    return r;
+  }
+  function degrauEstendido(hex, n, rampa) {
+    var h = norm(hex), nome = rampa || RAMPA_DE[h];
+    if (!nome || !n) return h;
+    var r = estendida(nome), i = r.indexOf(h);
+    if (i < 0) return h;
+    return r[Math.max(0, Math.min(r.length - 1, i + n))];
+  }
+  function passosDe(c, rampa) {
+    var p = c.passos;
+    if (typeof p === 'number') return p;
+    if (!p) return 0;
+    return Object.prototype.hasOwnProperty.call(p, rampa) ? p[rampa] : p.padrao;
+  }
+  // a cor na rampa alvo, na mesma posição relativa da rampa de origem
+  function tinge(h, de, alvo) {
+    var r = RAMPAS[de], t = RAMPAS[alvo], i = r.indexOf(h);
+    return t[Math.round(i * (t.length - 1) / Math.max(1, r.length - 1))];
+  }
+  var luts = {};
+  // { '#rrggbb': '#rrggbb' } das 64 cores numa condição (sol e condição desconhecida: a identidade)
+  function lutCondicao(cond) {
+    if (luts[cond]) return luts[cond];
+    var c = CONDICOES[cond] || CONDICOES.sol, t = {};
+    Object.keys(RAMPA_DE).forEach(function (h) {
+      var r = RAMPA_DE[h], alvo = c.tinta && c.tinta[r];
+      if (alvo && c.ate != null && RAMPAS[r].indexOf(h) / Math.max(1, RAMPAS[r].length - 1) > c.ate) alvo = null;
+      if (alvo) t[h] = degrauEstendido(tinge(h, r, alvo), passosDe(c, r), alvo);
+      else t[h] = degrauEstendido(h, passosDe(c, r));
+    });
+    return (luts[cond] = t);
+  }
+  // a LUT das figuras (cavalos, pessoas) numa condição do fundo
+  function lutFigura(cond) { return lutCondicao(CONDICAO_FIGURA[cond] || 'sol'); }
+
+  return { RAMPAS: RAMPAS, rampaDe: rampaDe, degrau: degrau, valor: valor, sombraDoChao: sombraDoChao,
+    CONDICOES: CONDICOES, CONDICAO_FIGURA: CONDICAO_FIGURA, CONTRALUZ: CONTRALUZ, lutCondicao: lutCondicao, lutFigura: lutFigura, degrauEstendido: degrauEstendido };
 }));
 </script>
 <script>
@@ -8105,14 +8187,59 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // semente, padrão e capacete, quando vêm nas opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a
   // chave e os pixels de antes da parte 2a.
   // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
+  // o.clima (corrida): as cores passam pela LUT do clima, a mesma das camadas da região, e o cavalo escurece junto com o
+  // fundo (Regra 8 (a)); sol ou sem clima: a chave e os pixels de antes
+  // (a LUT de figura: Luz.lutFigura, mais branda que a do fundo; um clima em que ela é a identidade fica como o sol)
+  function climaDoCavalo(o) {
+    var Lz = luzApi();
+    if (!o.clima || !CLIMA_PALETA[o.clima] || !Lz || !Lz.CONDICAO_FIGURA) return null;
+    return (Lz.CONDICAO_FIGURA[o.clima] || 'sol') === 'sol' ? null : o.clima;
+  }
+  // (clima: a LUT de figura do clima; 'cena|<nome>': a tinta ambiente da cena)
+  function lutFigura(clima) {
+    if (lutClimas['fig|' + clima]) return lutClimas['fig|' + clima];
+    var Lz = luzApi(), L = clima.indexOf('cena|') === 0 ? Lz.lutCondicao(clima.slice(5)) : Lz.lutFigura(clima), t = {};
+    MESTRA.forEach(function (h) { t['#' + h] = L['#' + h] || '#' + h; });
+    return (lutClimas['fig|' + clima] = t);
+  }
+  // o.cena (cenas paradas: 'fornalha', 'estabulo', 'remanso'): a tinta ambiente da cena nas figuras (Luz.CONDICOES) e o
+  // contraluz da fonte emissiva dela (Luz.CONTRALUZ; o.contraluz === false tira), do lado da fonte (o.espelhado vira o
+  // lado, para a fonte ficar no mesmo lado da tela)
+  function cenaDoCavalo(o) { var Lz = luzApi(); return o.cena && Lz && Lz.CONDICOES && Lz.CONDICOES[o.cena] ? o.cena : null; }
+  function contraluzDe(o, cena) {
+    var Lz = luzApi(), c = cena && o.contraluz !== false && Lz.CONTRALUZ ? Lz.CONTRALUZ[cena] : null;
+    if (!c) return null;
+    var lado = c.lado;
+    if (o.espelhado && lado !== 'cima') lado = lado === 'esquerda' ? 'direita' : 'esquerda';
+    return { lado: lado, cor: c.cor };
+  }
+  // contraluz de 1 px: o pixel do tom de luz (16 pelo, 18 crina) com o vazio ou o contorno do lado da fonte vira o
+  // índice 20 (a cor da fonte); só onde o pixel já é o degrau mais claro (Regra 8)
+  function comContraluz(sb, idx, w, h, lado) {
+    var dx = lado === 'esquerda' ? -1 : lado === 'direita' ? 1 : 0, dy = lado === 'cima' ? -1 : 0, out = new Uint8Array(sb);
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+      var i = y * w + x;
+      if (sb[i] !== 16 && sb[i] !== 18) continue;
+      var xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= w || yy >= h || idx[yy * w + xx] <= 1) out[i] = 20;
+    }
+    return out;
+  }
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o);
-    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
+    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce);
+    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '') + (cl ? '|c' + cl : '') +
+      (ce ? '|s' + ce + (cz ? ',' + cz.lado : '') : '');
     var c = moldCache.get(key);
     if (!c) {
       var M = moldes[nome], idx = indicesMolde(M, estado, quadro), sb = sombreiaPelagem(idx, M.w, M.h), tons = coresTons(cores);
-      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v, sb), M.w, M.h, coresNaMestra(coresComCamadas(cores, v)).concat(tons))
-        : pintaIndices(sb, M.w, M.h, cores.concat([null, null, null, null, null, null], tons));
+      if (cz) sb = comContraluz(sb, idx, M.w, M.h, cz.lado);
+      var lut = cl ? lutFigura(cl) : null, lutC = ce ? lutFigura('cena|' + ce) : null;
+      var noClima = function (lista) {
+        return lista.map(function (x) { if (!x) return x; x = x.toLowerCase(); if (lut) x = corClima(lut, x); return lutC ? corClima(lutC, x) : x; });
+      };
+      var extra = [cz ? cz.cor : null];
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v, sb), M.w, M.h, noClima(coresNaMestra(coresComCamadas(cores, v)).concat(tons)).concat(extra))
+        : pintaIndices(sb, M.w, M.h, noClima(cores.concat([null, null, null, null, null, null], tons)).concat(extra));
       moldCache.set(key, c);
     }
     return c;
@@ -8271,6 +8398,16 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var i = (y * P.w + x) * 4;
       return P.d[i + 3] < 128 ? null : rgbToHex(P.d[i], P.d[i + 1], P.d[i + 2]).toLowerCase();
     };
+  }
+  // uma imagem de figura (treinador) na tinta ambiente de uma cena (Luz.CONDICOES[cena]), pré-assada uma vez por imagem
+  // e cena; sem cena conhecida ou ainda carregando, a própria imagem
+  var naCenaCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function imagemNaCena(img, cena) {
+    var Lz = luzApi();
+    if (!img || !cena || !Lz || !Lz.CONDICOES || !Lz.CONDICOES[cena] || !naCenaCache || img.complete === false || img.naturalWidth === 0) return img;
+    var m = naCenaCache.get(img);
+    if (!m) { m = {}; naCenaCache.set(img, m); }
+    return m[cena] || (m[cena] = remapeia(img, lutFigura('cena|' + cena)));
   }
   // sombra dos pés de um personagem que não é molde (treinador, objeto): elipse de 2 tons da rampa do chão, 2 px de arte
   // para a direita, com os pés em (cx, y) e a largura larg (pixels de arte; k = escala)
@@ -9322,10 +9459,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // juntos, uma vez por região e clima (pré-desenhados, guia §9).
   var CLIMA_PALETA = { nublado: ['#7f708a', 0.38], chuva: ['#323353', 0.42], nevoa: ['#c7dcd0', 0.5] };
   var lutClimas = {};
+  // a LUT de um clima: por degrau de rampa (Luz.lutCondicao; guia de integração, Regra 8), que não funde os tons; sem o
+  // luz.js, a mistura com a tinta do clima levada à mestra (o jeito antigo)
   function lutClima(clima) {
     if (lutClimas[clima]) return lutClimas[clima];
-    var cl = CLIMA_PALETA[clima], t = {};
-    MESTRA.forEach(function (h) { t['#' + h] = cl ? naMestra(mix('#' + h, cl[0], cl[1])) : '#' + h; });
+    var cl = CLIMA_PALETA[clima], t = {}, Lz = luzApi();
+    if (Lz && Lz.lutCondicao) {
+      var L = Lz.lutCondicao(cl ? clima : 'sol');
+      MESTRA.forEach(function (h) { t['#' + h] = L['#' + h] || '#' + h; });
+    } else MESTRA.forEach(function (h) { t['#' + h] = cl ? naMestra(mix('#' + h, cl[0], cl[1])) : '#' + h; });
     return (lutClimas[clima] = t);
   }
   function corClima(lut, c) { return (lut && lut[c]) || c; }
@@ -9884,7 +10026,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
-    pixelsSombra: pixelsSombra, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes,
+    pixelsSombra: pixelsSombra, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,
@@ -15540,6 +15682,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // cima do céu; o treinador no corpo de ~40 px (quadro 32×48) e os cavalos, todos 1:1 na grade. Numa coluna mais estreita
   // que 256 pixels de arte, a cena corta as laterais (centrada). Posições em pixels da cena (já sem o céu cortado).
   var CENA_W = 256, CENA_H = 128, CENA_CORTE = 32;
+  var ESCADA_CLIMA = ['nevoa', 'sol', 'nublado', 'chuva'], PASSO_CLIMA_S = 0.25;
+  // a luz de cada arena nas figuras (Luz.CONDICOES / Luz.CONTRALUZ): a lava da Fornalha, o frio do Remanso
+  var CENA_LUZ = { fogo: 'fornalha', agua: 'remanso' };
   var CENA_POS = { rival: { cx: 168, base: 70 }, treinador: { x: 194, base: 70 }, voce: { cx: 84, base: 118 } };
   var arenaImgs = {};
   function arenaImg(id) {
@@ -15594,7 +15739,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   function cavaloParado(ctx, k, h, vis, cx, base, t, chao) {
     vis.reduzido = reduced();
     SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
-      jockey: false, silks: PLAYER_SILKS, chao: chao, quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
+      jockey: false, silks: PLAYER_SILKS, chao: chao, cena: 'estabulo', quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
   }
   function drawCenaAba(cv) {
     var aba = cv.getAttribute('data-cena-aba'), L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, CENA_ABA_H), k = s.k, ctx = s.ctx;
@@ -15745,6 +15890,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         // o chão da arena varia (areia, lava, pedra): cada pixel da sombra é o pixel da arena sob ele, 1 degrau abaixo
         chaoEm: chaoPx ? function (x, y) { return chaoPx((espelha ? 2 * cx - x - 1 : x) + ox, y + CENA_CORTE); } : null,
         chaoChave: e.gymId + '|' + ox + '|' + cx + '|' + base,
+        cena: CENA_LUZ[e.gymId] || null,   // tinta ambiente e contraluz da arena (Regra 8)
         quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
       if (!espelha) { SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); return; }
       ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
@@ -15768,7 +15914,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
           var tx = P.treinador.x - ox, ty = P.treinador.base - img.naturalHeight;
           var chaoT = chaoArena(P.treinador.x + img.naturalWidth / 2, P.treinador.base, 12);
           if (chaoT) SP.drawSombraPes(ctx, tx + img.naturalWidth / 2, P.treinador.base, Math.round(img.naturalWidth * 0.7), chaoT, k);
-          ctx.drawImage(img, tx * k, ty * k, img.naturalWidth * k, img.naturalHeight * k);
+          ctx.drawImage(SP.imagemNaCena(img, CENA_LUZ[e.gymId]), tx * k, ty * k, img.naturalWidth * k, img.naturalHeight * k);
           cv.setAttribute('data-treinador', [tx, ty, img.naturalWidth, img.naturalHeight].join(','));
         }
         cavalo(e.a, visA, P.voce.cx, P.voce.base, tt, false);
@@ -18313,6 +18459,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     }
     // o clima que o painel do topo mostra e a pista desenha (chuva, névoa): o da simulação, mas a virada de um Dado só
     // depois da revelação (Ruling 18; a velocidade dos cavalos é a da simulação, que já conta o clima novo)
+    // a escada da virada de clima na paleta (Luz.CONDICOES: névoa +1, sol 0, nublado -1, chuva -2): de um clima a outro,
+    // os degraus do meio e o destino (sem o de partida)
+    function caminhoClima(de, para) {
+      var a = ESCADA_CLIMA.indexOf(de), b = ESCADA_CLIMA.indexOf(para), out = [], s = b > a ? 1 : -1;
+      if (a < 0 || b < 0 || a === b) return [para];
+      for (var i = a + s; i !== b; i += s) out.push(ESCADA_CLIMA[i]);
+      out.push(para);
+      return out;
+    }
     function climaMostrado(simT) {
       var w = L.cond.weather;
       for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) {
@@ -18417,6 +18572,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
     // as camadas da região nos climas que trocam a paleta, pré-desenhadas na largada (uma virada de clima não custa um quadro)
     SP.prepararRegiao(regiaoDaPista(L), ['nublado', 'chuva', 'nevoa']);
+    var climasDaCorrida = [L.cond.weather];
+    climaEvs.reduce(function (de, e) { climasDaCorrida = climasDaCorrida.concat(caminhoClima(de, e.weather)); return e.weather; }, L.cond.weather);
+    climasDaCorrida = climasDaCorrida.filter(function (c, i, a) { return a.indexOf(c) === i; });
     // marcas, jóquei, raridade (parte 2a) e porte (parte 2b) de cada corredor, calculados uma vez; cada cavalo é
     // montado já na largada, no molde do porte (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora,
     // ~0,8 ms por quadro com marcas e jóquei), e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi
@@ -18424,7 +18582,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var visuais = L.racers.map(function (r, q) {
       var v = opcoesVisuais(r.horse, joqueiDoCorredor(L, q));
       v.rastro = true;   // rastro de luz do Mítico: só na corrida
-      SP.prepararCavalo(comVisuais({ palette: r.horse.palette, element: r.horse.element, silks: r.silks }, v));
+      // e em cada clima que a corrida mostra (o inicial e as viradas, que já saíram da seed): a LUT do clima é pré-assada
+      // no cavalo, que escurece junto com o fundo (guia de integração, Regra 8)
+      climasDaCorrida.forEach(function (cl) {
+        SP.prepararCavalo(comVisuais({ palette: r.horse.palette, element: r.horse.element, silks: r.silks, clima: cl }, v));
+      });
       return v;
     });
 
@@ -18810,14 +18972,22 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
       var tr = self.tReal, red = reduced();
       var clima = climaMostrado(self.simT);
-      var chaoPista = SP.corDoPiso(L.cond.surface, clima, regiaoDaPista(L));   // a sombra dos cavalos nesse piso e clima (Regra 2)
+      // a virada de clima na paleta anda de degrau em degrau (sol → nublado → chuva), um passo a cada PASSO_CLIMA_S de
+      // tempo real, todos pré-assados na largada; a chuva e a névoa (fx.js) e o painel já mudam na revelação
+      if (self.climaAlvo !== clima) {
+        self.climaCaminho = self.climaAlvo && !red ? caminhoClima(self.climaAlvo, clima) : [clima];
+        self.climaAlvo = clima; self.tVirada = tr;
+      }
+      var climaCor = self.climaCaminho[Math.min(self.climaCaminho.length - 1, Math.max(0, Math.floor((tr - self.tVirada) / PASSO_CLIMA_S)))];
+      FX._stats.climaCor = climaCor;
+      var chaoPista = SP.corDoPiso(L.cond.surface, climaCor, regiaoDaPista(L));   // a sombra dos cavalos nesse piso e clima (Regra 2)
       FX._stats.climaPista = clima;   // para o ui-test: o clima desenhado na pista neste quadro
       // em reduced nada congela: o cenário (nuvens, torcida, bandeiras, grama) anda a 40 % e a natureza
       // (fx.js) recebe o tempo real com a marca reduced (chuva a 40 %, metade dos pingos, sem relâmpago)
       SP.drawTrack(ctx, {
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: self.camPx, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
-        t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
+        t: red ? tr * 0.4 : tr, weather: climaCor, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
         curveScale: lay.arcoK, regiao: regiaoDaPista(L)
       });
       // natureza, camada de trás (calor, respingos, névoa do fundo): antes dos cavalos. lift acompanha o
@@ -18847,7 +19017,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
           // fase contínua do galope: o código usa o quadro inteiro; o molde mapeia o ciclo (mesma duração)
           palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
           scale: S, silks: r.silks, t: tr, idle: standing,
-          chao: chaoPista   // sombra opaca na cor do piso no clima (guia de integração, Regra 2)
+          chao: chaoPista,   // sombra opaca na cor do piso no clima (guia de integração, Regra 2)
+          clima: climaCor    // o cavalo na LUT do clima mostrado, como o fundo (Regra 8)
         }, visuais[j]);
         cavalo.reduzido = red;
         // caixa do que vai ser desenhado (molde ou código): o corte nas bordas e o monitor de câmera usam ela,

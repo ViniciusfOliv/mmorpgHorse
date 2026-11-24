@@ -3455,6 +3455,9 @@
   // cima do céu; o treinador no corpo de ~40 px (quadro 32×48) e os cavalos, todos 1:1 na grade. Numa coluna mais estreita
   // que 256 pixels de arte, a cena corta as laterais (centrada). Posições em pixels da cena (já sem o céu cortado).
   var CENA_W = 256, CENA_H = 128, CENA_CORTE = 32;
+  var ESCADA_CLIMA = ['nevoa', 'sol', 'nublado', 'chuva'], PASSO_CLIMA_S = 0.25;
+  // a luz de cada arena nas figuras (Luz.CONDICOES / Luz.CONTRALUZ): a lava da Fornalha, o frio do Remanso
+  var CENA_LUZ = { fogo: 'fornalha', agua: 'remanso' };
   var CENA_POS = { rival: { cx: 168, base: 70 }, treinador: { x: 194, base: 70 }, voce: { cx: 84, base: 118 } };
   var arenaImgs = {};
   function arenaImg(id) {
@@ -3509,7 +3512,7 @@
   function cavaloParado(ctx, k, h, vis, cx, base, t, chao) {
     vis.reduzido = reduced();
     SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
-      jockey: false, silks: PLAYER_SILKS, chao: chao, quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
+      jockey: false, silks: PLAYER_SILKS, chao: chao, cena: 'estabulo', quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
   }
   function drawCenaAba(cv) {
     var aba = cv.getAttribute('data-cena-aba'), L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, CENA_ABA_H), k = s.k, ctx = s.ctx;
@@ -3660,6 +3663,7 @@
         // o chão da arena varia (areia, lava, pedra): cada pixel da sombra é o pixel da arena sob ele, 1 degrau abaixo
         chaoEm: chaoPx ? function (x, y) { return chaoPx((espelha ? 2 * cx - x - 1 : x) + ox, y + CENA_CORTE); } : null,
         chaoChave: e.gymId + '|' + ox + '|' + cx + '|' + base,
+        cena: CENA_LUZ[e.gymId] || null,   // tinta ambiente e contraluz da arena (Regra 8)
         quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
       if (!espelha) { SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); return; }
       ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
@@ -3683,7 +3687,7 @@
           var tx = P.treinador.x - ox, ty = P.treinador.base - img.naturalHeight;
           var chaoT = chaoArena(P.treinador.x + img.naturalWidth / 2, P.treinador.base, 12);
           if (chaoT) SP.drawSombraPes(ctx, tx + img.naturalWidth / 2, P.treinador.base, Math.round(img.naturalWidth * 0.7), chaoT, k);
-          ctx.drawImage(img, tx * k, ty * k, img.naturalWidth * k, img.naturalHeight * k);
+          ctx.drawImage(SP.imagemNaCena(img, CENA_LUZ[e.gymId]), tx * k, ty * k, img.naturalWidth * k, img.naturalHeight * k);
           cv.setAttribute('data-treinador', [tx, ty, img.naturalWidth, img.naturalHeight].join(','));
         }
         cavalo(e.a, visA, P.voce.cx, P.voce.base, tt, false);
@@ -6228,6 +6232,15 @@
     }
     // o clima que o painel do topo mostra e a pista desenha (chuva, névoa): o da simulação, mas a virada de um Dado só
     // depois da revelação (Ruling 18; a velocidade dos cavalos é a da simulação, que já conta o clima novo)
+    // a escada da virada de clima na paleta (Luz.CONDICOES: névoa +1, sol 0, nublado -1, chuva -2): de um clima a outro,
+    // os degraus do meio e o destino (sem o de partida)
+    function caminhoClima(de, para) {
+      var a = ESCADA_CLIMA.indexOf(de), b = ESCADA_CLIMA.indexOf(para), out = [], s = b > a ? 1 : -1;
+      if (a < 0 || b < 0 || a === b) return [para];
+      for (var i = a + s; i !== b; i += s) out.push(ESCADA_CLIMA[i]);
+      out.push(para);
+      return out;
+    }
     function climaMostrado(simT) {
       var w = L.cond.weather;
       for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) {
@@ -6332,6 +6345,9 @@
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
     // as camadas da região nos climas que trocam a paleta, pré-desenhadas na largada (uma virada de clima não custa um quadro)
     SP.prepararRegiao(regiaoDaPista(L), ['nublado', 'chuva', 'nevoa']);
+    var climasDaCorrida = [L.cond.weather];
+    climaEvs.reduce(function (de, e) { climasDaCorrida = climasDaCorrida.concat(caminhoClima(de, e.weather)); return e.weather; }, L.cond.weather);
+    climasDaCorrida = climasDaCorrida.filter(function (c, i, a) { return a.indexOf(c) === i; });
     // marcas, jóquei, raridade (parte 2a) e porte (parte 2b) de cada corredor, calculados uma vez; cada cavalo é
     // montado já na largada, no molde do porte (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora,
     // ~0,8 ms por quadro com marcas e jóquei), e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi
@@ -6339,7 +6355,11 @@
     var visuais = L.racers.map(function (r, q) {
       var v = opcoesVisuais(r.horse, joqueiDoCorredor(L, q));
       v.rastro = true;   // rastro de luz do Mítico: só na corrida
-      SP.prepararCavalo(comVisuais({ palette: r.horse.palette, element: r.horse.element, silks: r.silks }, v));
+      // e em cada clima que a corrida mostra (o inicial e as viradas, que já saíram da seed): a LUT do clima é pré-assada
+      // no cavalo, que escurece junto com o fundo (guia de integração, Regra 8)
+      climasDaCorrida.forEach(function (cl) {
+        SP.prepararCavalo(comVisuais({ palette: r.horse.palette, element: r.horse.element, silks: r.silks, clima: cl }, v));
+      });
       return v;
     });
 
@@ -6725,14 +6745,22 @@
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
       var tr = self.tReal, red = reduced();
       var clima = climaMostrado(self.simT);
-      var chaoPista = SP.corDoPiso(L.cond.surface, clima, regiaoDaPista(L));   // a sombra dos cavalos nesse piso e clima (Regra 2)
+      // a virada de clima na paleta anda de degrau em degrau (sol → nublado → chuva), um passo a cada PASSO_CLIMA_S de
+      // tempo real, todos pré-assados na largada; a chuva e a névoa (fx.js) e o painel já mudam na revelação
+      if (self.climaAlvo !== clima) {
+        self.climaCaminho = self.climaAlvo && !red ? caminhoClima(self.climaAlvo, clima) : [clima];
+        self.climaAlvo = clima; self.tVirada = tr;
+      }
+      var climaCor = self.climaCaminho[Math.min(self.climaCaminho.length - 1, Math.max(0, Math.floor((tr - self.tVirada) / PASSO_CLIMA_S)))];
+      FX._stats.climaCor = climaCor;
+      var chaoPista = SP.corDoPiso(L.cond.surface, climaCor, regiaoDaPista(L));   // a sombra dos cavalos nesse piso e clima (Regra 2)
       FX._stats.climaPista = clima;   // para o ui-test: o clima desenhado na pista neste quadro
       // em reduced nada congela: o cenário (nuvens, torcida, bandeiras, grama) anda a 40 % e a natureza
       // (fx.js) recebe o tempo real com a marca reduced (chuva a 40 %, metade dos pingos, sem relâmpago)
       SP.drawTrack(ctx, {
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: self.camPx, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
-        t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
+        t: red ? tr * 0.4 : tr, weather: climaCor, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
         curveScale: lay.arcoK, regiao: regiaoDaPista(L)
       });
       // natureza, camada de trás (calor, respingos, névoa do fundo): antes dos cavalos. lift acompanha o
@@ -6762,7 +6790,8 @@
           // fase contínua do galope: o código usa o quadro inteiro; o molde mapeia o ciclo (mesma duração)
           palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
           scale: S, silks: r.silks, t: tr, idle: standing,
-          chao: chaoPista   // sombra opaca na cor do piso no clima (guia de integração, Regra 2)
+          chao: chaoPista,   // sombra opaca na cor do piso no clima (guia de integração, Regra 2)
+          clima: climaCor    // o cavalo na LUT do clima mostrado, como o fundo (Regra 8)
         }, visuais[j]);
         cavalo.reduzido = red;
         // caixa do que vai ser desenhado (molde ou código): o corte nas bordas e o monitor de câmera usam ela,

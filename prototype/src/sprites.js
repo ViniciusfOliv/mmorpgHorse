@@ -1270,14 +1270,59 @@
   // semente, padrão e capacete, quando vêm nas opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a
   // chave e os pixels de antes da parte 2a.
   // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
+  // o.clima (corrida): as cores passam pela LUT do clima, a mesma das camadas da região, e o cavalo escurece junto com o
+  // fundo (Regra 8 (a)); sol ou sem clima: a chave e os pixels de antes
+  // (a LUT de figura: Luz.lutFigura, mais branda que a do fundo; um clima em que ela é a identidade fica como o sol)
+  function climaDoCavalo(o) {
+    var Lz = luzApi();
+    if (!o.clima || !CLIMA_PALETA[o.clima] || !Lz || !Lz.CONDICAO_FIGURA) return null;
+    return (Lz.CONDICAO_FIGURA[o.clima] || 'sol') === 'sol' ? null : o.clima;
+  }
+  // (clima: a LUT de figura do clima; 'cena|<nome>': a tinta ambiente da cena)
+  function lutFigura(clima) {
+    if (lutClimas['fig|' + clima]) return lutClimas['fig|' + clima];
+    var Lz = luzApi(), L = clima.indexOf('cena|') === 0 ? Lz.lutCondicao(clima.slice(5)) : Lz.lutFigura(clima), t = {};
+    MESTRA.forEach(function (h) { t['#' + h] = L['#' + h] || '#' + h; });
+    return (lutClimas['fig|' + clima] = t);
+  }
+  // o.cena (cenas paradas: 'fornalha', 'estabulo', 'remanso'): a tinta ambiente da cena nas figuras (Luz.CONDICOES) e o
+  // contraluz da fonte emissiva dela (Luz.CONTRALUZ; o.contraluz === false tira), do lado da fonte (o.espelhado vira o
+  // lado, para a fonte ficar no mesmo lado da tela)
+  function cenaDoCavalo(o) { var Lz = luzApi(); return o.cena && Lz && Lz.CONDICOES && Lz.CONDICOES[o.cena] ? o.cena : null; }
+  function contraluzDe(o, cena) {
+    var Lz = luzApi(), c = cena && o.contraluz !== false && Lz.CONTRALUZ ? Lz.CONTRALUZ[cena] : null;
+    if (!c) return null;
+    var lado = c.lado;
+    if (o.espelhado && lado !== 'cima') lado = lado === 'esquerda' ? 'direita' : 'esquerda';
+    return { lado: lado, cor: c.cor };
+  }
+  // contraluz de 1 px: o pixel do tom de luz (16 pelo, 18 crina) com o vazio ou o contorno do lado da fonte vira o
+  // índice 20 (a cor da fonte); só onde o pixel já é o degrau mais claro (Regra 8)
+  function comContraluz(sb, idx, w, h, lado) {
+    var dx = lado === 'esquerda' ? -1 : lado === 'direita' ? 1 : 0, dy = lado === 'cima' ? -1 : 0, out = new Uint8Array(sb);
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+      var i = y * w + x;
+      if (sb[i] !== 16 && sb[i] !== 18) continue;
+      var xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= w || yy >= h || idx[yy * w + xx] <= 1) out[i] = 20;
+    }
+    return out;
+  }
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o);
-    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
+    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce);
+    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '') + (cl ? '|c' + cl : '') +
+      (ce ? '|s' + ce + (cz ? ',' + cz.lado : '') : '');
     var c = moldCache.get(key);
     if (!c) {
       var M = moldes[nome], idx = indicesMolde(M, estado, quadro), sb = sombreiaPelagem(idx, M.w, M.h), tons = coresTons(cores);
-      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v, sb), M.w, M.h, coresNaMestra(coresComCamadas(cores, v)).concat(tons))
-        : pintaIndices(sb, M.w, M.h, cores.concat([null, null, null, null, null, null], tons));
+      if (cz) sb = comContraluz(sb, idx, M.w, M.h, cz.lado);
+      var lut = cl ? lutFigura(cl) : null, lutC = ce ? lutFigura('cena|' + ce) : null;
+      var noClima = function (lista) {
+        return lista.map(function (x) { if (!x) return x; x = x.toLowerCase(); if (lut) x = corClima(lut, x); return lutC ? corClima(lutC, x) : x; });
+      };
+      var extra = [cz ? cz.cor : null];
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v, sb), M.w, M.h, noClima(coresNaMestra(coresComCamadas(cores, v)).concat(tons)).concat(extra))
+        : pintaIndices(sb, M.w, M.h, noClima(cores.concat([null, null, null, null, null, null], tons)).concat(extra));
       moldCache.set(key, c);
     }
     return c;
@@ -1436,6 +1481,16 @@
       var i = (y * P.w + x) * 4;
       return P.d[i + 3] < 128 ? null : rgbToHex(P.d[i], P.d[i + 1], P.d[i + 2]).toLowerCase();
     };
+  }
+  // uma imagem de figura (treinador) na tinta ambiente de uma cena (Luz.CONDICOES[cena]), pré-assada uma vez por imagem
+  // e cena; sem cena conhecida ou ainda carregando, a própria imagem
+  var naCenaCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function imagemNaCena(img, cena) {
+    var Lz = luzApi();
+    if (!img || !cena || !Lz || !Lz.CONDICOES || !Lz.CONDICOES[cena] || !naCenaCache || img.complete === false || img.naturalWidth === 0) return img;
+    var m = naCenaCache.get(img);
+    if (!m) { m = {}; naCenaCache.set(img, m); }
+    return m[cena] || (m[cena] = remapeia(img, lutFigura('cena|' + cena)));
   }
   // sombra dos pés de um personagem que não é molde (treinador, objeto): elipse de 2 tons da rampa do chão, 2 px de arte
   // para a direita, com os pés em (cx, y) e a largura larg (pixels de arte; k = escala)
@@ -2487,10 +2542,15 @@
   // juntos, uma vez por região e clima (pré-desenhados, guia §9).
   var CLIMA_PALETA = { nublado: ['#7f708a', 0.38], chuva: ['#323353', 0.42], nevoa: ['#c7dcd0', 0.5] };
   var lutClimas = {};
+  // a LUT de um clima: por degrau de rampa (Luz.lutCondicao; guia de integração, Regra 8), que não funde os tons; sem o
+  // luz.js, a mistura com a tinta do clima levada à mestra (o jeito antigo)
   function lutClima(clima) {
     if (lutClimas[clima]) return lutClimas[clima];
-    var cl = CLIMA_PALETA[clima], t = {};
-    MESTRA.forEach(function (h) { t['#' + h] = cl ? naMestra(mix('#' + h, cl[0], cl[1])) : '#' + h; });
+    var cl = CLIMA_PALETA[clima], t = {}, Lz = luzApi();
+    if (Lz && Lz.lutCondicao) {
+      var L = Lz.lutCondicao(cl ? clima : 'sol');
+      MESTRA.forEach(function (h) { t['#' + h] = L['#' + h] || '#' + h; });
+    } else MESTRA.forEach(function (h) { t['#' + h] = cl ? naMestra(mix('#' + h, cl[0], cl[1])) : '#' + h; });
     return (lutClimas[clima] = t);
   }
   function corClima(lut, c) { return (lut && lut[c]) || c; }
@@ -3049,7 +3109,7 @@
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
-    pixelsSombra: pixelsSombra, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes,
+    pixelsSombra: pixelsSombra, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,

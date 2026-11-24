@@ -12,6 +12,8 @@
  *   Luz.degrau(hex, n)     a cor n degraus acima (n > 0) ou abaixo (n < 0) na rampa principal; para nas pontas
  *   Luz.valor(hex)         luminância relativa (0 a 1), para comparar valor (Regra 14)
  *   Luz.sombraDoChao(hex)  { projetada, contato }: 1 e 2 degraus abaixo da cor do chão (Regra 2)
+ *   Luz.lutCondicao(cond)  { hex: hex } das 64 cores na condição (sol, nublado, chuva, nevoa, noite, tarde, calor), por
+ *                          degrau de rampa (Regra 8); Luz.CONDICOES tem os passos de cada uma
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -28,7 +30,7 @@
     vermelho: ['#45293f', '#6e2727', '#b33831', '#ea4f36', '#f57d4a', '#fca790', '#fdcbb0'],
     carmim: ['#45293f', '#7a3045', '#ae2334', '#e83b3b', '#f68181', '#fca790'],
     fogo: ['#6e2727', '#b33831', '#fb6b1d', '#f79617', '#f9c22b', '#fbff86'],
-    oliva: ['#2e222f', '#4c3e24', '#676633', '#a2a947', '#d5e04b', '#fbff86'],
+    oliva: ['#2e222f', '#313638', '#4c3e24', '#676633', '#a2a947', '#d5e04b', '#fbff86'],
     verde: ['#313638', '#165a4c', '#239063', '#1ebc73', '#91db69', '#cddf6c'],
     musgo: ['#313638', '#374e4a', '#547e64', '#92a984', '#b2ba90', '#c7dcd0'],
     mar: ['#323353', '#0b5e65', '#0b8a8f', '#0eaf9b', '#30e1b9', '#8ff8e2'],
@@ -75,5 +77,85 @@
     return { projetada: p, contato: c };
   }
 
-  return { RAMPAS: RAMPAS, rampaDe: rampaDe, degrau: degrau, valor: valor, sombraDoChao: sombraDoChao };
+  // LUT de luz e clima por degrau de rampa (Regra 8): cada cor anda n degraus DENTRO da sua rampa principal, em vez de
+  // ir para a "mais próxima" de uma mistura (o jeito antigo fundia metade dos tons: nublado 64 → 32 cores, névoa → 22).
+  // Abaixo da ponta escura a rampa segue para #2e222f e acima da clara para #ffffff, então só as pontas se fundem.
+  // Cada condição: { passos, tinta }
+  //   passos  um número para todas as rampas, ou { padrao, <rampa>: n } quando a condição muda o matiz (a tarde esfria
+  //           só as rampas frias; o calor esquenta só as quentes)
+  //   tinta   { <rampa>: <rampa alvo> }: antes dos passos, a cor vai para a rampa alvo na mesma posição relativa (a névoa
+  //           tira a saturação: as quentes viram a neutra quente, o verde vira musgo, as frias a neutra fria)
+  //   ate     (opcional) a tinta só vale até essa fração da rampa (0 = a ponta escura, 1 = a clara)
+  // As condições que a corrida usa hoje são sol, nublado, chuva e nevoa (GameData.WEATHERS); tarde, noite e calor ficam
+  // prontas para as cenas. CONDICAO_FIGURA: a LUT dos cavalos e das pessoas, em primeiro plano, mais branda que a do
+  // fundo (na chuva a figura escurece 1 degrau, não 2; na névoa, que fica atrás, não muda) — ainda escurece junto.
+  var FRIAS = ['neutroFrio', 'musgo', 'mar', 'azul', 'roxo'], QUENTES = ['terra', 'vermelho', 'carmim', 'fogo', 'oliva', 'rosa', 'magenta'];
+  function porRampas(lista, n, padrao) { var o = { padrao: padrao || 0 }; lista.forEach(function (r) { o[r] = n; }); return o; }
+  function tintaDe(lista, alvo, o) { o = o || {}; lista.forEach(function (r) { o[r] = alvo; }); return o; }
+  var CONDICOES = {
+    sol: { passos: 0 },
+    nublado: { passos: -1 },
+    chuva: { passos: -2 },
+    nevoa: { passos: 1, tinta: tintaDe(QUENTES, 'neutroQuente', tintaDe(['mar', 'azul', 'roxo'], 'neutroFrio', { verde: 'musgo' })) },
+    noite: { passos: -3 },
+    tarde: { passos: porRampas(FRIAS, -1, 0) },
+    calor: { passos: porRampas(QUENTES, 1, 0) },
+    // só para figuras (CONDICAO_FIGURA)
+    'chuva-figura': { passos: -1 },
+    // tinta ambiente das cenas paradas, nas figuras (cavalo, treinador): só o começo escuro de cada rampa (ate) muda de
+    // matiz (o terço escuro: as sombras), a base e as luzes ficam (a luz da cena entra pelo contraluz, CONTRALUZ abaixo)
+    //   Fornalha: as sombras frias puxam para o vinho e o roxo da lava (6e2727/45293f)
+    //   Estábulo: âmbar dos lampiões, as sombras frias viram neutras quentes
+    //   Remanso: frio da água, as sombras quentes puxam para o roxo e o azul
+    fornalha: { passos: 0, ate: 0.34, tinta: tintaDe(['neutroFrio', 'azul', 'roxo', 'mar', 'musgo'], 'terra', { verde: 'oliva' }) },
+    estabulo: { passos: 0, ate: 0.34, tinta: tintaDe(['neutroFrio', 'azul', 'mar', 'musgo'], 'neutroQuente') },
+    remanso: { passos: 0, ate: 0.34, tinta: tintaDe(['terra', 'vermelho', 'fogo', 'rosa', 'magenta', 'carmim'], 'roxo', { oliva: 'musgo' }) }
+  };
+  // contraluz de 1 px nas figuras, só com fonte emissiva na cena (lava, lampião, pôr do sol), do lado da fonte e só onde o
+  // pixel já é o degrau mais claro (Regra 8); a cor é a do brilho da fonte
+  var CONTRALUZ = { fornalha: { lado: 'esquerda', cor: '#f79617' }, estabulo: { lado: 'cima', cor: '#fbb954' } };
+  var CONDICAO_FIGURA = { sol: 'sol', nublado: 'nublado', chuva: 'chuva-figura', nevoa: 'sol', noite: 'chuva', tarde: 'tarde', calor: 'sol' };
+  var PONTA_ESCURA = '#2e222f', PONTA_CLARA = '#ffffff';
+  function estendida(nome) {
+    var r = RAMPAS[nome].slice();
+    if (r[0] !== PONTA_ESCURA) r.unshift(PONTA_ESCURA);
+    if (r[r.length - 1] !== PONTA_CLARA) r.push(PONTA_CLARA);
+    return r;
+  }
+  function degrauEstendido(hex, n, rampa) {
+    var h = norm(hex), nome = rampa || RAMPA_DE[h];
+    if (!nome || !n) return h;
+    var r = estendida(nome), i = r.indexOf(h);
+    if (i < 0) return h;
+    return r[Math.max(0, Math.min(r.length - 1, i + n))];
+  }
+  function passosDe(c, rampa) {
+    var p = c.passos;
+    if (typeof p === 'number') return p;
+    if (!p) return 0;
+    return Object.prototype.hasOwnProperty.call(p, rampa) ? p[rampa] : p.padrao;
+  }
+  // a cor na rampa alvo, na mesma posição relativa da rampa de origem
+  function tinge(h, de, alvo) {
+    var r = RAMPAS[de], t = RAMPAS[alvo], i = r.indexOf(h);
+    return t[Math.round(i * (t.length - 1) / Math.max(1, r.length - 1))];
+  }
+  var luts = {};
+  // { '#rrggbb': '#rrggbb' } das 64 cores numa condição (sol e condição desconhecida: a identidade)
+  function lutCondicao(cond) {
+    if (luts[cond]) return luts[cond];
+    var c = CONDICOES[cond] || CONDICOES.sol, t = {};
+    Object.keys(RAMPA_DE).forEach(function (h) {
+      var r = RAMPA_DE[h], alvo = c.tinta && c.tinta[r];
+      if (alvo && c.ate != null && RAMPAS[r].indexOf(h) / Math.max(1, RAMPAS[r].length - 1) > c.ate) alvo = null;
+      if (alvo) t[h] = degrauEstendido(tinge(h, r, alvo), passosDe(c, r), alvo);
+      else t[h] = degrauEstendido(h, passosDe(c, r));
+    });
+    return (luts[cond] = t);
+  }
+  // a LUT das figuras (cavalos, pessoas) numa condição do fundo
+  function lutFigura(cond) { return lutCondicao(CONDICAO_FIGURA[cond] || 'sol'); }
+
+  return { RAMPAS: RAMPAS, rampaDe: rampaDe, degrau: degrau, valor: valor, sombraDoChao: sombraDoChao,
+    CONDICOES: CONDICOES, CONDICAO_FIGURA: CONDICAO_FIGURA, CONTRALUZ: CONTRALUZ, lutCondicao: lutCondicao, lutFigura: lutFigura, degrauEstendido: degrauEstendido };
 }));

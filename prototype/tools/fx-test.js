@@ -2176,8 +2176,9 @@ test('com moldes (sintéticos): sem as opções novas, o mesmo desenho de hoje (
     // assinatura do desenho sem as opções novas, com este mesmo molde sintético: era b16463ea (sprites.js em 91c48ab, antes da
     // parte 2a); desde a etapa 1b da direção de arte (2026-11-21) as cores saem da paleta-mestra (30adc27e); desde a etapa 0
     // da animação ambiente (2026-11-24) a sombra translúcida saiu (a opaca é outra imagem, em c.sombras: 801eda5); desde a
-    // etapa 0.3 a pelagem e a crina têm 4 tons (sombreiaPelagem, moldes-test), o resto igual
-    assert.strictEqual(fnvTexto(sig), 'c5f16e2e');
+    // etapa 0.3 a pelagem e a crina têm 4 tons (sombreiaPelagem, moldes-test: c5f16e2e); desde a 0.2 a rampa oliva tem o
+    // #313638 entre o contorno e o #4c3e24 (a sombra do castanho da Grama deixa de ser a cor do contorno), o resto igual
+    assert.strictEqual(fnvTexto(sig), '2a826e10');
   });
 });
 
@@ -2738,6 +2739,80 @@ test('as cores fixas do molde estão na paleta (contorno, pele e sela; sem #1a14
   var F = SPR.MOLDE_CORES_FIXAS;
   assert.ok(F, 'Sprites.MOLDE_CORES_FIXAS exportado');
   ['contorno', 'pele', 'sela'].forEach(function (k) { assert.ok(R64.indexOf(F[k]) >= 0, k + ': ' + F[k]); });
+});
+
+section('luz: LUT de clima e de cena por degrau de rampa (guia de integração, Regra 8)');
+var CONDS = Object.keys(LUZ.CONDICOES);
+test('toda condição: as 64 cores vão para cores da Resurrect 64 (b)', function () {
+  CONDS.forEach(function (c) {
+    var t = LUZ.lutCondicao(c);
+    R64.forEach(function (h) { assert.ok(R64.indexOf(t[h]) >= 0, c + ': ' + h + ' → ' + t[h]); });
+    Object.keys(LUZ.CONDICAO_FIGURA).forEach(function (k) { var f = LUZ.lutFigura(k); R64.forEach(function (h) { assert.ok(R64.indexOf(f[h]) >= 0, 'figura ' + k + ': ' + h); }); });
+  });
+  assert.deepStrictEqual(Object.keys(LUZ.lutCondicao('sol')).filter(function (h) { return LUZ.lutCondicao('sol')[h] !== h; }), [], 'sol: a identidade');
+});
+test('a LUT por rampa funde menos tons que a mistura antiga (nublado ≤ 5, névoa ≤ 14 dentro das rampas)', function () {
+  function fundidos(c) { var t = LUZ.lutCondicao(c), f = 0; Object.keys(LUZ.RAMPAS).forEach(function (n) { var r = LUZ.RAMPAS[n], u = {}; r.forEach(function (h) { u[t[h]] = 1; }); f += r.length - Object.keys(u).length; }); return f; }
+  assert.ok(fundidos('nublado') <= 5, 'nublado ' + fundidos('nublado'));
+  assert.ok(fundidos('nevoa') <= 14, 'névoa ' + fundidos('nevoa'));
+  assert.ok(fundidos('chuva') <= 18, 'chuva ' + fundidos('chuva'));
+});
+test('o cavalo escurece junto com o fundo: no nublado e na chuva, nenhuma cor da figura clareia e a média desce como a do fundo (a)', function () {
+  ['nublado', 'chuva'].forEach(function (c) {
+    var f = LUZ.lutFigura(c), b = LUZ.lutCondicao(c), sf = 0, sb = 0, s0 = 0;
+    R64.forEach(function (h) {
+      assert.ok(LUZ.valor(f[h]) <= LUZ.valor(h) + 1e-9, c + ': ' + h + ' clareou na figura');
+      sf += LUZ.valor(f[h]); sb += LUZ.valor(b[h]); s0 += LUZ.valor(h);
+    });
+    assert.ok(sf < s0 && sb < s0, c + ': figura e fundo escurecem');
+    assert.ok(sb <= sf, c + ': o fundo escurece pelo menos tanto quanto a figura (ela fica à frente)');
+  });
+});
+test('mesmos tons por material em toda condição: os 4 tons de pelagem e crina das paletas só se fundem na ponta escura (c)', function () {
+  Object.keys(SPR.PALETTES).forEach(function (nome) {
+    var pal = SPR.PALETTES[nome];
+    [pal.coat, pal.mane].forEach(function (base) {
+      var b = SPR.naMestra(base).toLowerCase(), tons = [LUZ.degrau(b, 1), b, LUZ.degrau(b, -1), LUZ.degrau(b, -2)];
+      var n0 = tons.filter(function (x, i, a) { return a.indexOf(x) === i; }).length;
+      Object.keys(LUZ.CONDICAO_FIGURA).concat(['cena|fornalha', 'cena|estabulo', 'cena|remanso']).forEach(function (c) {
+        var t = c.indexOf('cena|') === 0 ? LUZ.lutCondicao(c.slice(5)) : LUZ.lutFigura(c), dep = tons.map(function (x) { return t[x]; });
+        var n1 = dep.filter(function (x, i, a) { return a.indexOf(x) === i; }).length;
+        if (n1 < n0) assert.ok(dep.indexOf('#2e222f') >= 0, nome + ' ' + b + ' em ' + c + ': ' + tons + ' → ' + dep + ' perdeu tom longe da ponta escura');
+      });
+    });
+  });
+});
+test('tinta de cena só nas sombras (terço escuro de cada rampa) e contraluz só com fonte emissiva', function () {
+  ['fornalha', 'estabulo', 'remanso'].forEach(function (c) {
+    var t = LUZ.lutCondicao(c);
+    Object.keys(LUZ.RAMPAS).forEach(function (n) {
+      var r = LUZ.RAMPAS[n];
+      r.forEach(function (h, i) { if (i / (r.length - 1) > 0.34 && LUZ.rampaDe(h) === n) assert.strictEqual(t[h], h, c + ': ' + h + ' (luz) mudou'); });
+    });
+  });
+  assert.deepStrictEqual(Object.keys(LUZ.CONTRALUZ).sort(), ['estabulo', 'fornalha']);
+});
+test('contraluz no molde: só nos pixels do tom de luz (16, 18) com o vazio do lado da fonte', function () {
+  comMoldes(function () {
+    var base = desenhaCav(com(CAVM, { idle: true, jockey: false, cena: 'estabulo', contraluz: false })).imgs[0].args[0].px;
+    var com1 = desenhaCav(com(CAVM, { idle: true, jockey: false, cena: 'estabulo' })).imgs[0].args[0].px;
+    var dif = 0, cor = LUZ.CONTRALUZ.estabulo.cor;
+    for (var i = 0; i < base.length / 4; i++) if (hexPx(base, i) !== hexPx(com1, i)) { dif++; assert.strictEqual(hexPx(com1, i), cor, 'pixel ' + i); }
+    assert.ok(dif > 0, 'o contraluz aparece');
+  });
+});
+test('figura na cena: a chave do cache leva a cena e o clima; sol e névoa (figura) ficam na chave de antes', function () {
+  comMoldes(function () {
+    SPR.limparCacheMoldes();
+    function n(o) { desenhaCav(o); return SPR._cacheMoldes(); }
+    assert.strictEqual(n(CAVM), 1);
+    assert.strictEqual(n(com(CAVM, { clima: 'sol' })), 1, 'sol');
+    assert.strictEqual(n(com(CAVM, { clima: 'nevoa' })), 1, 'névoa: a figura não muda');
+    assert.strictEqual(n(com(CAVM, { clima: 'nublado' })), 2);
+    assert.strictEqual(n(com(CAVM, { clima: 'chuva' })), 3);
+    assert.strictEqual(n(com(CAVM, { cena: 'fornalha' })), 4);
+    assert.strictEqual(n(com(CAVM, { cena: 'naoexiste' })), 4, 'cena desconhecida: a de antes');
+  });
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');

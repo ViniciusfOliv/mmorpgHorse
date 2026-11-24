@@ -6347,8 +6347,15 @@ try {
         const q = dadoAtual()
         if (q >= 0 && w.porDado[q].painel === null && w.porDado[q].painelAntes !== null && painel.textContent !== w.porDado[q].painelAntes) w.porDado[q].painel = s.simT
       }).observe(painel, { childList: true, subtree: true, characterData: true })
+      // Regra 8 (e) da integração: a virada de clima não monta nada no meio da corrida (o cache dos moldes não cresce
+      // depois do 1º quadro) e a paleta passa pelos degraus do meio (climaCor: sol → nublado → chuva)
+      w.cache0 = null; w.cacheMax = 0; w.cores = []
       const tick = () => {
         if (!window.__galope.race) return
+        const cm = window.Sprites._cacheMoldes(), cc = FX._stats.climaCor
+        if (w.cache0 === null && s.phase !== 'contagem') w.cache0 = cm
+        if (w.cache0 !== null) w.cacheMax = Math.max(w.cacheMax, cm)
+        if (cc && cc !== w.cores[w.cores.length - 1]) w.cores.push(cc)
         if (s.phase !== 'contagem') {
           const t = s.simT, ativo = itens.find((d) => t >= d.t0 && t < d.t1) || null, baixa = tela.classList.contains('tela--baixa')
           const rev = !!ativo && t >= w.porDado[itens.indexOf(ativo)].revela - 1e-6 * ativo.escala, mostrado = rev ? ativo : null
@@ -6402,6 +6409,13 @@ try {
         revela: +p.revela.toFixed(2), primeiroNumero: p.primeiro === null ? null : +p.primeiro.toFixed(2), linhas: p.linhas,
         narracao: { dado: p.feedDado, clima: p.feedClima, anuncio: p.anuncio, painel: p.painel, changed: p.changed },
         climaPista: { de: p.climaAntes, para: p.climaDepois, girando: p.climaGirando, revelado: p.climaRevelado } })) }
+      notes[label + '-dado'].clima = { cache0: w.cache0, cacheMax: w.cacheMax, cores: w.cores }
+      if (w.cacheMax > w.cache0) problems.push(`[${label}] virada de clima: o cache dos moldes cresceu na corrida (${w.cache0} → ${w.cacheMax}); o clima não foi pré-assado`)
+      const ESCADA = ['nevoa', 'sol', 'nublado', 'chuva']
+      for (let i = 1; i < w.cores.length; i++) {
+        const salto = Math.abs(ESCADA.indexOf(w.cores[i]) - ESCADA.indexOf(w.cores[i - 1]))
+        if (!w.red && salto > 1) problems.push(`[${label}] virada de clima: a paleta pulou de ${w.cores[i - 1]} para ${w.cores[i]} sem o degrau do meio (${w.cores.join(' → ')})`)
+      }
       if (w.porDado.length < 2) problems.push(`[${label}] Dado: a corrida tem ${w.porDado.length} Dados (esperado 2)`)
       w.porDado.forEach((p, q) => {
         if (!p.antes || p.durante < 5 || !p.depois) problems.push(`[${label}] Dado ${q + 1}: quadros antes/durante/depois ${p.antes}/${p.durante}/${p.depois} (esperado todos vistos)`)
@@ -14575,7 +14589,7 @@ try {
       await mc.evaluate(() => {
         const m = window.__mcache = { max: 0, frames: 0 }
         const tick = () => {
-          if (window.__galope.ui.screen === 'corrida') { m.frames++; m.max = Math.max(m.max, window.Sprites._cacheMoldes()) }
+          if (window.__galope.ui.screen === 'corrida') { const c = window.Sprites._cacheMoldes(); if (!m.frames) m.primeiro = c; m.frames++; m.max = Math.max(m.max, c) }
           requestAnimationFrame(tick)
         }
         requestAnimationFrame(tick)
@@ -14584,10 +14598,14 @@ try {
       await mc.waitForSelector('#pista')
       await mc.getByRole('button', { name: 'x2' }).click()
       await mc.waitForSelector('#t-resultado', { timeout: 120000 })
-      const cache = await mc.evaluate(() => ({ max: window.__mcache.max, frames: window.__mcache.frames, resultado: window.Sprites._cacheMoldes() }))
+      const cache = await mc.evaluate(() => ({ max: window.__mcache.max, primeiro: window.__mcache.primeiro, frames: window.__mcache.frames, resultado: window.Sprites._cacheMoldes(),
+        climas: window.__galope.ui.lobby.sim.events.filter((e) => e.type === 'clima').map((e) => e.weather) }))
       notes.moldesCache = { seed: SEED8, n, ...cache }
       if (!(cache.max > 0)) problems.push('moldes-cache: a corrida não desenhou nenhum molde ' + JSON.stringify(cache))
-      if (cache.max > 240) problems.push('moldes-cache: ' + cache.max + ' entradas no cache depois de uma corrida de 8 (teto 240)')
+      // a LUT de cada clima da corrida (e os degraus da virada) é pré-assada na largada (guia de integração, Regra 8 (e)):
+      // depois do 1º quadro, nada novo entra no cache, nem na virada de clima
+      if (cache.max > cache.primeiro) problems.push('moldes-cache: o cache cresceu durante a corrida (' + cache.primeiro + ' → ' + cache.max + '): algum quadro ou clima não foi pré-assado')
+      if (cache.max > 330) problems.push('moldes-cache: ' + cache.max + ' entradas no cache depois de uma corrida de 8 (teto 330: 8 cavalos × 10 quadros × até 4 climas)')
       if (cache.resultado > 3) problems.push('moldes-cache: o cache não foi limpo ao sair da corrida (' + cache.resultado + ' entradas no resultado; só o pódio = 3)')
     } catch (e) {
       problems.push('moldes-cache: ' + e.message)
