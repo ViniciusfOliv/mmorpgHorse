@@ -926,7 +926,9 @@
   var ESTILOS_MOLDE = ['chamas', 'ondas', 'folhas', 'lisa'];
   // os portes vêm de GameData.PORTES.valores; esta cópia vale sem o GameData (o wiki embute só o sprites.js)
   var PORTES_MOLDE = ['esguio', 'padrao', 'robusto'], PORTE_PADRAO = 'padrao';
-  var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
+  // na paleta-mestra já na origem (guia de integração, Regra 3; antes: #1a1405, #e8b48a e #5a3a22, levados à mestra só
+  // no coresNaMestra)
+  var MOLDE_CORES_FIXAS = { contorno: '#2e222f', pele: '#fdcbb0', sela: '#4c3e24' };
   var moldes = null;       // chave do molde -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
   var moldsOk = false;
   var moldesLref = 0;      // maior larguraUtil entre os 4 moldes do padrão: escala única
@@ -2906,7 +2908,7 @@
   function dadosApi() { return DADOS_NODE || (typeof self !== 'undefined' && self.GameData) || null; }
 
   var api = {
-    HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y,
+    HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,

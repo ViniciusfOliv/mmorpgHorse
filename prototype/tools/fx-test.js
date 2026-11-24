@@ -2657,5 +2657,51 @@ test('sem saltos: na corrida real a 60 quadros/s a escala muda no máximo 8% de 
   }
 });
 
+// ---------------------------------------------------------------- luz.js (guia de integração, Regras 2, 4 e 14)
+section('luz: rampas da Resurrect 64, degraus e sombra no chão');
+var LUZ = (function () { try { return require('../src/luz.js'); } catch (e) { return null; } })();
+var R64 = ('2e222f 3e3546 625565 966c6c ab947a 694f62 7f708a 9babb2 c7dcd0 ffffff 6e2727 b33831 ea4f36 f57d4a ae2334 ' +
+  'e83b3b fb6b1d f79617 f9c22b 7a3045 9e4539 cd683d e6904e fbb954 4c3e24 676633 a2a947 d5e04b fbff86 165a4c 239063 1ebc73 ' +
+  '91db69 cddf6c 313638 374e4a 547e64 92a984 b2ba90 0b5e65 0b8a8f 0eaf9b 30e1b9 8ff8e2 323353 484a77 4d65b4 4d9be6 8fd3ff ' +
+  '45293f 6b3e75 905ea9 a884f3 eaaded 753c54 a24b6f cf657f ed8099 831c5d c32454 f04f78 f68181 fca790 fdcbb0').split(' ').map(function (h) { return '#' + h; });
+test('o módulo luz.js existe', function () { assert.ok(LUZ, 'prototype/src/luz.js'); });
+test('toda cor das rampas é da Resurrect 64, e toda cor da Resurrect 64 está numa rampa', function () {
+  var usadas = {};
+  Object.keys(LUZ.RAMPAS).forEach(function (n) { LUZ.RAMPAS[n].forEach(function (h) { assert.ok(R64.indexOf(h) >= 0, n + ': ' + h + ' fora da paleta'); usadas[h] = 1; }); });
+  R64.forEach(function (h) { assert.ok(usadas[h], h + ' sem rampa'); });
+});
+test('cada rampa vai do escuro para o claro (valor crescente)', function () {
+  Object.keys(LUZ.RAMPAS).forEach(function (n) {
+    var r = LUZ.RAMPAS[n];
+    for (var i = 1; i < r.length; i++) assert.ok(LUZ.valor(r[i]) > LUZ.valor(r[i - 1]), n + ': ' + r[i - 1] + ' → ' + r[i]);
+  });
+});
+test('degrau desce e sobe dentro da rampa da cor e para nas pontas', function () {
+  assert.strictEqual(LUZ.degrau('#cd683d', -1), '#9e4539', 'pista do Litoral: 1 abaixo');
+  assert.strictEqual(LUZ.degrau('#cd683d', -2), '#6e2727', 'pista do Litoral: 2 abaixo');
+  assert.strictEqual(LUZ.degrau('#547e64', -1), '#374e4a', 'grama');
+  assert.strictEqual(LUZ.degrau('#ab947a', -1), '#966c6c', 'terra clara');
+  assert.strictEqual(LUZ.degrau('#0b8a8f', -1), '#0b5e65', 'água');
+  assert.strictEqual(LUZ.degrau('#2e222f', -3), '#2e222f', 'na ponta escura fica');
+  assert.strictEqual(LUZ.degrau('#ffffff', 2), '#ffffff', 'na ponta clara fica');
+  assert.strictEqual(LUZ.degrau('#e6904e', 1), '#fbb954', 'sobe');
+});
+test('toda cor tem uma rampa principal, e o degrau 0 é a própria cor', function () {
+  R64.forEach(function (h) { assert.ok(LUZ.rampaDe(h), h); assert.strictEqual(LUZ.degrau(h, 0), h); });
+});
+test('sombraDoChao: degrau 1 abaixo (projetada) e 2 abaixo (contato), sempre na paleta e mais escuras', function () {
+  R64.forEach(function (h) {
+    var s = LUZ.sombraDoChao(h);
+    assert.ok(R64.indexOf(s.projetada) >= 0 && R64.indexOf(s.contato) >= 0, h);
+    if (h !== '#2e222f' && h !== '#313638' && h !== '#45293f' && h !== '#323353') assert.ok(LUZ.valor(s.projetada) < LUZ.valor(h), h + ' → ' + s.projetada);
+    assert.ok(LUZ.valor(s.contato) <= LUZ.valor(s.projetada), h + ': contato mais escuro que a projetada');
+  });
+});
+test('as cores fixas do molde estão na paleta (contorno, pele e sela; sem #1a1405)', function () {
+  var F = SPR.MOLDE_CORES_FIXAS;
+  assert.ok(F, 'Sprites.MOLDE_CORES_FIXAS exportado');
+  ['contorno', 'pele', 'sela'].forEach(function (k) { assert.ok(R64.indexOf(F[k]) >= 0, k + ': ' + F[k]); });
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
