@@ -27,7 +27,7 @@ const b64 = f => fs.readFileSync(f).toString('base64');
 const img = f => ({ type: 'base64', base64: b64(f), format: 'png' });
 const OBJ = 'isolated game map object seen from high top-down, light from the upper left, cozy RPG overworld pixel art, transparent background, no shadow';
 
-const TETOS = { capoeira: 3, pecas: 12, cavalo: 14 };
+const TETOS = { capoeira: 3, pecas: 12, cavalo: 14, frente: 10 };
 function chamadas(lote) {
   if (lote === 'capoeira') return [9951, 9952, 9953].map(seed => ({ base: `ginasio-grama-s${seed}`, dir: path.join(ARTE, 'mapa-mundo', 'ginasios'), ep: '/create-image-pixen',
     pedido: { description: 'a small round dirt riding ring enclosed by a rustic wooden log fence with posts, green banners on two poles and two lit torches at the '
@@ -52,6 +52,11 @@ function chamadas(lote) {
     ];
   }
   const P = path.join(ARTE, 'desafio');
+  if (lote === 'frente') return [{ base: 'brasa-frente-estilo', dir: path.join(P, 'piloto'), ep: '/generate-with-style-v2', async: 'job',
+    pedido: { style_images: [{ image: img(path.join(P, 'brasa-parado-64.png')), width: 64, height: 64 }, { image: img(path.join(P, 'brasa-galope-64.png')), width: 64, height: 64 }],
+      description: 'the same chestnut racing horse with orange mane and the small jockey in yellow silks, seen from the FRONT: three-quarter front view, '
+        + 'the horse facing the camera and turned slightly to its right (our left), head and chest toward the viewer, both front legs visible, standing still, full body',
+      style_description: 'clean pixel art, light from the upper left, selective dark outline, same proportions as the reference', no_background: true, seed: 9992 } }];
   return [
     ...[64, 96].map((lado, i) => ({ base: `brasa-8dir-${lado}`, dir: path.join(P, 'piloto'), ep: '/create-character-with-8-directions', async: 'personagem', lado,
       pedido: { description: 'a chestnut racing horse with a bright orange mane and tail, ridden by a small jockey in yellow silks and a yellow helmet', image_size: { width: lado, height: lado },
@@ -140,5 +145,5 @@ async function gerar(lote, teto) {
 const lote = process.argv[process.argv.indexOf('--lote') + 1];
 const i = process.argv.indexOf('--teto');
 if (process.argv.includes('--montar')) { const { montar } = await import('./arte-mapa-montar.mjs'); montar(); }
-else if (!TETOS[lote]) { console.error('use --lote capoeira|pecas|cavalo ou --montar'); process.exit(1); }
+else if (!TETOS[lote]) { console.error('use --lote capoeira|pecas|cavalo|frente ou --montar'); process.exit(1); }
 else await gerar(lote, i > 0 ? Number(process.argv[i + 1]) : TETOS[lote]).catch(e => { console.error('ERRO:', e.message); process.exit(1); });

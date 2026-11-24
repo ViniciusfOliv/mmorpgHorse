@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Cena de desafio, retorno à versão 5
+- **Um padrão só de cavalo**: andando ou parado, o mesmo desenho do molde (o trote é o passo de 1 px), e o oponente é o
+  próprio molde espelhado — pedido do Vinicius ("mantenha um padrão").
+- **A arena é só fundo; os jogadores pisam num piso em perspectiva** (por código, abaixo do horizonte da imagem) — ele
+  pediu os jogadores "dentro do cenário", não por cima. Pela escala inteira, a distância aparece pela posição, o corte na
+  borda e a sombra, não por tamanho.
+- **`generate-with-style-v2` não vira a pose**: o "de frente" no estilo do molde saiu de lado (10 gerações perdidas).
+
 ## 2026-11-24 — Mapa dos ginásios, rodada 2 (frente 2)
 - **Ilha B, ginásios Fogo s9921, Água s9932 e Capoeira refeita s9953** (escolhas do Vinicius).
 - **Referências do Vinicius (vitrine do PixelLab) só como alvo de comparação, nunca como `style_image`** — não são

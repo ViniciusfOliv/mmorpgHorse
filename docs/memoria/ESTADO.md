@@ -42,7 +42,10 @@ lote (12 moldes, de costas e de frente, com idle) e a spec. **Versão 6 (retorno
 cavalo (a trilha trota com o mesmo desenho do parado, passo de 1 px); a cena de desafio com o chão da arena como plano
 (oponente e líder pisando no fundo, o nosso na frente cortado pela borda, marcas de terra gasta no chão, sombras deitadas
 no piso), arena 1 e arena 0 no seletor. Lote dos 12 cavalos NÃO aprovado; o oponente de frente no estilo do molde pede
-teste pago (perguntado).
+teste pago (perguntado). **Versão 7:** o Vinicius aprovou o teste de frente (10 gerações, saldo 824 → 814): saiu todo de
+lado, então o oponente passou a ser o próprio molde espelhado (mesmo traço). Pedido dele sobre a arena: os jogadores
+"dentro do cenário", com a arena só de fundo: a imagem da arena vale até o horizonte e abaixo dele há um piso em
+perspectiva por código, onde todos pisam. Vista de frente no estilo do molde segue em aberto (outra técnica a estudar).
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

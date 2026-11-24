@@ -1372,16 +1372,40 @@
   // da borda de baixo; a arena viva ao fundo. Integração pelo guia (docs/arte/integracao.md): base de chão na rampa da
   // arena com face e contato, sombras de silhueta deslocadas (+3, +2) no chão escurecido, luz da esquerda, tudo 1:1.
   var DW = 256, DH = 160, dArte = tela(DW, DH), dg = dArte.getContext('2d'), dCv = null, dCtx = null, dS = 2;
-  var desafio = { costas: 0, frente: 7, arena: 'a1', base: null, esc: null, quentes: [], fundo: null, t0: 0 };
+  var desafio = { costas: 0, frente: 'molde', arena: 'a1', base: null, esc: null, quentes: [], fundo: null, t0: 0 };
   var dSomC = tela(100, 100), dSomG = dSomC.getContext('2d');
   function dR(x, y, w, h, c) { dg.fillStyle = c; dg.fillRect(x | 0, y | 0, w, h); }
   function preparaDesafio() {
-    var b = Buf.de(IMG[ARENAS[desafio.arena].img]), e = new Buf(DW, DH), viv = new Buf(DW, DH), q = [], QU = [K.f9c22b, K.fbff86, K.fb6b1d, K.f79617];
-    for (var p = 0; p < DW * DH; p++) {
-      e.d[p] = escurecer((b.d[p] | 0xff000000) >>> 0);
-      if (((p / DW) | 0) < 70 && QU.indexOf(b.d[p]) >= 0) q.push(p);
+    var A = ARENAS[desafio.arena], arena = Buf.de(IMG[A.img]), b = new Buf(DW, DH), e = new Buf(DW, DH), viv = new Buf(DW, DH), q = [], QU = [K.f9c22b, K.fbff86, K.fb6b1d, K.f79617];
+    var HZ = A.hz, x, y, p;
+    for (p = 0; p < DW * HZ; p++) b.d[p] = arena.d[p];
+    // rampa do piso: as cores mais comuns do chão da arena, do escuro ao claro (perspectiva atmosférica: longe, mais claro)
+    var conta = {};
+    for (y = HZ + 20; y < Math.min(DH, HZ + 70); y++) for (x = 60; x < 196; x++) { var c = arena.d[y * DW + x]; conta[c] = (conta[c] || 0) + 1; }
+    var rampa = Object.keys(conta).sort(function (u, v) { return conta[v] - conta[u]; }).slice(0, 5).map(Number)
+      .sort(function (u, v) { return ((u & 255) + ((u >>> 8) & 255)) - ((v & 255) + ((v >>> 8) & 255)); });
+    var LAVA = [K.e83b3b, K.fb6b1d, K.f79617];
+    for (y = HZ; y < DH; y++) {
+      var d = y - HZ + 4, z = 260 / d;                         // profundidade: maior perto do horizonte
+      for (x = 0; x < DW; x++) {
+        var wx = (x - 128) * z / 40, wz = z;                   // chão no mundo (unidades de chão)
+        var n = fbm(wx / 1.9, wz / 1.9, 41, 3), grao = hash(Math.floor(wx * 3), Math.floor(wz * 3));
+        var longe = lim((70 - (y - HZ)) / 70, 0, 1);
+        var idx = lim(Math.round(1.6 + (n - 0.5) * 3.2 + longe * 1.4 + (grao < 0.08 ? 1 : grao > 0.95 ? -1 : 0)), 0, rampa.length - 1);
+        var cor = rampa[idx];
+        // o anel da arena no chão (pedra clara), em perspectiva: círculo de raio 9 em volta do centro do piso
+        var rr = Math.hypot(wx, wz - 13);
+        if (z > 6 && Math.abs(rr - 9.5) < 0.16 + z * 0.01) cor = rampa[rampa.length - 1];   // só ao fundo, no tom claro do chão
+        // rachaduras de lava (cristas do ruído no chão do mundo), mais finas ao longe
+        var cr = Math.abs(fbm(wx / 5, wz / 5, 52, 3) - 0.5);
+        if (cr < 0.004 + 0.012 / (z + 1) * 0 + (z > 6 ? 0.006 : 0.003) && rr > 10.2) { cor = LAVA[cr < 0.0025 ? 2 : 1]; q.push(y * DW + x); }
+        if (y - HZ < 3) cor = escurecer(cor);                  // pé do muro: faixa de sombra
+        b.d[y * DW + x] = cor;
+      }
     }
-    viv.d.set(b.d); e.poe(); viv.poe();
+    for (p = 0; p < DW * HZ; p++) if (QU.indexOf(b.d[p]) >= 0 && ((p / DW) | 0) < HZ) q.push(p);
+    for (p = 0; p < DW * DH; p++) e.d[p] = escurecer((b.d[p] | 0xff000000) >>> 0);
+    viv.d.set(b.d); e.poe(); viv.poe(); b.poe();
     desafio.base = b; desafio.esc = e; desafio.viv = viv; desafio.quentes = q;
   }
   function baseDeChao(cx, cy, rx, ry) {   // disco de chão da própria arena: tampo claro, borda e face escuras, sombra à direita
@@ -1409,6 +1433,13 @@
     dg.drawImage(dSomC, 0, 0, im.width, im.height, x + 3, y + 2, im.width, im.height);
     dg.drawImage(im, x, y);
   }
+  var moldeEsqC = null;
+  function moldeEsq() {   // o molde do jogo (Brasa parada, com jóquei), espelhado: o mesmo traço do cavalo em todo o jogo
+    if (moldeEsqC) return moldeEsqC;
+    var c = tela(64, 64), q = c.getContext('2d'); q.imageSmoothingEnabled = false; q.translate(64, 0); q.scale(-1, 1);
+    SP.drawHorse(q, 12, 24, { palette: CAVALO.palette, element: CAVALO.element, scale: 1, jockey: true, silks: '#e83b3b', idle: true, t: 0.5, quadro: { topo: -1e6, base: 60, grade: 1, centro: 32 } });
+    return (moldeEsqC = c);
+  }
   function pe(im) { if (im.__pe != null) return im.__pe; var b = Buf.de(im), p0 = 0, x0 = im.width, x1 = 0; for (var p = 0; p < b.d.length; p++) if (b.d[p]) { p0 = (p / b.w) | 0; var x = p % b.w; x0 = Math.min(x0, x); x1 = Math.max(x1, x); } im.__pe = p0; im.__cx = (x0 + x1) / 2; return p0; }
   function placa(x, y, w, nome, sub, folego) {
     dR(x - 1, y - 1, w + 2, 24, '#2e222f'); dR(x, y, w, 22, '#3e3546'); dR(x, y, w, 1, '#484a77');
@@ -1419,8 +1450,9 @@
   // a cena tem o chão da arena (a própria imagem, que já é um piso visto de cima e de longe) como plano: cada coisa
   // pisa num ponto dele; o oponente ao fundo, o nosso na frente, cortado pela borda de baixo. As "bases" são marcas
   // gastas no próprio chão (elipses achatadas na perspectiva do piso), e as sombras são a silhueta deitada no chão.
-  var ARENAS = { a1: { img: 'd-arena', op: [168, 114], lider: [203, 110], nos: [72, 170], marca: [30, 5, 46, 7] },
-    a0: { img: 'd-arena0', op: [164, 126], lider: [197, 122], nos: [52, 170], marca: [28, 5, 46, 7] } };
+  // hz: a linha até onde a imagem da arena vale como fundo (céu, montanhas, muro); abaixo dela, o piso em perspectiva
+  var ARENAS = { a1: { img: 'd-arena', hz: 74, op: [170, 104], lider: [204, 101], nos: [70, 172], marca: [26, 4, 46, 7] },
+    a0: { img: 'd-arena0', hz: 92, op: [168, 114], lider: [201, 111], nos: [70, 172], marca: [24, 4, 46, 7] } };
   function marcaNoChao(cx, cy, rx, ry) {   // terra gasta: 1 degrau abaixo do chão, borda em massas de 2 px
     var B = desafio.base;
     for (var y = Math.floor(cy - ry); y <= cy + ry; y++) for (var x = Math.floor(cx - rx); x <= cx + rx; x++) {
@@ -1465,7 +1497,7 @@
     var M0 = A.marca;
     marcaNoChao(A.op[0] + 6, A.op[1], M0[0], M0[1]);
     marcaNoChao(A.nos[0], A.nos[1] - 6, M0[2], M0[3]);
-    var fr = IMG['d-oito-' + desafio.frente], lider = corpo(GYM.fogo.etapas[4], false), cs = IMG['d-costas-' + desafio.costas];
+    var fr = desafio.frente === 'molde' ? moldeEsq() : IMG['d-oito-' + desafio.frente], lider = corpo(GYM.fogo.etapas[4], false), cs = IMG['d-costas-' + desafio.costas];
     // de trás para a frente: a líder e o cavalo dela no fundo, o nosso na frente
     if (lider) { var li = lider.c; li.__pe = lider.pe; li.__cx = 16; deitaSombra(li, A.lider[0], A.lider[1]); dg.drawImage(li, A.lider[0] - 16, A.lider[1] - lider.pe + resp2); }
     if (fr) pisa(fr, A.op[0], A.op[1], resp);
@@ -1488,11 +1520,11 @@
       var sp = document.createElement('span'); sp.textContent = 'candidato ' + (desafio.costas + 1) + ' de 16'; ctl.appendChild(sp);
       ctl.appendChild(botao('De costas ▶', function () { desafio.costas = mod(desafio.costas + 1, 16); monta(); }));
       [['a1', 'Arena 1'], ['a0', 'Arena 0']].forEach(function (a) { ctl.appendChild(botao(a[1], function () { desafio.arena = a[0]; preparaDesafio(); monta(); }, { pressed: desafio.arena === a[0] })); });
-      ctl.appendChild(botao('Oponente: ' + ['frente', 'lado', 'lado', 'costas', 'frente-dir.', 'costas-dir.', 'costas-esq.', 'frente-esq.'][desafio.frente], function () { desafio.frente = desafio.frente === 7 ? 0 : desafio.frente === 0 ? 4 : 7; monta(); }));
+      ctl.appendChild(botao('Oponente: ' + ({ molde: 'molde (mesmo traço)', 7: '8 direções, frente-esq.', 0: '8 direções, frente' })[desafio.frente], function () { desafio.frente = desafio.frente === 'molde' ? 7 : desafio.frente === 7 ? 0 : 'molde'; monta(); }));
     };
     monta();
     var c8 = document.getElementById('candDesafio');
-    c8.innerHTML = M.desafio.costas.concat(M.desafio.oito, M.desafio.oito96).map(function (u, i) { return '<figure class="cand"><img src="' + u + '" style="width:' + (i < 16 ? 128 : 184) + 'px" alt=""><figcaption>' + (i < 16 ? 'de costas ' + (i + 1) : (i < 24 ? '8 direções 64 · ' : '8 direções 96 · ') + ['sul', 'oeste', 'leste', 'norte', 'sudeste', 'nordeste', 'noroeste', 'sudoeste'][(i - 16) % 8]) + '</figcaption></figure>'; }).join('');
+    c8.innerHTML = M.desafio.costas.concat(M.desafio.frente, M.desafio.oito, M.desafio.oito96).map(function (u, i) { return '<figure class="cand"><img src="' + u + '" style="width:' + (i < 32 ? 128 : 184) + 'px" alt=""><figcaption>' + (i < 16 ? 'de costas ' + (i + 1) : i < 32 ? '"de frente" (saiu de lado) ' + (i - 15) : (i < 40 ? '8 direções 64 · ' : '8 direções 96 · ') + ['sul', 'oeste', 'leste', 'norte', 'sudeste', 'nordeste', 'noroeste', 'sudoeste'][(i - 32) % 8]) + '</figcaption></figure>'; }).join('');
   }
   function montaCandidatos() {
     var el = document.getElementById('candidatos'); if (!el) return;
