@@ -4,6 +4,18 @@ Achados que **podem esperar**. Nenhum quebra regra de design. Um por linha, com 
 apague a linha (e registre em `decisoes.md` se virar decisão). O que depende de servidor ou de
 empacotamento está em `docs/cronograma.md`; as decisões de design em aberto, em `docs/exemplos.md` §5.
 
+## Desempenho da corrida
+- **Corrigido em 2026-11-24 (subidas engasgando no celular):** a hachura diagonal das subidas era pintada com ~19
+  preenchimentos por padrão (`createPattern`) com a origem deslocada, e o relevo lia o buffer do quadro no meio dele
+  (`deslocaFaixa`). No S24 FE (WebView, GPU), a seção custava 3,5–4,2 ms em média e até 20–28 ms por quadro numa subida
+  (no contêiner, sem GPU, quase nada; as baterias de 19/11 nunca chegavam a uma subida). Agora a hachura é colada de uma
+  tira pré-desenhada (`hachuraTira`) e o relevo desenha a pista numa tela à parte (`telaFora` + `compoeRelevo`): o mesmo
+  desenho, pixel a pixel (0,06 ms no aparelho). O bloco `teto` do `ui-test` compara os dois jeitos e falha com
+  leitura do buffer no meio do quadro ou preenchimento por padrão no laço — `prototype/src/sprites.js` (`hachura`,
+  `drawTrack`).
+- Pendente: o primeiro quadro de uma subida monta a tira da hachura (até ~28 ms no aparelho, uma vez por corrida); dá
+  para montar na largada — `prototype/src/sprites.js` (`hachuraTira`).
+
 ## Modo DEV
 - O redesenho assíncrono da gaveta (moldes chegando, outra aba) apaga texto digitado e não confirmado — `prototype/src/game.js` (`renderDev`).
 

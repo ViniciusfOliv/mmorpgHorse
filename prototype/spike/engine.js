@@ -626,11 +626,10 @@
   ];
   // as subidas (a pista anda 50 m/s: 17 s = 850 m, um pouco antes da 1ª subida, que vai até 1.250 m)
   var SUBIDAS = [
-    fase6('S1. subida com o relevo (como o jogo)', { camadas: TUDO, t0: 17, s: 20 }),
+    fase6('S1. subida com o relevo e a hachura antigos (antes da correção)', { camadas: TUDO, t0: 17, s: 20, relevo: 'copia', hachura: 'padrao' }),
     fase6('S2. subida sem o relevo (pista plana)', { camadas: TUDO, t0: 17, s: 20, semRelevo: true }),
-    fase6('S3. subida com o relevo numa tela fora', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora' }),
-    fase6('S4. subida com a hachura por imagem + relevo fora (a correção)', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora', hachura: 'imagem' }),
-    fase6('S5. subida sem a hachura (só para comparar)', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora', semHachura: true })
+    fase6('S3. subida com a correção (como o jogo agora)', { camadas: TUDO, t0: 17, s: 20 }),
+    fase6('S4. subida sem a hachura (só para comparar)', { camadas: TUDO, t0: 17, s: 20, semHachura: true })
   ];
   var RODADA = null;
   function aplicar(c) {

@@ -3358,9 +3358,10 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // listra é inteira, de uma vez; nas pontas, a coluna j de cada listra (j = 0..3P−1) vale para os começos em
   // [ini, fim), ou seja, para x em [ini + j, fim + j) — a listra que começa antes de ini não aparece e a que
   // começa antes de fim sai inteira (passa de x1, como antes)
-  // imagem: em vez do padrão (createPattern) com a origem deslocada a cada faixa, uma tira pré-desenhada (o padrão
-  // repetido em W + 10P × alt) colada com drawImage no mesmo lugar: o mesmo desenho, pixel a pixel; num celular com GPU,
-  // os ~19 preenchimentos por padrão custavam até 20 ms por quadro numa subida
+  // Com o navegador (document), cada faixa é colada de uma tira pré-desenhada (o padrão repetido em W + 10P × alt) com
+  // drawImage no mesmo lugar: o mesmo desenho, pixel a pixel. Os ~19 preenchimentos por padrão (createPattern) com a
+  // origem deslocada custavam até 20 ms por quadro numa subida num celular com GPU (S24 FE, 2026-11-24; no contêiner,
+  // sem GPU, quase nada). padrao = true: o jeito antigo (o ui-test compara os dois); sem document, o padrão.
   var hachuraTiras = {};
   function hachuraTira(P, coluna, cor, w, alt) {
     var step = 10 * P, k = P + (coluna ? 'c' : 'l') + (cor || '') + '|' + alt, c = hachuraTiras[k];
@@ -3369,9 +3370,11 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     var g = c.getContext('2d'); g.fillStyle = hachuraPadrao(g, P, coluna, cor); g.fillRect(0, 0, c.width, alt);
     return (hachuraTiras[k] = c);
   }
-  function hachura(ctx, h, y, alt, P, cor, imagem) {
-    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j, step = 10 * P, Wc = ctx.canvas ? ctx.canvas.width : 4096;
-    var lis = imagem ? hachuraTira(P, false, cor, Wc, alt) : hachuraPadrao(ctx, P, false, cor), col = imagem ? hachuraTira(P, true, cor, Wc, alt) : hachuraPadrao(ctx, P, true, cor);
+  function hachura(ctx, h, y, alt, P, cor, padrao) {
+    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j, step = 10 * P;
+    var imagem = !padrao && typeof document !== 'undefined' && !!ctx.canvas, Wc = imagem ? ctx.canvas.width : 0;
+    var lis = imagem ? hachuraTira(P, false, cor, Wc, alt) : hachuraPadrao(ctx, P, false, cor);
+    var col = imagem ? hachuraTira(P, true, cor, Wc, alt) : hachuraPadrao(ctx, P, true, cor);
     function faixa(pat, dx, xa, xb) {
       if (xb <= xa) return;
       var ox = h.org + dx;
@@ -3392,15 +3395,16 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // numa subida em 1280 px; ~11 ms assim). Sem document (Node), copia do próprio canvas. Devolve o nº de
   // trechos. (O arco das curvas não copia pixels: cada peça da faixa já é desenhada no lugar — mais barato.)
   var rascunho = null;
-  // a tela fora do relevo das subidas (drawTrack com o.relevo === 'fora'), do tamanho do quadro
+  // Com o navegador, o relevo não copia o próprio canvas: com uma subida na tela, o drawTrack desenha numa tela à parte
+  // (telaFora) e cola no fim (compoeRelevo), com as colunas da faixa levantadas — o mesmo desenho, pixel a pixel. Ler o
+  // canvas do próprio quadro, num celular com GPU, obriga a terminar o quadro no meio. o.relevo === 'copia': o jeito
+  // antigo (deslocaFaixa; o ui-test compara os dois); sem document, também.
   var foraRel = null;
   function telaFora(W, Hh) {
     if (!foraRel) foraRel = document.createElement('canvas');
     if (foraRel.width !== W || foraRel.height !== Hh) { foraRel.width = W; foraRel.height = Hh; }
     return foraRel.getContext('2d');
   }
-  // cola a pista desenhada em src no canvas de dst: as linhas de cima como estão e a faixa [y0, Hh) em trechos de
-  // colunas com o mesmo dyPx(x), levantados; o rodapé exposto de cada trecho levantado recebe `fundo`
   function compoeRelevo(dst, src, W, Hh, y0, P, dyPx, fundo) {
     var h = Hh - y0;
     crisp(dst);
@@ -3686,9 +3690,6 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     // (o zoom da corrida), o jogo manda o rolar acumulado (o.camPx): cam × ppm daria um salto no fundo a cada mudança de ppm
     var camPx = o.camPx != null ? +o.camPx : cam * ppm, vento = ventoPista(o.wind);
     function sx(m) { return Math.round((m - cam) * ppm); }
-    // relevo das subidas numa tela fora (o.relevo === 'fora'): com uma subida na tela, a pista inteira é desenhada numa
-    // tela à parte e colada no fim com as colunas da faixa levantadas (compoeRelevo); o desenho sai igual ao da cópia
-    // (deslocaFaixa), sem ler o canvas do próprio quadro, o que num celular com GPU obriga a terminar o quadro no meio
     // o.perfil (medição, spike do teste de engine): soma o tempo de cada parte do desenho em o.perfil.soma[parte] e
     // guarda o pior em o.perfil.max[parte]; sem ele, nada é medido
     var PF = o.perfil || null, tPF = PF ? agoraMs() : 0;
@@ -3697,8 +3698,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
       var a = agoraMs(), d = a - tPF; tPF = a;
       PF.soma[k] = (PF.soma[k] || 0) + d; if (!(PF.max[k] >= d)) PF.max[k] = d;
     }
-    var alvoRel = null, yRel = laneTop - 8 * P, liftCol = null;
-    if (o.relevo === 'fora' && (o.hills || []).length && o.hillRelief !== false && typeof document !== 'undefined' && document.createElement) {
+    // com uma subida na tela, a pista inteira vai para a tela à parte e é colada no fim com o relevo (compoeRelevo)
+    var alvoRel = null, liftCol = null;
+    if ((o.hills || []).length && o.hillRelief !== false && o.relevo !== 'copia' && typeof document !== 'undefined' && document.createElement) {
       liftCol = function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, o.hills, o.hillMaxLift) * P; };
       for (var xq = 0; xq < W; xq += P) if (liftCol(xq) > 0) { alvoRel = ctx; ctx = telaFora(W, Hh); break; }
     }
@@ -3937,7 +3939,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
       if (x1 > x0) {
         if (!RG) { ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH); }
         // hachura diagonal ancorada no mundo
-        if (!o.semHachura) hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null, o.hachura === 'imagem');
+        if (!o.semHachura) hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null, o.hachura === 'padrao');
       }
       // linhas amarelas de início/fim
       ctx.fillStyle = '#f9c22b';
@@ -4128,7 +4130,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
 
     pf('placas');
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
-    if (alvoRel) { compoeRelevo(alvoRel, ctx.canvas, W, Hh, yRel, P, liftCol, innerC); ctx = alvoRel; }
+    if (alvoRel) { compoeRelevo(alvoRel, ctx.canvas, W, Hh, laneTop - 8 * P, P, liftCol, innerC); ctx = alvoRel; }
     else if (hills.length && o.hillRelief !== false) {
       deslocaFaixa(ctx, W, Hh, laneTop - 8 * P, P, function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, hills, o.hillMaxLift) * P; }, innerC);
     }
