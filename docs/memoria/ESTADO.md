@@ -132,7 +132,9 @@ reprovou pelo cenário nas **subidas**: a hachura diagonal pintada com ~19 preen
 por quadro no aparelho (no contêiner, nada). Corrigida sem mudar o desenho (tira pré-desenhada + relevo em tela à parte),
 com testes no bloco `teto`; commits isolados 40f9fe46 + e157f3f5 sobre a `main` no ramo `claude/fix-subidas-gpu`
 (push com OK do Vinicius, para a coordenação levar à `main`) e integrados aqui. Spike com o diagnóstico, as subidas e a
-medição por parte do cenário (`o.perfil` do `drawTrack`). Falta a Etapa 6 de 60 s de novo no aparelho. Fora:
+medição por parte do cenário (`o.perfil` do `drawTrack`). Etapa 6 de 60 s de novo no aparelho, com a correção: 0,2% dos quadros acima de 20 ms (passa) e 1% low 52,5 (não chega a
+55); JS 4,7/6,6 ms, cenário 1,3/2,6/4,1. Os 7 quadros lentos parecem o ritmo da tela, não o desenho
+(`docs/teste-engine.md` §7.1). Em aberto: repetir ou ajustar o critério. Fora:
 garças da Várzea (cabeça que abaixa) e a revoada de garças. **Próximo:** etapa 4 (mapas das trilhas) quando a spec do
 mapa for aprovada; o chat do mapa já respondeu a camada (imagens iguais, só corte lateral, ele chama
 `atualiza`/`desenha`/`parada`, ciclo de cor da água e da lava fica comigo, máscara do caminho se eu pedir). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática

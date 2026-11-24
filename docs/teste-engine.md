@@ -287,6 +287,19 @@ O resumo traz o veredito:
 - **CPU 4×:** reprova, porque o canvas é rasterizado na CPU (a cópia da câmera do spike leva 29 ms). Como na seção 2,
   esse número só compara camadas. **O que decide é o celular.**
 - **Como medir no contêiner:** `node prototype/spike/medir-engine.mjs --etapa6 [--so desktop]`.
+- **No aparelho (S24 FE, WebView do app do Claude, 120 Hz), 2026-11-24:**
+
+  | Rodada | Quadros acima de 20 ms | 1% low | JS méd/p95 | Cenário méd/p95/máx | Veredito |
+  |---|---|---|---|---|---|
+  | 1ª e 2ª (antes da correção) | 11,3% e 10,6% | 29,1 e 28,1 | 7,6/23,0 e 7,7/23,6 | 4,2/19,8/32,7 e 4,3/20,3/30,1 | reprovou |
+  | 3ª (com a correção das subidas) | 0,2% (7 de 3.591) | 52,5 | 4,7/6,6 | 1,3/2,6/4,1 | reprovou pelo 1% low |
+
+  - **A causa das duas primeiras:** a hachura das subidas (`docs/memoria/bugs.md`, "Desempenho da corrida"). As
+    baterias de fases curtas nunca chegavam a uma subida.
+  - **Na 3ª:** passa folgado no limite de quadros lentos, mas o 1% low (média dos 36 piores) fica 2,5 abaixo de 55.
+    Os 7 quadros lentos não batem com pico de JS (nenhuma parte passou de 4,1 ms) e parecem os soluços que aparecem até
+    sem cenário (fase D6 do diagnóstico: 7 de 712). É o ritmo da tela de 120 Hz travada em 60, como na seção 4.2.
+  - **Em aberto:** repetir a rodada ou ajustar o critério (decisão do Vinicius e da coordenação).
 
 ## 8. Além de web e Godot: outras opções, com jogos de referência
 
