@@ -14312,7 +14312,9 @@ try {
       // a trilha da Fornalha como ela abre: a 390×844 a etapa próxima (Sargento Candeeiro) já cabe inteira, então fica no topo
       await pg.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click()
       await pg.waitForSelector('#t-ginasio')
-      await sleep(300)
+      // a ida é uma viagem (zoom e íris, plano do mapa A4): a captura espera ela terminar e a tela rolar até a etapa próxima
+      await pg.waitForFunction(() => { const c = document.querySelector('canvas[data-mapa]'); return c && c.getAttribute('data-viagem') === '' }, null, { timeout: 3000 }).catch(() => {})
+      await sleep(400)
       const prox = await pg.locator('#tela .etapa--proxima .etapa-nome').textContent()
       if (prox !== G.GYMS.fogo.etapas[2].nome) problems.push(`${label}: a etapa próxima da trilha é "${prox}"`)
       await checkOverflow(pg, label + '-trilha')

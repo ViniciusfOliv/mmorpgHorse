@@ -11,6 +11,14 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Inpaint do PixelLab no chão ajuda pouco** (terra escura que parece buraco); o contato por código fica.
 - **Canva só como referência de fundo**: o conector devolve prévias; o tamanho cheio exige exportar no Canva.
 
+## 2026-11-24 — Mapa dos ginásios, bloco A (implementação)
+- O ciclo de cor do mapa-múndi a 8 passos/s e a névoa a 3 passos/s (por bloco de 2 × 2). · No laço do jogo (~14 q/s) cada
+  quadro juntava o trabalho de vários; assim o desenho cai de ~1,4 para ~0,9 ms sem placa de vídeo, sem perda visível.
+- A viagem troca de tela por relógio e ignora toques no meio. · Não depende de o canvas estar visível nem trava a tela.
+- A trilha lembra, na sessão, a última etapa que mostrou; ao voltar depois de vencer, pinta desse ponto até o novo.
+  Recarregar mostra a trilha pronta. · Nada vai para o save (spec: só desenho).
+- O ciclo de cor das trilhas saiu do código desta frente. · O fundo animado das trilhas é da frente 1 (combinado).
+
 ## 2026-11-24 — Lote do Meshy: um modelo por molde, a partir dos papéis
 - Cada molde vira um modelo 3D gerado da imagem em cores puras por papel; o render devolve os papéis (formato dos moldes) e
   o jogo recolore. · A recoloração do jogo continua valendo e o lote cai de ~360 para ~330 créditos para 11 moldes.

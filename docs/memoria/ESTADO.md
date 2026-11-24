@@ -66,7 +66,12 @@ A Brasa (padrao-chamas) também foi refeita pelos papéis (30; saldo 45): os 12 
 na v1, cena de 256 × 160, crina cheia aceita, plano começando pelo mapa e pela trilha). Âncoras das vistas de frente e de costas (`meshy-ancoras.json`, script `arte-desafio-ancoras.mjs`) entregues à frente 1,
 que já ligou o `IdleMolde` a elas (claude/animacao-ambiente, 7bf5977). **Spec aprovada pelo Vinicius (2026-11-24).** Plano: `docs/superpowers/plans/2026-11-24-mapa-ginasios.md` (bloco A: mapa,
 transição e trilha, sem custo; bloco B: vistas de frente e de costas nos moldes, chão por elemento e a cena), aguardando
-aprovação. `main` (e157f3f5) trazida para o ramo. Lote dos 12 cavalos segue não aprovado.
+aprovação. `main` (e157f3f5) trazida para o ramo. **Plano aprovado pelo Vinicius (2026-11-24); bloco A implementado:**
+`prototype/src/mapa.js` (mundo, trilha, viagem; testes em `prototype/tools/mapa-test.js`, no `check.sh`), arte do mapa no
+build (`window.__MAPA_MUNDO`, +35 KB), mapa-múndi na aba Expedição (acima dos cartões; tocar = cartão), viagem com zoom e
+íris, trilha com a pista que se pinta e o cavalo ativo (o fundo animado das trilhas fica com a frente 1, por
+`window.Ambiente.cena('mapa:<el>')`, com a máscara do caminho), bloco `expedicao-mapa` no `ui-test`, capturas final-24 e
+final-25 novas. Próximo: bloco B (cena de desafio). Lote dos 12 cavalos segue não aprovado.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

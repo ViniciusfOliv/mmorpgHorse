@@ -43,7 +43,7 @@ inteira, inclusive §3.3 (o fundo animado das trilhas é da frente 1), §4 (vist
 
 ### Tarefa A1: módulo `mapa.js` com o mundo
 **Arquivos:** criar `prototype/src/mapa.js`; `prototype/build.mjs` (`SCRIPTS`, depois de `sprites.js` e antes de `fx.js`);
-teste novo `prototype/tools/mapa-test.mjs` e uma linha no `scripts/check.sh` (etapa de testes de efeitos).
+teste novo `prototype/tools/mapa-test.js` (CommonJS, no estilo do `fx-test.js`) e uma linha no `scripts/check.sh` (etapa de testes de efeitos).
 
 **Interfaces (produz):**
 - `Mapa.mundo(arte, opts) -> { estado(progresso), atualiza(t, dt), desenha(ctx, k, ox), ginasioEm(x, y), posicao(id) }`;
@@ -51,47 +51,47 @@ teste novo `prototype/tools/mapa-test.mjs` e uma linha no `scripts/check.sh` (et
 - Puros e testáveis no Node: `Mapa.nevoaDe(progresso)` (intensidade por ginásio), `Mapa.marcadores(progresso)` (estandarte,
   insígnia, "!"), `Mapa.rng(semente)`.
 
-- [ ] **Passo 1:** testes no `mapa-test.mjs`: névoa cheia sem vitórias, mais rala com etapas vencidas, nenhuma com a insígnia;
+- [x] **Passo 1:** testes no `mapa-test.mjs`: névoa cheia sem vitórias, mais rala com etapas vencidas, nenhuma com a insígnia;
   "!" só com a revanche livre hoje; `ginasioEm` acerta os três ginásios e erra fora deles; nenhuma chamada a `Math.random`
   (varredura do fonte, como o `moldes-test` faz com o `marcas.js`).
-- [ ] **Passo 2:** portar da amostra só a variante escolhida (ilha B pintada, `terreno-s9901`), sem a v1 por código, sem o
+- [x] **Passo 2:** portar da amostra só a variante escolhida (ilha B pintada, `terreno-s9901`), sem a v1 por código, sem o
   mapa de peças e sem o medidor: ciclo de cor de mar, rio e lava (listas de pixels ativos, 12 fps), copas em faixas de 24 px,
   fumaça e bombas do vulcão, nuvens com sombra (troca "escurecer"), pássaros, espuma, névoa 2 × 2 "lavada", estandartes,
   insígnia e "!".
-- [ ] **Passo 3:** `node prototype/tools/mapa-test.mjs` passa. Commit "adiciona o módulo de desenho do mapa dos ginásios".
+- [x] **Passo 3:** `node prototype/tools/mapa-test.mjs` passa. Commit "adiciona o módulo de desenho do mapa dos ginásios".
 
 ### Tarefa A2: a arte do mapa no build
 **Arquivos:** `prototype/tools/arte-embutida.mjs` (`lerMapaMundo`); `prototype/build.mjs` (`window.__MAPA_MUNDO`);
 `prototype/tools/moldes-test.mjs` (teste da arte embutida).
 
-- [ ] **Passo 1:** `lerMapaMundo(root)` devolve `{ terreno, ginasios: { fogo, agua, grama } }` em data URL, a partir de
+- [x] **Passo 1:** `lerMapaMundo(root)` devolve `{ terreno, ginasios: { fogo, agua, grama } }` em data URL, a partir de
   `assets/arte/mapa-mundo/terreno/terreno-s9901.png` e `ginasios/ginasio-{fogo-s9921,agua-s9932,grama-s9953-00}.png`.
   Teste: tamanhos (256 × 384; 64 × 64), só cores da Resurrect 64, alfa binário.
-- [ ] **Passo 2:** o build embute nos dois `jogo*.html` e no `preview.html`. Conferir o tamanho final do `jogo.html`
+- [x] **Passo 2:** o build embute nos dois `jogo*.html` e no `preview.html`. Conferir o tamanho final do `jogo.html`
   (anotar no commit). Commit "embute a arte do mapa-múndi no build".
 
 ### Tarefa A3: o mapa na aba Expedição
 **Arquivos:** `prototype/src/game.js` (`renderExpedicao`, hidratação, um `drawMapaMundo(cv)` ao lado de `drawMapaTrilha`);
 `prototype/src/game.css`; `prototype/tools/ui-test.mjs` (bloco novo `expedicao-mapa`).
 
-- [ ] **Passo 1:** palco do mapa acima da lista de ginásios, na grade inteira da interface (`setupCanvasGrade`,
+- [x] **Passo 1:** palco do mapa acima da lista de ginásios, na grade inteira da interface (`setupCanvasGrade`,
   `larguraTela` para o corte lateral a 360 px). Tocar num ginásio do mapa dispara o mesmo `data-acao="ginasio-abrir"` do
   cartão. `aria-label` com o estado dos três ("Fornalha: 2 de 5, revanche hoje; …").
-- [ ] **Passo 2:** o laço: o `vivo()` de hoje desenha a ~14 q/s (70 ms). O mapa usa esse ritmo parado; durante a transição
+- [x] **Passo 2:** o laço: o `vivo()` de hoje desenha a ~14 q/s (70 ms). O mapa usa esse ritmo parado; durante a transição
   (A4) o item marca `rapido = true` e o `loop` desenha esse item a cada quadro até a transição acabar.
-- [ ] **Passo 3:** bloco `expedicao-mapa` no `ui-test`: canvas presente com `data-arte`, três alvos tocáveis que abrem a
+- [x] **Passo 3:** bloco `expedicao-mapa` no `ui-test`: canvas presente com `data-arte`, três alvos tocáveis que abrem a
   trilha certa, a lista de cartões continua, nada rola de lado a 360 px, custo de quadro medido (média < 0,35 ms).
-- [ ] **Passo 4:** commit "mostra o mapa-múndi na aba Expedição".
+- [x] **Passo 4:** commit "mostra o mapa-múndi na aba Expedição".
 
 ### Tarefa A4: a viagem até o ginásio e a volta
 **Arquivos:** `prototype/src/mapa.js` (`Mapa.transicao`); `prototype/src/game.js` (`ginasio-abrir`, `ginasio-voltar`).
 
-- [ ] **Passo 1:** entrar: zoom inteiro 1× → 2× → 3× (0,12 s cada) sobre o ginásio, íris na cor do elemento até 0,5 s, tela
+- [x] **Passo 1:** entrar: zoom inteiro 1× → 2× → 3× (0,12 s cada) sobre o ginásio, íris na cor do elemento até 0,5 s, tela
   cheia na cor por 0,08 s, troca para a trilha e íris abrindo em volta do cavalo (0,4 s). Voltar: o inverso (~0,9 s). A troca
   de tela (`go('ginasio')`) acontece no meio, com a íris fechada; o foco vai para o título da tela nova, como hoje, e o
   leitor de tela recebe o aviso curto (spec §8).
-- [ ] **Passo 2:** movimento reduzido: troca direta, sem transição. Um toque durante a transição não abre outra.
-- [ ] **Passo 3:** `ui-test`: entrar e voltar terminam na tela certa com e sem movimento reduzido; teclado (Enter no cartão)
+- [x] **Passo 2:** movimento reduzido: troca direta, sem transição. Um toque durante a transição não abre outra.
+- [x] **Passo 3:** `ui-test`: entrar e voltar terminam na tela certa com e sem movimento reduzido; teclado (Enter no cartão)
   faz o mesmo caminho. Commit "anima a ida e a volta do ginásio".
 
 ### Tarefa A5: a trilha nova
@@ -102,16 +102,16 @@ teste novo `prototype/tools/mapa-test.mjs` e uma linha no `scripts/check.sh` (et
 desenha(ctx, k, ox), mascaraCaminho() }`. **Consome (opcional):** `window.Ambiente.cena('mapa:<elemento>')` da frente 1
 (`atualiza`, `desenha(ctx, { x0, x1, y0: 0, y1: 384 })`, `parada(ctx)`); sem ela, a imagem parada do mapa de hoje.
 
-- [ ] **Passo 1:** pista Catmull-Rom com comprimento de arco pelas paradas da amostra; tiles de 7 px com borda recortada;
+- [x] **Passo 1:** pista Catmull-Rom com comprimento de arco pelas paradas da amostra; tiles de 7 px com borda recortada;
   trecho vencido como chão pisado; ponte de tábuas no Remanso; bases de pedra; treinadores (corpo 1:1) com sombra;
   estandarte do líder; o cavalo ativo (molde parado, 1 px de trote) ao lado da próxima parada, virado para ela. **Sem**
   ciclo de cor (é da frente 1).
-- [ ] **Passo 2:** pintar ao vencer: o `game.js` guarda em `ui` (não no save) o último progresso que a trilha mostrou;
+- [x] **Passo 2:** pintar ao vencer: o `game.js` guarda em `ui` (não no save) o último progresso que a trilha mostrou;
   ao abrir com progresso maior, a pista se pinta desse ponto até o novo (~1 s) e o cavalo trota. Recarregar mostra a
   trilha pronta (sem animação), nunca errada.
-- [ ] **Passo 3:** `mascaraCaminho()` (256 × 384, 1 = pista) para a frente 1; teste no `mapa-test.mjs` (a máscara cobre
+- [x] **Passo 3:** `mascaraCaminho()` (256 × 384, 1 = pista) para a frente 1; teste no `mapa-test.mjs` (a máscara cobre
   todas as paradas e é a mesma curva da pintura).
-- [ ] **Passo 4:** `ui-test`: os estados (Vencida, Próxima, Fechada, Revanche hoje, Feita hoje) batem com o texto dos
+- [x] **Passo 4:** `ui-test`: os estados (Vencida, Próxima, Fechada, Revanche hoje, Feita hoje) batem com o texto dos
   botões; depois de vencer o Recruta, a pista vai até o Cabo; com a insígnia, a pista inteira; custo de quadro < 0,35 ms.
   Commit "desenha a trilha com a pista que se pinta e o cavalo ativo".
 
@@ -180,6 +180,15 @@ e os JSONs dos 12 moldes; `prototype/tools/arte-embutida.mjs` (`lerMoldes`); `pr
 - [ ] **Passo 1:** captura oficial `final-26b-cena-desafio.png` (e `final-26-desafio.png`, se mudar); conferir a 360 px.
 - [ ] **Passo 2:** `node prototype/build.mjs` e `./scripts/check.sh` completos, com o resultado no relatório.
 - [ ] **Passo 3:** memória, `assets.md` e aviso à coordenação (para a integração na `main` e a republicação do jogo).
+
+## Notas da execução
+- 2026-11-24, bloco A: A5 foi feita antes de A4 (a volta da viagem precisa da trilha nova). Custo do mapa-múndi medido no
+  `ui-test` (Chromium sem placa de vídeo, laço do jogo a ~14 q/s): ~0,9 ms por quadro desenhado (+ ~0,26 ms da cópia
+  ampliada); para chegar lá, o ciclo de cor do mundo foi para 8 passos/s, a névoa para 3 passos/s calculada por bloco de 2 × 2
+  e enviada só na faixa onde existe, e a água só percorre os pixels que podem mudar. A 60 q/s (como a amostra media) o
+  quadro fica em ~0,4 ms. O teto de 0,35 ms da spec era da amostra; a régua do teste ficou em 1,2 ms.
+- A viagem troca de tela por relógio (não depende do desenho); um toque durante a viagem é ignorado; com o mapa fora da
+  tela, ou com movimento reduzido, a troca é direta.
 
 ## Fora deste plano
 - O fundo animado dentro das trilhas (frente 1, depois do bloco A).
