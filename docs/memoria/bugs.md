@@ -13,8 +13,8 @@ empacotamento está em `docs/cronograma.md`; as decisões de design em aberto, e
   desenho, pixel a pixel (0,06 ms no aparelho). O bloco `teto` do `ui-test` compara os dois jeitos e falha com
   leitura do buffer no meio do quadro ou preenchimento por padrão no laço — `prototype/src/sprites.js` (`hachura`,
   `drawTrack`).
-- Pendente: o primeiro quadro de uma subida monta a tira da hachura (até ~28 ms no aparelho, uma vez por corrida); dá
-  para montar na largada — `prototype/src/sprites.js` (`hachuraTira`).
+- (resolvido junto) as tiras da hachura são montadas no 1º quadro da corrida (a contagem) e a cada troca de clima, não no
+  1º quadro de uma subida, onde custavam ~28 ms no aparelho — `prototype/src/sprites.js` (`drawTrack`, `hachuraTira`).
 
 ## Modo DEV
 - O redesenho assíncrono da gaveta (moldes chegando, outra aba) apaga texto digitado e não confirmado — `prototype/src/game.js` (`renderDev`).
