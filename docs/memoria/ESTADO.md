@@ -102,7 +102,11 @@ jogo (entra quando o jogo usar, etapa 3). **Etapa 2 feita (cavalos vivos no jogo
 código pintado pelo pipeline do molde) e os gestos do PixelLab (comer e cavar no retrato, cavar com jóquei no parado; a
 cada 15–30 s, embutidos no build: +240 KB) no Estábulo, no desafio e na espera da largada (`opts.anima`). Folha:
 `node prototype/tools/folha-cavalos-idle.mjs`. O esguio-chamas parado não abana a cauda (a crina não fica atrás da
-garupa). **Próximo:** etapa 3 (cenas das abas e arenas). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
+garupa). **Etapa 3a feita:** o motor e o manifesto
+entram no build; topo da Expedição e do Haras (com até 2 cavalos do jogador vivos no pasto) e a arena da Fornalha
+animam no laço "vivo" (`AMB_ABA`/`AMB_ARENA` no game.js); bloco `ambiente` no ui-test (em série; 0,21 / 0,12 / 0,14 ms
+por quadro a 60 q/s; "Reduzidas" parado). O vulcão da Fornalha fica no corte de cima da arena do desafio (não aparece
+nela). **Próximo:** etapa 3b, as cenas novas (Estábulo, Loja, Remanso, Capoeira). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um

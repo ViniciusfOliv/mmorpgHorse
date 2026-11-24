@@ -234,6 +234,10 @@ seu teste e o seu commit. O `balance.js` não muda.
 
 ## Etapa 3 — Cenas das abas e arenas
 
+> **3a feita no ramo em 2026-11-24** (4c7091b): Expedição, Haras (com os cavalos do jogador) e Fornalha no jogo, bloco
+> `ambiente` no ui-test. O custo é medido como equivalente por quadro a 60 q/s (o laço "vivo" do jogo roda a ~14 q/s).
+> Falta a 3b: as cenas novas do Estábulo, da Loja, do Remanso e da Capoeira (máscaras e adereços por código).
+
 **Arquivos:** mexe `prototype/src/game.js` (topo das abas e cena do desafio) e o manifesto (entradas novas).
 
 - [ ] Ligar o ambiente no topo das 4 abas, com a tela parada quando a aba não está visível.
