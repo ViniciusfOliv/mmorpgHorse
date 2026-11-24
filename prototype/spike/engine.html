@@ -125,7 +125,7 @@ textarea:focus-visible { outline: 2px solid var(--foco); }
 
   <section class="acoes">
     <button type="button" id="b-etapa6" class="primario">Etapa 6: rodada de 60 s</button>
-    <button type="button" id="b-subidas">Subidas (~65 s)</button>
+    <button type="button" id="b-subidas">Subidas (~105 s)</button>
     <button type="button" id="b-diag">Diagnóstico (~80 s)</button>
     <button type="button" id="b-bateria">Rodar bateria (~83 s)</button>
     <button type="button" id="b-livre">Rodada livre (60 s)</button>
@@ -6068,12 +6068,24 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
   // listra é inteira, de uma vez; nas pontas, a coluna j de cada listra (j = 0..3P−1) vale para os começos em
   // [ini, fim), ou seja, para x em [ini + j, fim + j) — a listra que começa antes de ini não aparece e a que
   // começa antes de fim sai inteira (passa de x1, como antes)
-  function hachura(ctx, h, y, alt, P, cor) {
-    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j;
-    var lis = hachuraPadrao(ctx, P, false, cor), col = hachuraPadrao(ctx, P, true, cor);
+  // imagem: em vez do padrão (createPattern) com a origem deslocada a cada faixa, uma tira pré-desenhada (o padrão
+  // repetido em W + 10P × alt) colada com drawImage no mesmo lugar: o mesmo desenho, pixel a pixel; num celular com GPU,
+  // os ~19 preenchimentos por padrão custavam até 20 ms por quadro numa subida
+  var hachuraTiras = {};
+  function hachuraTira(P, coluna, cor, w, alt) {
+    var step = 10 * P, k = P + (coluna ? 'c' : 'l') + (cor || '') + '|' + alt, c = hachuraTiras[k];
+    if (c && c.width >= w + step) return c;
+    c = makeCanvas(w + step, alt);
+    var g = c.getContext('2d'); g.fillStyle = hachuraPadrao(g, P, coluna, cor); g.fillRect(0, 0, c.width, alt);
+    return (hachuraTiras[k] = c);
+  }
+  function hachura(ctx, h, y, alt, P, cor, imagem) {
+    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j, step = 10 * P, Wc = ctx.canvas ? ctx.canvas.width : 4096;
+    var lis = imagem ? hachuraTira(P, false, cor, Wc, alt) : hachuraPadrao(ctx, P, false, cor), col = imagem ? hachuraTira(P, true, cor, Wc, alt) : hachuraPadrao(ctx, P, true, cor);
     function faixa(pat, dx, xa, xb) {
       if (xb <= xa) return;
       var ox = h.org + dx;
+      if (imagem) { ctx.drawImage(pat, mod(xa - ox, step), 0, xb - xa, alt, xa, y, xb - xa, alt); return; }
       ctx.fillStyle = pat;
       ctx.translate(ox, y); ctx.fillRect(xa - ox, 0, xb - xa, alt); ctx.translate(-ox, -y);
     }
@@ -6635,7 +6647,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
       if (x1 > x0) {
         if (!RG) { ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH); }
         // hachura diagonal ancorada no mundo
-        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null);
+        if (!o.semHachura) hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null, o.hachura === 'imagem');
       }
       // linhas amarelas de início/fim
       ctx.fillStyle = '#f9c22b';
@@ -11514,7 +11526,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
     if (C.cenario) {
       SP.drawTrack(ctx, { width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: cam * ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: PISO, finishM: D, hills: MORROS, curves: CURVAS, distanceMarkersEvery: 200, t: T, weather: clima, pixel: S,
-        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo, relevo: CFG.relevo || undefined, perfil: PERFIL });
+        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo, relevo: CFG.relevo || undefined, hachura: CFG.hachura || undefined, semHachura: !!CFG.semHachura, perfil: PERFIL });
       var tSc = performance.now();
       SP.drawSombraCerca(ctx, W, laneTop, cam * ppm, S, chao);
       perfilSoma('sombra da cerca', performance.now() - tSc);
@@ -11828,7 +11840,9 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
   var SUBIDAS = [
     fase6('S1. subida com o relevo (como o jogo)', { camadas: TUDO, t0: 17, s: 20 }),
     fase6('S2. subida sem o relevo (pista plana)', { camadas: TUDO, t0: 17, s: 20, semRelevo: true }),
-    fase6('S3. subida com o relevo numa tela fora (a correção)', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora' })
+    fase6('S3. subida com o relevo numa tela fora', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora' }),
+    fase6('S4. subida com a hachura por imagem + relevo fora (a correção)', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora', hachura: 'imagem' }),
+    fase6('S5. subida sem a hachura (só para comparar)', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora', semHachura: true })
   ];
   var RODADA = null;
   function aplicar(c) {
@@ -11837,7 +11851,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
     if (c.clima) CFG.clima = c.clima;
     if (c.limite) CFG.limite = c.limite;
     if (c.regiao) CFG.regiao = c.regiao;
-    CFG.semRelevo = !!c.semRelevo; CFG.relevo = c.relevo || null;
+    CFG.semRelevo = !!c.semRelevo; CFG.relevo = c.relevo || null; CFG.hachura = c.hachura || null; CFG.semHachura = !!c.semHachura;
     if (window.Ambiente) window.Ambiente.config({ regiaoSem: c.regiaoSem || {} });
     if (c.camadas) CAMADAS.forEach(function (k) { if (k in c.camadas) CFG.camadas[k] = !!c.camadas[k]; });
     montar(); reinicia(); marcaBotoes();
@@ -11853,7 +11867,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
           i++;
           if (i >= fases.length) { GRAV = null; RODADA = null; return ok(res); }
           var f = fases[i];
-          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao, regiaoSem: f.regiaoSem, semRelevo: f.semRelevo, relevo: f.relevo });
+          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao, regiaoSem: f.regiaoSem, semRelevo: f.semRelevo, relevo: f.relevo, hachura: f.hachura, semHachura: f.semHachura });
           if (f.t0) R.T = f.t0;   // começa noutro ponto da pista (as subidas ficam em 1.000–1.250 m e 2.350–2.600 m)
           GRAV = novaGravacao(f.nome); GRAV.res = L.W + '×' + L.H + ' (S' + L.S + ')';
           zeraAmbiente();

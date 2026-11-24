@@ -9814,12 +9814,24 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // listra é inteira, de uma vez; nas pontas, a coluna j de cada listra (j = 0..3P−1) vale para os começos em
   // [ini, fim), ou seja, para x em [ini + j, fim + j) — a listra que começa antes de ini não aparece e a que
   // começa antes de fim sai inteira (passa de x1, como antes)
-  function hachura(ctx, h, y, alt, P, cor) {
-    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j;
-    var lis = hachuraPadrao(ctx, P, false, cor), col = hachuraPadrao(ctx, P, true, cor);
+  // imagem: em vez do padrão (createPattern) com a origem deslocada a cada faixa, uma tira pré-desenhada (o padrão
+  // repetido em W + 10P × alt) colada com drawImage no mesmo lugar: o mesmo desenho, pixel a pixel; num celular com GPU,
+  // os ~19 preenchimentos por padrão custavam até 20 ms por quadro numa subida
+  var hachuraTiras = {};
+  function hachuraTira(P, coluna, cor, w, alt) {
+    var step = 10 * P, k = P + (coluna ? 'c' : 'l') + (cor || '') + '|' + alt, c = hachuraTiras[k];
+    if (c && c.width >= w + step) return c;
+    c = makeCanvas(w + step, alt);
+    var g = c.getContext('2d'); g.fillStyle = hachuraPadrao(g, P, coluna, cor); g.fillRect(0, 0, c.width, alt);
+    return (hachuraTiras[k] = c);
+  }
+  function hachura(ctx, h, y, alt, P, cor, imagem) {
+    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j, step = 10 * P, Wc = ctx.canvas ? ctx.canvas.width : 4096;
+    var lis = imagem ? hachuraTira(P, false, cor, Wc, alt) : hachuraPadrao(ctx, P, false, cor), col = imagem ? hachuraTira(P, true, cor, Wc, alt) : hachuraPadrao(ctx, P, true, cor);
     function faixa(pat, dx, xa, xb) {
       if (xb <= xa) return;
       var ox = h.org + dx;
+      if (imagem) { ctx.drawImage(pat, mod(xa - ox, step), 0, xb - xa, alt, xa, y, xb - xa, alt); return; }
       ctx.fillStyle = pat;
       ctx.translate(ox, y); ctx.fillRect(xa - ox, 0, xb - xa, alt); ctx.translate(-ox, -y);
     }
@@ -10381,7 +10393,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       if (x1 > x0) {
         if (!RG) { ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH); }
         // hachura diagonal ancorada no mundo
-        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null);
+        if (!o.semHachura) hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null, o.hachura === 'imagem');
       }
       // linhas amarelas de início/fim
       ctx.fillStyle = '#f9c22b';

@@ -314,7 +314,7 @@
     if (C.cenario) {
       SP.drawTrack(ctx, { width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: cam * ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: PISO, finishM: D, hills: MORROS, curves: CURVAS, distanceMarkersEvery: 200, t: T, weather: clima, pixel: S,
-        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo, relevo: CFG.relevo || undefined, perfil: PERFIL });
+        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo, relevo: CFG.relevo || undefined, hachura: CFG.hachura || undefined, semHachura: !!CFG.semHachura, perfil: PERFIL });
       var tSc = performance.now();
       SP.drawSombraCerca(ctx, W, laneTop, cam * ppm, S, chao);
       perfilSoma('sombra da cerca', performance.now() - tSc);
@@ -628,7 +628,9 @@
   var SUBIDAS = [
     fase6('S1. subida com o relevo (como o jogo)', { camadas: TUDO, t0: 17, s: 20 }),
     fase6('S2. subida sem o relevo (pista plana)', { camadas: TUDO, t0: 17, s: 20, semRelevo: true }),
-    fase6('S3. subida com o relevo numa tela fora (a correção)', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora' })
+    fase6('S3. subida com o relevo numa tela fora', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora' }),
+    fase6('S4. subida com a hachura por imagem + relevo fora (a correção)', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora', hachura: 'imagem' }),
+    fase6('S5. subida sem a hachura (só para comparar)', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora', semHachura: true })
   ];
   var RODADA = null;
   function aplicar(c) {
@@ -637,7 +639,7 @@
     if (c.clima) CFG.clima = c.clima;
     if (c.limite) CFG.limite = c.limite;
     if (c.regiao) CFG.regiao = c.regiao;
-    CFG.semRelevo = !!c.semRelevo; CFG.relevo = c.relevo || null;
+    CFG.semRelevo = !!c.semRelevo; CFG.relevo = c.relevo || null; CFG.hachura = c.hachura || null; CFG.semHachura = !!c.semHachura;
     if (window.Ambiente) window.Ambiente.config({ regiaoSem: c.regiaoSem || {} });
     if (c.camadas) CAMADAS.forEach(function (k) { if (k in c.camadas) CFG.camadas[k] = !!c.camadas[k]; });
     montar(); reinicia(); marcaBotoes();
@@ -653,7 +655,7 @@
           i++;
           if (i >= fases.length) { GRAV = null; RODADA = null; return ok(res); }
           var f = fases[i];
-          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao, regiaoSem: f.regiaoSem, semRelevo: f.semRelevo, relevo: f.relevo });
+          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao, regiaoSem: f.regiaoSem, semRelevo: f.semRelevo, relevo: f.relevo, hachura: f.hachura, semHachura: f.semHachura });
           if (f.t0) R.T = f.t0;   // começa noutro ponto da pista (as subidas ficam em 1.000–1.250 m e 2.350–2.600 m)
           GRAV = novaGravacao(f.nome); GRAV.res = L.W + '×' + L.H + ' (S' + L.S + ')';
           zeraAmbiente();
