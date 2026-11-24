@@ -439,6 +439,7 @@
   if (M.desafio.meshy) { carrega('d-meshy-1', M.desafio.meshy[1]); carrega('d-meshy-5', M.desafio.meshy[5]); }
   if (M.desafio.ipe) { carrega('d-ipe-1', M.desafio.ipe[1]); carrega('d-ipe-5', M.desafio.ipe[5]); }
   (M.desafio.canva || []).forEach(function (u, i) { carrega('d-canva' + i, u); });
+  Object.keys(M.desafio.papeis || {}).forEach(function (m) { carrega('d-p-' + m + '-1', M.desafio.papeis[m][1]); carrega('d-p-' + m + '-5', M.desafio.papeis[m][5]); });
   // os moldes do PixelLab (os mesmos do jogo): sem eles o sprites.js cai no cavalo desenhado por código
   if (SP.loadMolds && window.__MOLDES) { faltam++; SP.loadMolds(window.__MOLDES, function () { if (--faltam === 0) pronto(); }); }
   document.getElementById('hojeMundo').src = M.hoje.mundo;
@@ -1444,6 +1445,26 @@
     dg.drawImage(dSomC, 0, 0, im.width, im.height, x + 3, y + 2, im.width, im.height);
     dg.drawImage(im, x, y);
   }
+  // recoloração dos papéis (formato dos moldes: cinza = papel × 25) com as cores do cavalo, na paleta-mestra, como o
+  // coresMolde do sprites.js: 1 contorno, 2/3 pelo, 4/5 crina, 6 detalhe, 7 seda, 8 pele, 9 sela
+  var PINT_P = new Map();
+  function escuroDe(hex) { var v = rgbDe(hex.replace('#', '')); return '#' + v.map(function (c) { return ('0' + Math.round(c * 0.62).toString(16)).slice(-2); }).join(''); }
+  function corDoMolde(m) {
+    var est = m.split('-')[1], st = GD.STARTERS, porEst = { chamas: st[0], ondas: st[1], folhas: st[2] }, h = porEst[est];
+    var NOME = { chamas: 'Brasa', ondas: 'Maré', folhas: 'Ipê', lisa: 'Lisa' }, PORTE = { esguio: 'esguio', padrao: 'padrão', robusto: 'robusto' };
+    return { pal: h ? h.palette : (SP.PALETTES && SP.PALETTES.neutro) || { coat: '#a0704a', mane: '#3a2a1a' }, nome: NOME[est] + ' ' + PORTE[m.split('-')[0]] };
+  }
+  function pintaPapeis(im, pal, silks) {
+    var k = im.src.length + '|' + im.src.slice(-40) + '|' + pal.coat + silks; if (PINT_P.has(k)) return PINT_P.get(k);
+    var na = function (h, ev) { return SP.naMestra ? SP.naMestra(h.toLowerCase(), ev) : h; };
+    var coat = na(pal.coat || '#a0704a'), mane = na(pal.mane || escuroDe(pal.coat || '#a0704a'));
+    var cores = [null, '#1a1405', coat, na(pal.coatShade || escuroDe(coat), coat), mane, na(escuroDe(mane), mane), na(pal.accent || '#f2ead8'), na(silks), na('#e8b48a'), na('#5a3a22')];
+    var rgb = cores.map(function (c) { return c ? rgbDe(c.replace('#', '')) : null; });
+    var c = tela(im.width, im.height), q = c.getContext('2d'); q.drawImage(im, 0, 0);
+    var d = q.getImageData(0, 0, im.width, im.height), a = d.data;
+    for (var i = 0; i < a.length; i += 4) { if (!a[i + 3]) continue; var v = rgb[Math.round(a[i] / 25)]; if (!v) { a[i + 3] = 0; continue; } a[i] = v[0]; a[i + 1] = v[1]; a[i + 2] = v[2]; a[i + 3] = 255; }
+    q.putImageData(d, 0, 0); PINT_P.set(k, c); return c;
+  }
   var moldeEsqC = null;
   function moldeEsq() {   // o molde do jogo (Brasa parada, com jóquei), espelhado: o mesmo traço do cavalo em todo o jogo
     if (moldeEsqC) return moldeEsqC;
@@ -1519,12 +1540,15 @@
     if (desafio.cavalos !== 'molde' && IMG['d-meshy-1'] && IMG['d-meshy-5']) { fr = IMG['d-meshy-1']; cs = IMG['d-meshy-5']; }
     // 2º teste do Meshy: o Ipê (porte robusto, crina de folhas) de costas, contra a Brasa de frente
     var ipe = desafio.cavalos === 'ipe' && IMG['d-ipe-5']; if (ipe) cs = IMG['d-ipe-5'];
+    // o lote por molde: o modelo 3D em papéis, recolorido como o jogo faz (o mesmo cavalo de frente no fundo e de costas na frente)
+    var pm = /^p:/.test(desafio.cavalos) && desafio.cavalos.slice(2);
+    if (pm && IMG['d-p-' + pm + '-1']) { var pc = corDoMolde(pm); fr = pintaPapeis(IMG['d-p-' + pm + '-1'], pc.pal, '#e83b3b'); cs = pintaPapeis(IMG['d-p-' + pm + '-5'], pc.pal, '#f9c22b'); }
     // de trás para a frente: a líder e o cavalo dela no fundo, o nosso na frente
     if (lider) { var li = lider.c; li.__pe = lider.pe; li.__cx = 16; deitaSombra(li, A.lider[0], A.lider[1]); dg.drawImage(li, A.lider[0] - 16, A.lider[1] - lider.pe + resp2); }
     if (fr) pisa(fr, A.op[0], A.op[1], resp);
     if (cs) pisa(cs, A.nos[0], A.nos[1], resp2);
     if (!desafio._semPlacas) placa(8, 8, 128, 'Brasa da Labareda', 'Nv 20', 0.82, 'comum');
-    if (!desafio._semPlacas) placa(140, 116, 108, ipe ? 'Ipê' : 'Brasa', 'Nv 12', 0.64, desafio.rar);
+    if (!desafio._semPlacas) placa(140, 116, 108, pm ? corDoMolde(pm).nome : ipe ? 'Ipê' : 'Brasa', 'Nv 12', 0.64, desafio.rar);
     dCtx.imageSmoothingEnabled = false;
     dCtx.drawImage(dArte, 0, 0, DW, DH, 0, 0, DW * dS, DH * dS);
   }
@@ -1546,7 +1570,9 @@
       ctl.appendChild(botao('◀ De costas', function () { desafio.costas = mod(desafio.costas - 1, 16); monta(); }));
       var sp = document.createElement('span'); sp.textContent = 'candidato ' + (desafio.costas + 1) + ' de 16'; ctl.appendChild(sp);
       ctl.appendChild(botao('De costas ▶', function () { desafio.costas = mod(desafio.costas + 1, 16); monta(); }));
-      var CAV = { meshy: 'Meshy 3D (Brasa)', ipe: 'Meshy 3D (Ipê de costas)', molde: 'molde do jogo' }, CL = Object.keys(CAV);
+      var CAV = { meshy: 'Meshy 3D (Brasa)', ipe: 'Meshy 3D (Ipê de costas)', molde: 'molde do jogo' };
+      Object.keys(M.desafio.papeis || {}).forEach(function (m) { CAV['p:' + m] = 'lote: ' + corDoMolde(m).nome; });
+      var CL = Object.keys(CAV);
       ctl.appendChild(botao('Cavalos: ' + CAV[desafio.cavalos], function () { desafio.cavalos = CL[(CL.indexOf(desafio.cavalos) + 1) % CL.length]; monta(); }));
       ctl.appendChild(botao('Raridade: ' + NOME_RAR[desafio.rar], function () { var L = Object.keys(NOME_RAR); desafio.rar = L[(L.indexOf(desafio.rar) + 1) % L.length]; monta(); }));
       [['a0', 'Arena 0 (escolhida)'], ['a1', 'Arena 1'], ['c0', 'Canva 1'], ['c1', 'Canva 2']].filter(function (a) { return IMG[ARENAS[a[0]].img]; }).forEach(function (a) { ctl.appendChild(botao(a[1], function () { desafio.arena = a[0]; preparaDesafio(); monta(); }, { pressed: desafio.arena === a[0] })); });

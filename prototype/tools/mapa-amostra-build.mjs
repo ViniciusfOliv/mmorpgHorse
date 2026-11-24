@@ -44,9 +44,13 @@ const dados = {
       hoje: uri(path.join(PROTO, 'screens', 'final-26b-cena-desafio.png')),
       meshy: Array.from({ length: 8 }, (_, i) => uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `meshy-dir${i}.png`))),
       ipe: Array.from({ length: 8 }, (_, i) => uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `meshy-ipe-dir${i}.png`))),
+      // o lote do Meshy por molde, em papéis (arte-desafio-render.mjs --papeis): meshy-<porte>-<estilo>-papeis-dir0..7.png
+      papeis: Object.fromEntries(fs.readdirSync(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff')).filter(f => /^meshy-[a-z]+-[a-z]+-papeis-dir0\.png$/.test(f)).sort()
+        .map(f => { const m = f.replace(/^meshy-|-papeis-dir0\.png$/g, ''); return [m, Array.from({ length: 8 }, (_, i) => uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `meshy-${m}-papeis-dir${i}.png`)))]; })),
       canva: [0, 1].map(k => path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `canva-fundo-${k}.png`)).filter(f => fs.existsSync(f)).map(f => uri(f)),
       meshyFolhas: [['meshy-8dir', 'Brasa (1º modelo): 8 direções'], ['meshy-ipe-8dir', 'Ipê (2º modelo, porte robusto, crina de folhas): 8 direções'],
-        ['meshy-recolor', 'Troca de cor sem modelo novo: a pelagem da Brasa trocada pela da Maré']]
+        ['meshy-recolor', 'Troca de cor sem modelo novo: a pelagem da Brasa trocada pela da Maré'],
+        ['meshy-robusto-folhas-8dir', 'Ipê refeito (lote, 1º molde): gerado do molde em cores puras por papel (pelo vermelho, crina verde, seda azul…); na cena ele volta às cores do Ipê pelo papel de cada pixel']]
         .filter(([f]) => fs.existsSync(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')))
         .map(([f, nome]) => ({ nome, uri: uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')) })),
       bake: [['cena', 'Código (v7)', 'chão em perspectiva, molde de lado e de costas; sem custo'],

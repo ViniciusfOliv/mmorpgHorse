@@ -8,6 +8,7 @@
 //            pedido de composição com luz e contato; a resposta é reduzida à grade 256 × 160 (moda por bloco) e quantizada.
 //            4 variações, ~US$ 0,04 cada.
 //   canva    sem rede: reduz os 2 fundos exportados do Canva em tamanho cheio (raw/canva-N-cheio.png) à grade 256 × 160.
+//   papeis   sem rede: os moldes (--moldes robusto-folhas,...) em cores puras por papel, entrada do Meshy recolorível.
 //   meshy    Meshy image-to-3d a partir do molde da Brasa (ampliado 8× sem suavizar); o GLB é renderizado por
 //            prototype/tools/arte-desafio-render.html (three.js no navegador de teste) já no tamanho final. ~30 créditos.
 // O gasto é medido pelo saldo de cada serviço antes e depois e gravado em raw/gasto.json; nenhuma chave no código.
@@ -142,6 +143,26 @@ async function canva() {   // sem rede: os fundos exportados do Canva (raw/canva
   }
 }
 
-const L = { inpaint, gemini, meshy, canva }[lote];
-if (!L) { console.error('use --lote inpaint|gemini|meshy|canva [--gerar]'); process.exit(1); }
+// papéis do molde (sprites.js: cinza = papel × 25) em cores puras, bem separadas no matiz, para o Meshy texturizar o modelo
+// 3D com uma cor por papel; no render, cada pixel volta ao seu papel pelo matiz e recebe as cores do cavalo (recoloração do
+// jogo). Pelo vermelho, crina verde (contraste forte, para a forma da crina sair fiel), seda azul, pele amarela, sela magenta,
+// detalhe ciano; a sombra de cada papel é o mesmo matiz mais escuro.
+export const PAPEL_COR = { 1: [26, 26, 26], 2: [208, 48, 48], 3: [128, 24, 24], 4: [48, 192, 64], 5: [24, 112, 32], 6: [48, 192, 192], 7: [48, 80, 224], 8: [240, 208, 64], 9: [192, 48, 192] };
+async function papeis() {   // sem rede: prototype/assets/arte/desafio/entrada/<molde>-papeis.png a partir de prototype/assets/pixellab/molde-<molde>-parado.png
+  const arg = n => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
+  const lista = (arg('--moldes') || 'robusto-folhas').split(',');
+  fs.mkdirSync(path.join(D, 'entrada'), { recursive: true });
+  for (const m of lista) {
+    const im = decodePng(fs.readFileSync(path.join(RAIZ, 'prototype', 'assets', 'pixellab', `molde-${m}-parado.png`)));
+    const o = { width: im.width, height: im.height, rgba: new Uint8Array(im.width * im.height * 4) };
+    for (let i = 0; i < im.width * im.height; i++) {
+      const papel = Math.round(im.rgba[i * 4] / 25), c = im.rgba[i * 4 + 3] > 0 && PAPEL_COR[papel];
+      if (c) { o.rgba.set(c, i * 4); o.rgba[i * 4 + 3] = 255; }
+    }
+    fs.writeFileSync(path.join(D, 'entrada', `${m}-papeis.png`), encodePng(o)); console.log(`  entrada/${m}-papeis.png`);
+  }
+}
+
+const L = { inpaint, gemini, meshy, canva, papeis }[lote];
+if (!L) { console.error('use --lote inpaint|gemini|meshy|canva|papeis [--gerar]'); process.exit(1); }
 L().catch(e => { console.error('ERRO:', e.message); process.exit(1); });
