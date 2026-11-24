@@ -5,8 +5,8 @@ bestiário, equipamento de PVE, reforja, Selo do campeão, as correções da rev
 ajustes (câmera, skills resumidas, sexo, selvagens escondidos) entraram na `main` por avanço direto (100e438), com o
 `check.sh` completo OK (213 + 69 testes de regra, 139 de efeitos, 176 de moldes, 1064 do wiki, 132 metas, 81 blocos de
 interface). Republicados: jogo (versão 16), DEV (14), wiki (13) e testadores (2, https://claude.ai/artifact/2McVg8D1wv5Qm8WWnSN8hL).
-Em andamento: animação ambiente (`claude/animacao-ambiente`, amostra v3 aprovada como "mais movimento"; lote pago de
-comer/cavar e spec a seguir); depois mapa dos ginásios, tela inicial e inventário.
+Em andamento: animação ambiente (`claude/animacao-ambiente`: plano aprovado, etapa 0 — integração visual P1 — feita no
+ramo, esperando retorno); depois mapa dos ginásios, tela inicial e inventário.
 
 _Atualizado em 2026-11-23 (ajustes de interface, lote 1)._
 
@@ -74,8 +74,20 @@ ambiente dentro dos mapas das trilhas). O **guia de integração visual** (`docs
 plano como **etapa 0, antes de animar mais coisa**: os P1 só de código (sombra opaca na rampa do chão, LUT de luz e
 clima por rampa no atlas, pelagem dos moldes em 4 tons por sombreado de código — os crus têm quase só 2 tons —,
 constantes na paleta, contato e casco sem patinar com base de quadros comum de 12 q/s, leitura por valor); D1–D6 com o
-Vinicius, nada da etapa 0 depende delas. **Próximo:** aprovação do plano pelo Vinicius (via coordenação); nada no jogo
-antes. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
+Vinicius, nada da etapa 0 depende delas. **Plano aprovado (2026-11-24). Etapa 0 feita no ramo** (sem integrar na `main`
+nem republicar os oficiais; um commit por item): 0.4 `prototype/src/luz.js` (rampas da R64, `degrau`, `valor`,
+`sombraDoChao`) e as cores fixas do molde na paleta; 0.1 sombra opaca na rampa do chão (lateral +2 px; silhueta na
+diagonal pixel a pixel sobre o chão pintado no desafio; treinador; catraca do alfa parcial no `arte-check`: fx 20,
+sprites 12, game 6); 0.3 pelagem e crina em 4 tons por sombreado de código **na recoloração, sem mudar o formato dos
+PNGs** (desvio do plano, que previa papéis novos com cinza × 17: o resultado é o mesmo, sem regerar os 12 moldes); 0.2
+LUT por degrau de rampa (`Luz.lutCondicao`: nublado −1, chuva −2, névoa +1 com tinta neutra; tarde/noite/calor prontas),
+figura com LUT mais branda (chuva −1), pré-assada por clima na largada, virada em passos (sol → nublado → chuva), tinta
+de cena e contraluz (Fornalha, Estábulo, Remanso); 0.5 contato por raia, poeira no pouso presa ao chão em 2 tons, sombra
+da cerca, palha/tufos na frente dos cascos, amostra em 6/12 q/s; 0.6 leitura por valor (degrau do piso das raias por
+tabela, L* ≥ 5 onde dá; terra ao sol de 0 para 13,9). **Decisão pendente do Vinicius (C11):** casco sem patinar exige
+galope a ~36 q/s porque a corrida é reproduzida ~2× comprimida (o chão anda ~400 px de arte/s); na cadência natural de
+hoje o casco patina ~15 px por quadro; a gaveta DEV tem "galope casado com o chão" para comparar (0,25 px). **Próximo:**
+o retorno da etapa 0 (DEV de teste publicado), depois a etapa 1. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um

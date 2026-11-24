@@ -65,6 +65,12 @@ Total da frente: 53 gerações do PixelLab (6 + 30 + 14 + 3), contadas pelos reg
 
 ## Etapa 0 — Integração do personagem (P1 do guia, só código, sem créditos)
 
+> **Feita no ramo em 2026-11-24** (commits 67d738f, 4f7f649, ff6b109, 0714739, bfe0b5f, 015192a). Desvios: os 4 tons
+> saem na recoloração (`Sprites.sombreiaPelagem`) sem papéis novos no PNG; a passada e os pousos são medidos dos moldes
+> na carga (`Sprites.passadaDe`), não gravados no JSON; o casco sem patinar ficou como opção da gaveta DEV ("galope
+> casado"), porque a reprodução comprimida (~2×) exige ~36 q/s — **decisão do Vinicius**; a leitura por valor escolhe o
+> degrau do piso por clima sem clarear na escada sol → nublado → chuva. Prancha: `prototype/tools/prancha-etapa0.mjs`.
+
 A ordem segue o guia §4, "Ordem sugerida", itens 1 a 6. Tudo o que depende de luz, clima, sombra ou contorno é pré-assado
 na montagem do atlas (no início da tela ou da corrida). No laço da corrida não há `getImageData`/`putImageData`, nem
 objeto novo, e são ≤ 3 desenhos por cavalo (guia §9; guia de integração, "Princípio de desempenho"). Cada item tem o

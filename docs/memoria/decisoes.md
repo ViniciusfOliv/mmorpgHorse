@@ -1253,3 +1253,13 @@ Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, 
 - **2026-11-23 · Câmera da corrida de 4 a 12 px/m, enquadrando o jogador e os rivais a até 45 m, com a escala e o deslocamento suaves; o cenário rola pelo que a câmera andou (sem salto no zoom) · a 12 px/m fixos os cavalos saíam logo da tela e a disputa sumia. Só apresentação: a simulação não muda.**
 - **2026-11-23 · A seta de quem está fora da tela volta a mostrar os metros até o jogador ("+12 m"/"–8 m") · a etapa 2.4 tirou de propósito (guia: "sem metros"), mas sem eles não dava para saber quão longe estava a disputa; pedido do Vinicius.**
 - **2026-11-23 · O nome de autor nos créditos fica "Vinicius" · confirmado pelo Vinicius; era o último pendente dos créditos antes de publicar.**
+
+## 2026-11-24 · animação ambiente, etapa 0 (integração visual P1)
+- 2026-11-24 · Pelagem em 4 tons calculada na recoloração (`Sprites.sombreiaPelagem`, índices 16–19), sem mudar o formato dos moldes (o plano previa cinza × 17) · os 4 tons saem de sombreado por código de qualquer jeito; evita regerar e re-testar os 12 PNGs.
+- 2026-11-24 · LUT de clima por degrau de rampa (`Luz.lutCondicao`), no lugar da mistura com tinta + cor mais próxima · a antiga fundia metade dos tons (nublado 64 → 32 cores, névoa → 22); a nova funde 5 e 14 dentro das rampas.
+- 2026-11-24 · Figuras (cavalos) numa LUT mais branda que a do fundo (chuva −1 em vez de −2; névoa não muda) · em −2 o cavalo some na pista escura; a figura fica à frente e ainda escurece junto.
+- 2026-11-24 · Rampa oliva com `#313638` entre o contorno e `#4c3e24` · o castanho da Grama tinha a sombra na cor do contorno (3 tons); ganha o 4º.
+- 2026-11-24 · Leitura por valor pelo degrau do piso das raias (−1, 0, +1) escolhido por tabela, sem clarear na escada sol → nublado → chuva · é o remédio do guia que serve a todas as pelagens de uma vez; um degrau único para todos os climas piorava o sol na grama.
+- 2026-11-24 · Casco sem patinar só na gaveta DEV ("galope casado"); a cadência natural continua · casar exige ~36 q/s (a reprodução é ~2× comprimida); muda o visual do galope, então é decisão do Vinicius.
+- 2026-11-24 · Poeira e pousos medidos dos moldes na carga (`passadaDe`), não gravados no JSON · mesmo resultado, sem regerar os JSONs; testado no fx-test.
+
