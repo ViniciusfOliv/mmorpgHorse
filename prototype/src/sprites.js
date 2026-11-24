@@ -2741,6 +2741,12 @@
 
     // --- subidas
     var hills = o.hills || [];
+    // as tiras da hachura saem já no 1º quadro da corrida (a contagem da largada) e a cada troca de clima, não no 1º
+    // quadro de uma subida (montar custava ~28 ms naquele quadro no celular)
+    if (hills.length && o.hachura !== 'padrao' && typeof document !== 'undefined') {
+      var corHa = RG ? K(SC.dark) : null;
+      hachuraTira(P, false, corHa, W, trackH); hachuraTira(P, true, corHa, W, trackH);
+    }
     for (var hi = 0; hi < hills.length; hi++) {
       var a = sx(hills[hi][0]), bb = sx(hills[hi][1]);
       if (bb < -60 * P || a > W + 60 * P) continue;
