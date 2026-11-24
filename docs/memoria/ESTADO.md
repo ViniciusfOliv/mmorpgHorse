@@ -72,7 +72,15 @@ build (`window.__MAPA_MUNDO`, +35 KB), mapa-múndi na aba Expedição (acima dos
 íris, trilha com a pista que se pinta e o cavalo ativo (o fundo animado das trilhas fica com a frente 1, por
 `window.Ambiente.cena('mapa:<el>')`, com a máscara do caminho), bloco `expedicao-mapa` no `ui-test`, capturas final-24 e
 final-25 novas. `check.sh` completo OK (82 blocos de interface, 132 metas). DEV do ramo publicado para teste:
-https://claude.ai/artifact/EmQzDqJgwnWjZAgagDkXcC. Nada na `main`. Próximo: bloco B (cena de desafio). Lote dos 12 cavalos segue não aprovado.
+https://claude.ai/artifact/EmQzDqJgwnWjZAgagDkXcC. Nada na `main`. **Bloco B implementado (2026-11-24):** as vistas de frente
+e de costas dos 12 moldes (`assets/arte/desafio/vistas/`, `arte-desafio-moldes.mjs`) entram nos moldes pelo `lerMoldes`
+(tudo ou nada) e o `drawHorse` aceita `vista: 'frente' | 'costas'` (sem marcas); a cena de desafio é a `Mapa.cena`: arena 0,
+256 × 160, piso por código na Fornalha e o chão pintado da arena no Remanso e na Capoeira, oponente de frente com o
+treinador, o nosso de costas, marcas e sombras deitadas, placas no canvas (nome na cor da raridade, nível, fôlego do duelo
+gravado; o texto também em HTML para o leitor de tela). `check.sh` completo OK; DEV republicado (versão 2 do mesmo
+artefato). Fica para a integração com a frente 1: o idle nas vistas (a linha do `vivo` no `drawHorseMolde`, que ela faz) e o
+fundo animado das trilhas (`Ambiente.cena`, já ligado do meu lado). Próximo: integração na `main`, quando a coordenação e o
+Vinicius decidirem. Lote dos 12 cavalos segue não aprovado.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

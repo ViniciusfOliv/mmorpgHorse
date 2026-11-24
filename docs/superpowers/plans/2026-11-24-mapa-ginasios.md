@@ -177,9 +177,9 @@ e os JSONs dos 12 moldes; `prototype/tools/arte-embutida.mjs` (`lerMoldes`); `pr
 - [x] **Passo 4:** commit "mostra os cavalos dentro da arena na cena de desafio".
 
 ### Tarefa B5: fechamento do bloco B
-- [ ] **Passo 1:** captura oficial `final-26b-cena-desafio.png` (e `final-26-desafio.png`, se mudar); conferir a 360 px.
-- [ ] **Passo 2:** `node prototype/build.mjs` e `./scripts/check.sh` completos, com o resultado no relatório.
-- [ ] **Passo 3:** memória, `assets.md` e aviso à coordenação (para a integração na `main` e a republicação do jogo).
+- [x] **Passo 1:** captura oficial `final-26b-cena-desafio.png` (e `final-26-desafio.png`, se mudar); conferir a 360 px.
+- [x] **Passo 2:** `node prototype/build.mjs` e `./scripts/check.sh` completos, com o resultado no relatório.
+- [x] **Passo 3:** memória, `assets.md` e aviso à coordenação (para a integração na `main` e a republicação do jogo).
 
 ## Notas da execução
 - 2026-11-24, bloco A: A5 foi feita antes de A4 (a volta da viagem precisa da trilha nova). Custo do mapa-múndi medido no
