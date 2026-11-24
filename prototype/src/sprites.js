@@ -930,7 +930,7 @@
   // no coresNaMestra)
   var MOLDE_CORES_FIXAS = { contorno: '#2e222f', pele: '#fdcbb0', sela: '#4c3e24' };
   var moldes = null;       // chave do molde -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
-  var moldsOk = false;
+  var moldsOk = false, vistasOk = false;   // vistasOk: os moldes têm as vistas de frente e de costas
   var moldesLref = 0;      // maior larguraUtil entre os 4 moldes do padrão: escala única
   var alturaMaxEstado = {}; // estado -> maior altura de bbox entre os 12 moldes: o passo da escala num quadro fixo
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
@@ -1038,7 +1038,7 @@
   // Chave a mais na tabela (a de um molde antigo '<estilo>') é ignorada.
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
-    moldsOk = false; api.moldsReady = false; api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
+    moldsOk = false; vistasOk = false; api.moldsReady = false; api.moldesVistas = false; api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
     if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
     if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
@@ -1049,6 +1049,9 @@
       return;
     }
     var novos = {}, pendentes = 1, motivo = null;   // 1 = o próprio laço abaixo (fecha no fim)
+    // as vistas de frente e de costas (cena de desafio, spec 2026-11-24-mapa-ginasios §4): tudo ou nada nos 12 moldes; sem
+    // elas os moldes ligam do mesmo jeito e estadoMolde cai na vista de lado
+    var comVistas = chaves.every(function (ch) { var e2 = est[ch], A2 = e2 && e2.json && e2.json.ancoras; return !!(e2 && e2.frente && e2.costas && A2 && A2.frente && A2.costas); });
     function falha(m) { if (!motivo) motivo = m || 'falha'; }
     function fim() {
       pendentes--;
@@ -1063,7 +1066,7 @@
         var E = novos[ch].estados;
         for (var est in E) if (Object.prototype.hasOwnProperty.call(E, est)) alturaMaxEstado[est] = Math.max(alturaMaxEstado[est] || 0, E[est].altura);
       });
-      moldes = novos; api.moldesConjunto = 'portes'; moldsOk = true; api.moldsReady = true;
+      moldes = novos; api.moldesConjunto = 'portes'; moldsOk = true; api.moldsReady = true; vistasOk = comVistas; api.moldesVistas = comVistas;
       if (typeof pronto === 'function') pronto();
     }
     try {
@@ -1091,6 +1094,10 @@
         }
         carrega(e.retrato, 'retrato', function (idx) { M.retrato = idx; });
         carrega(e.parado, 'parado', function (idx) { M.parado = idx; });
+        if (comVistas) ['frente', 'costas'].forEach(function (vq) {
+          M.estados[vq] = refDe(vq, [A[vq]]); M.ancoras[vq] = ancoraComL(A[vq], J.larguraUtil);
+          carrega(e[vq], vq, function (idx) { M[vq] = idx; });
+        });
         e.galope.forEach(function (url, q) { carrega(url, 'galope-' + q, function (idx) { M.galope[q] = idx; }); });
         // gestos do idle (PixelLab): opcionais; um quadro que falhe tira só o gesto dele
         M.gestos = {};
@@ -1112,6 +1119,7 @@
 
   // Estado do molde para as opções do drawHorse; null = pose sem molde (galope sem jóquei): usa o código.
   function estadoMolde(o) {
+    if ((o.vista === 'frente' || o.vista === 'costas') && vistasOk) return o.vista;   // de frente ou de costas (cena de desafio)
     if (o.retrato) return 'retrato';
     if (o.jockey === false) return o.idle ? 'retrato' : null;
     return o.idle ? 'parado' : 'galope';
@@ -1320,13 +1328,15 @@
     return out;
   }
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce);
+    // nas vistas de frente e de costas não há marcas nem camadas do jóquei (decisão da spec: primeira versão sem marcas)
+    var vista = estado === 'frente' || estado === 'costas';
+    var cores = coresNaMestra(coresMolde(o)), v = vista ? null : visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce);
     var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '') + (cl ? '|c' + cl : '') +
       (ce ? '|s' + ce + (cz ? ',' + cz.lado : '') : '');
     var c = moldCache.get(key);
     if (!c) {
       var M = moldes[nome];
-      c = pintaMolde(M, indicesMolde(M, estado, quadro), ancoraMolde(M, estado, quadro), o);
+      c = pintaMolde(M, indicesMolde(M, estado, quadro), ancoraMolde(M, estado, quadro), o, vista);
       moldCache.set(key, c);
     }
     return c;
@@ -1338,8 +1348,8 @@
   }
   // um mapa de papéis do molde (o do quadro, ou um montado pelo idle) pintado com as opções do drawHorse: 4 tons, marcas,
   // jóquei, LUT do clima e da cena, contraluz. Sem cache (quem chama guarda).
-  function pintaMolde(M, idx, ancora, o) {
-    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce), c;
+  function pintaMolde(M, idx, ancora, o, semVisuais) {
+    var cores = coresNaMestra(coresMolde(o)), v = semVisuais ? null : visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce), c;
     {
       var sb = sombreiaPelagem(idx, M.w, M.h), tons = coresTons(cores);
       if (cz) sb = comContraluz(sb, idx, M.w, M.h, cz.lado);
@@ -1773,7 +1783,7 @@
     var chave = r.anim.monta(t) + '#' + chaveCores(o);
     // sem marcas nas vistas de frente e de costas (decisão do Vinicius para a v1 da cena de desafio nova)
     var oP = IDLE_GESTOS_ESTADO[estado] ? Object.assign({}, o, { marcas: null }) : o;
-    if (chave !== r.chave || !r.canvas) { r.chave = chave; r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP); }
+    if (chave !== r.chave || !r.canvas) { r.chave = chave; r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP, estado === 'frente' || estado === 'costas'); }
     return r.canvas;
   }
 
@@ -1790,7 +1800,7 @@
       ctx.drawImage(som, L.ox - 4 * L.S, L.oy - 4 * L.S, som.width * L.S, som.height * L.S);
     }
     // parado vivo (o.anima): o mapa montado pelo idle; fora isso (e no movimento reduzido), o quadro do molde
-    var vivo = o.anima && !o.reduzido && (estado === 'parado' || estado === 'retrato');
+    var vivo = o.anima && !o.reduzido && (estado === 'parado' || estado === 'retrato' || estado === 'frente' || estado === 'costas');
     ctx.drawImage(vivo ? moldeIdle(nome, estado, o) : moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
   }
 

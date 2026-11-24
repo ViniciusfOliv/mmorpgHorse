@@ -28,7 +28,6 @@ const png = await pg.evaluate(() => {
     ['litoral', 'mar', 'ciclo', 'Litoral · mar'], ['litoral', 'coqueiros', 'deforma', 'Litoral · coqueiros'],
     ['litoral', 'torcida', 'deforma', 'Litoral · torcida'], ['litoral', 'capim', 'deforma', 'Litoral · capim'],
     ['planalto', 'copas', 'deforma', 'Planalto · araucárias'], ['planalto', 'capim', 'deforma', 'Planalto · capim'],
-    ['fornalha', 'lava', 'ciclo', 'Fornalha · lava'], ['fornalha', 'emblemas', 'ciclo', 'Fornalha · emblemas'],
     ['expedicao', 'ciclo', 'ciclo', 'Expedição · lava e rio'], ['expedicao', 'giro', 'deforma', 'Expedição · placas'],
     ['expedicao', 'capim', 'deforma', 'Expedição · capim e pinheiros'], ['expedicao', 'mata', 'deforma', 'Expedição · matas'],
     ['cavalos', 'pasto', 'ciclo', 'Haras · pasto'], ['cavalos', 'arvores', 'deforma', 'Haras · árvores']

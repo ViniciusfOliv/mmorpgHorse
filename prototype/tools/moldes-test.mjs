@@ -10,6 +10,8 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { ICONES_NOVOS, FAMILIAS, RESERVADOS, ANTIGOS } from './icones-catalogo.mjs';
 import { htmlFolhaIcones } from './folha-icones.mjs';
+import { MAPA_MUNDO, lerMoldes as lerMoldesVistas } from './arte-embutida.mjs';
+import { RESURRECT64 as R64_MAPA } from './arte-paleta.mjs';
 import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada, sombraMagenta, sedaNaPelagem, crinaEscura, corrigirGrupo, modoNatural, soltarCrina, CRINA_SOLTA } from './moldes-lib.mjs';
 
 let fails = 0, count = 0;
@@ -3131,6 +3133,77 @@ console.log('\n## Idle dos moldes no jogo (Sprites.IdleMolde; animação ambient
     assert.ok(n >= 2 && n <= 4, n + ' gestos em 60 s (um a cada 15–30 s)');
   });
 }
+
+test('o mapa-múndi embutido: a ilha 256×384 opaca e os ginásios 64×64 com alfa binário, só Resurrect 64', () => {
+  const R = new Set(R64_MAPA.map((h) => h.toLowerCase())), PROTO = path.join(DIR, '..', '..');
+  const confere = (rel, w, h, opaca) => {
+    const d = decodePng(fs.readFileSync(path.join(PROTO, rel)));
+    assert.ok(d.width === w && d.height === h, `${rel}: ${d.width}×${d.height}`);
+    let opacos = 0;
+    for (let i = 0; i < d.width * d.height; i++) {
+      const a = d.rgba[i * 4 + 3];
+      assert.ok(a === 0 || a === 255, `${rel}: alfa ${a}`);
+      if (opaca) assert.strictEqual(a, 255, `${rel}: pixel ${i} transparente`);
+      if (!a) continue;
+      opacos++;
+      const hex = [0, 1, 2].map((c) => d.rgba[i * 4 + c].toString(16).padStart(2, '0')).join('');
+      assert.ok(R.has(hex), `${rel}: cor ${hex} fora da Resurrect 64`);
+    }
+    assert.ok(opacos > (opaca ? w * h - 1 : 400), `${rel}: só ${opacos} pixels`);
+  };
+  confere(MAPA_MUNDO.terreno, 256, 384, true);
+  for (const el of ['fogo', 'agua', 'grama']) confere(MAPA_MUNDO.ginasios[el], 64, 64, false);
+});
+
+// as vistas de frente e de costas dos 12 moldes (cena de desafio; plano do mapa dos ginásios B1): 64 × 64 em papéis, com o
+// contorno de 1 px por fora, as âncoras do idle dentro da caixa e a carga tudo ou nada no lerMoldes
+const DV = path.join(DIR, '..', 'arte', 'desafio', 'vistas');
+const CH12 = ['esguio', 'padrao', 'robusto'].flatMap((p) => ['chamas', 'ondas', 'folhas', 'lisa'].map((e) => `${p}-${e}`));
+test('as vistas de frente e de costas: 24 PNGs 64×64 em tons de papel, cavalo inteiro e contornado', () => {
+  for (const ch of CH12) for (const v of ['frente', 'costas']) {
+    const d = decodePng(fs.readFileSync(path.join(DV, `vista-${ch}-${v}.png`))), W = d.width;
+    assert.ok(W === 64 && d.height === 64, `${ch} ${v}: ${W}×${d.height}`);
+    const papel = (x, y) => (x < 0 || y < 0 || x >= 64 || y >= 64 ? 0 : Math.round(d.rgba[(y * 64 + x) * 4] / 25));
+    let n = 0
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+      const g = d.rgba[(y * 64 + x) * 4]; assert.ok(g % 25 === 0 && g <= 225, `${ch} ${v}: tom ${g}`);
+      const p = papel(x, y); if (!p) continue; n++;
+      if (p !== 1 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => !papel(x + a, y + b))) throw new Error(`${ch} ${v}: pixel ${x},${y} (papel ${p}) na borda sem contorno`);
+    }
+    assert.ok(n > 900, `${ch} ${v}: só ${n} pixels`);
+  }
+});
+test('as âncoras das vistas: dentro da caixa do cavalo, com as peças do idle combinadas com a frente 1', () => {
+  const V = JSON.parse(fs.readFileSync(path.join(DV, 'vistas-3d.json'), 'utf8')).moldes;
+  for (const ch of CH12) for (const v of ['frente', 'costas']) {
+    const A = V[ch][v], b = A.bbox, dentro = (c) => !c || (c[0] >= b.x && c[1] >= b.y && c[2] <= b.x + b.w && c[3] <= b.y + b.h && c[2] > c[0] && c[3] > c[1]);
+    assert.ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= 64 && b.y + b.h <= 64, `${ch} ${v}: bbox fora`);
+    assert.strictEqual(A.footY, b.y + b.h - 1, `${ch} ${v}: footY`);
+    for (const k of ['orelhas', 'crina', 'cauda']) assert.ok(dentro(A[k]), `${ch} ${v}: ${k} fora da caixa`);
+    assert.ok(Array.isArray(A.respira) && A.respira[2] > b.y && A.respira[2] < A.footY && A.respira[1] > A.respira[0], `${ch} ${v}: respira`);
+    assert.ok(Array.isArray(A.nose) && Array.isArray(A.rear) && Array.isArray(A.olho), `${ch} ${v}: nose, rear e olho`);
+    assert.strictEqual('cauda' in A, v === 'costas', `${ch} ${v}: cauda só nas costas`);
+  }
+});
+await testA('o lerMoldes junta as vistas nos 12 estilos, e com uma faltando não junta nenhuma (com aviso)', async () => {
+  const PROTO = path.join(DIR, '..', '..'), av = [];
+  const T = await lerMoldesVistas(PROTO, av);
+  for (const ch of CH12) {
+    const e = T.estilos[ch];
+    assert.ok(/^data:image\/png/.test(e.frente) && /^data:image\/png/.test(e.costas) && e.json.ancoras.frente && e.json.ancoras.costas, ch);
+    assert.ok(e.json.ancoras.parado && e.json.ancoras.retrato, ch + ': as âncoras de lado continuam');
+  }
+  assert.deepStrictEqual(av, []);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vistas-'));
+  try {
+    fs.cpSync(DIR, path.join(tmp, 'assets', 'pixellab'), { recursive: true, filter: (f) => !/[\\/](raw|novos)([\\/]|$)/.test(f) });
+    fs.cpSync(DV, path.join(tmp, 'assets', 'arte', 'desafio', 'vistas'), { recursive: true });
+    fs.unlinkSync(path.join(tmp, 'assets', 'arte', 'desafio', 'vistas', 'vista-robusto-lisa-costas.png'));
+    const av2 = [], T2 = await lerMoldesVistas(tmp, av2);
+    for (const ch of CH12) assert.ok(!T2.estilos[ch].frente && !T2.estilos[ch].json.ancoras.frente, ch + ' ficou com vista');
+    assert.ok(av2.some((a) => /vistas de frente e de costas ignoradas.*robusto-lisa/.test(a)), JSON.stringify(av2));
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

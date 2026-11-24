@@ -1,0 +1,17 @@
+{
+  "assinatura": "1e35b9298b33",
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "<325 chars>",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "high top-down",
+    "outline": "selective outline",
+    "detail": "highly detailed",
+    "no_background": true,
+    "seed": 9932
+  },
+  "arquivo": "ginasio-agua-s9932.png"
+}

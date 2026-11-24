@@ -1,0 +1,373 @@
+{
+  "endpoint": "/generate-with-style-v2",
+  "pedido": {
+    "style_images": [
+      {
+        "image": {
+          "type": "base64",
+          "base64": "<1936 chars>",
+          "format": "png"
+        },
+        "width": 64,
+        "height": 64
+      },
+      {
+        "image": {
+          "type": "base64",
+          "base64": "<1812 chars>",
+          "format": "png"
+        },
+        "width": 64,
+        "height": 64
+      }
+    ],
+    "description": "the same chestnut racing horse with orange mane and the small jockey in yellow silks, seen from BEHIND: rear view, its back and tail facing the camera, looking away from the viewer towards the distance, camera slightly above, standing still, full body",
+    "style_description": "clean pixel art, light from the upper left, selective dark outline",
+    "no_background": true,
+    "seed": 9991
+  },
+  "resposta": {
+    "seed": 9991,
+    "type": "done",
+    "action": "Touching up pixels",
+    "images": [
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2548 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2472 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2668 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2536 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2644 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2688 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2576 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2688 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2668 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2584 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2728 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2600 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2652 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2516 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2704 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2360 chars>",
+        "height": 64
+      }
+    ],
+    "progress": 0.85,
+    "billing_usage": {
+      "usd": 0,
+      "type": "generations",
+      "generations": 10
+    },
+    "generation_id": "69952815-9a8a-4b3c-9085-a79029d12495",
+    "usage_cost_usd": 0.08251576254102919,
+    "billing_charged": true,
+    "quantized_images": [
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2548 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2472 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2668 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2536 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2644 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2688 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2576 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2688 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2668 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2584 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2728 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2600 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2652 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2516 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2704 chars>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<2360 chars>",
+        "height": 64
+      }
+    ],
+    "generation_started_at": "2026-11-24T01:50:59.176555+00:00",
+    "original_image_n_colors": 11151,
+    "quantized_image_n_colors": 126
+  },
+  "arquivos": [
+    {
+      "nome": "brasa-costas-estilo-00.png",
+      "cam": "/images/0"
+    },
+    {
+      "nome": "brasa-costas-estilo-01.png",
+      "cam": "/images/1"
+    },
+    {
+      "nome": "brasa-costas-estilo-02.png",
+      "cam": "/images/2"
+    },
+    {
+      "nome": "brasa-costas-estilo-03.png",
+      "cam": "/images/3"
+    },
+    {
+      "nome": "brasa-costas-estilo-04.png",
+      "cam": "/images/4"
+    },
+    {
+      "nome": "brasa-costas-estilo-05.png",
+      "cam": "/images/5"
+    },
+    {
+      "nome": "brasa-costas-estilo-06.png",
+      "cam": "/images/6"
+    },
+    {
+      "nome": "brasa-costas-estilo-07.png",
+      "cam": "/images/7"
+    },
+    {
+      "nome": "brasa-costas-estilo-08.png",
+      "cam": "/images/8"
+    },
+    {
+      "nome": "brasa-costas-estilo-09.png",
+      "cam": "/images/9"
+    },
+    {
+      "nome": "brasa-costas-estilo-10.png",
+      "cam": "/images/10"
+    },
+    {
+      "nome": "brasa-costas-estilo-11.png",
+      "cam": "/images/11"
+    },
+    {
+      "nome": "brasa-costas-estilo-12.png",
+      "cam": "/images/12"
+    },
+    {
+      "nome": "brasa-costas-estilo-13.png",
+      "cam": "/images/13"
+    },
+    {
+      "nome": "brasa-costas-estilo-14.png",
+      "cam": "/images/14"
+    },
+    {
+      "nome": "brasa-costas-estilo-15.png",
+      "cam": "/images/15"
+    },
+    {
+      "nome": "brasa-costas-estilo-16.png",
+      "cam": "/quantized_images/0"
+    },
+    {
+      "nome": "brasa-costas-estilo-17.png",
+      "cam": "/quantized_images/1"
+    },
+    {
+      "nome": "brasa-costas-estilo-18.png",
+      "cam": "/quantized_images/2"
+    },
+    {
+      "nome": "brasa-costas-estilo-19.png",
+      "cam": "/quantized_images/3"
+    },
+    {
+      "nome": "brasa-costas-estilo-20.png",
+      "cam": "/quantized_images/4"
+    },
+    {
+      "nome": "brasa-costas-estilo-21.png",
+      "cam": "/quantized_images/5"
+    },
+    {
+      "nome": "brasa-costas-estilo-22.png",
+      "cam": "/quantized_images/6"
+    },
+    {
+      "nome": "brasa-costas-estilo-23.png",
+      "cam": "/quantized_images/7"
+    },
+    {
+      "nome": "brasa-costas-estilo-24.png",
+      "cam": "/quantized_images/8"
+    },
+    {
+      "nome": "brasa-costas-estilo-25.png",
+      "cam": "/quantized_images/9"
+    },
+    {
+      "nome": "brasa-costas-estilo-26.png",
+      "cam": "/quantized_images/10"
+    },
+    {
+      "nome": "brasa-costas-estilo-27.png",
+      "cam": "/quantized_images/11"
+    },
+    {
+      "nome": "brasa-costas-estilo-28.png",
+      "cam": "/quantized_images/12"
+    },
+    {
+      "nome": "brasa-costas-estilo-29.png",
+      "cam": "/quantized_images/13"
+    },
+    {
+      "nome": "brasa-costas-estilo-30.png",
+      "cam": "/quantized_images/14"
+    },
+    {
+      "nome": "brasa-costas-estilo-31.png",
+      "cam": "/quantized_images/15"
+    }
+  ],
+  "geracoes": 10
+}

@@ -40,6 +40,93 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Na amostra do Litoral a arquibancada fica mais à direita (168 em vez de 60)** — na largada ela cobre o mar; só na
   amostra, para o mar e o farol aparecerem nas duas versões.
 
+## 2026-11-24 — Cena de desafio, comparação de ferramentas
+- **Recomendação: Meshy 3D para as vistas de frente e de costas** — um modelo 3D por cavalo dá todas as vistas com o
+  mesmo traço (o "padrão só" que o Vinicius pediu), renderizado já no tamanho final e passado pelo nosso pós-processo;
+  o PixelLab não virou a pose (generate-with-style-v2) e o template horse saiu com outro traço. Falta subir o contraste
+  de valor contra o chão (Regra 14) e decidir se o molde de lado da corrida também vem do 3D.
+- **Inpaint do PixelLab no chão ajuda pouco** (terra escura que parece buraco); o contato por código fica.
+- **Canva só como referência de fundo**: o conector devolve prévias; o tamanho cheio exige exportar no Canva.
+
+## 2026-11-24 — Mapa dos ginásios, bloco A (implementação)
+- O ciclo de cor do mapa-múndi a 8 passos/s e a névoa a 3 passos/s (por bloco de 2 × 2). · No laço do jogo (~14 q/s) cada
+  quadro juntava o trabalho de vários; assim o desenho cai de ~1,4 para ~0,9 ms sem placa de vídeo, sem perda visível.
+- A viagem troca de tela por relógio; um toque antes da troca é ignorado e, depois dela, acaba a animação e segue. · Não
+  depende de o canvas estar visível e não prende o jogador na íris.
+- A trilha lembra, na sessão, a última etapa que mostrou; ao voltar depois de vencer, pinta desse ponto até o novo.
+  Recarregar mostra a trilha pronta. · Nada vai para o save (spec: só desenho).
+- O ciclo de cor das trilhas saiu do código desta frente. · O fundo animado das trilhas é da frente 1 (combinado).
+
+## 2026-11-24 — Lote do Meshy: um modelo por molde, a partir dos papéis
+- Cada molde vira um modelo 3D gerado da imagem em cores puras por papel; o render devolve os papéis (formato dos moldes) e
+  o jogo recolore. · A recoloração do jogo continua valendo e o lote cai de ~360 para ~330 créditos para 11 moldes.
+- A crina sai cheia (sem pontas de folha ou chama) a ~54 px; aceito pelo Vinicius ao aprovar seguir com os 10. · O formato
+  da crina vem da malha.
+- Nos moldes, os papéis nem sempre são anatômicos (no esguio-chamas, crina e cauda usam "detalhe" e a manta usa "crina");
+  o render segue os papéis do molde, não a anatomia. · Assim a vista 3D pinta igual ao molde de lado.
+
+## 2026-11-24 — Cena de desafio, rodada 2 da comparação (versão 10)
+- Meshy 2º cavalo (Ipê robusto) aprovado e feito (30 créditos): o porte sai bem, o estilo da crina não. · Mostrar se dá para
+  ter 1 modelo 3D por porte e recolorir. · Conclusão: cor sim (com modelo feito de imagem com cores puras por papel), formato da
+  crina não; o lote de ~90 créditos só vale se o Vinicius aceitar crina com o mesmo formato por porte.
+- Fundos do Canva exportados em tamanho cheio e usados como arena na cena (botões Canva 1/2). · Comparar de verdade.
+- Gemini: a geração de imagem exige a API nativa e o cabeçalho `x-goog-api-key`; a via compatível com OpenAI recusa. ·
+  Chave fica só no segredo do ambiente, nunca no código.
+
+## 2026-11-24 — Cena de desafio, retorno à versão 5
+- **Um padrão só de cavalo**: andando ou parado, o mesmo desenho do molde (o trote é o passo de 1 px), e o oponente é o
+  próprio molde espelhado — pedido do Vinicius ("mantenha um padrão").
+- **A arena é só fundo; os jogadores pisam num piso em perspectiva** (por código, abaixo do horizonte da imagem) — ele
+  pediu os jogadores "dentro do cenário", não por cima. Pela escala inteira, a distância aparece pela posição, o corte na
+  borda e a sombra, não por tamanho.
+- **`generate-with-style-v2` não vira a pose**: o "de frente" no estilo do molde saiu de lado (10 gerações perdidas).
+
+## 2026-11-24 — Mapa dos ginásios, rodada 2 (frente 2)
+- **Ilha B, ginásios Fogo s9921, Água s9932 e Capoeira refeita s9953** (escolhas do Vinicius).
+- **Referências do Vinicius (vitrine do PixelLab) só como alvo de comparação, nunca como `style_image`** — não são
+  nossas; a âncora de estilo passa a ser a ilha B e os nossos assets aprovados.
+- **Mapa pintado é o principal; o mapa de peças fica só como exemplo** — com peças standard de 16 px, a grade aparece
+  e as rampas variam entre conjuntos (a rocha saiu verde num e laranja noutro).
+- **Cena de desafio na direção de batalha de RPG de criaturas** (pedido do Vinicius): só a convenção de layout do
+  gênero; arte e interface nossas (guia de arte). O de costas sai bem com `generate-with-style-v2` no estilo do molde; as
+  8 direções do template horse pedem frente e lado como referência (422 sem a frente), então vieram pela descrição e
+  com outro traço.
+
+## 2026-11-24 — Mapa dos ginásios, piloto pago (frente 2)
+- **Ilha pintada pelo Pixen (1 geração) e não pelo Pro (15 por imagem em 256 × 384)** — o Pixen já fez os mapas das
+  trilhas; com 1 geração por tentativa, 4 seeds cabem no teto. O Pixflux partindo do mapa por código quase não mudou a
+  imagem e fica descartado.
+- **Ginásios como objetos 64 × 64 assentados por código** (sombra de contato pela troca de paleta do chão, luz da
+  esquerda) — atende ao pedido do Vinicius de nada parecer "PNG por cima do fundo". O da Capoeira veio com a mata em
+  volta e foi recortado em oval; se for o escolhido, vale refazer.
+
+## 2026-11-24 — Mapa dos ginásios, amostra v1 (frente 2)
+- **Amostra por código primeiro, com a arte já paga nas trilhas** — o mapa-múndi não existia; desenhado por código ele
+  mostra as interações (névoa, transições, trilha) sem gastar, e as máscaras de água e lava saem exatas para o ciclo de
+  cor. A arte final do mapa-múndi pode vir de um piloto pago, só com a confirmação do Vinicius.
+- **Névoa só visual** — as três trilhas continuam abertas desde o começo (spec dos ginásios); a névoa afina a cada etapa
+  vencida e some com a insígnia.
+- **Cavalo ao lado do tablado, virado para o oponente** — 1:1 ele tem ~60 px; na pista, cobria o oponente.
+- **Transição em escala inteira (1×→2×→3×) + íris na cor do elemento**, no pixel mostrado — guia §2 (sem zoom borrado).
+
+## 2026-11-24 — Como usar o PixelLab (pergunta do Vinicius)
+- **Produção pela API v2 com scripts versionados** (dry-run, `--gerar`, `--teto`, `--reprocessar`), com a chave
+  injetada pelo proxy da sessão — não pelo MCP: cada geração fica reprodutível, com custo controlado e registrada em
+  `assets.md` (declaração de IA da Steam). Dentro da API, usar sempre o recurso que der o melhor resultado para cada
+  asset (objetos, animação por referência, VFX, tilesets/mapas), avaliado em piloto pequeno antes do lote. O MCP fica
+  só como opção de exploração local. Chave nunca no código nem na conversa.
+
+## 2026-11-23 — Próximas frentes visuais, na ordem do Vinicius
+- **Ordem:** 1) animação ambiente (cenários e cavalos com movimento), 2) mapa-múndi e caminho dos ginásios, 3) tela
+  inicial, 4) inventário — recomendação da coordenação, aprovada ("pode seguir na ordem que sugeriu"). Base: a pesquisa
+  em `docs/arte/referencias-2026-11-23.md`.
+- **Qualidade sempre, tudo natural e fluido; avisar se for preciso outro programa ou engine** (Vinicius). Avaliação da
+  coordenação: a web aguenta (teste de engine); o Aseprite só agrega com retoque manual, que o fluxo só com IA não tem
+  — fica como opção se algum quadro precisar.
+- **Cada frente começa com uma amostra jogável para o Vinicius ver**, depois spec, plano e implementação. A animação
+  ambiente está no chat próprio (`claude/animacao-ambiente`); os ajustes do lote 1 (câmera, skills resumidas, gênero,
+  selvagens escondidos) em `claude/ajustes-1`.
+
 ## 2026-11-23 — Tudo na `main` (decisão do Vinicius)
 - **AFK, ajustes do lote 1 e build dos testadores integrados e oficiais republicados** ("pode integrar tudo na main e
   republicar") — avanço direto de 29f65fd para 100e438, depois de o `check.sh` completo passar nesse commit.

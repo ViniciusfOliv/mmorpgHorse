@@ -19,7 +19,8 @@
   var MAIS = false;
 
   // ================================================================ interface
-  var ORDEM = ['litoral', 'planalto', 'fornalha', 'expedicao', 'cavalos'];
+  // (a Fornalha saiu do motor em 2026-11-24: a cena do desafio nova é do mapa.js)
+  var ORDEM = ['litoral', 'planalto', 'expedicao', 'cavalos'];
   var el = function (id) { return document.getElementById(id); };
   var cvAntes = el('antes'), cvDepois = el('depois'), gA = cvAntes.getContext('2d'), gD = cvDepois.getContext('2d');
   var buf = null, cenaAtual = null, camadas = {}, linhas = {}, escala = 1;

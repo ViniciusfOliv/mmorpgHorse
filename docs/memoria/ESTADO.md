@@ -8,6 +8,82 @@ interface). Republicados: jogo (versão 16), DEV (14), wiki (13) e testadores (2
 Em andamento: animação ambiente (`claude/animacao-ambiente`: plano aprovado, etapa 0 — integração visual P1 — feita no
 ramo, esperando retorno); depois mapa dos ginásios, tela inicial e inventário.
 
+**Próxima frente (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE.** Spec
+`docs/superpowers/specs/2026-11-23-afk-drops-design.md` e plano `docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B)
+aprovados pelo Vinicius; a implementação parte da `main` (que já tem as skills com ranks e a direção de arte). O rancho
+ficou só como ideia.
+
+
+**Mapa dos ginásios, frente 2 das visuais (2026-11-24, ramo `claude/mapa-ginasios`, fora da `main`): amostra v1
+publicada** em https://claude.ai/artifact/XkbbtUoHuAxcYFQ45thNTF (`prototype/arte/mapa-amostra.html`, gerada por
+`node prototype/tools/mapa-amostra-build.mjs` a partir de `prototype/arte/mapa.html` + `mapa.js`; não toca em `src/` nem
+`dist/`). Mostra: o mapa-múndi em tela única (ilha 256 × 384 por código: Fornalha no vulcão, Remanso no lago, Capoeira na
+mata), vivo (mar, rio e lava em ciclo de cor, copas no vento, fumaça e bombas do vulcão, nuvens com sombra, pássaros),
+névoa sobre o que não foi conquistado (só visual), medalhão do líder (cabeça do corpo 1:1), insígnia e "!" da revanche;
+tocar num ginásio → aproximação 1×→2×→3× e íris na cor do elemento → a trilha (mapa de hoje, com ciclo de cor) com a pista
+de terra que se pinta tile a tile ao vencer (ponte de tábuas sobre a água no Remanso), os estados das paradas e o cavalo
+ativo (molde do jogo) trotando até o próximo oponente; e a volta. Lista de botões, teclado e leitor de tela; medidor de
+custo (desenho do quadro ~0,2–0,4 ms no mundo e ~0,25–0,6 na trilha no contêiner). Ao lado, as capturas de hoje. Custo
+zero. **v1 aprovada como direção (2026-11-24); piloto pago feito** (confirmado pelo Vinicius aqui; teto 15): 14
+gerações (saldo 879 → 858), script `prototype/tools/arte-mapa-mundo.mjs`, folha `prototype/arte/folha-mapa-mundo.html`. A
+amostra v2 (mesmo artefato) abre na ilha pintada A (s9902), com a B (s9901) e a v1 no seletor, os ginásios do piloto
+assentados com sombra de contato e todos os candidatos embaixo. **Próximo:** escolha do Vinicius (ilha e ginásios),
+retoques e a spec. **Guia de integração (`docs/arte/integracao.md`, na `main`) aplicado na amostra, só código (versão
+3 do artefato):** ginásios com sombra de silhueta e capim na base, estandartes do líder no lugar dos medalhões, espuma
+nas margens, névoa em massas de 2 × 2, bases de pedra e sombras dos treinadores e do cavalo na trilha, pista com borda
+recortada e trecho fechado como chão pisado. Pendentes do Vinicius: D1 (REST pintado × Map Workshop) e D5 (origem das
+referências); nada mais é gasto antes. **Decisões de 2026-11-24 (via coordenação, confirmadas aqui):** ilha B; ginásios
+Fogo s9921 e Água s9932; Capoeira refeita (s9953, 3 gerações); referências do Vinicius são da vitrine do PixelLab e
+ficam só como alvo de comparação; mapa pintado é o principal, com o exemplo de mapa de peças feito (9 gerações) para
+comparar; **a cena de desafio passa a ser desta frente**, na direção de batalha de RPG de criaturas (oponente de frente no
+alto à direita, o nosso de costas embaixo): piloto da Brasa feito (12 gerações), na amostra (versão 5). Gasto da
+rodada 2: 24 gerações (saldo 848 → 824). Próximo: escolha do candidato de costas e da vista de frente, estimativa do
+lote (12 moldes, de costas e de frente, com idle) e a spec. **Versão 6 (retorno do Vinicius à 5):** um padrão só de
+cavalo (a trilha trota com o mesmo desenho do parado, passo de 1 px); a cena de desafio com o chão da arena como plano
+(oponente e líder pisando no fundo, o nosso na frente cortado pela borda, marcas de terra gasta no chão, sombras deitadas
+no piso), arena 1 e arena 0 no seletor. Lote dos 12 cavalos NÃO aprovado; o oponente de frente no estilo do molde pede
+teste pago (perguntado). **Versão 7:** o Vinicius aprovou o teste de frente (10 gerações, saldo 824 → 814): saiu todo de
+lado, então o oponente passou a ser o próprio molde espelhado (mesmo traço). Pedido dele sobre a arena: os jogadores
+"dentro do cenário", com a arena só de fundo: a imagem da arena vale até o horizonte e abaixo dele há um piso em
+perspectiva por código, onde todos pisam. Vista de frente no estilo do molde segue em aberto (outra técnica a estudar). **Versão 9 (2026-11-24):** arena 0
+escolhida; nome na cor da raridade; comparação de ferramentas aprovada pelo Vinicius: PixelLab inpaint (10 gerações,
+814 → 804), Meshy 3D (30 créditos, 465 → 435; um cavalo 3D renderizado em pixel em 8 vistas coerentes, o melhor
+resultado para frente/costas), Canva (2 fundos, só prévias), Gemini bloqueado (conta sem créditos pré-pagos). Chaves do
+Meshy e do Gemini salvas no ambiente (proxy), nunca no código.
+**Versão 10 (2026-11-24):** rodada aprovada pelo Vinicius: Meshy 2º cavalo (Ipê, porte robusto, crina de folhas; 30
+créditos, 435 → 405): o porte aparece, a crina de folhas virou manchas; troca de cor funciona sem modelo novo só onde as
+cores dos papéis não se misturam (na Brasa crina e jóquei dividem tons), então "1 modelo por porte + recolor" pede modelos
+nascidos de imagem com cores puras por papel, e o formato da crina exige outro modelo. Canva: os 2 fundos exportados em
+1920 × 1080, reduzidos à grade e usados como arenas "Canva 1/2" na cena (créditos do plano). Gemini: a chave nova está
+salva, mas no cabeçalho Authorization; a geração de imagem é só na API nativa, que lê `x-goog-api-key` (401, nada
+cobrado); o Vinicius mudou o cabeçalho e o teste rodou (4 variações, ~US$ 0,155): a cena volta quase igual, com
+sombras de contato um pouco mais marcadas; ganho pequeno.
+**Lote do Meshy por molde (opção A, 2026-11-24, confirmado pelo Vinicius aqui):** Ipê refeito a partir do molde em cores
+puras por papel (30 créditos) e, aprovado o resultado, os outros 10 moldes (300 créditos; saldo 405 → 75; 330 dos 360 do
+teto). O render volta cada pixel ao seu papel (formato dos moldes) e a amostra recolore como o jogo (versões 12 e 13).
+A Brasa (padrao-chamas) também foi refeita pelos papéis (30; saldo 45): os 12 moldes prontos, 360 créditos, o teto.
+**Spec:** `docs/superpowers/specs/2026-11-24-mapa-ginasios-design.md`, com as 4 escolhas do Vinicius (sem marcas nas vistas 3D
+na v1, cena de 256 × 160, crina cheia aceita, plano começando pelo mapa e pela trilha). Âncoras das vistas de frente e de costas (`meshy-ancoras.json`, script `arte-desafio-ancoras.mjs`) entregues à frente 1,
+que já ligou o `IdleMolde` a elas (claude/animacao-ambiente, 7bf5977). **Spec aprovada pelo Vinicius (2026-11-24).** Plano: `docs/superpowers/plans/2026-11-24-mapa-ginasios.md` (bloco A: mapa,
+transição e trilha, sem custo; bloco B: vistas de frente e de costas nos moldes, chão por elemento e a cena), aguardando
+aprovação. `main` (e157f3f5) trazida para o ramo. **Plano aprovado pelo Vinicius (2026-11-24); bloco A implementado:**
+`prototype/src/mapa.js` (mundo, trilha, viagem; testes em `prototype/tools/mapa-test.js`, no `check.sh`), arte do mapa no
+build (`window.__MAPA_MUNDO`, +35 KB), mapa-múndi na aba Expedição (acima dos cartões; tocar = cartão), viagem com zoom e
+íris, trilha com a pista que se pinta e o cavalo ativo (o fundo animado das trilhas fica com a frente 1, por
+`window.Ambiente.cena('mapa:<el>')`, com a máscara do caminho), bloco `expedicao-mapa` no `ui-test`, capturas final-24 e
+final-25 novas. `check.sh` completo OK (82 blocos de interface, 132 metas). DEV do ramo publicado para teste:
+https://claude.ai/artifact/EmQzDqJgwnWjZAgagDkXcC. Nada na `main`. **Bloco B implementado (2026-11-24):** as vistas de frente
+e de costas dos 12 moldes (`assets/arte/desafio/vistas/`, `arte-desafio-moldes.mjs`) entram nos moldes pelo `lerMoldes`
+(tudo ou nada) e o `drawHorse` aceita `vista: 'frente' | 'costas'` (sem marcas); a cena de desafio é a `Mapa.cena`: arena 0,
+256 × 160, piso por código na Fornalha e o chão pintado da arena no Remanso e na Capoeira, oponente de frente com o
+treinador, o nosso de costas, marcas e sombras deitadas, placas no canvas (nome na cor da raridade, nível, fôlego do duelo
+gravado; o texto também em HTML para o leitor de tela). `check.sh` completo OK; DEV republicado (versão 2 do mesmo
+artefato). Fica para a integração com a frente 1: o idle nas vistas (a linha do `vivo` no `drawHorseMolde`, que ela faz) e o
+fundo animado das trilhas (`Ambiente.cena`, já ligado do meu lado). Próximo: integração na `main`, quando a coordenação e o
+Vinicius decidirem. Lote dos 12 cavalos segue não aprovado.
+Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
+o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
+
 _Atualizado em 2026-11-23 (ajustes de interface, lote 1)._
 
 **Em andamento (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE**, no branch `claude/afk` (chat

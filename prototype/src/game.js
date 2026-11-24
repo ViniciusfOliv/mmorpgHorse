@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja, MP = window.Mapa;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
   if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !AF || !telaEl) {
@@ -1483,6 +1483,8 @@
     for (var w = 0; w < cenas.length; w++) drawGinCena(cenas[w]);
     var abas = root.querySelectorAll('canvas[data-cena-aba]');
     for (var wa = 0; wa < abas.length; wa++) drawCenaAba(abas[wa]);
+    var mundos = root.querySelectorAll('canvas[data-mapa-mundo]');
+    for (var wn = 0; wn < mundos.length; wn++) drawMapaMundo(mundos[wn]);
     var mapas = root.querySelectorAll('canvas[data-mapa]');
     for (var wm = 0; wm < mapas.length; wm++) drawMapaTrilha(mapas[wm]);
   }
@@ -3103,6 +3105,7 @@
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
+      mapaMundoHtml() +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
       '</section>' + afkCartaoHtml() + selvagensBlocoHtml() +
@@ -3482,14 +3485,12 @@
   // 'desafio' }; "Começar duelo" leva ao duelo k; "Pular tudo" e o voltar do aparelho, ao resumo. Sem a arte do oponente,
   // a cena fica só com o cavalo dele. Só desenho: nada grava nem muda o state.
   // ---------------------------------------------------------------------------------------------
-  // Etapa 5 da direção de arte: o fundo é a arena do ginásio (window.__ARENAS, 256×160 ao ar livre), sem as 32 linhas de
-  // cima do céu; o treinador no corpo de ~40 px (quadro 32×48) e os cavalos, todos 1:1 na grade. Numa coluna mais estreita
-  // que 256 pixels de arte, a cena corta as laterais (centrada). Posições em pixels da cena (já sem o céu cortado).
-  var CENA_W = 256, CENA_H = 128, CENA_CORTE = 32;
+  // A cena do desafio (plano do mapa B4): a arena 0 de cada ginásio (window.__ARENAS, 256×160 inteira, com o céu), o
+  // treinador e os cavalos 1:1 na grade (Mapa.cena). Numa coluna mais estreita que 256 pixels de arte, a cena corta as
+  // laterais (centrada).
+  var CENA_W = 256, CENA_H = 160;
+  // a escada da virada de clima na paleta (Luz.CONDICOES), passo a passo, PASSO_CLIMA_S segundos por degrau
   var ESCADA_CLIMA = ['nevoa', 'sol', 'nublado', 'chuva'], PASSO_CLIMA_S = 0.25;
-  // a luz de cada arena nas figuras (Luz.CONDICOES / Luz.CONTRALUZ): a lava da Fornalha, o frio do Remanso
-  var CENA_LUZ = { fogo: 'fornalha', agua: 'remanso' };
-  var CENA_POS = { rival: { cx: 168, base: 70 }, treinador: { x: 194, base: 70 }, voce: { cx: 84, base: 118 } };
   var arenaImgs = {};
   function arenaImg(id) {
     var m = window.__ARENAS;
@@ -3510,7 +3511,6 @@
   // desenho: nada grava nem muda o state. Sem a arte, nada (a tela fica como antes).
   // ---------------------------------------------------------------------------------------------
   var TELA_W = 256, CENA_ABA_H = 160, MAPA_H = 384;
-  var MAPA_PARADAS = [[88, 360], [168, 292], [84, 224], [168, 156], [128, 84]];   // (x, y do chão), da 1ª etapa ao líder
   var telaImgs = {}, telaItems = [];
   function telaImg(tipo, id) {
     var m = window.__TELAS, src = m && m[tipo] && hasOwn(m[tipo], id) ? m[tipo][id] : null;
@@ -3524,12 +3524,11 @@
     return im.complete && im.naturalWidth ? im : null;
   }
   // Animação ambiente (spec 2026-11-23-animacao-ambiente; plano, etapa 3): as cenas animadas por código
-  // (prototype/src/ambiente.js) no topo das abas e na arena do desafio. Uma por cena, montada quando a imagem dela chega;
+  // (prototype/src/ambiente.js) no topo das abas. Uma por cena, montada quando a imagem dela chega;
   // o laço "vivo" (~14 q/s) chama. Só apresentação: a RNG é a cosmética do motor, nada da seed. Movimento reduzido ou
   // sem o motor: a imagem parada de sempre. ambMs: o custo de cada cena (o ui-test confere o equivalente por quadro a
   // 60 q/s, o do orçamento da spec §2.4: o tempo gasto por segundo ÷ 60).
   var AMB_ABA = { expedicao: ['expedicao', 'telas/expedicao'], haras: ['cavalos', 'telas/haras'], estabulo: ['estabulo', 'telas/estabulo'], loja: ['loja', 'telas/loja'] };
-  var AMB_ARENA = { fogo: ['fornalha', 'ginasios/fogo'] };
   var ambCenas = {}, ambMs = {};
   function ambienteDe(par, img) {
     var AMB = window.Ambiente;
@@ -3619,58 +3618,193 @@
     telaItems.push(item);
   }
   function trilhaMapaHtml(id) {
-    if (!temTela('mapas', id)) return '';
+    if (!temTela('mapas', id) || !MP) return '';
     var g = GD.GYMS[id], txt = g.etapas.map(function (e, i) { return ginEtapaRotulo(e, i) + ' ' + e.nome + ': ' + trilhaEstadoTxt(id, i); }).join('; ');
     return '<div class="trilha-mapa-palco"><canvas class="trilha-mapa" data-mapa="' + esc(id) + '" role="img" aria-label="' +
       esc('Mapa da trilha, de baixo para cima. ' + txt + '.') + '"></canvas></div>';
   }
-  function drawMapaTrilha(cv) {
-    var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];
-    if (!g) return;
-    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox;
+  // ---- O mapa-múndi da aba Expedição (spec 2026-11-24-mapa-ginasios §3.1): a ilha com os três ginásios, viva (água, lava,
+  // nuvens, fumaça, névoa sobre o que não foi conquistado). Só desenho (prototype/src/mapa.js); o progresso vem do save e o
+  // toque num ginásio é o toque no cartão dele (a lista de cartões continua embaixo, com o controle completo).
+  var mapaArte = { imgs: {}, mundo: null, falhou: false };
+  function mapaImg(chave, src) {
+    var im = mapaArte.imgs[chave];
+    if (!im && typeof Image === 'function') {
+      im = mapaArte.imgs[chave] = new Image();
+      im.onload = function () { telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.src = src;
+    }
+    return im && im.complete && im.naturalWidth ? im : null;
+  }
+  function temMapaMundo() { var m = window.__MAPA_MUNDO; return !!(MP && m && typeof m.terreno === 'string' && m.ginasios); }
+  // o mundo é montado uma vez (≈ 0,1 s), quando a ilha, os ginásios e os corpos dos líderes já chegaram; null até lá
+  function mapaMundo() {
+    if (mapaArte.mundo || mapaArte.falhou || !temMapaMundo()) return mapaArte.mundo;
+    var m = window.__MAPA_MUNDO, arte = { terreno: mapaImg('terreno', m.terreno), ginasios: {}, lideres: {} }, falta = !arte.terreno;
+    MP.ORDEM.forEach(function (el) {
+      arte.ginasios[el] = mapaImg('g-' + el, m.ginasios[el]); if (!arte.ginasios[el]) falta = true;
+      var g = GD.GYMS[el], lider = g && g.etapas[g.etapas.length - 1];
+      if (lider && window.__TREINADORES && hasOwn(window.__TREINADORES, ginTreinadorId(lider.nome))) { arte.lideres[el] = treinadorImg(ginTreinadorId(lider.nome)); if (!arte.lideres[el]) falta = true; }
+    });
+    if (falta) return null;
+    try { mapaArte.mundo = MP.mundo(arte, { sprites: SP }); } catch (e) { mapaArte.falhou = true; console.warn('mapa-múndi: ' + (e && e.message)); }
+    return mapaArte.mundo;
+  }
+  // o progresso que o mapa mostra (o mesmo dos cartões)
+  function mapaProgresso() {
+    var out = {};
+    GD.GYM_ORDER.forEach(function (id) {
+      out[GD.GYMS[id].element] = { vencidas: ginProgresso(id), insignia: ginTemInsignia(id), revanche: ginRevancheHoje(id) ? 'livre' : ginRevancheFeita(id) ? 'feita' : null };
+    });
+    return out;
+  }
+  function mapaMundoTxt() {
+    return 'Mapa da ilha dos ginásios. ' + GD.GYM_ORDER.map(function (id) {
+      return GD.GYMS[id].name + ': ' + ginProgressoTxt(id) + (ginRevancheHoje(id) ? ', revanche hoje' : '');
+    }).join('; ') + '.';
+  }
+  // ---- A viagem entre o mapa e a trilha (spec §3.2, plano A4): zoom e íris ao entrar num ginásio, o inverso ao voltar.
+  // As trocas de tela vão por relógio (não dependem de o canvas estar sendo desenhado); os canvas só mostram o passo da
+  // hora (Mapa.passoViagem). Com movimento reduzido, ou com o mapa fora da tela, a troca é direta, como antes.
+  var viagem = null;   // { tipo: 'entra' | 'sai', id, el, t0 }
+  function relogio() { return (window.performance ? performance.now() : 0) / 1000; }
+  function naTela(el) { if (!el) return false; var r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < (window.innerHeight || 0) && r.height > 0; }
+  function comecaViagem(tipo, id, tela, troca, fim) {
+    var v = viagem = { tipo: tipo, id: id, el: GD.GYMS[id].element, t0: relogio() };
+    acordaLaco();
+    setTimeout(function () {
+      if (viagem !== v) return;
+      if (ui.screen !== tela) { viagem = null; return; }   // o jogador foi para outra aba no meio: a viagem para
+      v.trocou = true; troca(); acordaLaco();
+    }, MP.VIAGEM[tipo].troca * 1000);
+    setTimeout(function () { if (viagem !== v) return; viagem = null; if (fim) fim(); }, MP.VIAGEM[tipo].fim * 1000 + 30);
+  }
+  // um toque novo durante a viagem: antes da troca de tela é ignorado (true); depois dela, a viagem acaba ali (sem esperar a
+  // íris) e o toque segue normalmente (false)
+  function viagemSegura() {
+    if (!viagem) return false;
+    if (viagem.trocou) { viagem = null; return false; }
+    return true;
+  }
+  function passoDaViagem(lado) {
+    if (!viagem) return null;
+    var V = MP.passoViagem(viagem.tipo, relogio() - viagem.t0);
+    return V.lado === lado ? V : null;
+  }
+  function mapaMundoHtml() {
+    if (!temMapaMundo()) return '';
+    return '<div class="mapa-mundo-palco"><canvas class="mapa-mundo" data-mapa-mundo="1" role="img" aria-label="' + esc(mapaMundoTxt()) + '"></canvas></div>';
+  }
+  function drawMapaMundo(cv) {
+    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
     cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
-    var estados = g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); });
-    function px(x, y, w, hh, cor) { ctx.fillStyle = cor; ctx.fillRect((x - ox) * k, y * k, w * k, hh * k); }
     var item = {
       drawn: false,
       draw: function (t) {
-        var img = telaImg('mapas', id);
-        item.drawn = !!img; item.t = t;
-        ctx.clearRect(0, 0, cv.width, cv.height);
-        if (!img) return;
-        ctx.drawImage(img, -ox * k, 0, TELA_W * k, MAPA_H * k);
-        // o caminho: tracejado de 3 px (borda escura, miolo claro); até a etapa seguinte à última vencida, aceso
-        for (var q = 0; q + 1 < MAPA_PARADAS.length; q++) {
-          var a = MAPA_PARADAS[q], b = MAPA_PARADAS[q + 1], n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
-          var aceso = estados[q] === 'vencida' || estados[q] === 'revanche' || estados[q] === 'feita';
-          for (var u = 0; u <= n; u++) {
-            if (u % 8 >= 5) continue;
-            var x = Math.round(a[0] + (b[0] - a[0]) * u / n), y = Math.round(a[1] + (b[1] - a[1]) * u / n);
-            px(x - 2, y - 2, 5, 5, C.sombra);
-            px(x - 1, y - 1, 3, 3, aceso ? C.ouroClaro : '#c7dcd0');
-          }
+        var m = mapaMundo();
+        item.t = t;
+        if (!m) return;
+        if (!item.drawn) m.estado(mapaProgresso());
+        var r = reduced(), dt = tAnt ? Math.max(0, t - tAnt) : 0;
+        tAnt = t;
+        if (item.drawn && r) return;
+        item.drawn = true;
+        var t0 = window.performance ? performance.now() : 0;
+        m.quadro(t, dt, r);
+        var t1 = t0 ? performance.now() : 0, V = passoDaViagem('mundo');
+        if (V) { var pg = MP.POS[viagem.el], f = [pg[0], pg[1] - 8]; MP.desenhaViagem(ctx, k, ox, L.W, m.c, f, V.z, V.r, f, viagem.el); }
+        else ctx.drawImage(m.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        cv.setAttribute('data-viagem', V ? viagem.tipo : '');
+        // o custo (média móvel, para o ui-test): o desenho do quadro (data-ms) e a cópia ampliada para a tela (data-ms-copia)
+        if (t0) {
+          var t2 = performance.now(), ms = t1 - t0, mc = t2 - t1;
+          item.ms = item.n ? item.ms * 0.9 + ms * 0.1 : ms; item.mc = item.n ? item.mc * 0.9 + mc * 0.1 : mc; item.n = (item.n || 0) + 1;
+          if (item.n > 3) { cv.setAttribute('data-ms', item.ms.toFixed(3)); cv.setAttribute('data-ms-copia', item.mc.toFixed(3)); }
         }
-        // as paradas: um tablado de pedra (ouro na vencida e na tocável) e o oponente de pé em cima
-        g.etapas.forEach(function (e, i) {
-          var p = MAPA_PARADAS[i], st = estados[i], ouro = st === 'vencida' || st === 'feita', vez = st === 'proxima' || st === 'revanche';
-          for (var yy = -5; yy <= 5; yy++) {
-            var w = Math.round(18 * Math.sqrt(1 - (yy * yy) / 25));
-            px(p[0] - w, p[1] + yy, 2 * w, 1, Math.abs(yy) === 5 ? C.sombra : yy < 1 ? (vez ? C.ouroClaro : ouro ? C.ouro : '#c7dcd0') : (vez || ouro ? C.ouroEscuro : '#9babb2'));
-            if (Math.abs(yy) < 5) { px(p[0] - w, p[1] + yy, 1, 1, C.sombra); px(p[0] + w - 1, p[1] + yy, 1, 1, C.sombra); }
-          }
-          var corpo = treinadorImg(ginTreinadorId(e.nome));
-          if (corpo) ctx.drawImage(corpo, (p[0] - 16 - ox) * k, (p[1] - corpo.naturalHeight + 1) * k, corpo.naturalWidth * k, corpo.naturalHeight * k);
-        });
       }
     };
     item.draw(0);
     telaItems.push(item);
-    // tocar numa parada é tocar no cartão dela (só as tocáveis têm botão)
+    vivo(item, cv);
+    // tocar num ginásio do mapa é tocar no cartão dele
     cv.addEventListener('click', function (ev) {
       var r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * L.W + ox, y = (ev.clientY - r.top) / r.height * MAPA_H;
-      for (var i = 0; i < MAPA_PARADAS.length; i++) {
-        var p = MAPA_PARADAS[i];
-        if (Math.abs(x - p[0]) <= 20 && y >= p[1] - 50 && y <= p[1] + 8) {
+      var el = MP.ginasioEm(x, y), id = null;
+      if (!el) return;
+      GD.GYM_ORDER.forEach(function (g) { if (GD.GYMS[g].element === el) id = g; });
+      var b = id && document.querySelector('#tela [data-acao="ginasio-abrir"][data-id="' + id + '"]');
+      if (b) b.click();
+    });
+  }
+  // ---- A trilha de um ginásio (spec 2026-11-24-mapa-ginasios §3.3): o mapa de hoje, a pista de terra que se pinta até a
+  // etapa da vez, as bases de pedra com os oponentes e o estado de cada um, e o cavalo ativo ao lado da próxima parada.
+  // Depois de vencer, ao voltar para a trilha, a pista se pinta do ponto que a tela mostrou até o novo e o cavalo trota
+  // (a memória é da sessão: recarregar mostra a trilha pronta). O fundo animado é da frente 1 (window.Ambiente), quando
+  // existir; sem ele, a imagem parada. Tocar numa parada é tocar no cartão dela (só as tocáveis têm botão).
+  mapaArte.trilhas = {};
+  function trilhaObj(id) {
+    var g = GD.GYMS[id], tr = mapaArte.trilhas[id];
+    if (tr) return tr;
+    if (!MP || !g) return null;
+    var mapa = telaImg('mapas', id), corpos = [], falta = !mapa;
+    g.etapas.forEach(function (e) {
+      var tid = ginTreinadorId(e.nome), tem = window.__TREINADORES && hasOwn(window.__TREINADORES, tid);
+      var im = tem ? treinadorImg(tid) : null; if (tem && !im) falta = true; corpos.push(im);
+    });
+    var ic = function (nome) { var src = iconeSrc(nome); if (!src) return null; var im = mapaImg('ic-' + nome, src); if (!im) falta = true; return im; };
+    var estrela = ic('ui-estrela'), insignia = ic('ins-' + g.element);
+    if (falta) return null;
+    var amb = null;
+    try { amb = window.Ambiente && typeof window.Ambiente.cena === 'function' ? window.Ambiente.cena('mapa:' + g.element, { imagem: mapa, caminho: MP.mascaraCaminho() }) : null; } catch (e) { amb = null; }
+    var op = { el: g.element, sprites: SP, cavalo: null, ambiente: amb };
+    tr = MP.trilha({ mapa: mapa, corpos: corpos, estrela: estrela, insignia: insignia }, op);
+    if (tr) { tr.op = op; tr.p = null; mapaArte.trilhas[id] = tr; }
+    return tr;
+  }
+  function drawMapaTrilha(cv) {
+    var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];
+    if (!g) return;
+    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
+    cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
+    var h = playerHorse(), vis = h ? opcoesVisuais(h, joqueiDoJogador()) : null;
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        var tr = trilhaObj(id);
+        item.t = t;
+        if (!tr) return;
+        var r = reduced(), dt = tAnt ? Math.max(0, t - tAnt) : 0;
+        tAnt = t;
+        if (!item.drawn) {   // o estado do save (uma vez por tela): as etapas, o cavalo e, se a etapa da vez andou, a pintura
+          var p = Math.min(ginProgresso(id), ginEtapasTotal(id) - 1);
+          tr.estados(g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); }));
+          if (tr.p !== p) { tr.posiciona(p, { de: tr.p != null && tr.p < p ? tr.p : null, reduzido: r }); tr.p = p; }
+          tr.op.cavalo = h ? comVisuais({ palette: h.palette, element: h.element, jockey: true, silks: PLAYER_SILKS }, vis) : null;
+        }
+        if (item.drawn && r) return;
+        item.drawn = true;
+        item.rapido = !r && tr.anda();   // a pista se pintando e o trote: desenho a cada quadro
+        var t0 = window.performance ? performance.now() : 0;
+        tr.quadro(t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
+        var t1 = t0 ? performance.now() : 0, V = passoDaViagem('trilha');
+        if (V) { var hp = tr.posCavalo(); MP.desenhaViagem(ctx, k, ox, L.W, tr.c, [128, 192], 1, V.r, [hp[0], hp[1] - 20], viagem.el); }
+        else ctx.drawImage(tr.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        cv.setAttribute('data-viagem', V ? viagem.tipo : '');
+        if (t0) {
+          var ms = t1 - t0; item.ms = item.n ? item.ms * 0.9 + ms * 0.1 : ms; item.n = (item.n || 0) + 1;
+          if (item.n > 3) cv.setAttribute('data-ms', item.ms.toFixed(3));
+        }
+        cv.setAttribute('data-anda', item.rapido ? '1' : '0');
+      }
+    };
+    item.draw(0);
+    telaItems.push(item);
+    vivo(item, cv);
+    cv.addEventListener('click', function (ev) {
+      var rc = cv.getBoundingClientRect(), x = (ev.clientX - rc.left) / rc.width * L.W + ox, y = (ev.clientY - rc.top) / rc.height * MAPA_H;
+      for (var i = 0; i < MP.PARADAS.length; i++) {
+        var pp = MP.PARADAS[i];
+        if (Math.abs(x - pp[0]) <= 20 && y >= pp[1] - 50 && y <= pp[1] + 8) {
           var b = document.querySelector('#tela .trilha .etapa[data-etapa="' + i + '"] button.etapa-btn');
           if (b && !b.disabled && b.getAttribute('aria-disabled') !== 'true') b.click();
           return;
@@ -3712,74 +3846,65 @@
     var d = R.duelos[k], dono = GD.GYMS[R.gymId].etapas[R.etapa].nome;
     var a = d.cfg.racers[0].horse, b = d.cfg.racers[1].horse, an = R.cavalos[d.a].nome, bn = R.adversario[d.b];
     var n = cenaQueue.length;
-    cenaQueue.push({ gymId: R.gymId, dono: dono, a: a, b: b });
+    cenaQueue.push({ gymId: R.gymId, dono: dono, a: a, b: b, an: an, bn: bn, folA: d.folegoA, folB: d.folegoB });
+    // as placas ficam desenhadas na cena (nome na cor da raridade, nível e fôlego); aqui, o mesmo em texto, para o leitor
+    // de tela (o nome do canvas já diz quem enfrenta quem)
     var placa = function (cls, quem, nome, h) {
       return '<div class="gin-placa gin-placa--' + cls + '"><b class="gin-placa-quem">' + esc(quem) + '</b>' +
         '<span class="gin-placa-cavalo">' + esc(nome + ' · Nv ' + h.level) + '</span>' + elementHtml(h.element) + '</div>';
     };
-    return '<div class="gin-cena gin-cena--' + esc(R.gymId) + '">' + placa('rival', dono, bn, b) +
+    return '<div class="gin-cena gin-cena--' + esc(R.gymId) + '">' +
       '<div class="gin-cena-palco"><canvas class="gin-cena-tela" data-cena="' + n + '" role="img" aria-label="' +
-        esc(dono + ' e ' + bn + ' contra você e ' + an) + '"></canvas><span class="gin-vs" aria-hidden="true">VS</span></div>' +
-      placa('voce', 'Você', an, a) + '</div>';
+        esc(dono + ' e ' + bn + ' contra você e ' + an) + '"></canvas></div>' +
+      '<div class="sr">' + placa('rival', dono, bn, b) + placa('voce', 'Você', an, a) + '</div></div>';
+  }
+  // A cena de desafio (spec 2026-11-24-mapa-ginasios §3.4, plano B4): a arena 0 do ginásio, o oponente de frente ao fundo com
+  // o treinador ao lado, o nosso cavalo de costas na frente, todos pisando no chão (Mapa.cena), e as placas na cena. Só mostra
+  // o duelo gravado (cenaQueue vem do desafio pago). Na grade da interface, 256 × 160, cortando as laterais por igual.
+  var COR_RAR_TXT = { comum: '#9babb2', magico: '#1ebc73', raro: '#4d9be6', lendario: '#f79617', mitico: '#a884f3' };   // a mítica mais clara: o 905ea9 some na placa
+  var cenasArte = {};
+  function cenaObj(gymId) {
+    if (cenasArte[gymId]) return cenasArte[gymId];
+    if (!MP || !MP.cena) return null;
+    var arena = arenaImg(gymId); if (!arena) return null;
+    var c = MP.cena({ arena: arena }, { el: GD.GYMS[gymId].element, sprites: SP });
+    if (c) cenasArte[gymId] = c;
+    return c;
   }
   function drawGinCena(cv) {
     var e = cenaQueue[Number(cv.getAttribute('data-cena'))];
     if (!e) return;
-    // na grade da interface: 1 pixel de arte = gradeS pixels do aparelho; a largura é a da arena (256) ou a que cabe no
-    // palco, cortando as laterais por igual
     var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), palcoW = cv.parentElement ? cv.parentElement.clientWidth : 0;
     var W = Math.max(160, Math.min(CENA_W, palcoW ? Math.floor(palcoW * r / kG) : CENA_W)), ox = Math.floor((CENA_W - W) / 2);
-    var s = setupCanvasGrade(cv, W, CENA_H);
-    var k = s.k, ctx = s.ctx;
+    var s = setupCanvasGrade(cv, W, CENA_H), k = s.k, ctx = s.ctx;
     cv.setAttribute('data-arte', W + 'x' + CENA_H);
-    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, null), img = null, arena = null;
-    // o cavalo 1:1 com o corpo centrado em cx e os cascos em base (pixels da cena); espelhado em volta de cx
-    // a cor do chão da arena sob os pés (lida da imagem; a arena é desenhada com o corte de CENA_CORTE em cima)
-    function chaoArena(cx, base, meia) { return arena ? SP.corDoChaoEm(arena, Math.round(cx - meia), Math.round(cx + meia), base + CENA_CORTE + 1, base + CENA_CORTE + 4) : null; }
-    function cavalo(h, vis, cx, base, t, espelha) {
-      var chao = chaoArena(cx, base, 16), chaoPx = arena ? SP.chaoDaImagem(arena) : null;
-      cx -= ox;
-      vis.reduzido = reduced();
-      var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k, jockey: false, silks: PLAYER_SILKS,
-        chao: chao, vista: 'cima', espelhado: !!espelha,   // a arena é vista de cima: sombra da silhueta na diagonal (Regra 2)
-        // o chão da arena varia (areia, lava, pedra): cada pixel da sombra é o pixel da arena sob ele, 1 degrau abaixo
-        chaoEm: chaoPx ? function (x, y) { return chaoPx((espelha ? 2 * cx - x - 1 : x) + ox, y + CENA_CORTE); } : null,
-        chaoChave: e.gymId + '|' + ox + '|' + cx + '|' + base,
-        cena: CENA_LUZ[e.gymId] || null,   // tinta ambiente e contraluz da arena (Regra 8)
-        anima: 'cena',                     // vivo: idle e gestos (animação ambiente, etapa 2)
-        quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
-      if (!espelha) SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
-      else {
-        ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
-        SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
-        ctx.restore();
-      }
-      // tufos do chão da arena na frente dos cascos (Regra 7), na cor do chão sob eles
-      if (chao) SP.drawTufosFrente(ctx, cx, base, 44, chao, k, base);
-    }
+    cv.setAttribute('data-folego', e.folA + ',' + e.folB);   // o fôlego das placas (o do duelo gravado), para o ui-test
+    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, joqueiDoJogador());
+    var cavB = comVisuais({ palette: e.b.palette, element: e.b.element, jockey: true, silks: '#e83b3b', chave: 'b|' + (e.b.id || e.bn) }, visB);
+    var cavA = comVisuais({ palette: e.a.palette, element: e.a.element, jockey: true, silks: PLAYER_SILKS, chave: 'a|' + (e.a.uid || e.a.id || e.an) }, visA);
+    var placas = {
+      rival: { nome: e.bn, sub: 'Nv ' + e.b.level, folego: e.folB, cor: COR_RAR_TXT[e.b.rarity] },
+      voce: { nome: e.an, sub: 'Nv ' + e.a.level, folego: e.folA, cor: COR_RAR_TXT[e.a.rarity] }
+    };
     var item = {
       drawn: false,
       draw: function (t) {
         if (item.drawn && reduced()) return;
-        item.drawn = true;
         item.t = t;
-        var tt = reduced() ? 0.5 : t, P = CENA_POS;
+        var c = cenaObj(e.gymId);
+        var lider = treinadorImg(ginTreinadorId(e.dono));
         ctx.clearRect(0, 0, cv.width, cv.height);
-        arena = arena || arenaImg(e.gymId);
-        var ambA = arena && !reduced() ? ambienteDe(AMB_ARENA[e.gymId], arena) : null;
-        if (ambA) desenhaAmbiente(ambA, ctx, tt, -ox * k, -CENA_CORTE * k, k);
-        else if (arena) ctx.drawImage(arena, -ox * k, -CENA_CORTE * k, CENA_W * k, (CENA_H + CENA_CORTE) * k);
-        else { ctx.fillStyle = C.painel; ctx.fillRect(0, 0, cv.width, cv.height); }
-        cavalo(e.b, visB, P.rival.cx, P.rival.base, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
-        img = img || treinadorImg(ginTreinadorId(e.dono));
-        if (img) {
-          var tx = P.treinador.x - ox, ty = P.treinador.base - img.naturalHeight;
-          var chaoT = chaoArena(P.treinador.x + img.naturalWidth / 2, P.treinador.base, 12);
-          if (chaoT) SP.drawSombraPes(ctx, tx + img.naturalWidth / 2, P.treinador.base, Math.round(img.naturalWidth * 0.7), chaoT, k);
-          ctx.drawImage(SP.imagemNaCena(img, CENA_LUZ[e.gymId]), tx * k, ty * k, img.naturalWidth * k, img.naturalHeight * k);
-          cv.setAttribute('data-treinador', [tx, ty, img.naturalWidth, img.naturalHeight].join(','));
+        if (!c) { ctx.fillStyle = C.painel; ctx.fillRect(0, 0, cv.width, cv.height); return; }
+        item.drawn = true;
+        var t0 = window.performance ? performance.now() : 0;
+        var arte = c.quadro(reduced() ? 0 : t, reduced(), { oponente: cavB, nosso: cavA, lider: lider, placas: placas }, { x0: ox, x1: ox + W });
+        if (t0) {   // o custo do desenho (média móvel, para o ui-test); os 3 primeiros quadros montam os cavalos
+          var ms = performance.now() - t0; item.n = (item.n || 0) + 1;
+          if (item.n > 3) { item.ms = item.ms ? item.ms * 0.9 + ms * 0.1 : ms; cv.setAttribute('data-ms', item.ms.toFixed(3)); }
         }
-        cavalo(e.a, visA, P.voce.cx, P.voce.base, tt, false);
+        ctx.drawImage(arte, -ox * k, 0, CENA_W * k, CENA_H * k);
+        var cx = lider ? c.caixaLider(lider) : null;
+        if (cx) cv.setAttribute('data-treinador', [cx[0] - ox, cx[1], cx[2], cx[3]].join(','));
       }
     };
     item.draw(0);
@@ -7932,14 +8057,17 @@
         break;
       }
       // ---- Ginásios (aba Expedição): abrir a trilha, abrir o detalhe da etapa próxima, voltar ----
-      case 'ginasio-abrir':
-        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id)) break;
-        ui.gym = { id: id, etapa: null, time: [], res: null, msg: null };
-        go('ginasio');
-        // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola na hora o
-        // mínimo para ela aparecer inteira; o foco fica no título
-        mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"], .etapa[data-estado="revanche"]'));
+      case 'ginasio-abrir': {
+        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || viagemSegura()) break;
+        var abreGin = function () { ui.gym = { id: id, etapa: null, time: [], res: null, msg: null }; go('ginasio'); };
+        // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola o mínimo
+        // para ela aparecer inteira (depois da viagem, se houver); o foco fica no título
+        var mostraProx = function () { mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"], .etapa[data-estado="revanche"]')); };
+        // a rolagem vai junto com a troca de tela (como sem viagem): a etapa da vez aparece inteira logo que a trilha abre
+        if (MP && !reduced() && mapaArte.mundo && naTela(telaEl.querySelector('canvas[data-mapa-mundo]'))) { comecaViagem('entra', id, 'expedicao', function () { abreGin(); mostraProx(); }, null); break; }
+        abreGin(); mostraProx();
         break;
+      }
       case 'ginasio-etapa': {
         // só abre o que o módulo deixa hoje (ginModo): a etapa próxima ou a revanche do líder livre hoje (o aria-disabled só
         // avisa: confere de novo pelo progresso salvo e pelo dia)
@@ -8011,7 +8139,14 @@
       case 'ginasio-pular-tudo':
         if ((ui.screen === 'corrida' || ui.screen === 'entreduelos' || ui.screen === 'desafio') && ui.gym && ui.gym.ver) ginPulaTudo();
         break;
-      case 'ginasio-voltar':
+      case 'ginasio-voltar': {
+        if (viagemSegura()) break;
+        // da trilha para o mapa: a viagem de volta (do detalhe, do preparo e do resumo, a volta é direta, como antes)
+        var gV = ui.gym;
+        if (MP && !reduced() && ui.screen === 'ginasio' && gV && gV.etapa === null && !gV.res && mapaArte.trilhas[gV.id] && temMapaMundo() &&
+          naTela(telaEl.querySelector('canvas[data-mapa]'))) { comecaViagem('sai', gV.id, 'ginasio', voltaDaSubtela, null); break; }
+        voltaDaSubtela(); break;
+      }
       case 'montaria-voltar':
       case 'perfil-voltar':
         voltaDaSubtela(); break;
@@ -8604,10 +8739,11 @@
       if (!precisaLaco()) { lacoAtivo = false; return; }
       window.requestAnimationFrame(loop);
       if (raceView) raceView.frame(now);
-      if (live.length && !reducedQuadro && now - lastIdle > 70) {
-        lastIdle = now;
-        var t = QUADRO_FIXO != null ? QUADRO_FIXO : now / 1000;
-        for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel) live[i].draw(t);
+      if (live.length && !reducedQuadro) {
+        // o ritmo de sempre (~14 q/s) e, a cada quadro, só os itens marcados como rápidos (a viagem e a trilha se pintando)
+        var t = QUADRO_FIXO != null ? QUADRO_FIXO : now / 1000, todos = now - lastIdle > 70;
+        if (todos) lastIdle = now;
+        for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel && (todos || live[i].rapido || viagem)) live[i].draw(t);
       }
     } finally { reducedQuadro = null; }
   }

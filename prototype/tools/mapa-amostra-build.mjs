@@ -1,0 +1,86 @@
+// prototype/tools/mapa-amostra-build.mjs — monta prototype/arte/mapa-amostra.html, a amostra do mapa dos ginásios
+// (frente 2 das melhorias visuais, entrega 1, 2026-11-24): o molde prototype/arte/mapa.html com o motor
+// prototype/arte/mapa.js e, em data: URI, o que ele usa — os mapas das trilhas (256×384), os corpos dos 15 oponentes, os
+// ícones (elementos, insígnias, estrela), os moldes dos cavalos e os módulos de desenho do jogo (data.js, marcas.js,
+// sprites.js, só leitura), a Nunito da interface e as capturas de hoje (final-24 e final-25) para o "hoje × proposta".
+// Não lê nem escreve nada em prototype/dist/; de prototype/src/ só lê. Não gasta crédito.
+// Uso: node prototype/tools/mapa-amostra-build.mjs
+import fs from 'node:fs';
+import path from 'node:path';
+import { RAIZ } from './pixellab-comum.mjs';
+import { lerMoldes, lerIcones, lerTreinadores, lerTelas, jsonJs } from './arte-embutida.mjs';
+
+const PROTO = path.join(RAIZ, 'prototype');
+const uri = (f, tipo = 'image/png') => `data:${tipo};base64,${fs.readFileSync(f).toString('base64')}`;
+
+const icones = await lerIcones(PROTO);
+const ICONES = {};
+for (const k of ['el-fogo', 'el-agua', 'el-grama', 'ins-fogo', 'ins-agua', 'ins-grama', 'ui-estrela', 'ui-estrela-vazia']) ICONES[k] = icones[k];
+const telas = await lerTelas(PROTO);
+// os mapas das trilhas sem o pontilhado da interface (o lerTelas só mexe nas cenas): o PNG final, 256×384
+const MAPAS = {};
+for (const g of ['fogo', 'agua', 'grama']) MAPAS[g] = uri(path.join(PROTO, 'assets', 'arte', 'telas', 'finais', `mapa-${g}.png`));
+const avisos = [];
+const dados = {
+  mapas: MAPAS,
+  treinadores: Object.fromEntries(Object.entries(await lerTreinadores(PROTO)).map(([k, v]) => [k, v.corpo])),
+  icones: ICONES,
+  piloto: (() => {
+    const D = path.join(PROTO, 'assets', 'arte', 'mapa-mundo');
+    const usados = { 'terreno-s9902': 'terreno/terreno-s9902', 'terreno-s9901': 'terreno/terreno-s9901', 'ginasio-fogo': 'ginasios/ginasio-fogo-s9921',
+      'ginasio-agua': 'ginasios/ginasio-agua-s9932', 'ginasio-grama': 'ginasios/ginasio-grama-s9953-00', 'montado': 'montado' };
+    const todos = [];
+    for (const l of ['terreno', 'base', 'ginasios', 'pecas']) if (fs.existsSync(path.join(D, l))) for (const f of fs.readdirSync(path.join(D, l)).filter(f => f.endsWith('.png')).sort()) todos.push({ nome: f.replace('.png', ''), uri: uri(path.join(D, l, f)) });
+    return { usados: Object.fromEntries(Object.entries(usados).map(([k, v]) => [k, uri(path.join(D, v + '.png'))])),
+      escolhidos: ['terreno-s9901', 'ginasio-fogo-s9921', 'ginasio-agua-s9932', 'ginasio-grama-s9953-00'], todos };
+  })(),
+  desafio: (() => {
+    const P = path.join(PROTO, 'assets', 'arte', 'desafio', 'piloto');
+    return { arena: uri(path.join(PROTO, 'assets', 'arte', 'ginasios', 'finais', 'fogo.png')), arena0: uri(path.join(PROTO, 'assets', 'arte', 'ginasios', 'fogo', 'arena-0.png')),
+      costas: Array.from({ length: 16 }, (_, i) => uri(path.join(P, `brasa-costas-estilo-${String(i).padStart(2, '0')}.png`))),
+      oito: Array.from({ length: 8 }, (_, i) => uri(path.join(P, `brasa-8dir-64-${String(i).padStart(2, '0')}.png`))),
+      frente: Array.from({ length: 16 }, (_, i) => uri(path.join(P, `brasa-frente-estilo-${String(i).padStart(2, '0')}.png`))),
+      oito96: Array.from({ length: 8 }, (_, i) => uri(path.join(P, `brasa-8dir-96-${String(i).padStart(2, '0')}.png`))),
+      hoje: uri(path.join(PROTO, 'screens', 'final-26b-cena-desafio.png')),
+      meshy: Array.from({ length: 8 }, (_, i) => uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `meshy-dir${i}.png`))),
+      ipe: Array.from({ length: 8 }, (_, i) => uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `meshy-ipe-dir${i}.png`))),
+      // o lote do Meshy por molde, em papéis (arte-desafio-render.mjs --papeis): meshy-<porte>-<estilo>-papeis-dir0..7.png
+      papeis: Object.fromEntries(fs.readdirSync(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff')).filter(f => /^meshy-[a-z]+-[a-z]+-papeis-dir0\.png$/.test(f)).sort()
+        .map(f => { const m = f.replace(/^meshy-|-papeis-dir0\.png$/g, ''); return [m, Array.from({ length: 8 }, (_, i) => uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `meshy-${m}-papeis-dir${i}.png`)))]; })),
+      canva: [0, 1].map(k => path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `canva-fundo-${k}.png`)).filter(f => fs.existsSync(f)).map(f => uri(f)),
+      meshyFolhas: [['meshy-8dir', 'Brasa (1º modelo): 8 direções'], ['meshy-ipe-8dir', 'Ipê (2º modelo, porte robusto, crina de folhas): 8 direções'],
+        ['meshy-recolor', 'Troca de cor sem modelo novo: a pelagem da Brasa trocada pela da Maré'],
+        ['meshy-robusto-folhas-8dir', 'Ipê refeito (lote, 1º molde): gerado do molde em cores puras por papel (pelo vermelho, crina verde, seda azul…); na cena ele volta às cores do Ipê pelo papel de cada pixel']]
+        .filter(([f]) => fs.existsSync(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')))
+        .map(([f, nome]) => ({ nome, uri: uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')) })),
+      bake: [['cena', 'Código (v7)', 'chão em perspectiva, molde de lado e de costas; sem custo'],
+        ['pixellab-inpaint', 'PixelLab inpaint', 'chão repintado em volta dos cascos; 10 gerações'],
+        ['cena-meshy', 'Meshy 3D', 'o mesmo cavalo 3D de frente e de costas, renderizado já em pixel; 30 créditos'],
+        ['cena-canva-0', 'Canva, fundo 1', 'exportado em 1920 × 1080 e reduzido à grade (moda por bloco, Resurrect 64); os cavalos do Meshy pisando nele'],
+        ['cena-canva-1', 'Canva, fundo 2', 'idem; o fundo já traz os dois anéis no chão, e os cavalos pisam neles'],
+        ['gemini-0', 'Gemini (pedido 1)', 'compor a cena do código com sombras de contato e luz; ~US$ 0,04'], ['gemini-1', 'Gemini (pedido 2)', 'repintar a cena inteira; ~US$ 0,04'],
+        ['gemini-2', 'Gemini (pedido 1, 2ª)', '~US$ 0,04'], ['gemini-3', 'Gemini (pedido 2, 2ª)', 'pontos verdes no céu vêm da redução à paleta; ~US$ 0,04']]
+        .filter(([f]) => fs.existsSync(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')))
+        .map(([f, nome, nota]) => ({ nome, nota, uri: uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')) })) };
+  })(),
+  hoje: {
+    mundo: uri(path.join(PROTO, 'screens', 'final-24-expedicao-ginasios.png')),
+    trilha: uri(path.join(PROTO, 'screens', 'final-25-trilha.png'))
+  }
+};
+void telas;
+
+let html = fs.readFileSync(path.join(PROTO, 'arte', 'mapa.html'), 'utf8');
+const troca = (marca, valor) => { if (!html.includes(marca)) throw new Error('falta ' + marca); html = html.split(marca).join(valor); };
+const js = (f) => fs.readFileSync(path.join(PROTO, f), 'utf8').replace(/<\/script/gi, '<\\/script');
+troca('/*__N600__*/', uri(path.join(PROTO, 'assets', 'fontes', 'nunito-latin-600-normal.woff2'), 'font/woff2'));
+troca('/*__N800__*/', uri(path.join(PROTO, 'assets', 'fontes', 'nunito-latin-800-normal.woff2'), 'font/woff2'));
+troca('/*__MOLDES__*/', jsonJs(await lerMoldes(PROTO, avisos)));
+troca('/*__GLIFOS__*/', jsonJs(JSON.parse(fs.readFileSync(path.join(PROTO, 'assets', 'fontes', 'galmuri-glifos.json'), 'utf8'))));
+troca('/*__DADOS__*/', jsonJs(dados));
+troca('/*__JOGO__*/', ['src/data.js', 'src/marcas.js', 'src/sprites.js'].map(js).join('\n'));
+troca('/*__JS__*/', js('arte/mapa.js'));
+if (avisos.length) console.warn(avisos.join('\n'));
+const saida = path.join(PROTO, 'arte', 'mapa-amostra.html');
+fs.writeFileSync(saida, html);
+console.log(`${path.relative(RAIZ, saida)}: ${(html.length / 1024).toFixed(0)} KB`);

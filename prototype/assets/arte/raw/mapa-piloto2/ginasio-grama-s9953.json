@@ -1,0 +1,35 @@
+{
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "<363 chars>",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "high top-down",
+    "outline": "selective outline",
+    "detail": "highly detailed",
+    "no_background": true,
+    "seed": 9953
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<5092 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  },
+  "arquivos": [
+    {
+      "nome": "ginasio-grama-s9953-00.png",
+      "cam": "/image"
+    }
+  ],
+  "geracoes": 1
+}

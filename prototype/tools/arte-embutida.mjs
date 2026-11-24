@@ -6,13 +6,15 @@
 //   lerIconesTam(root)      -> { nome: 16|24 }  (window.__ICONES_TAM: o lado nativo de cada um, lido do PNG)
 //   lerMarca(root)          -> { logo, w, h, mini, miniW, miniH } ou { logo: null }  (window.__MARCA; etapa 7)
 //   lerTreinadores(root)    -> { id: { corpo, busto } }  (window.__TREINADORES: os finais da etapa 5 da direção de arte)
-//   lerArenas(root)         -> { fogo, agua, grama }  (window.__ARENAS: o fundo da cena do desafio, 256×160)
+//   lerArenas(root)         -> { fogo, agua, grama }  (window.__ARENAS: a arena 0 de cada ginásio, o fundo da cena do desafio, 256×160)
 //   lerTelas(root)          -> { cenas: { estabulo, haras, loja, expedicao }, mapas: { fogo, agua, grama } }  (window.__TELAS:
 //                              as cenas das abas, 256×160, com as 24 linhas de baixo sumindo em pontilhado; os mapas das
 //                              trilhas, 256×384, só o terreno; etapa 6)
 //   lerRegioes(root)        -> { regiao: { nome, pistas, posicao, camadas: { nuvens, horizonte, meio, arquibancada,
 //                              frente } } }  (window.__REGIOES: as camadas da corrida, etapa 2.3; o horizonte já com a
 //                              névoa da distância, como na amostra)
+//   lerMapaMundo(root)      -> { terreno, ginasios: { fogo, agua, grama } }  (window.__MAPA_MUNDO: a ilha 256×384 e os
+//                              ginásios 64×64 do mapa-múndi, spec 2026-11-24-mapa-ginasios §3.1; sem algum, {})
 //   jsonJs(v)               -> JSON seguro dentro de <script> (nada de "<" literal)
 // root = a pasta prototype/. Arquivo de arte ausente nunca falha: a parte correspondente fica vazia
 // (o molde inválido vira um aviso em `avisos`) e quem usa cai no desenho por código / no texto.
@@ -54,7 +56,7 @@ export async function lerMoldes(root, avisos = [], dir = 'assets/pixellab') {
       const galope = []
       for (let i = 0; i < frames; i++) galope.push(await dataUrl(root, png('galope-' + i)))
       estilos[chave] = {
-        json: { estilo: chave, w: J.w, h: J.h, footY: J.footY, frames, larguraUtil: J.larguraUtil, ancoras: J.ancoras },
+        json: { estilo: chave, w: J.w, h: J.h, footY: J.footY, frames, larguraUtil: J.larguraUtil, ancoras: Object.assign({}, J.ancoras) },
         retrato: await dataUrl(root, png('retrato')),
         parado: await dataUrl(root, png('parado')),
         galope,
@@ -62,6 +64,21 @@ export async function lerMoldes(root, avisos = [], dir = 'assets/pixellab') {
       }
     } catch (e) {
       avisos.push(`molde "${chave}" ignorado: ${e.message}`)
+    }
+  }
+  // as vistas de frente e de costas (Meshy, cena de desafio; arte-desafio-moldes.mjs): tudo ou nada nos 12 moldes. Os PNGs
+  // assets/arte/desafio/vistas/vista-<chave>-frente/costas.png e as âncoras de vistas-3d.json entram em cada estilo (frente, costas, json.ancoras.frente
+  // e .costas); faltando alguma, nenhum molde leva vista (a cena usa o molde de lado) e fica um aviso
+  const DV = 'assets/arte/desafio/vistas', vj = join(root, DV, 'vistas-3d.json'), chaves = Object.keys(estilos)
+  if (chaves.length && existsSync(vj)) {
+    const V = JSON.parse(await readFile(vj, 'utf8')).moldes || {}
+    const falta = chaves.filter((ch) => !V[ch] || !V[ch].frente || !V[ch].costas || !['frente', 'costas'].every((q) => existsSync(join(root, DV, `vista-${ch}-${q}.png`))))
+    if (falta.length) avisos.push(`vistas de frente e de costas ignoradas: faltam ${falta.join(', ')}`)
+    else for (const ch of chaves) {
+      estilos[ch].frente = await dataUrl(root, join(DV, `vista-${ch}-frente.png`))
+      estilos[ch].costas = await dataUrl(root, join(DV, `vista-${ch}-costas.png`))
+      estilos[ch].json.ancoras.frente = V[ch].frente
+      estilos[ch].json.ancoras.costas = V[ch].costas
     }
   }
   return { estilos }
@@ -123,7 +140,7 @@ export async function lerTreinadores(root) {
 export async function lerArenas(root) {
   const out = {}
   for (const id of ['fogo', 'agua', 'grama']) {
-    const png = join('assets/arte/ginasios/finais', id + '.png')
+    const png = join('assets/arte/ginasios', id, 'arena-0.png')   // a arena 0 (spec 2026-11-24-mapa-ginasios §3.4)
     if (existsSync(join(root, png))) out[id] = await dataUrl(root, png)
   }
   return out
@@ -134,6 +151,19 @@ export async function lerArenas(root) {
 // grade) para a tela inicial e letreiro-mini.png (só o letreiro, letras de 8 px, 67×22) para o cabeçalho; o tamanho de cada um
 // vem do PNG. O logo antigo do Canva (assets/marca/) saiu na etapa 8.
 const tamPng = (buf) => (buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR' ? [buf.readUInt32BE(16), buf.readUInt32BE(20)] : [0, 0])
+// O mapa-múndi (spec 2026-11-24-mapa-ginasios §3.1): a ilha B pintada e os três ginásios escolhidos pelo Vinicius. Tudo
+// ou nada: faltando um arquivo, {} (a aba Expedição fica só com os cartões).
+export const MAPA_MUNDO = { terreno: 'assets/arte/mapa-mundo/terreno/terreno-s9901.png',
+  ginasios: { fogo: 'assets/arte/mapa-mundo/ginasios/ginasio-fogo-s9921.png', agua: 'assets/arte/mapa-mundo/ginasios/ginasio-agua-s9932.png',
+    grama: 'assets/arte/mapa-mundo/ginasios/ginasio-grama-s9953-00.png' } }
+export async function lerMapaMundo(root) {
+  const todos = [MAPA_MUNDO.terreno, ...Object.values(MAPA_MUNDO.ginasios)]
+  if (!todos.every((f) => existsSync(join(root, f)))) return {}
+  const ginasios = {}
+  for (const [el, f] of Object.entries(MAPA_MUNDO.ginasios)) ginasios[el] = await dataUrl(root, f)
+  return { terreno: await dataUrl(root, MAPA_MUNDO.terreno), ginasios }
+}
+
 export async function lerMarca(root) {
   const logo = 'assets/arte/marca/logo.png', mini = 'assets/arte/marca/letreiro-mini.png'
   if (!existsSync(join(root, logo))) return { logo: null }
