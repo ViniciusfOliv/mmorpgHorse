@@ -6,7 +6,7 @@
 //   lerIconesTam(root)      -> { nome: 16|24 }  (window.__ICONES_TAM: o lado nativo de cada um, lido do PNG)
 //   lerMarca(root)          -> { logo, w, h, mini, miniW, miniH } ou { logo: null }  (window.__MARCA; etapa 7)
 //   lerTreinadores(root)    -> { id: { corpo, busto } }  (window.__TREINADORES: os finais da etapa 5 da direção de arte)
-//   lerArenas(root)         -> { fogo, agua, grama }  (window.__ARENAS: o fundo da cena do desafio, 256×160)
+//   lerArenas(root)         -> { fogo, agua, grama }  (window.__ARENAS: a arena 0 de cada ginásio, o fundo da cena do desafio, 256×160)
 //   lerTelas(root)          -> { cenas: { estabulo, haras, loja, expedicao }, mapas: { fogo, agua, grama } }  (window.__TELAS:
 //                              as cenas das abas, 256×160, com as 24 linhas de baixo sumindo em pontilhado; os mapas das
 //                              trilhas, 256×384, só o terreno; etapa 6)
@@ -121,7 +121,7 @@ export async function lerTreinadores(root) {
 export async function lerArenas(root) {
   const out = {}
   for (const id of ['fogo', 'agua', 'grama']) {
-    const png = join('assets/arte/ginasios/finais', id + '.png')
+    const png = join('assets/arte/ginasios', id, 'arena-0.png')   // a arena 0 (spec 2026-11-24-mapa-ginasios §3.4)
     if (existsSync(join(root, png))) out[id] = await dataUrl(root, png)
   }
   return out

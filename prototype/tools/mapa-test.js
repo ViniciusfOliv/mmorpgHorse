@@ -99,6 +99,18 @@ test('sair: íris fechando na trilha, troca em 0,38 s, zoom 3→2→1 no mapa e 
   assert.strictEqual(MP.passoViagem('sai', -1).lado, 'trilha', 'tempo negativo fica no começo');
 });
 
+section('cena de desafio');
+test('as três arenas: oponente, treinador e o nosso dentro do quadro de 256 × 160 (o nosso cortado pela borda de baixo)', function () {
+  MP.ORDEM.forEach(function (el) {
+    var A = MP.ARENAS[el];
+    assert.ok(A && (A.chao === 'img' || A.chao === 'codigo'), el);
+    [A.op, A.lider].forEach(function (p) { assert.ok(p[0] > 40 && p[0] < 230 && p[1] > A.hz && p[1] < 160, el + ': ' + p); });
+    assert.ok(A.op[1] > A.lider[1] - 6 && A.lider[0] > A.op[0], el + ': o treinador ao lado do cavalo dele, à direita');
+    assert.ok(A.nos[1] > 160 && A.nos[0] < 128, el + ': o nosso na frente, à esquerda, cortado embaixo');
+  });
+  assert.strictEqual(MP.ARENAS.fogo.chao, 'codigo', 'a Fornalha com o piso por código (a amostra aprovada)');
+});
+
 section('cosmético');
 test('a RNG cosmética repete com a mesma semente e varia com outra', function () {
   var a = MP.rng(7), b = MP.rng(7), c = MP.rng(8);

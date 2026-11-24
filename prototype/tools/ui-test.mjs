@@ -5169,7 +5169,7 @@ try {
         const q = (s) => document.querySelector(s), tx = (e) => (e ? e.textContent.replace(/\s+/g, ' ').trim() : null), cv = q('#tela .gin-cena-tela')
         const placa = (c) => ({ quem: tx(q(`#tela .gin-placa--${c} .gin-placa-quem`)), cavalo: tx(q(`#tela .gin-placa--${c} .gin-placa-cavalo`)), el: tx(q(`#tela .gin-placa--${c} .el`)) })
         return { rotulo: tx(q('#tela .tela--desafio .rotulo')), titulo: tx(q('#t-desafio')), rival: placa('rival'), voce: placa('voce'), vant: tx(q('#tela .gin-cena-vant')),
-          aria: cv && cv.getAttribute('aria-label'), cw: cv && cv.width, ch: cv && cv.height, arte: cv && cv.getAttribute('data-arte'), cores: eval(cores), txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id,
+          aria: cv && cv.getAttribute('aria-label'), folego: cv && cv.getAttribute('data-folego'), cw: cv && cv.width, ch: cv && cv.height, arte: cv && cv.getAttribute('data-arte'), cores: eval(cores), txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id,
           botoes: [...document.querySelectorAll('#tela .tela--desafio .acoes button')].map((b) => ({ acao: b.getAttribute('data-acao'), txt: tx(b), h: b.getBoundingClientRect().height, bottom: b.getBoundingClientRect().bottom })),
           ih: window.innerHeight, k: window.__galope.ui.gym && window.__galope.ui.gym.ver && window.__galope.ui.gym.ver.k }
       }, GIN_CENA_CORES)
@@ -5180,13 +5180,15 @@ try {
       for (const c of ['rotulo', 'titulo', 'vant']) if (x[c] !== espx[c]) problems.push(`${label}: desafio ${k + 1}, ${c} "${x[c]}" (esperado "${espx[c]}")`)
       for (const c of ['rival', 'voce']) if (JSON.stringify(x[c]) !== JSON.stringify(espx[c])) problems.push(`${label}: desafio ${k + 1}, placa ${c} ${JSON.stringify(x[c])} (esperado ${JSON.stringify(espx[c])})`)
       if (x.aria !== `${dono} e ${bn} contra você e ${an}`) problems.push(`${label}: desafio ${k + 1}, nome do canvas "${x.aria}"`)
+      // as placas da cena (plano do mapa B4) mostram o fôlego de quem larga no duelo gravado
+      if (x.folego !== `${d.folegoA},${d.folegoB}`) problems.push(`${label}: desafio ${k + 1}, fôlego nas placas ${x.folego} (gravado ${d.folegoA},${d.folegoB})`)
       if (x.k !== k || x.foco !== 't-desafio') problems.push(`${label}: desafio ${k + 1}: ver.k ${x.k}, foco ${x.foco}`)
       if (/Vitória|Derrota|venceu|perdeu|Prêmio|de Ouro|Duelo \d+ de \d+|\d+ duelos|Pote/.test(x.txt)) problems.push(`${label}: a tela de desafio ${k + 1} entrega o que vem depois: ${x.txt.slice(0, 300)}`)
       const acoes = x.botoes.map((b) => b.acao + ':' + b.txt).join(',')
       if (acoes !== 'ginasio-comecar:Começar duelo,ginasio-pular-tudo:Pular tudo' || x.botoes.some((b) => b.h < 44 || b.bottom > x.ih)) problems.push(`${label}: botões do desafio ${k + 1} ${JSON.stringify(x.botoes)} (janela ${x.ih})`)
-      // a cena: a arena (até 256 de largura, 128 de altura) em escala inteira, a da grade
+      // a cena: a arena (até 256 de largura, 160 de altura) em escala inteira, a da grade
       const arte = (x.arte || '').split('x').map(Number)
-      if (!x.cw || !(arte[0] >= 160 && arte[0] <= 256) || arte[1] !== 128 || x.cw % arte[0] || x.ch !== x.cw / arte[0] * arte[1]) problems.push(`${label}: a cena do desafio ${k + 1} fora da escala inteira (${x.cw}×${x.ch}, arte ${x.arte})`)
+      if (!x.cw || !(arte[0] >= 160 && arte[0] <= 256) || arte[1] !== 160 || x.cw % arte[0] || x.ch !== x.cw / arte[0] * arte[1]) problems.push(`${label}: a cena do desafio ${k + 1} fora da escala inteira (${x.cw}×${x.ch}, arte ${x.arte})`)
       if ((x.cores > 12) !== temArte) problems.push(`${label}: desafio ${k + 1}: ${temArte ? 'sem' : 'com'} o oponente na cena (${x.cores} cores na faixa dele; arte no build: ${temArte})`)
       await checkOverflow(pg, label + ' desafio ' + (k + 1))
       return x
@@ -14340,6 +14342,12 @@ try {
       await pg.waitForSelector('#t-desafio', { timeout: 6000 })
       await pg.waitForFunction(GIN_CENA_CORES + ' > 12', null, { timeout: 3000 }).catch(() => problems.push(`${label}: a cena do desafio sem o oponente`))
       await checkOverflow(pg, label + '-cena')
+      // a cena nova (plano do mapa B4): o custo de desenho por quadro (Chromium sem placa de vídeo; régua de 1,2 ms)
+      await pg.waitForSelector('#tela .gin-cena-tela[data-ms]', { timeout: 4000 }).catch(() => problems.push(`${label}: a cena não mediu o desenho`))
+      await sleep(1500)
+      const msCena = Number(await pg.locator('#tela .gin-cena-tela').getAttribute('data-ms'))
+      console.log(`  ${label}: desenho da cena de desafio ${msCena.toFixed(3)} ms por quadro`)
+      if (!(msCena < 1.2)) problems.push(`${label}: a cena de desafio custa ${msCena} ms por quadro (régua: 1,2 ms)`)
       await pg.screenshot({ path: join(SHOTS, 'final-26b-cena-desafio.png') })
       // o 1º duelo (Maré com vantagem contra a Brasa do Sargento; a chegada é colada) no meio da corrida, em x2
       await pg.locator('#tela [data-acao="ginasio-comecar"]').click()

@@ -3454,11 +3454,10 @@
   // 'desafio' }; "Começar duelo" leva ao duelo k; "Pular tudo" e o voltar do aparelho, ao resumo. Sem a arte do oponente,
   // a cena fica só com o cavalo dele. Só desenho: nada grava nem muda o state.
   // ---------------------------------------------------------------------------------------------
-  // Etapa 5 da direção de arte: o fundo é a arena do ginásio (window.__ARENAS, 256×160 ao ar livre), sem as 32 linhas de
-  // cima do céu; o treinador no corpo de ~40 px (quadro 32×48) e os cavalos, todos 1:1 na grade. Numa coluna mais estreita
-  // que 256 pixels de arte, a cena corta as laterais (centrada). Posições em pixels da cena (já sem o céu cortado).
-  var CENA_W = 256, CENA_H = 128, CENA_CORTE = 32;
-  var CENA_POS = { rival: { cx: 168, base: 70 }, treinador: { x: 194, base: 70 }, voce: { cx: 84, base: 118 } };
+  // A cena do desafio (plano do mapa B4): a arena 0 de cada ginásio (window.__ARENAS, 256×160 inteira, com o céu), o
+  // treinador e os cavalos 1:1 na grade (Mapa.cena). Numa coluna mais estreita que 256 pixels de arte, a cena corta as
+  // laterais (centrada).
+  var CENA_W = 256, CENA_H = 160;
   var arenaImgs = {};
   function arenaImg(id) {
     var m = window.__ARENAS;
@@ -3763,57 +3762,65 @@
     var d = R.duelos[k], dono = GD.GYMS[R.gymId].etapas[R.etapa].nome;
     var a = d.cfg.racers[0].horse, b = d.cfg.racers[1].horse, an = R.cavalos[d.a].nome, bn = R.adversario[d.b];
     var n = cenaQueue.length;
-    cenaQueue.push({ gymId: R.gymId, dono: dono, a: a, b: b });
+    cenaQueue.push({ gymId: R.gymId, dono: dono, a: a, b: b, an: an, bn: bn, folA: d.folegoA, folB: d.folegoB });
+    // as placas ficam desenhadas na cena (nome na cor da raridade, nível e fôlego); aqui, o mesmo em texto, para o leitor
+    // de tela (o nome do canvas já diz quem enfrenta quem)
     var placa = function (cls, quem, nome, h) {
       return '<div class="gin-placa gin-placa--' + cls + '"><b class="gin-placa-quem">' + esc(quem) + '</b>' +
         '<span class="gin-placa-cavalo">' + esc(nome + ' · Nv ' + h.level) + '</span>' + elementHtml(h.element) + '</div>';
     };
-    return '<div class="gin-cena gin-cena--' + esc(R.gymId) + '">' + placa('rival', dono, bn, b) +
+    return '<div class="gin-cena gin-cena--' + esc(R.gymId) + '">' +
       '<div class="gin-cena-palco"><canvas class="gin-cena-tela" data-cena="' + n + '" role="img" aria-label="' +
-        esc(dono + ' e ' + bn + ' contra você e ' + an) + '"></canvas><span class="gin-vs" aria-hidden="true">VS</span></div>' +
-      placa('voce', 'Você', an, a) + '</div>';
+        esc(dono + ' e ' + bn + ' contra você e ' + an) + '"></canvas></div>' +
+      '<div class="sr">' + placa('rival', dono, bn, b) + placa('voce', 'Você', an, a) + '</div></div>';
+  }
+  // A cena de desafio (spec 2026-11-24-mapa-ginasios §3.4, plano B4): a arena 0 do ginásio, o oponente de frente ao fundo com
+  // o treinador ao lado, o nosso cavalo de costas na frente, todos pisando no chão (Mapa.cena), e as placas na cena. Só mostra
+  // o duelo gravado (cenaQueue vem do desafio pago). Na grade da interface, 256 × 160, cortando as laterais por igual.
+  var COR_RAR_TXT = { comum: '#9babb2', magico: '#1ebc73', raro: '#4d9be6', lendario: '#f79617', mitico: '#a884f3' };   // a mítica mais clara: o 905ea9 some na placa
+  var cenasArte = {};
+  function cenaObj(gymId) {
+    if (cenasArte[gymId]) return cenasArte[gymId];
+    if (!MP || !MP.cena) return null;
+    var arena = arenaImg(gymId); if (!arena) return null;
+    var c = MP.cena({ arena: arena }, { el: GD.GYMS[gymId].element, sprites: SP });
+    if (c) cenasArte[gymId] = c;
+    return c;
   }
   function drawGinCena(cv) {
     var e = cenaQueue[Number(cv.getAttribute('data-cena'))];
     if (!e) return;
-    // na grade da interface: 1 pixel de arte = gradeS pixels do aparelho; a largura é a da arena (256) ou a que cabe no
-    // palco, cortando as laterais por igual
     var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), palcoW = cv.parentElement ? cv.parentElement.clientWidth : 0;
     var W = Math.max(160, Math.min(CENA_W, palcoW ? Math.floor(palcoW * r / kG) : CENA_W)), ox = Math.floor((CENA_W - W) / 2);
-    var s = setupCanvasGrade(cv, W, CENA_H);
-    var k = s.k, ctx = s.ctx;
+    var s = setupCanvasGrade(cv, W, CENA_H), k = s.k, ctx = s.ctx;
     cv.setAttribute('data-arte', W + 'x' + CENA_H);
-    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, null), img = null, arena = null;
-    // o cavalo 1:1 com o corpo centrado em cx e os cascos em base (pixels da cena); espelhado em volta de cx
-    function cavalo(h, vis, cx, base, t, espelha) {
-      cx -= ox;
-      vis.reduzido = reduced();
-      var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k, jockey: false, silks: PLAYER_SILKS,
-        quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
-      if (!espelha) { SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); return; }
-      ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
-      SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
-      ctx.restore();
-    }
+    cv.setAttribute('data-folego', e.folA + ',' + e.folB);   // o fôlego das placas (o do duelo gravado), para o ui-test
+    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, joqueiDoJogador());
+    var cavB = comVisuais({ palette: e.b.palette, element: e.b.element, jockey: true, silks: '#e83b3b', chave: 'b|' + (e.b.id || e.bn) }, visB);
+    var cavA = comVisuais({ palette: e.a.palette, element: e.a.element, jockey: true, silks: PLAYER_SILKS, chave: 'a|' + (e.a.uid || e.a.id || e.an) }, visA);
+    var placas = {
+      rival: { nome: e.bn, sub: 'Nv ' + e.b.level, folego: e.folB, cor: COR_RAR_TXT[e.b.rarity] },
+      voce: { nome: e.an, sub: 'Nv ' + e.a.level, folego: e.folA, cor: COR_RAR_TXT[e.a.rarity] }
+    };
     var item = {
       drawn: false,
       draw: function (t) {
         if (item.drawn && reduced()) return;
-        item.drawn = true;
         item.t = t;
-        var tt = reduced() ? 0.5 : t, P = CENA_POS;
+        var c = cenaObj(e.gymId);
+        var lider = treinadorImg(ginTreinadorId(e.dono));
         ctx.clearRect(0, 0, cv.width, cv.height);
-        arena = arena || arenaImg(e.gymId);
-        if (arena) ctx.drawImage(arena, -ox * k, -CENA_CORTE * k, CENA_W * k, (CENA_H + CENA_CORTE) * k);
-        else { ctx.fillStyle = C.painel; ctx.fillRect(0, 0, cv.width, cv.height); }
-        cavalo(e.b, visB, P.rival.cx, P.rival.base, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
-        img = img || treinadorImg(ginTreinadorId(e.dono));
-        if (img) {
-          var tx = P.treinador.x - ox, ty = P.treinador.base - img.naturalHeight;
-          ctx.drawImage(img, tx * k, ty * k, img.naturalWidth * k, img.naturalHeight * k);
-          cv.setAttribute('data-treinador', [tx, ty, img.naturalWidth, img.naturalHeight].join(','));
+        if (!c) { ctx.fillStyle = C.painel; ctx.fillRect(0, 0, cv.width, cv.height); return; }
+        item.drawn = true;
+        var t0 = window.performance ? performance.now() : 0;
+        var arte = c.quadro(reduced() ? 0 : t, reduced(), { oponente: cavB, nosso: cavA, lider: lider, placas: placas }, { x0: ox, x1: ox + W });
+        if (t0) {   // o custo do desenho (média móvel, para o ui-test); os 3 primeiros quadros montam os cavalos
+          var ms = performance.now() - t0; item.n = (item.n || 0) + 1;
+          if (item.n > 3) { item.ms = item.ms ? item.ms * 0.9 + ms * 0.1 : ms; cv.setAttribute('data-ms', item.ms.toFixed(3)); }
         }
-        cavalo(e.a, visA, P.voce.cx, P.voce.base, tt, false);
+        ctx.drawImage(arte, -ox * k, 0, CENA_W * k, CENA_H * k);
+        var cx = lider ? c.caixaLider(lider) : null;
+        if (cx) cv.setAttribute('data-treinador', [cx[0] - ox, cx[1], cx[2], cx[3]].join(','));
       }
     };
     item.draw(0);

@@ -134,47 +134,47 @@ ele, o bloco B anda igual e a cena fica sem idle; a linha do idle (B2, passo 3) 
 **Arquivos:** criar `prototype/tools/arte-desafio-moldes.mjs`; `prototype/assets/pixellab/molde-<chave>-{frente,costas}.png`
 e os JSONs dos 12 moldes; `prototype/tools/arte-embutida.mjs` (`lerMoldes`); `prototype/tools/moldes-test.mjs`.
 
-- [ ] **Passo 1:** o script recorta os papéis de 72 × 72 (`bakeoff/meshy-<molde>-papeis-dir1.png` = frente, `-dir5.png` = costas)
+- [x] **Passo 1:** o script recorta os papéis de 72 × 72 (`bakeoff/meshy-<molde>-papeis-dir1.png` = frente, `-dir5.png` = costas)
   para a grade dos moldes (64 × 64: deslocamento −4 em x e −5 em y; as caixas medidas vão de x 9–63 e y 7–68) e grava as
   âncoras de `meshy-ancoras.json` deslocadas no JSON do molde (`ancoras.frente`, `ancoras.costas`).
-- [ ] **Passo 2:** `lerMoldes` lê os dois estados quando existem nos 12 moldes (tudo ou nada, como os outros; faltou um, a
+- [x] **Passo 2:** `lerMoldes` lê os dois estados quando existem nos 12 moldes (tudo ou nada, como os outros; faltou um, a
   cena usa o molde de lado espelhado). Testes: 24 PNGs de 64 × 64, só tons de papel válidos, contorno de 1 px por fora,
   âncoras dentro da caixa, a carga tudo ou nada.
-- [ ] **Passo 3:** registrar em `docs/memoria/assets.md` (os PNGs entram no jogo; Meshy na declaração de IA da Steam).
+- [x] **Passo 3:** registrar em `docs/memoria/assets.md` (os PNGs entram no jogo; Meshy na declaração de IA da Steam).
   Commit "adiciona as vistas de frente e de costas aos moldes".
 
 ### Tarefa B2: `drawHorse` de frente e de costas
 **Arquivos:** `prototype/src/sprites.js`; `prototype/tools/moldes-test.mjs`.
 
-- [ ] **Passo 1:** `drawHorse` aceita `estado: 'frente' | 'costas'` (mesmo pipeline: `coresMolde`, paleta-mestra, brilho
+- [x] **Passo 1:** `drawHorse` aceita `estado: 'frente' | 'costas'` (mesmo pipeline: `coresMolde`, paleta-mestra, brilho
   da raridade, seda do jóquei), sem marcas nesses estados (decisão da spec §10).
-- [ ] **Passo 2:** testes: a recoloração bate com a do `parado` para os mesmos papéis; sem marcas; o cache separa os estados.
+- [x] **Passo 2:** testes: a recoloração bate com a do `parado` para os mesmos papéis; sem marcas; o cache separa os estados.
 - [ ] **Passo 3 (quando o `IdleMolde` estiver na base):** incluir `frente` e `costas` na condição de `vivo` do
   `drawHorseMolde` (hoje só `parado` e `retrato`). Commit "desenha os moldes de frente e de costas".
 
 ### Tarefa B3: o chão da cena por elemento
 **Arquivos:** `prototype/src/mapa.js` (`Mapa.cena`); `prototype/tools/mapa-test.mjs`.
 
-- [ ] **Passo 1:** portar da amostra: a arena 0 até o horizonte `hz` e o piso em perspectiva (`z = 260 / d`) com a rampa
+- [x] **Passo 1:** portar da amostra: a arena 0 até o horizonte `hz` e o piso em perspectiva (`z = 260 / d`) com a rampa
   tirada do próprio chão da arena, o anel, as marcas de terra gasta e as sombras deitadas. Fornalha: rachaduras de lava
   (pronto na amostra). Remanso: poças com reflexo do céu. Capoeira: tufos de capim. Medir `hz` e as posições nas arenas 0 de
   água e grama (`ginasios/<el>/arena-0.png`).
-- [ ] **Passo 2:** testes: o piso só usa cores da Resurrect 64; mesma entrada, mesmo piso (determinístico); o chão sob
+- [x] **Passo 2:** testes: o piso só usa cores da Resurrect 64; mesma entrada, mesmo piso (determinístico); o chão sob
   os cascos é o da rampa (sem buraco).
-- [ ] **Passo 3:** commit "desenha o chão em perspectiva das arenas".
+- [x] **Passo 3:** commit "desenha o chão em perspectiva das arenas".
 
 ### Tarefa B4: a cena no jogo
 **Arquivos:** `prototype/src/game.js` (`ginCenaHtml`, `drawGinCena`, `CENA_W/H/CORTE`, `CENA_POS`); `prototype/src/game.css`;
 `prototype/tools/ui-test.mjs` (blocos `ginasio-corrida` e `cena-desafio`).
 
-- [ ] **Passo 1:** quadro de 256 × 160 (decisão), cortado igual nas laterais a 360 px. O cavalo do oponente de frente, o
+- [x] **Passo 1:** quadro de 256 × 160 (decisão), cortado igual nas laterais a 360 px. O cavalo do oponente de frente, o
   treinador ao lado, o nosso de costas cortado pela borda; as placas no canvas (fonte de glifos), com o nome na cor da
   raridade, o nível e o fôlego **do duelo gravado** (`R.duelos[k]`), e as placas HTML de hoje saem (o texto continua no
   `aria-label` da cena).
-- [ ] **Passo 2:** respiração de 1 px (ou o idle da frente 1, quando houver); movimento reduzido: quadro parado.
-- [ ] **Passo 3:** `ui-test`: a cena aparece só depois de pagar; o nome, o nível e o fôlego batem com o duelo gravado em
+- [x] **Passo 2:** respiração de 1 px (ou o idle da frente 1, quando houver); movimento reduzido: quadro parado.
+- [x] **Passo 3:** `ui-test`: a cena aparece só depois de pagar; o nome, o nível e o fôlego batem com o duelo gravado em
   cada duelo de um desafio de 3; sem rolagem lateral a 360 px; custo de quadro medido.
-- [ ] **Passo 4:** commit "mostra os cavalos dentro da arena na cena de desafio".
+- [x] **Passo 4:** commit "mostra os cavalos dentro da arena na cena de desafio".
 
 ### Tarefa B5: fechamento do bloco B
 - [ ] **Passo 1:** captura oficial `final-26b-cena-desafio.png` (e `final-26-desafio.png`, se mudar); conferir a 360 px.
@@ -190,6 +190,13 @@ e os JSONs dos 12 moldes; `prototype/tools/arte-embutida.mjs` (`lerMoldes`); `pr
 - A viagem troca de tela por relógio (não depende do desenho). Um toque antes da troca é ignorado; depois dela (a íris
   abrindo), o toque acaba a viagem ali e segue. O 1º `check.sh` do bloco pegou isso: o bloco `acabamento` voltava e abria
   outro ginásio logo em seguida. Com o mapa fora da tela, ou com movimento reduzido, a troca é direta.
+
+- Bloco B: as vistas ficam fora de `assets/pixellab` (em `assets/arte/desafio/vistas/`, com `vistas-3d.json`), porque os
+  testes dos moldes exigem que aquela pasta tenha só os arquivos que o `pixellab-moldes.mjs` refaz byte a byte; o
+  `lerMoldes` junta as vistas na carga, tudo ou nada. No Remanso e na Capoeira a cena usa o chão pintado da arena 0 (a
+  plataforma sobre a água, o anel no gramado), que já é um piso em perspectiva, em vez de poças e capim por código; a
+  Fornalha segue com o piso por código da amostra aprovada. As placas passaram para o canvas; o mesmo texto ficou em HTML
+  só para o leitor de tela (`.sr`). Custo da cena no `ui-test`: ~0,43 ms por quadro. O idle (B2 passo 3) espera a frente 1.
 
 ## Fora deste plano
 - O fundo animado dentro das trilhas (frente 1, depois do bloco A).

@@ -734,8 +734,154 @@
     }
   }
 
+  // ------------------------------------------------------------------ a cena de desafio (spec §3.4)
+  // A arena 0 do ginásio como fundo e o chão onde todos pisam: na Fornalha, a imagem vale até o horizonte hz e abaixo dele
+  // há um piso em perspectiva por código (z = 260 / d), com a rampa tirada do chão da própria arena, o anel e as
+  // rachaduras de lava; no Remanso e na Capoeira, o chão pintado da própria imagem (a plataforma, o gramado). O oponente
+  // de frente (3/4) ao fundo e à direita, com o treinador ao lado; o nosso de costas (3/4) na frente, cortado pela borda de
+  // baixo. Marcas de terra gasta no chão e sombras deitadas no piso. As placas (nome na cor da raridade, nível e fôlego)
+  // ficam nas bordas da parte visível.
+  var CW = 256, CH = 160;
+  var ARENAS = {
+    fogo: { chao: 'codigo', hz: 92, op: [168, 114], lider: [201, 111], nos: [70, 172], marca: [24, 4, 46, 7] },
+    agua: { chao: 'img', hz: 60, op: [170, 106], lider: [203, 103], nos: [70, 172], marca: [22, 4, 46, 7] },
+    grama: { chao: 'img', hz: 75, op: [170, 110], lider: [203, 107], nos: [70, 172], marca: [24, 4, 46, 7] }
+  };
+  function cena(arte, opcoes) {
+    if (!arte || !arte.arena) return null;
+    var el = opcoes.el, SP = opcoes.sprites, A = ARENAS[el] || ARENAS.fogo, NC = CW * CH, p, x, y;
+    var out = new Buf(CW, CH), g = out.g;
+    function R(x0, y0, w, h, cor) { g.fillStyle = cor; g.fillRect(x0 | 0, y0 | 0, w, h); }
+    var arena = Buf.de(arte.arena), b = new Buf(CW, CH), q = [], QU = [K.f9c22b, K.fbff86, K.fb6b1d, K.f79617];
+    if (A.chao === 'img') b.d.set(arena.d);
+    else {
+      var HZ = A.hz;
+      for (p = 0; p < CW * HZ; p++) b.d[p] = arena.d[p];
+      // a rampa do piso: as cores mais comuns do chão da arena, do escuro ao claro (longe, mais claro)
+      var conta = {};
+      for (y = HZ + 20; y < Math.min(CH, HZ + 70); y++) for (x = 60; x < 196; x++) { var c0 = arena.d[y * CW + x]; conta[c0] = (conta[c0] || 0) + 1; }
+      var rampa = Object.keys(conta).sort(function (u, v) { return conta[v] - conta[u]; }).slice(0, 5).map(Number)
+        .sort(function (u, v) { return ((u & 255) + ((u >>> 8) & 255)) - ((v & 255) + ((v >>> 8) & 255)); });
+      var LAVA = [K.e83b3b, K.fb6b1d, K.f79617];
+      for (y = HZ; y < CH; y++) {
+        var d = y - HZ + 4, z = 260 / d;
+        for (x = 0; x < CW; x++) {
+          var wx = (x - 128) * z / 40, wz = z;
+          var n = fbm(wx / 1.9, wz / 1.9, 41, 3), grao = hash(Math.floor(wx * 3), Math.floor(wz * 3));
+          var longe = lim((70 - (y - HZ)) / 70, 0, 1);
+          var cor = rampa[lim(Math.round(1.6 + (n - 0.5) * 3.2 + longe * 1.4 + (grao < 0.08 ? 1 : grao > 0.95 ? -1 : 0)), 0, rampa.length - 1)];
+          var rr = Math.hypot(wx, wz - 13);
+          if (z > 6 && Math.abs(rr - 9.5) < 0.16 + z * 0.01) cor = rampa[rampa.length - 1];   // o anel, só ao fundo
+          var cr = Math.abs(fbm(wx / 5, wz / 5, 52, 3) - 0.5);
+          if (cr < (z > 6 ? 0.006 : 0.003) + 0.004 && rr > 10.2) { cor = LAVA[cr < 0.0025 ? 2 : 1]; q.push(y * CW + x); }
+          if (y - HZ < 3) cor = escurecer(cor);   // o pé do muro: faixa de sombra
+          b.d[y * CW + x] = cor;
+        }
+      }
+    }
+    if (el === 'fogo') for (p = 0; p < CW * Math.min(CH, A.hz + 4); p++) if (QU.indexOf(b.d[p]) >= 0) q.push(p);   // braseiros e lava ao fundo
+    var e = new Buf(CW, CH), viv = new Buf(CW, CH);
+    for (p = 0; p < NC; p++) e.d[p] = escurecer((b.d[p] | 0xff000000) >>> 0);
+    viv.d.set(b.d); e.poe(); viv.poe(); b.poe();
+    var tom = function (c) {   // um degrau acima (a cor mais clara da paleta na mesma família)
+      var r = c & 255, gg = (c >>> 8) & 255, bb = (c >>> 16) & 255;
+      return maisPerto([r * 1.18 + 18, gg * 1.15 + 14, bb * 1.1 + 8], R64);
+    };
+    // as marcas de terra gasta sob os cascos, assadas no chão (1 degrau abaixo, borda em massas de 2 px)
+    function marca(cx, cy, rx, ry) {
+      for (var yy = Math.floor(cy - ry); yy <= cy + ry; yy++) for (var xx = Math.floor(cx - rx); xx <= cx + rx; xx++) {
+        if (xx < 0 || yy < 0 || xx >= CW || yy >= CH) continue;
+        var t2 = Math.pow((xx + 0.5 - cx) / rx, 2) + Math.pow((yy + 0.5 - cy) / ry, 2) + (hash(xx >> 1, yy >> 1) - 0.5) * 0.35;
+        if (t2 > 1) continue;
+        var c = b.d[yy * CW + xx], nv = t2 < 0.45 && hash(xx, yy) < 0.08 ? tom(c) : escurecer((c | 0xff000000) >>> 0);
+        viv.d[yy * CW + xx] = nv; b.d[yy * CW + xx] = nv;
+      }
+    }
+    var M0 = A.marca;
+    marca(A.op[0] + 6, A.op[1], M0[0], M0[1]); marca(A.nos[0], A.nos[1] - 6, M0[2], M0[3]);
+    viv.poe(); b.poe();
+
+    // um sprite com os pés (a última linha opaca), o centro e a sombra deitada (a silhueta, 1 linha a cada 3, puxada
+    // para a direita), calculados uma vez por imagem
+    var info = new Map();
+    function sobre(im) {
+      if (info.has(im)) return info.get(im);
+      var bi = Buf.de(im), pe = 0, x0 = bi.w, x1 = 0;
+      for (var i = 0; i < bi.d.length; i++) if (bi.d[i]) { pe = (i / bi.w) | 0; var xx = i % bi.w; x0 = Math.min(x0, xx); x1 = Math.max(x1, xx); }
+      var h = Math.ceil((pe + 1) / 3), sb = new Buf(bi.w + 24, h + 1);
+      for (var r = 0; r < h; r++) {
+        var sy = pe - r * 3, dx = Math.round(r * 2.2);
+        for (var xs = 0; xs < bi.w; xs++) if (bi.em(xs, sy) || bi.em(xs, sy - 1)) sb.d[(h - r) * sb.w + xs + dx] = 0xff000000;
+      }
+      var o = { pe: pe, cx: (x0 + x1) / 2, sombra: sb.poe().c, h: h };
+      info.set(im, o); return o;
+    }
+    var somC = tela(96, 40), somG = somC.getContext('2d');
+    function pisa(im, px, py, bob) {
+      var o = sobre(im), sx = Math.round(px - o.cx), sy = py - o.h;
+      somG.globalCompositeOperation = 'copy'; somG.drawImage(o.sombra, 0, 0);
+      somG.globalCompositeOperation = 'source-in'; somG.drawImage(e.c, -sx, -sy);
+      somG.globalCompositeOperation = 'source-over';
+      g.drawImage(somC, 0, 0, o.sombra.width, o.sombra.height, sx, sy, o.sombra.width, o.sombra.height);
+      g.drawImage(im, Math.round(px - o.cx), py - o.pe + (bob || 0));
+    }
+    // os cavalos (as vistas de frente e de costas dos moldes; sem elas, o molde de lado, espelhado no oponente), desenhados
+    // uma vez por cavalo num quadro de 64 × 64 com os cascos em y 60
+    var cavalos = new Map();
+    function cavalo(op, vista) {
+      var chave = vista + '|' + (op.chave || ''), c = cavalos.get(chave);
+      if (c) return c;
+      c = tela(64, 64); var q2 = c.getContext('2d'); q2.imageSmoothingEnabled = false;
+      var o = {}; for (var kk in op) if (kk !== 'chave') o[kk] = op[kk];
+      o.scale = 1; o.idle = true; o.t = 0.5; o.shadow = false; o.vista = vista; o.quadro = { topo: -1e6, base: 60, grade: 1, centro: 32 };
+      var lado = !(SP && SP.moldesVistas);
+      if (lado && vista === 'frente') { q2.translate(64, 0); q2.scale(-1, 1); }   // sem as vistas: o molde de lado, virado para nós
+      if (SP) SP.drawHorse(q2, 12, 24, o);
+      cavalos.set(chave, c);
+      return c;
+    }
+    function placa(x0, y0, w, pl) {
+      R(x0 - 1, y0 - 1, w + 2, 24, '#2e222f'); R(x0, y0, w, 22, '#3e3546'); R(x0, y0, w, 1, '#484a77');
+      if (SP && SP.drawText) {
+        SP.drawText(g, pl.nome, x0 + 4, y0 + 3, { fonte: 'g7', scale: 1, color: pl.cor || '#ffffff', shadow: '#2e222f' });
+        SP.drawText(g, pl.sub, x0 + w - 4, y0 + 3, { fonte: 'g7', scale: 1, color: '#c7dcd0', shadow: '#2e222f', align: 'right' });
+      }
+      var f = lim(pl.folego == null ? 1 : pl.folego, 0, 1);
+      R(x0 + 4, y0 + 15, w - 8, 4, '#2e222f'); R(x0 + 5, y0 + 16, Math.round((w - 10) * f), 2, f > 0.5 ? '#91db69' : '#f9c22b');
+    }
+    var cicloT = -1, LQ = [K.fb6b1d, K.f79617, K.f9c22b, K.fbff86];
+    return {
+      W: CW, H: CH, c: out.c, A: A,
+      // p = { oponente, nosso: opções do drawHorse (com chave: o que identifica o cavalo), lider: Image do corpo (32 × 48) ou
+      // null, placas: { rival, voce: { nome, sub, folego 0..1, cor } } }; vis = { x0, x1 } (a parte visível, para as placas)
+      quadro: function (t, reduzido, pc, vis) {
+        if (!reduzido && q.length) {   // o brilho da lava e dos braseiros corre (ciclo de cor, 8 passos por segundo)
+          var qq = Math.floor(t * 8);
+          if (qq !== cicloT) {
+            cicloT = qq; var tt = qq / 8, dv = viv.d, B0 = b.d;
+            for (var i = 0; i < q.length; i++) { var pp = q[i], xq = pp % CW, yq = (pp / CW) | 0, f = mod(xq * 0.3 + yq * 0.5 - tt * 5, 8), o = LQ.indexOf(B0[pp]); dv[pp] = LQ[lim((o < 0 ? 1 : o) + (f < 1.5 ? 1 : f > 6 ? -1 : 0), 0, 3)]; }
+            viv.poe();
+          }
+        }
+        g.drawImage(viv.c, 0, 0);
+        var resp = reduzido ? 0 : (Math.floor(t * 1.4) & 1), resp2 = reduzido ? 0 : (Math.floor(t * 1.4 + 0.5) & 1);
+        // de trás para a frente: o treinador e o cavalo dele ao fundo, o nosso na frente
+        if (pc.lider) pisa(pc.lider, A.lider[0], A.lider[1], resp2);
+        if (pc.oponente) pisa(cavalo(pc.oponente, 'frente'), A.op[0], A.op[1], resp);
+        if (pc.nosso) pisa(cavalo(pc.nosso, 'costas'), A.nos[0], A.nos[1], resp2);
+        var x0 = vis ? vis.x0 : 0, x1 = vis ? vis.x1 : CW, larg = x1 - x0;
+        if (pc.placas && pc.placas.rival) placa(x0 + 6, 6, Math.min(128, larg - 12), pc.placas.rival);
+        if (pc.placas && pc.placas.voce) { var wv = Math.min(108, larg - 12); placa(x1 - 6 - wv, 116, wv, pc.placas.voce); }
+        return out.c;
+      },
+      // onde ficou o treinador (para o ui-test conferir a arte dele na cena): [x, y, w, h] em pixels de arte
+      caixaLider: function (im) { if (!im) return null; var o = sobre(im); return [Math.round(A.lider[0] - o.cx), A.lider[1] - o.pe, im.width || im.naturalWidth, im.height || im.naturalHeight]; }
+    };
+  }
+
   return {
     W: W, H: H, ORDEM: ORDEM, NOMES: NOMES, COR_EL: COR_EL, POS: ILHA.pos, R64: R64, PARADAS: PARADAS,
+    cena: cena, ARENAS: ARENAS,
     passoViagem: passoViagem, VIAGEM: VIAGEM, desenhaViagem: desenhaViagem,
     rng: rng, nevoaDe: nevoaDe, marcadores: marcadores, ginasioEm: ginasioEm, escurecer: escurecer,
     curvaTrilha: function () { return CURVA_T; }, pontoTrilha: function (s) { return ponto(CURVA_T, s); }, arcoParada: function (i) { return ARCO_PARADA[i]; },
