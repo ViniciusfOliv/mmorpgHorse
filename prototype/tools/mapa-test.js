@@ -56,6 +56,31 @@ test('as áreas de toque dos ginásios não se sobrepõem', function () {
   }
 });
 
+section('trilha');
+test('a curva da pista passa por todas as paradas (a menos de 1 px), em ordem de arco', function () {
+  var ant = -1;
+  MP.PARADAS.forEach(function (pp, i) {
+    var a = MP.arcoParada(i), q = MP.pontoTrilha(a);
+    assert.ok(Math.hypot(q[0] - pp[0], q[1] - pp[1]) < 1, 'parada ' + i + ': ' + q);
+    assert.ok(a > ant, 'arco crescente'); ant = a;
+  });
+});
+test('a máscara do caminho cobre a curva inteira e só ela (largura de ~9 px)', function () {
+  var m = MP.mascaraCaminho(), c = MP.curvaTrilha(), n = 0;
+  for (var i = 0; i < c.length; i += 8) { var x = Math.floor(c[i][0]), y = Math.floor(c[i][1]); if (x >= 0 && y >= 0 && x < MP.W && y < MP.H) assert.strictEqual(m[y * MP.W + x], 1, 'ponto ' + i); }
+  for (i = 0; i < m.length; i++) n += m[i];
+  assert.ok(n > c.comp * 7 && n < c.comp * 10, n + ' pixels para ' + c.comp.toFixed(0) + ' de arco');
+  assert.strictEqual(m[0], 0); assert.strictEqual(m[MP.W - 1], 0);
+});
+test('o cavalo fica ao lado de cada parada, fora da pedra, virado para o oponente', function () {
+  MP.PARADAS.forEach(function (pp, i) {
+    var q = MP.posCavaloTrilha(i);
+    var d = Math.abs(q[0] - pp[0]);
+    assert.ok(d > 20 && d < 45 && Math.abs(q[1] - pp[1]) < 12, 'parada ' + i + ': cavalo em ' + q);
+    assert.strictEqual(q[2], q[0] > pp[0], 'parada ' + i + ': olha para o oponente');
+  });
+});
+
 section('cosmético');
 test('a RNG cosmética repete com a mesma semente e varia com outra', function () {
   var a = MP.rng(7), b = MP.rng(7), c = MP.rng(8);

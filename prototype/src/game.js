@@ -3479,7 +3479,6 @@
   // desenho: nada grava nem muda o state. Sem a arte, nada (a tela fica como antes).
   // ---------------------------------------------------------------------------------------------
   var TELA_W = 256, CENA_ABA_H = 160, MAPA_H = 384;
-  var MAPA_PARADAS = [[88, 360], [168, 292], [84, 224], [168, 156], [128, 84]];   // (x, y do chão), da 1ª etapa ao líder
   var telaImgs = {}, telaItems = [];
   function telaImg(tipo, id) {
     var m = window.__TELAS, src = m && m[tipo] && hasOwn(m[tipo], id) ? m[tipo][id] : null;
@@ -3536,7 +3535,7 @@
     telaItems.push(item);
   }
   function trilhaMapaHtml(id) {
-    if (!temTela('mapas', id)) return '';
+    if (!temTela('mapas', id) || !MP) return '';
     var g = GD.GYMS[id], txt = g.etapas.map(function (e, i) { return ginEtapaRotulo(e, i) + ' ' + e.nome + ': ' + trilhaEstadoTxt(id, i); }).join('; ');
     return '<div class="trilha-mapa-palco"><canvas class="trilha-mapa" data-mapa="' + esc(id) + '" role="img" aria-label="' +
       esc('Mapa da trilha, de baixo para cima. ' + txt + '.') + '"></canvas></div>';
@@ -3624,53 +3623,73 @@
       if (b) b.click();
     });
   }
+  // ---- A trilha de um ginásio (spec 2026-11-24-mapa-ginasios §3.3): o mapa de hoje, a pista de terra que se pinta até a
+  // etapa da vez, as bases de pedra com os oponentes e o estado de cada um, e o cavalo ativo ao lado da próxima parada.
+  // Depois de vencer, ao voltar para a trilha, a pista se pinta do ponto que a tela mostrou até o novo e o cavalo trota
+  // (a memória é da sessão: recarregar mostra a trilha pronta). O fundo animado é da frente 1 (window.Ambiente), quando
+  // existir; sem ele, a imagem parada. Tocar numa parada é tocar no cartão dela (só as tocáveis têm botão).
+  mapaArte.trilhas = {};
+  function trilhaObj(id) {
+    var g = GD.GYMS[id], tr = mapaArte.trilhas[id];
+    if (tr) return tr;
+    if (!MP || !g) return null;
+    var mapa = telaImg('mapas', id), corpos = [], falta = !mapa;
+    g.etapas.forEach(function (e) {
+      var tid = ginTreinadorId(e.nome), tem = window.__TREINADORES && hasOwn(window.__TREINADORES, tid);
+      var im = tem ? treinadorImg(tid) : null; if (tem && !im) falta = true; corpos.push(im);
+    });
+    var ic = function (nome) { var src = iconeSrc(nome); if (!src) return null; var im = mapaImg('ic-' + nome, src); if (!im) falta = true; return im; };
+    var estrela = ic('ui-estrela'), insignia = ic('ins-' + g.element);
+    if (falta) return null;
+    var amb = null;
+    try { amb = window.Ambiente && typeof window.Ambiente.cena === 'function' ? window.Ambiente.cena('mapa:' + g.element) : null; } catch (e) { amb = null; }
+    var op = { el: g.element, sprites: SP, cavalo: null, ambiente: amb };
+    tr = MP.trilha({ mapa: mapa, corpos: corpos, estrela: estrela, insignia: insignia }, op);
+    if (tr) { tr.op = op; tr.p = null; mapaArte.trilhas[id] = tr; }
+    return tr;
+  }
   function drawMapaTrilha(cv) {
     var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];
     if (!g) return;
-    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox;
+    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
     cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
-    var estados = g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); });
-    function px(x, y, w, hh, cor) { ctx.fillStyle = cor; ctx.fillRect((x - ox) * k, y * k, w * k, hh * k); }
+    var h = playerHorse(), vis = h ? opcoesVisuais(h, joqueiDoJogador()) : null;
     var item = {
       drawn: false,
       draw: function (t) {
-        var img = telaImg('mapas', id);
-        item.drawn = !!img; item.t = t;
-        ctx.clearRect(0, 0, cv.width, cv.height);
-        if (!img) return;
-        ctx.drawImage(img, -ox * k, 0, TELA_W * k, MAPA_H * k);
-        // o caminho: tracejado de 3 px (borda escura, miolo claro); até a etapa seguinte à última vencida, aceso
-        for (var q = 0; q + 1 < MAPA_PARADAS.length; q++) {
-          var a = MAPA_PARADAS[q], b = MAPA_PARADAS[q + 1], n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
-          var aceso = estados[q] === 'vencida' || estados[q] === 'revanche' || estados[q] === 'feita';
-          for (var u = 0; u <= n; u++) {
-            if (u % 8 >= 5) continue;
-            var x = Math.round(a[0] + (b[0] - a[0]) * u / n), y = Math.round(a[1] + (b[1] - a[1]) * u / n);
-            px(x - 2, y - 2, 5, 5, C.sombra);
-            px(x - 1, y - 1, 3, 3, aceso ? C.ouroClaro : '#c7dcd0');
-          }
+        var tr = trilhaObj(id);
+        item.t = t;
+        if (!tr) return;
+        var r = reduced(), dt = tAnt ? Math.max(0, t - tAnt) : 0;
+        tAnt = t;
+        if (!item.drawn) {   // o estado do save (uma vez por tela): as etapas, o cavalo e, se a etapa da vez andou, a pintura
+          var p = Math.min(ginProgresso(id), ginEtapasTotal(id) - 1);
+          tr.estados(g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); }));
+          if (tr.p !== p) { tr.posiciona(p, { de: tr.p != null && tr.p < p ? tr.p : null, reduzido: r }); tr.p = p; }
+          tr.op.cavalo = h ? comVisuais({ palette: h.palette, element: h.element, jockey: true, silks: PLAYER_SILKS }, vis) : null;
         }
-        // as paradas: um tablado de pedra (ouro na vencida e na tocável) e o oponente de pé em cima
-        g.etapas.forEach(function (e, i) {
-          var p = MAPA_PARADAS[i], st = estados[i], ouro = st === 'vencida' || st === 'feita', vez = st === 'proxima' || st === 'revanche';
-          for (var yy = -5; yy <= 5; yy++) {
-            var w = Math.round(18 * Math.sqrt(1 - (yy * yy) / 25));
-            px(p[0] - w, p[1] + yy, 2 * w, 1, Math.abs(yy) === 5 ? C.sombra : yy < 1 ? (vez ? C.ouroClaro : ouro ? C.ouro : '#c7dcd0') : (vez || ouro ? C.ouroEscuro : '#9babb2'));
-            if (Math.abs(yy) < 5) { px(p[0] - w, p[1] + yy, 1, 1, C.sombra); px(p[0] + w - 1, p[1] + yy, 1, 1, C.sombra); }
-          }
-          var corpo = treinadorImg(ginTreinadorId(e.nome));
-          if (corpo) ctx.drawImage(corpo, (p[0] - 16 - ox) * k, (p[1] - corpo.naturalHeight + 1) * k, corpo.naturalWidth * k, corpo.naturalHeight * k);
-        });
+        if (item.drawn && r) return;
+        item.drawn = true;
+        item.rapido = !r && tr.anda();   // a pista se pintando e o trote: desenho a cada quadro
+        var t0 = window.performance ? performance.now() : 0;
+        tr.quadro(t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
+        var t1 = t0 ? performance.now() : 0;
+        ctx.drawImage(tr.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        if (t0) {
+          var ms = t1 - t0; item.ms = item.n ? item.ms * 0.9 + ms * 0.1 : ms; item.n = (item.n || 0) + 1;
+          if (item.n > 3) cv.setAttribute('data-ms', item.ms.toFixed(3));
+        }
+        cv.setAttribute('data-anda', item.rapido ? '1' : '0');
       }
     };
     item.draw(0);
     telaItems.push(item);
-    // tocar numa parada é tocar no cartão dela (só as tocáveis têm botão)
+    vivo(item, cv);
     cv.addEventListener('click', function (ev) {
-      var r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * L.W + ox, y = (ev.clientY - r.top) / r.height * MAPA_H;
-      for (var i = 0; i < MAPA_PARADAS.length; i++) {
-        var p = MAPA_PARADAS[i];
-        if (Math.abs(x - p[0]) <= 20 && y >= p[1] - 50 && y <= p[1] + 8) {
+      var rc = cv.getBoundingClientRect(), x = (ev.clientX - rc.left) / rc.width * L.W + ox, y = (ev.clientY - rc.top) / rc.height * MAPA_H;
+      for (var i = 0; i < MP.PARADAS.length; i++) {
+        var pp = MP.PARADAS[i];
+        if (Math.abs(x - pp[0]) <= 20 && y >= pp[1] - 50 && y <= pp[1] + 8) {
           var b = document.querySelector('#tela .trilha .etapa[data-etapa="' + i + '"] button.etapa-btn');
           if (b && !b.disabled && b.getAttribute('aria-disabled') !== 'true') b.click();
           return;
@@ -8517,10 +8536,11 @@
       if (!precisaLaco()) { lacoAtivo = false; return; }
       window.requestAnimationFrame(loop);
       if (raceView) raceView.frame(now);
-      if (live.length && !reducedQuadro && now - lastIdle > 70) {
-        lastIdle = now;
-        var t = now / 1000;
-        for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel) live[i].draw(t);
+      if (live.length && !reducedQuadro) {
+        // o ritmo de sempre (~14 q/s) e, a cada quadro, só os itens marcados como rápidos (a viagem e a trilha se pintando)
+        var t = now / 1000, todos = now - lastIdle > 70;
+        if (todos) lastIdle = now;
+        for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel && (todos || live[i].rapido)) live[i].draw(t);
       }
     } finally { reducedQuadro = null; }
   }

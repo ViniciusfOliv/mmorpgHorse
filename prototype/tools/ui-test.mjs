@@ -14401,9 +14401,34 @@ try {
         await pg.waitForSelector('#t-ginasio', { timeout: 3000 }).catch(() => {})
         const t = await pg.locator('#t-ginasio').textContent().catch(() => null)
         if (t !== G.GYMS[id].name) problems.push(`${label}: tocar em ${id} no mapa abriu "${t}"`)
+        // a trilha nova (plano A5): desenhada, com o cavalo ativo, e a captura do canvas inteiro para conferir
+        await pg.waitForSelector('canvas[data-mapa][data-ms]', { timeout: 6000 }).catch(() => problems.push(`${label}: a trilha de ${id} não foi desenhada`))
+        await sleep(600)
+        await pg.locator('canvas[data-mapa]').screenshot({ path: join(SHOTS, `mapa-trilha-${id}.png`) })
         await pg.locator('#tela [data-acao="ginasio-voltar"]').click()
         await pg.waitForSelector('#t-expedicao')
       }
+      // depois de vencer (o save em memória passa a etapa da Fornalha de 2 para 3): ao abrir a trilha de novo, a pista se
+      // pinta até o Tenente e o cavalo trota (data-anda 1), e termina parada (data-anda 0); com movimento reduzido, pronta
+      const abreFogo = async () => {
+        await pg.locator('#tela [data-acao="ginasio-abrir"][data-id="fogo"]').click(); await pg.waitForSelector('#t-ginasio')
+        await pg.waitForSelector('canvas[data-mapa][data-anda]', { timeout: 6000 })
+      }
+      await pg.evaluate(() => { window.__galope.state.ginasios.fogo.etapa = 3 })
+      await abreFogo()
+      const andou = await pg.waitForFunction(() => document.querySelector('canvas[data-mapa]').getAttribute('data-anda') === '1', null, { timeout: 2000 }).then(() => true, () => false)
+      if (!andou) problems.push(`${label}: depois de vencer, a trilha não animou a pista nem o trote`)
+      const parou = await pg.waitForFunction(() => document.querySelector('canvas[data-mapa]').getAttribute('data-anda') === '0', null, { timeout: 6000 }).then(() => true, () => false)
+      if (!parou) problems.push(`${label}: a animação da trilha não terminou em 6 s`)
+      await pg.locator('canvas[data-mapa]').screenshot({ path: join(SHOTS, 'mapa-trilha-fogo-depois.png') })
+      await pg.locator('#tela [data-acao="ginasio-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
+      await pg.emulateMedia({ reducedMotion: 'reduce' })
+      await pg.evaluate(() => { window.__galope.state.ginasios.fogo.etapa = 4 })
+      await abreFogo()
+      await sleep(400)
+      if ((await pg.locator('canvas[data-mapa]').getAttribute('data-anda')) !== '0') problems.push(`${label}: com movimento reduzido a trilha animou`)
+      await pg.emulateMedia({ reducedMotion: 'no-preference' })
+      await pg.locator('#tela [data-acao="ginasio-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
       // fora dos ginásios (o mar no canto) não abre nada
       await toca(130, 380)
       await sleep(200)

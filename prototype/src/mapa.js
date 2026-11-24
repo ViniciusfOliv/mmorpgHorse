@@ -425,9 +425,278 @@
     return api;
   }
 
+  // ------------------------------------------------------------------ a trilha de um ginásio (spec §3.3)
+  // As paradas são as do jogo (o chão de cada oponente, da 1ª etapa ao líder); a pista é uma curva Catmull-Rom com
+  // comprimento de arco que passa por elas em S, entrando pela borda de baixo. Pura: a geometria, a máscara do caminho e
+  // a posição do cavalo; de desenho: trilha(arte, opcoes).
+  var PARADAS = [[88, 360], [168, 292], [84, 224], [168, 156], [128, 84]];
+  function curva(pts, passo) {
+    var out = [], s = 0, ant = null;
+    for (var i = 0; i < pts.length - 1; i++) {
+      var p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+      var n = Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / (passo || 0.25));
+      for (var j = 0; j < n; j++) {
+        var t = j / n, t2 = t * t, t3 = t2 * t;
+        var x = 0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3);
+        var y = 0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3);
+        if (ant) s += Math.hypot(x - ant[0], y - ant[1]);
+        out.push([x, y, s]); ant = [x, y];
+      }
+    }
+    var u = pts[pts.length - 1]; if (ant) s += Math.hypot(u[0] - ant[0], u[1] - ant[1]); out.push([u[0], u[1], s]);
+    out.comp = s;
+    return out;
+  }
+  function ponto(c, s) {   // o ponto da curva no arco s (busca binária)
+    var a = 0, b = c.length - 1; s = lim(s, 0, c.comp);
+    while (b - a > 1) { var m = (a + b) >> 1; if (c[m][2] < s) a = m; else b = m; }
+    var p = c[a], q = c[b], f = q[2] > p[2] ? (s - p[2]) / (q[2] - p[2]) : 0;
+    return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+  }
+  var CURVA_T = curva([[134, 404], [112, 384], [88, 360], [116, 338], [150, 320], [168, 292], [140, 266], [104, 250], [84, 224],
+    [110, 200], [150, 182], [168, 156], [162, 128], [142, 104], [128, 84], [128, 70]], 0.25);
+  var ARCO_PARADA = PARADAS.map(function (pp) { var m = 0, md = 1e9; CURVA_T.forEach(function (c) { var d = Math.hypot(c[0] - pp[0], c[1] - pp[1]); if (d < md) { md = d; m = c[2]; } }); return m; });
+  var RAIO_PISTA = 4.6, TILE = 7;
+  // para cada pixel a até RAIO_PISTA da curva: a distância (0..1, 9 = fora) e o arco do ponto mais perto
+  var geoPista = null;
+  function geometriaPista() {
+    if (geoPista) return geoPista;
+    var N = W * H, dist = new Float32Array(N).fill(9), arco = new Float32Array(N), r = RAIO_PISTA;
+    for (var i = 0; i < CURVA_T.length; i++) {
+      var c = CURVA_T[i];
+      for (var y = Math.floor(c[1] - r - 1); y <= c[1] + r + 1; y++) for (var x = Math.floor(c[0] - r - 1); x <= c[0] + r + 1; x++) {
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        var d = Math.hypot(x + 0.5 - c[0], y + 0.5 - c[1]) / r, q = y * W + x;
+        if (d <= 1 && d < dist[q]) { dist[q] = d; arco[q] = c[2]; }
+      }
+    }
+    var px = []; for (var p = 0; p < N; p++) if (dist[p] <= 1) px.push(p);
+    return (geoPista = { dist: dist, arco: arco, px: px });
+  }
+  // a máscara do caminho (W × H, 1 = pista): para o fundo animado da frente 1 não pôr nada embaixo da pista
+  function mascaraCaminho() { var g = geometriaPista(), m = new Uint8Array(W * H); for (var i = 0; i < g.px.length; i++) m[g.px[i]] = 1; return m; }
+  function arcoDoCavalo(i) { return Math.max(0, ARCO_PARADA[lim(i, 0, 4)] - 12); }
+  // onde o cavalo fica em cada parada: ao lado da base, do lado de dentro da tela, virado para o oponente; no caminho ele
+  // segue a pista e, chegando, sai dela até esse lugar (e volta a ela ao partir). [x, y, olhaEsquerda|null]
+  function ladoParada(i) { var pp = PARADAS[i], d = pp[0] < 128 ? 1 : -1; return [pp[0] + d * 37, pp[1] + 3, d > 0]; }
+  function posCavalo(sa) {
+    var b = ponto(CURVA_T, sa), x = b[0], y = b[1], olha = null;
+    for (var i = 0; i < PARADAS.length; i++) {
+      var a = ARCO_PARADA[i], w = suave(a - 46, a - 12, sa) * (1 - suave(a - 6, a + 22, sa));
+      if (w > 0) { var l = ladoParada(i); x += (l[0] - x) * w; y += (l[1] - y) * w; if (w > 0.85) olha = l[2]; }
+    }
+    return [x, y, olha];
+  }
+  var PISTA = {
+    fogo: { rampa: ['2e222f', '45293f', '694f62', '966c6c', 'ab947a'], agua: [] },
+    agua: { rampa: ['4c3e24', '9e4539', 'cd683d', 'e6904e', 'fbb954'], agua: ['9babb2', 'c7dcd0'] },
+    grama: { rampa: ['4c3e24', '9e4539', 'cd683d', 'e6904e', 'fbb954'], agua: [] }
+  };
+
+  // A trilha de um ginásio (desenho). arte = { mapa: Image 256 × 384, corpos: [Image 32 × 48 | null × 5], estrela, insignia:
+  // Image | null }; opcoes = { el, sprites, cavalo: as opções do drawHorse do cavalo ativo (paleta, elemento, visuais),
+  // ambiente: a cena do fundo animado da frente 1 (atualiza, desenha, parada) ou null }. null se faltar o mapa.
+  function trilha(arte, opcoes) {
+    if (!arte || !arte.mapa) return null;
+    var el = opcoes.el, SP = opcoes.sprites, AMB = opcoes.ambiente || null, N = W * H, G = geometriaPista();
+    var out = new Buf(W, H), g = out.g;
+    function R(x, y, w, h, cor) { g.fillStyle = cor; g.fillRect(x | 0, y | 0, w, h); }
+    function D(im, x, y) { g.drawImage(im, Math.round(x), Math.round(y)); }
+    var base = Buf.de(arte.mapa); base.poe();
+    var esc = new Buf(W, H), p; for (p = 0; p < N; p++) esc.d[p] = escurecer((base.d[p] | 0xff000000) >>> 0); esc.poe();
+    // sombra das bases de pedra no chão: a elipse deslocada (+3, +4), 1 degrau abaixo no próprio chão
+    var somb = new Buf(W, H);
+    PARADAS.forEach(function (pp, i) {
+      var rx = (i === 4 ? 14 : 11) + 1, ry = 5.5, cx = pp[0] + 3, cy = pp[1] + 4;
+      for (var y = Math.floor(cy - ry); y <= cy + ry; y++) for (var x = Math.floor(cx - rx); x <= cx + rx; x++)
+        if (Math.pow((x + 0.5 - cx) / rx, 2) + Math.pow((y + 0.5 - cy) / ry, 2) <= 1 && x >= 0 && y >= 0 && x < W && y < H) somb.d[y * W + x] = esc.d[y * W + x];
+    });
+    somb.poe();
+    var ponte = PISTA[el].agua.map(function (h) { return K[h]; }), RA = PISTA[el].rampa.map(function (h) { return K[h]; });
+    var MAD = ['4c3e24', '9e4539', 'cd683d', 'e6904e'].map(function (h) { return K[h]; });
+
+    // ---- a pista: pintada até `pintado` (px de arco); a animação anda até `pintaAlvo`, tile a tile
+    var pintado = 0, pintaAlvo = 0, camada = new Buf(W, H), chave = '';
+    function desenhaPista() {
+      var tiles = Math.floor(pintado / TILE), novo = pintaAlvo > pintado + 0.01 ? tiles : -9, ch = tiles + ':' + novo;
+      if (ch !== chave) {
+        chave = ch;
+        var d = camada.d; d.fill(0);
+        for (var i = 0; i < G.px.length; i++) {
+          var q = G.px[i], s = G.arco[q], e = G.dist[q], x = q % W, y = (q / W) | 0, tile = Math.floor(s / TILE);
+          var sobreAgua = ponte.indexOf(base.d[q]) >= 0;
+          if (tile < tiles) {
+            if (sobreAgua) { d[q] = e > 0.82 ? MAD[0] : (Math.floor(s) % 3 === 0 ? MAD[1] : MAD[2]); continue; }   // ponte de tábuas
+            // borda recortada em massas de 2 px (nunca reta); o capim do chão invade em tufos
+            var borda = 0.74 + (hash(x >> 1, y >> 1) - 0.5) * 0.36;
+            if (e > borda) continue;
+            if (e > borda - 0.3 && hash((x >> 1) + 40, y >> 1) < 0.13) continue;
+            var c = e > borda - 0.14 ? RA[1] : (e > 0.28 && e < 0.42 && hash(x, y >> 1) < 0.5) ? RA[2] : RA[hash(x >> 1, (y >> 1) + 3) < 0.3 ? 2 : 3];
+            if (e < 0.55 && hash(x >> 1, (y >> 1) + 17) < 0.03) c = RA[4];
+            if (e < 0.6 && hash(x, y + 16) < 0.008) c = RA[1];
+            if (tile === tiles - 1 && novo >= 0) c = e > 0.8 ? RA[2] : RA[4];   // o tile que acabou de pintar acende
+            d[q] = c;
+          } else {   // trecho fechado: só marcas de chão pisado (o próprio chão, 1 degrau mais escuro), em tufos
+            var m = s - tile * TILE;
+            if (m > 1.5 && m < 5 && e < 0.5 && hash(x >> 1, (y >> 1) + 23) < 0.7) d[q] = sobreAgua ? MAD[1] : esc.d[q];
+          }
+        }
+        camada.poe();
+      }
+      D(camada.c, 0, 0);
+    }
+
+    // ---- as paradas: base de pedra (friso dourado pulsando na vez, fixo na vencida), o oponente, a sombra dele e o estado
+    var pedras = {};
+    function pedra(rx) {
+      if (pedras[rx]) return pedras[rx];
+      var c = tela(2 * rx + 2, 12), q = c.getContext('2d'), ry = 4.5;
+      var r = function (x, y, w, h, cor) { q.fillStyle = cor; q.fillRect(x + rx, y + 4, w, h); };
+      for (var yy = -4; yy <= 6; yy++) {
+        var w = Math.round(rx * Math.sqrt(Math.max(0, 1 - Math.pow(Math.min(yy, 3.4) / ry, 2))));
+        if (yy > 3) { r(-w, yy, 2 * w, 1, yy === 6 ? '#2e222f' : '#3e3546'); r(-w, yy, 2, 1, '#625565'); continue; }
+        r(-w, yy, 2 * w, 1, yy < -1 ? '#ab947a' : yy < 2 ? '#966c6c' : '#7f708a');
+        r(-w, yy, 1, 1, '#c7dcd0'); r(w - 1, yy, 1, 1, '#625565');
+      }
+      return (pedras[rx] = c);
+    }
+    function tablado(x, y, rx, estado, t) {
+      var vez = estado === 'proxima' || estado === 'revanche', ouro = estado === 'vencida' || estado === 'feita';
+      D(pedra(rx), x - rx, y - 4);
+      var friso = vez ? (fsin(t * 4) > 0 ? '#fbff86' : '#f9c22b') : ouro ? '#f79617' : null;
+      if (!friso) return;
+      var wf = rx - 3;
+      R(x - wf + 2, y - 2, 2 * wf - 4, 1, friso); R(x - wf + 2, y + 2, 2 * wf - 4, 1, friso);
+      R(x - wf, y - 1, 1, 3, friso); R(x + wf - 1, y - 1, 1, 3, friso); R(x - wf + 1, y - 2, 1, 1, friso); R(x + wf - 2, y - 2, 1, 1, friso); R(x - wf + 1, y + 2, 1, 1, friso); R(x + wf - 2, y + 2, 1, 1, friso);
+      if (vez) { var a = mod(t * 2.2, 6.283); R(Math.round(x + Math.cos(a) * wf), Math.round(y + Math.sin(a) * 2.2), 1, 1, '#ffffff'); }
+    }
+    // os corpos (32 × 48): o normal, o apagado (a fechada, em tons frios) e a sombra cisalhada deitada no tampo
+    var corpos = (arte.corpos || []).map(function (im) {
+      if (!im) return null;
+      var b = Buf.de(im), pe = 0, i2; for (i2 = 0; i2 < b.d.length; i2++) if (b.d[i2]) pe = (i2 / b.w) | 0;
+      var a = new Buf(b.w, b.h), TONS = ['2e222f', '3e3546', '45293f', '625565', '694f62', '7f708a'].map(function (h) { return K[h]; });
+      for (i2 = 0; i2 < b.d.length; i2++) { var c = b.d[i2]; if (!c) continue; var l = ((c & 255) * 0.3 + ((c >>> 8) & 255) * 0.59 + ((c >>> 16) & 255) * 0.11) / 255; a.d[i2] = TONS[lim(Math.round(l * 6.5) - 1, 0, 5)]; }
+      var sb = new Buf(48, 24);
+      for (var y = 0; y <= pe; y++) for (var x = 0; x < b.w; x++) {
+        if (!b.d[y * b.w + x]) continue;
+        var h = pe - y, X = x + Math.round(h * 0.5) + 2, Y = 4 + Math.round(h * 0.22);
+        for (var k2 = 0; k2 < 2; k2++) if (X + k2 < 48 && Y < 24) sb.d[Y * 48 + X + k2] = K['625565'];
+      }
+      return { c: b.poe().c, apagado: a.poe().c, sombra: sb.poe().c, pe: pe };
+    });
+    function cadeado(x, y) { R(x - 2, y - 7, 5, 1, '#2e222f'); R(x - 3, y - 6, 1, 3, '#2e222f'); R(x + 3, y - 6, 1, 3, '#2e222f'); R(x - 2, y - 6, 1, 2, '#9babb2'); R(x + 2, y - 6, 1, 2, '#9babb2'); R(x - 4, y - 3, 9, 6, '#2e222f'); R(x - 3, y - 2, 7, 4, '#f79617'); R(x - 3, y - 2, 7, 1, '#f9c22b'); R(x, y - 1, 1, 2, '#2e222f'); }
+    function balao(x, y, t, cor) { var by = y - Math.round(Math.abs(fsin(t * 3.3)) * 3); R(x - 3, by - 9, 7, 9, '#2e222f'); R(x - 2, by - 8, 5, 7, '#ffffff'); R(x, by - 7, 1, 3, cor); R(x, by - 3, 1, 1, cor); R(x - 1, by, 2, 2, '#2e222f'); R(x - 1, by, 1, 1, '#ffffff'); }
+    var estados = ['proxima', 'fechada', 'fechada', 'fechada', 'fechada'];
+    function oponente(t, i) {
+      var pp = PARADAS[i], st = estados[i], cp = corpos[i]; if (!cp) return;
+      var resp = st === 'fechada' ? 0 : Math.round(Math.max(0, fsin(t * 1.4 + i * 1.7)) * 0.6);
+      D(st === 'fechada' ? cp.apagado : cp.c, pp[0] - 16, pp[1] - cp.pe - 1 + resp);
+      var topo = pp[1] - cp.pe + 5;
+      if (st === 'fechada') cadeado(pp[0] + 10, pp[1] - 20);
+      else if (st === 'proxima') balao(pp[0] + 9, topo + 4, t, '#e83b3b');
+      else if (st === 'vencida') { if (arte.estrela) D(arte.estrela, pp[0] + 4, topo - 4 + Math.round(fsin(t * 2 + i))); }
+      else { if (arte.insignia) D(arte.insignia, pp[0] + 6, topo - 10); if (st === 'revanche') balao(pp[0] - 9, topo + 4, t, '#e83b3b'); }
+    }
+
+    // ---- o cavalo ativo (o molde do jogo, o mesmo desenho parado ou andando; o trote é o passo de 1 px), com poeira
+    var cav = { s: 0, alvo: 0, olhaEsq: false, fase: 0, poeira: 0 };
+    var cavC = tela(80, 70), cavG = cavC.getContext('2d'), somC = tela(80, 70), somG = somC.getContext('2d');
+    cavG.imageSmoothingEnabled = false;
+    var NPO = 24, poX = new Float32Array(NPO), poY = new Float32Array(NPO), poV = new Float32Array(NPO);
+    function poeira(x, y, vida) { for (var j = 0; j < NPO; j++) if (poV[j] <= 0) { poX[j] = x; poY[j] = y; poV[j] = vida; return; } }
+    function desenhaCavalo(t, dt, reduzido) {
+      var anda = Math.abs(cav.alvo - cav.s) > 0.5, i;
+      if (anda && !(pintaAlvo > pintado + 0.01)) {
+        var passo = Math.min(Math.abs(cav.alvo - cav.s), 38 * dt); cav.s += cav.alvo > cav.s ? passo : -passo;
+        cav.fase += dt * 13;
+        if (t > cav.poeira) { cav.poeira = t + 0.09; var pp0 = posCavalo(cav.s); poeira(pp0[0] + (hash(cav.fase * 10 | 0, 3) - 0.5) * 8, pp0[1] - 1, 0.5); }
+      }
+      for (i = 0; i < NPO; i++) if (poV[i] > 0) { poV[i] -= dt; poY[i] -= dt * 6; R(Math.round(poX[i]), Math.round(poY[i]), poV[i] > 0.25 ? 2 : 1, 1, poV[i] > 0.25 ? '#ab947a' : '#c7dcd0'); }
+      var p0 = posCavalo(cav.s), p1 = posCavalo(cav.s + (cav.alvo >= cav.s ? 3 : -3));
+      if (!anda && p0[2] !== null) cav.olhaEsq = p0[2]; else if (Math.abs(p1[0] - p0[0]) > 0.6) cav.olhaEsq = p1[0] < p0[0];
+      var cx = Math.round(p0[0]), b0 = Math.round(p0[1]) + 2, b = b0;
+      if (anda && !reduzido && (Math.floor(cav.fase * 0.9) & 1)) b -= 1;
+      var hx = cx - 40, hy = b - 60;
+      if (SP && opcoes.cavalo) {
+        var o = {}; for (var kk in opcoes.cavalo) o[kk] = opcoes.cavalo[kk];
+        o.scale = 1; o.idle = true; o.t = reduzido ? 0.5 : t; o.reduzido = reduzido;
+        o.quadro = { topo: -1e6, base: 60, grade: 1, centro: 40 };   // num quadro próprio: cascos em y 60, centro em x 40
+        cavG.setTransform(1, 0, 0, 1, 0, 0); cavG.clearRect(0, 0, 80, 70);
+        if (cav.olhaEsq) { cavG.translate(80, 0); cavG.scale(-1, 1); }
+        SP.drawHorse(cavG, 20, 24, o);
+        cavG.setTransform(1, 0, 0, 1, 0, 0);
+        // a sombra: a silhueta deslocada (+3, +2) no chão escurecido, e o contato embaixo dos cascos
+        somG.globalCompositeOperation = 'copy'; somG.drawImage(cavC, 0, 0);
+        somG.globalCompositeOperation = 'source-in'; somG.drawImage(esc.c, -(hx + 3), -(hy + 2));
+        somG.globalCompositeOperation = 'source-over';
+        g.drawImage(somC, hx + 3, hy + 2);
+        var chao = base.d[lim(b0, 0, H - 1) * W + lim(cx, 0, W - 1)], cc = hexC(escurecer(escurecer((chao | 0xff000000) >>> 0)));
+        R(cx - 13, b0, 26, 1, cc); R(cx - 10, b0 + 1, 20, 1, cc);
+        g.drawImage(cavC, hx, hy);
+      }
+    }
+    var explosao = null;
+    function desenhaExplosao(t) {
+      if (!explosao) return;
+      var u = t - explosao.t0; if (u < 0) return; if (u > 0.9) { explosao = null; return; }
+      var pp = PARADAS[explosao.i];
+      for (var i = 0; i < 14; i++) {
+        var an = i / 14 * Math.PI * 2 + hash(i, 3), v = 26 + hash(i, 7) * 22, x = pp[0] + Math.cos(an) * v * u, y = pp[1] - 22 + Math.sin(an) * v * u + 30 * u * u;
+        R(Math.round(x), Math.round(y), i % 3 === 0 ? 2 : 1, i % 3 === 0 ? 2 : 1, i % 2 ? '#f9c22b' : '#fbff86');
+      }
+    }
+
+    var tUlt = 0, esperaPinta = 0;
+    return {
+      W: W, H: H, c: out.c,
+      // os estados das 5 etapas ('vencida' | 'proxima' | 'fechada' | 'revanche' | 'feita')
+      estados: function (lista) { estados = lista.slice(0, 5); },
+      // o cavalo na parada p (0..4, a etapa da vez) e a pista pintada até ela; com opts.de (a parada que a tela mostrou da
+      // última vez, menor que p), a pista se pinta de lá até p e o cavalo trota, depois de um estouro na parada vencida
+      posiciona: function (p0, opts) {
+        var pAlvo = lim(p0 | 0, 0, 4), de = opts && opts.de != null ? lim(opts.de | 0, 0, 4) : null;
+        if (de !== null && de < pAlvo && !(opts && opts.reduzido)) {
+          pintado = ARCO_PARADA[de]; cav.s = arcoDoCavalo(de); pintaAlvo = pintado; cav.alvo = cav.s;
+          explosao = { i: de, t0: tUlt + 0.2 }; esperaPinta = tUlt + 0.75;
+          var alvoP = ARCO_PARADA[pAlvo], alvoC = arcoDoCavalo(pAlvo);
+          this._depois = function () { pintaAlvo = alvoP; cav.alvo = alvoC; };
+        } else { pintado = pintaAlvo = ARCO_PARADA[pAlvo]; cav.s = cav.alvo = arcoDoCavalo(pAlvo); this._depois = null; }
+        chave = '';
+      },
+      // anda: true enquanto a pista se pinta ou o cavalo trota (o game.js desenha a cada quadro nesse tempo)
+      anda: function () { return !!this._depois || pintaAlvo > pintado + 0.01 || Math.abs(cav.alvo - cav.s) > 0.5 || !!explosao; },
+      quadro: function (t, dt, reduzido, vis) {
+        tUlt = t; dt = Math.min(0.1, dt || 0);
+        if (this._depois && t >= esperaPinta) { this._depois(); this._depois = null; }
+        if (AMB) { if (reduzido) AMB.parada(g); else { AMB.atualiza(t, dt); AMB.desenha(g, vis || { x0: 0, x1: W, y0: 0, y1: H }); } }
+        else D(base.c, 0, 0);
+        if (pintaAlvo > pintado) {
+          var antes = Math.floor(pintado / TILE);
+          pintado = reduzido ? pintaAlvo : Math.min(pintaAlvo, pintado + dt * 60);
+          if (Math.floor(pintado / TILE) !== antes) { var q = ponto(CURVA_T, pintado); for (var i = 0; i < 3; i++) poeira(q[0] + (i - 1) * 3, q[1], 0.45); }
+        }
+        if (reduzido) { cav.s = cav.alvo; explosao = null; }
+        desenhaPista();
+        D(somb.c, 0, 0);
+        PARADAS.forEach(function (pp, i) { tablado(pp[0], pp[1], i === 4 ? 14 : 11, estados[i], t); if (corpos[i]) D(corpos[i].sombra, pp[0] - 16, pp[1] - 4); });
+        // de trás para a frente: quem está mais acima na tela primeiro
+        var yc = posCavalo(cav.s)[1] + 3, j;
+        var ordem = [0, 1, 2, 3, 4].map(function (i2) { return { y: PARADAS[i2][1], i: i2 }; }).concat([{ y: yc, cav: true }]).sort(function (a, b) { return a.y - b.y; });
+        for (j = 0; j < ordem.length; j++) { if (ordem[j].cav) desenhaCavalo(t, dt, reduzido); else oponente(reduzido ? 0 : t, ordem[j].i); }
+        if (!reduzido) desenhaExplosao(t);
+        return out.c;
+      },
+      // onde o cavalo está (pixels de arte), para a íris da viagem abrir em volta dele
+      posCavalo: function () { var q = posCavalo(cav.s); return [q[0], q[1]]; },
+      mascaraCaminho: mascaraCaminho
+    };
+  }
+
   return {
-    W: W, H: H, ORDEM: ORDEM, NOMES: NOMES, COR_EL: COR_EL, POS: ILHA.pos, R64: R64,
+    W: W, H: H, ORDEM: ORDEM, NOMES: NOMES, COR_EL: COR_EL, POS: ILHA.pos, R64: R64, PARADAS: PARADAS,
     rng: rng, nevoaDe: nevoaDe, marcadores: marcadores, ginasioEm: ginasioEm, escurecer: escurecer,
-    mundo: mundo
+    curvaTrilha: function () { return CURVA_T; }, pontoTrilha: function (s) { return ponto(CURVA_T, s); }, arcoParada: function (i) { return ARCO_PARADA[i]; },
+    posCavaloTrilha: function (i) { var q = posCavalo(arcoDoCavalo(i)); return q; }, mascaraCaminho: mascaraCaminho,
+    mundo: mundo, trilha: trilha
   };
 });
