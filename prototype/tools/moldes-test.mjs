@@ -10,6 +10,8 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { ICONES_NOVOS, FAMILIAS, RESERVADOS, ANTIGOS } from './icones-catalogo.mjs';
 import { htmlFolhaIcones } from './folha-icones.mjs';
+import { MAPA_MUNDO } from './arte-embutida.mjs';
+import { RESURRECT64 as R64_MAPA } from './arte-paleta.mjs';
 import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada, sombraMagenta, sedaNaPelagem, crinaEscura, corrigirGrupo, modoNatural, soltarCrina, CRINA_SOLTA } from './moldes-lib.mjs';
 
 let fails = 0, count = 0;
@@ -2942,6 +2944,27 @@ test('as arenas dos três ginásios: 256×160, opacas', () => {
     assert.ok(d.width === 256 && d.height === 160, `${g}: ${d.width}×${d.height}`);
     for (const [x, y] of [[0, 0], [255, 159]]) assert.strictEqual(d.rgba[(y * 256 + x) * 4 + 3], 255, `${g}: canto ${x},${y} transparente`);
   }
+});
+
+test('o mapa-múndi embutido: a ilha 256×384 opaca e os ginásios 64×64 com alfa binário, só Resurrect 64', () => {
+  const R = new Set(R64_MAPA.map((h) => h.toLowerCase())), PROTO = path.join(DIR, '..', '..');
+  const confere = (rel, w, h, opaca) => {
+    const d = decodePng(fs.readFileSync(path.join(PROTO, rel)));
+    assert.ok(d.width === w && d.height === h, `${rel}: ${d.width}×${d.height}`);
+    let opacos = 0;
+    for (let i = 0; i < d.width * d.height; i++) {
+      const a = d.rgba[i * 4 + 3];
+      assert.ok(a === 0 || a === 255, `${rel}: alfa ${a}`);
+      if (opaca) assert.strictEqual(a, 255, `${rel}: pixel ${i} transparente`);
+      if (!a) continue;
+      opacos++;
+      const hex = [0, 1, 2].map((c) => d.rgba[i * 4 + c].toString(16).padStart(2, '0')).join('');
+      assert.ok(R.has(hex), `${rel}: cor ${hex} fora da Resurrect 64`);
+    }
+    assert.ok(opacos > (opaca ? w * h - 1 : 400), `${rel}: só ${opacos} pixels`);
+  };
+  confere(MAPA_MUNDO.terreno, 256, 384, true);
+  for (const el of ['fogo', 'agua', 'grama']) confere(MAPA_MUNDO.ginasios[el], 64, 64, false);
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');

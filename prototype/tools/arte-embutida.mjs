@@ -13,6 +13,8 @@
 //   lerRegioes(root)        -> { regiao: { nome, pistas, posicao, camadas: { nuvens, horizonte, meio, arquibancada,
 //                              frente } } }  (window.__REGIOES: as camadas da corrida, etapa 2.3; o horizonte já com a
 //                              névoa da distância, como na amostra)
+//   lerMapaMundo(root)      -> { terreno, ginasios: { fogo, agua, grama } }  (window.__MAPA_MUNDO: a ilha 256×384 e os
+//                              ginásios 64×64 do mapa-múndi, spec 2026-11-24-mapa-ginasios §3.1; sem algum, {})
 //   jsonJs(v)               -> JSON seguro dentro de <script> (nada de "<" literal)
 // root = a pasta prototype/. Arquivo de arte ausente nunca falha: a parte correspondente fica vazia
 // (o molde inválido vira um aviso em `avisos`) e quem usa cai no desenho por código / no texto.
@@ -115,6 +117,19 @@ export async function lerArenas(root) {
 // grade) para a tela inicial e letreiro-mini.png (só o letreiro, letras de 8 px, 67×22) para o cabeçalho; o tamanho de cada um
 // vem do PNG. O logo antigo do Canva (assets/marca/) saiu na etapa 8.
 const tamPng = (buf) => (buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR' ? [buf.readUInt32BE(16), buf.readUInt32BE(20)] : [0, 0])
+// O mapa-múndi (spec 2026-11-24-mapa-ginasios §3.1): a ilha B pintada e os três ginásios escolhidos pelo Vinicius. Tudo
+// ou nada: faltando um arquivo, {} (a aba Expedição fica só com os cartões).
+export const MAPA_MUNDO = { terreno: 'assets/arte/mapa-mundo/terreno/terreno-s9901.png',
+  ginasios: { fogo: 'assets/arte/mapa-mundo/ginasios/ginasio-fogo-s9921.png', agua: 'assets/arte/mapa-mundo/ginasios/ginasio-agua-s9932.png',
+    grama: 'assets/arte/mapa-mundo/ginasios/ginasio-grama-s9953-00.png' } }
+export async function lerMapaMundo(root) {
+  const todos = [MAPA_MUNDO.terreno, ...Object.values(MAPA_MUNDO.ginasios)]
+  if (!todos.every((f) => existsSync(join(root, f)))) return {}
+  const ginasios = {}
+  for (const [el, f] of Object.entries(MAPA_MUNDO.ginasios)) ginasios[el] = await dataUrl(root, f)
+  return { terreno: await dataUrl(root, MAPA_MUNDO.terreno), ginasios }
+}
+
 export async function lerMarca(root) {
   const logo = 'assets/arte/marca/logo.png', mini = 'assets/arte/marca/letreiro-mini.png'
   if (!existsSync(join(root, logo))) return { logo: null }

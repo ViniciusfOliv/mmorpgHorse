@@ -20,7 +20,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lerMoldes, lerIcones, lerIconesTam, lerMarca, lerTreinadores, lerArenas, lerTelas, lerRegioes, jsonJs } from './tools/arte-embutida.mjs'
+import { lerMoldes, lerIcones, lerIconesTam, lerMarca, lerTreinadores, lerArenas, lerTelas, lerRegioes, lerMapaMundo, jsonJs } from './tools/arte-embutida.mjs'
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
@@ -82,6 +82,8 @@ const arteJs = [
   `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
   `window.__ARENAS = ${jsonJs(await lerArenas(ROOT))};`,
   `window.__TELAS = ${jsonJs(await lerTelas(ROOT))};`,
+  // o mapa-múndi da aba Expedição: a ilha e os ginásios (spec 2026-11-24-mapa-ginasios)
+  `window.__MAPA_MUNDO = ${jsonJs(await lerMapaMundo(ROOT))};`,
   // as licenças das fontes (SIL OFL 1.1): Nunito (a interface) e Galmuri (o texto da corrida) acompanham as fontes
   // embutidas; a tela de Créditos mostra o texto inteiro
   `window.__OFL = ${jsonJs('Nunito\n\n' + await read('assets/fontes/OFL-nunito.txt') + '\n\n— — —\n\nGalmuri\n\n' + await read('assets/fontes/OFL-galmuri.txt'))};`,
