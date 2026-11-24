@@ -73,7 +73,7 @@ sem zoom nem íris.
 - **Lista:** os botões de etapa de hoje continuam (detalhe, treinar AFK). O mapa é a vista; a lista é o controle completo.
 
 ### 3.4 Cena de desafio (`renderDesafio`)
-- **Quadro:** 256 × 160 pixels de arte (hoje 256 × 128 com corte de 32), na mesma grade inteira da interface; a 360 px
+- **Quadro:** 256 × 160 pixels de arte (decidido; hoje 256 × 128 com corte de 32), na mesma grade inteira da interface; a 360 px
   as laterais se cortam por igual, como hoje.
 - **Fundo:** a arena 0 de cada ginásio (`ginasios/<el>/arena-0.png`) vale até o horizonte `hz`; abaixo dele, um piso em
   perspectiva por código (`z = 260 / d`), com a rampa de cores tirada do chão da própria arena, o anel e os detalhes do
@@ -98,10 +98,10 @@ sem zoom nem íris.
   e o `drawHorse` os pinta com as cores do cavalo (`coresMolde` → paleta-mestra), como já faz com `parado` e `galope`.
   Recoloração, raridade (brilho da crina) e seda do jóquei continuam valendo.
 - **Limites conhecidos:** o formato da crina vem da malha (folhas e chamas saem como massa cheia, sem pontas recortadas a
-  ~54 px); as marcas (estrela, patas, ruão) ainda não aparecem nessas vistas. Até haver âncoras 3D para elas, a cena usa o
-  cavalo sem marcas (decisão pendente, §10).
-- **A Brasa** do primeiro teste veio da imagem colorida, não dos papéis: refazer pelos papéis entra no lote (30 créditos)
-  ou usa o `padrao-chamas` do lote, se ele ficar bom.
+  ~54 px), o que o Vinicius aceitou. As marcas (estrela, patas, ruão) ficam fora das vistas de frente e de costas na v1
+  (decidido); entram depois, por âncoras.
+- **Feito:** os 12 moldes, 30 créditos cada (360, o teto do lote), saída em `prototype/assets/arte/desafio/bakeoff/
+  meshy-<molde>-papeis-dir0..7.png` (frente = vista 1, costas = vista 5). Os PNGs entram no jogo pelo plano.
 
 ## 5. Estados e o que cada tela mostra
 | Situação | Mapa-múndi | Trilha | Cena |
@@ -120,11 +120,11 @@ sem zoom nem íris.
 | Ilha B (`terreno-s9901`) | PixelLab Pixen | feito (piloto 1) | 14 gerações (piloto) |
 | Ginásios Fogo, Água, Capoeira | PixelLab Pixen | feitos (s9921, s9932, s9953) | incluído acima + 3 |
 | Pista, paradas, névoa, nuvens, sombras, piso da cena | código | feitos na amostra | 0 |
-| Cavalos de frente e de costas (12 moldes) | Meshy | lote em curso (teto 360 créditos) | ~30 por molde |
+| Cavalos de frente e de costas (12 moldes) | Meshy | feitos (por papéis, recoloríveis) | 360 créditos |
 | Piso da cena para Remanso e Capoeira | código | a fazer (rampa e detalhes) | 0 |
 | Arenas 0 de Água e Grama | já existem | — | 0 |
 
-Gasto da frente até 2026-11-24: PixelLab 59 gerações; Meshy 60 créditos de teste mais o lote; Gemini ~US$ 0,155;
+Gasto da frente até 2026-11-24: PixelLab 59 gerações; Meshy 420 créditos (60 de teste e 360 do lote); Gemini ~US$ 0,155;
 Canva só créditos de IA do plano. Testes que não entram: inpaint do PixelLab, fundos do Canva, composição do Gemini (a
 comparação está na amostra). Todo asset novo vai para `docs/memoria/assets.md` (declaração de IA da Steam).
 
@@ -162,8 +162,7 @@ comparação está na amostra). Todo asset novo vai para `docs/memoria/assets.md
 na cor da raridade; convenção de batalha de RPG de criaturas só no layout; um padrão só de cavalo; Meshy para frente e
 costas, um modelo por molde, a partir de cores puras por papel.
 
-**Pendentes (para o Vinicius):**
-- P1. Marcas (estrela, patas, ruão) nas vistas de frente e de costas: sem marcas na v1, ou pintadas por âncoras depois?
-- P2. Quadro da cena: 256 × 160 (proposto) ou manter 256 × 128?
-- P3. A crina cheia (sem pontas de folha ou chama) nas vistas 3D é aceitável, ou pede retoque à mão por molde?
-- P4. Quem vem primeiro no plano: o mapa e a trilha (sem custo) ou a cena (depende do lote)?
+**Decididas na revisão do rascunho (Vinicius, 2026-11-24):** sem marcas nas vistas 3D na v1; quadro da cena 256 × 160;
+crina cheia aceita; o plano começa pelo mapa e pela trilha (sem custo), e a cena vem na fase seguinte.
+
+**Pendente:** aprovação desta spec; depois, o plano em `docs/superpowers/plans/`.

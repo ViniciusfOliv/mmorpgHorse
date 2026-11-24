@@ -1376,7 +1376,7 @@
   // da borda de baixo; a arena viva ao fundo. Integração pelo guia (docs/arte/integracao.md): base de chão na rampa da
   // arena com face e contato, sombras de silhueta deslocadas (+3, +2) no chão escurecido, luz da esquerda, tudo 1:1.
   var DW = 256, DH = 160, dArte = tela(DW, DH), dg = dArte.getContext('2d'), dCv = null, dCtx = null, dS = 2;
-  var desafio = { costas: 0, frente: 'molde', arena: 'a0', rar: 'raro', cavalos: 'meshy', base: null, esc: null, quentes: [], fundo: null, t0: 0 };
+  var desafio = { costas: 0, frente: 'molde', arena: 'a0', rar: 'raro', cavalos: 'p:padrao-chamas', base: null, esc: null, quentes: [], fundo: null, t0: 0 };
   var dSomC = tela(100, 100), dSomG = dSomC.getContext('2d');
   function dR(x, y, w, h, c) { dg.fillStyle = c; dg.fillRect(x | 0, y | 0, w, h); }
   function preparaDesafio() {
