@@ -62,35 +62,41 @@ const pedidoDe = (molde, acao, seed) => ({
 });
 const baseDe = (molde, acao, seed) => `idle-${molde}-${ESTADO}-${acao}-s${seed}`;
 
-// pixels soltos: tudo que não está na maior peça conexa (vizinhança 8) do quadro
-function soltos(idx) {
-  const vis = new Uint8Array(4096), tam = [];
+// pixels soltos: tudo que não está na maior peça conexa (vizinhança 8) do quadro. Com limpar, apaga essas peças quando
+// somam até LIMPA_MAX px — no comer, são fiapos de capim saindo da boca nos últimos quadros, soltos do corpo (os crus
+// ficam intactos em raw/; o corpo do cavalo é sempre a maior peça)
+const LIMPA_MAX = 60;
+function soltos(idx, limpar) {
+  const vis = new Int32Array(4096).fill(-1), tam = [];
   for (let i = 0; i < 4096; i++) {
-    if (!idx[i] || vis[i]) continue;
-    let n = 0; const pilha = [i]; vis[i] = 1;
+    if (!idx[i] || vis[i] >= 0) continue;
+    let n = 0; const id = tam.length, pilha = [i]; vis[i] = id;
     while (pilha.length) {
       const j = pilha.pop(), x = j & 63, y = j >> 6; n++;
       for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
         const nx = x + ox, ny = y + oy, k = ny * 64 + nx;
-        if (nx >= 0 && ny >= 0 && nx < 64 && ny < 64 && idx[k] && !vis[k]) { vis[k] = 1; pilha.push(k); }
+        if (nx >= 0 && ny >= 0 && nx < 64 && ny < 64 && idx[k] && vis[k] < 0) { vis[k] = id; pilha.push(k); }
       }
     }
     tam.push(n);
   }
-  tam.sort((a, b) => b - a);
-  return tam.slice(1).reduce((a, b) => a + b, 0);
+  let maior = 0; tam.forEach((n, k) => { if (n > tam[maior]) maior = k; });
+  const fora = tam.reduce((a, n, k) => a + (k === maior ? 0 : n), 0);
+  if (limpar && fora && fora <= LIMPA_MAX) for (let i = 0; i < 4096; i++) if (idx[i] && vis[i] !== maior) idx[i] = 0;
+  return fora;
 }
 function finalizar(molde, acao, seed, pngs) {
   fs.mkdirSync(DIR_FINAL, { recursive: true });
-  let pior = 0;
+  let pior = 0, removidos = 0;
   pngs.forEach((buf, i) => {
     const im = decodePng(buf);
     if (im.width !== 64 || im.height !== 64) throw new Error(`${baseDe(molde, acao, seed)}-${i}: ${im.width}×${im.height}, esperado 64×64`);
     const n = normalizar(im.rgba, 64, 64);
-    if (i > 0) pior = Math.max(pior, soltos(n.idx));
+    if (i > 0) { const f = soltos(n.idx, true); removidos += f <= LIMPA_MAX ? f : 0; pior = Math.max(pior, soltos(n.idx)); }
     fs.writeFileSync(path.join(DIR_FINAL, `${molde}-${ESTADO}-${acao}-s${seed}-${i}.png`), encodeGray({ width: 64, height: 64, data: paraCinza(n.idx) }));
   });
-  return pior;   // o maior número de pixels soltos num quadro gerado
+  finalizar.removidos = removidos;
+  return pior;   // o maior número de pixels soltos que sobrou num quadro (depois da limpeza)
 }
 const crusDe = base => { const p = []; for (let i = 0; fs.existsSync(path.join(DIR_MOLDES_RAW, `${base}-${i}.png`)); i++) p.push(fs.readFileSync(path.join(DIR_MOLDES_RAW, `${base}-${i}.png`))); return p; };
 
@@ -126,7 +132,7 @@ async function tenta(m, a, seed) {
     gravarCru(DIR_MOLDES_RAW, base, ANIMA, pedido, resultado.job, pngs.map((b, i) => [`${base}-${i}.png`, b]));
   }
   const solto = finalizar(m, a, seed, pngs);
-  console.log(`    ${base}: ${pngs.length} quadros, ${solto ? solto + ' px soltos' : 'limpo'}`);
+  console.log(`    ${base}: ${pngs.length} quadros, ${solto ? solto + ' px soltos' : 'limpo'}${finalizar.removidos ? ` (${finalizar.removidos} px de fiapos soltos apagados)` : ''}`);
   return solto;
 }
 // 1ª passada: a seed do lote em todos; 2ª: as reservas só nos que vieram com pixels soltos

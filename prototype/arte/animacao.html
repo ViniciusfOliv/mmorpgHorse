@@ -63,6 +63,8 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
 .tag.pago { background: var(--ouro-2); color: var(--tinta); }
 .tag.mais { background: var(--foco); color: var(--tinta); }
 .estilo { display: flex; gap: 0; }
+.sel { display: flex; gap: 6px; align-items: center; color: var(--texto-2); font-size: 14px; }
+.sel select { font: inherit; font-weight: 800; color: var(--texto); background: var(--painel-2); border: 2px solid var(--tinta); padding: 6px 8px; min-height: 40px; }
 .estilo button + button { margin-left: -2px; }
 @media (max-width: 760px) { .telas, .baixo { grid-template-columns: minmax(0, 1fr); } h1 { font-size: 22px; } }
 </style>
@@ -87,7 +89,7 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
     </div>
   </section>
   <section class="tela piloto" id="painelPiloto" hidden>
-    <h2>PixelLab × código <small>o mesmo cavalo (padrão, baio): à esquerda por código, à direita os quadros do piloto pago</small></h2>
+    <h2>PixelLab × código <small>o mesmo molde e a mesma pelagem: à esquerda o idle por código, à direita comer e cavar do PixelLab (12 moldes)</small></h2>
     <div class="moldura" id="molduraPiloto"><canvas id="piloto" aria-label="Comparação do idle por código e do PixelLab"></canvas></div>
     <div class="ctl" id="ctlPiloto"></div>
   </section>
