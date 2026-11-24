@@ -436,6 +436,7 @@
   carrega('d-arena', M.desafio.arena); carrega('d-arena0', M.desafio.arena0);
   M.desafio.costas.forEach(function (u, i) { carrega('d-costas-' + i, u); });
   M.desafio.oito.forEach(function (u, i) { carrega('d-oito-' + i, u); });
+  if (M.desafio.meshy) { carrega('d-meshy-1', M.desafio.meshy[1]); carrega('d-meshy-5', M.desafio.meshy[5]); }
   // os moldes do PixelLab (os mesmos do jogo): sem eles o sprites.js cai no cavalo desenhado por código
   if (SP.loadMolds && window.__MOLDES) { faltam++; SP.loadMolds(window.__MOLDES, function () { if (--faltam === 0) pronto(); }); }
   document.getElementById('hojeMundo').src = M.hoje.mundo;
@@ -1372,7 +1373,7 @@
   // da borda de baixo; a arena viva ao fundo. Integração pelo guia (docs/arte/integracao.md): base de chão na rampa da
   // arena com face e contato, sombras de silhueta deslocadas (+3, +2) no chão escurecido, luz da esquerda, tudo 1:1.
   var DW = 256, DH = 160, dArte = tela(DW, DH), dg = dArte.getContext('2d'), dCv = null, dCtx = null, dS = 2;
-  var desafio = { costas: 0, frente: 'molde', arena: 'a0', rar: 'raro', base: null, esc: null, quentes: [], fundo: null, t0: 0 };
+  var desafio = { costas: 0, frente: 'molde', arena: 'a0', rar: 'raro', cavalos: 'meshy', base: null, esc: null, quentes: [], fundo: null, t0: 0 };
   var dSomC = tela(100, 100), dSomG = dSomC.getContext('2d');
   function dR(x, y, w, h, c) { dg.fillStyle = c; dg.fillRect(x | 0, y | 0, w, h); }
   function preparaDesafio() {
@@ -1502,16 +1503,23 @@
     marcaNoChao(A.op[0] + 6, A.op[1], M0[0], M0[1]);
     marcaNoChao(A.nos[0], A.nos[1] - 6, M0[2], M0[3]);
     var fr = desafio.frente === 'molde' ? moldeEsq() : IMG['d-oito-' + desafio.frente], lider = corpo(GYM.fogo.etapas[4], false), cs = IMG['d-costas-' + desafio.costas];
+    // teste do Meshy: o mesmo cavalo 3D renderizado de frente (3/4, virado para o nosso lado) e de costas (3/4)
+    if (desafio.cavalos === 'meshy' && IMG['d-meshy-1'] && IMG['d-meshy-5']) { fr = IMG['d-meshy-1']; cs = IMG['d-meshy-5']; }
     // de trás para a frente: a líder e o cavalo dela no fundo, o nosso na frente
     if (lider) { var li = lider.c; li.__pe = lider.pe; li.__cx = 16; deitaSombra(li, A.lider[0], A.lider[1]); dg.drawImage(li, A.lider[0] - 16, A.lider[1] - lider.pe + resp2); }
     if (fr) pisa(fr, A.op[0], A.op[1], resp);
     if (cs) pisa(cs, A.nos[0], A.nos[1], resp2);
-    placa(8, 8, 128, 'Brasa da Labareda', 'Nv 20', 0.82, 'comum');
-    placa(140, 116, 108, 'Brasa', 'Nv 12', 0.64, desafio.rar);
+    if (!desafio._semPlacas) placa(8, 8, 128, 'Brasa da Labareda', 'Nv 20', 0.82, 'comum');
+    if (!desafio._semPlacas) placa(140, 116, 108, 'Brasa', 'Nv 12', 0.64, desafio.rar);
     dCtx.imageSmoothingEnabled = false;
     dCtx.drawImage(dArte, 0, 0, DW, DH, 0, 0, DW * dS, DH * dS);
   }
+  function montaComparacao() {
+    var el = document.getElementById('comparacao'); if (!el || !M.desafio.bake) return;
+    el.innerHTML = M.desafio.bake.map(function (c) { return '<figure class="cand"><img src="' + c.uri + '" style="width:256px" alt=""><figcaption><b>' + c.nome + '</b> · ' + c.nota + '</figcaption></figure>'; }).join('');
+  }
   function iniciaDesafio() {
+    montaComparacao();
     dCv = document.getElementById('desafio'); if (!dCv) return;
     dCtx = dCv.getContext('2d'); preparaDesafio();
     var aj = function () { var r = window.devicePixelRatio || 1, larg = dCv.parentElement.clientWidth || 300; dS = Math.max(1, Math.floor(larg * r / DW)); dCv.width = DW * dS; dCv.height = DH * dS; dCv.style.width = (DW * dS / r) + 'px'; dCv.style.height = (DH * dS / r) + 'px'; };
@@ -1523,6 +1531,7 @@
       ctl.appendChild(botao('◀ De costas', function () { desafio.costas = mod(desafio.costas - 1, 16); monta(); }));
       var sp = document.createElement('span'); sp.textContent = 'candidato ' + (desafio.costas + 1) + ' de 16'; ctl.appendChild(sp);
       ctl.appendChild(botao('De costas ▶', function () { desafio.costas = mod(desafio.costas + 1, 16); monta(); }));
+      ctl.appendChild(botao('Cavalos: ' + (desafio.cavalos === 'meshy' ? 'Meshy 3D' : 'molde do jogo'), function () { desafio.cavalos = desafio.cavalos === 'meshy' ? 'molde' : 'meshy'; monta(); }));
       ctl.appendChild(botao('Raridade: ' + NOME_RAR[desafio.rar], function () { var L = Object.keys(NOME_RAR); desafio.rar = L[(L.indexOf(desafio.rar) + 1) % L.length]; monta(); }));
       [['a0', 'Arena 0 (escolhida)'], ['a1', 'Arena 1']].forEach(function (a) { ctl.appendChild(botao(a[1], function () { desafio.arena = a[0]; preparaDesafio(); monta(); }, { pressed: desafio.arena === a[0] })); });
       ctl.appendChild(botao('Oponente: ' + ({ molde: 'molde (mesmo traço)', 7: '8 direções, frente-esq.', 0: '8 direções, frente' })[desafio.frente], function () { desafio.frente = desafio.frente === 'molde' ? 7 : desafio.frente === 7 ? 0 : 'molde'; monta(); }));
@@ -1550,7 +1559,7 @@
     ajusta(); window.addEventListener('resize', ajusta);
     montaUI();
     requestAnimationFrame(quadro);
-    window.__mapa = { _t: { cavaloPng: function (lado, idle) { var c = tela(lado, lado), q = c.getContext('2d'); q.imageSmoothingEnabled = false; var cx = lado / 2, base = lado - 4; SP.drawHorse(q, cx - 20, base - 36, { palette: CAVALO.palette, element: CAVALO.element, scale: 1, jockey: true, silks: '#f9c22b', idle: idle !== false, t: 0.5, frame: 3, quadro: { topo: -1e6, base: base, grade: 1, centro: cx } }); return c.toDataURL('image/png'); }, exportar: function () { var m2 = gerarMundo(); decorarMundo(m2, true); m2.b.poe(); m2.arvores.forEach(function (a) { m2.b.g.drawImage(a.c.c, a.x - a.r, a.y - a.r); }); return m2.b.c.toDataURL('image/png'); }, camadas: camadas, ciclo: function (t) { cicloT = -9; cicloMundo(t); }, nevoa: function (t) { nevT = -9; atualizaNevoa(t); atualizaNevoa(t); }, mundo: quadroMundo, trilha: quadroTrilha, copia: function () { ctx.drawImage(arte, 0, 0, W, H, 0, 0, W * s, H * s); } }, entra: entra, sai: sai, vence: vence, preset: function (n) { usaPreset(n); montaUI(); }, est: function () { return est; }, reduz: function (v) { reduzido = v; montaUI(); }, tela: function () { return telaAtual; } };
+    window.__mapa = { _t: { cenaPng: function (semPlacas, cavalos) { var g0 = desafio._semPlacas, c0 = desafio.cavalos; desafio._semPlacas = !!semPlacas; if (cavalos) desafio.cavalos = cavalos; quadroDesafio(5); desafio._semPlacas = g0; desafio.cavalos = c0; return dArte.toDataURL('image/png'); }, fundoPng: function () { return desafio.base.c.toDataURL('image/png'); }, cavaloPng: function (lado, idle) { var c = tela(lado, lado), q = c.getContext('2d'); q.imageSmoothingEnabled = false; var cx = lado / 2, base = lado - 4; SP.drawHorse(q, cx - 20, base - 36, { palette: CAVALO.palette, element: CAVALO.element, scale: 1, jockey: true, silks: '#f9c22b', idle: idle !== false, t: 0.5, frame: 3, quadro: { topo: -1e6, base: base, grade: 1, centro: cx } }); return c.toDataURL('image/png'); }, exportar: function () { var m2 = gerarMundo(); decorarMundo(m2, true); m2.b.poe(); m2.arvores.forEach(function (a) { m2.b.g.drawImage(a.c.c, a.x - a.r, a.y - a.r); }); return m2.b.c.toDataURL('image/png'); }, camadas: camadas, ciclo: function (t) { cicloT = -9; cicloMundo(t); }, nevoa: function (t) { nevT = -9; atualizaNevoa(t); atualizaNevoa(t); }, mundo: quadroMundo, trilha: quadroTrilha, copia: function () { ctx.drawImage(arte, 0, 0, W, H, 0, 0, W * s, H * s); } }, entra: entra, sai: sai, vence: vence, preset: function (n) { usaPreset(n); montaUI(); }, est: function () { return est; }, reduz: function (v) { reduzido = v; montaUI(); }, tela: function () { return telaAtual; } };
     window.__mapaPronto = true;
   }
 })();

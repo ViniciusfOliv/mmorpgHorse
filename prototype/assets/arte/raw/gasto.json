@@ -1,5 +1,5 @@
 {
-  "pl": 663,
+  "pl": 673,
   "usd": 9.760000000000007,
   "chamadas": [
     {
@@ -921,6 +921,16 @@
       "base": "mapa-piloto2/brasa-frente-estilo",
       "geracoes": 10,
       "data": "2026-11-24T02:14:38.658Z"
+    },
+    {
+      "base": "desafio-bakeoff/inpaint",
+      "geracoes": 10,
+      "data": "2026-11-24T02:30:00.974Z"
+    },
+    {
+      "base": "desafio-bakeoff/meshy",
+      "creditos_meshy": 30,
+      "data": "2026-11-24T02:31:34.037Z"
     }
   ]
 }

@@ -41,7 +41,15 @@ const dados = {
       oito: Array.from({ length: 8 }, (_, i) => uri(path.join(P, `brasa-8dir-64-${String(i).padStart(2, '0')}.png`))),
       frente: Array.from({ length: 16 }, (_, i) => uri(path.join(P, `brasa-frente-estilo-${String(i).padStart(2, '0')}.png`))),
       oito96: Array.from({ length: 8 }, (_, i) => uri(path.join(P, `brasa-8dir-96-${String(i).padStart(2, '0')}.png`))),
-      hoje: uri(path.join(PROTO, 'screens', 'final-26b-cena-desafio.png')) };
+      hoje: uri(path.join(PROTO, 'screens', 'final-26b-cena-desafio.png')),
+      meshy: Array.from({ length: 8 }, (_, i) => uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `meshy-dir${i}.png`))),
+      bake: [['cena', 'Código (v7)', 'chão em perspectiva, molde de lado e de costas; sem custo'],
+        ['pixellab-inpaint', 'PixelLab inpaint', 'chão repintado em volta dos cascos; 10 gerações'],
+        ['cena-meshy', 'Meshy 3D', 'o mesmo cavalo 3D de frente e de costas, renderizado já em pixel; 30 créditos'],
+        ['canva-0', 'Canva (fundo 1, prévia)', 'só a prévia de 198 px: o tamanho cheio sai exportando no Canva; créditos de IA do plano'],
+        ['canva-1', 'Canva (fundo 2, prévia)', 'marcas no chão para os dois; idem']]
+        .filter(([f]) => fs.existsSync(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')))
+        .map(([f, nome, nota]) => ({ nome, nota, uri: uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')) })) };
   })(),
   hoje: {
     mundo: uri(path.join(PROTO, 'screens', 'final-24-expedicao-ginasios.png')),

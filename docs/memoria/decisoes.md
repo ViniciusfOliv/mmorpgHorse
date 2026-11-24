@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Cena de desafio, comparação de ferramentas
+- **Recomendação: Meshy 3D para as vistas de frente e de costas** — um modelo 3D por cavalo dá todas as vistas com o
+  mesmo traço (o "padrão só" que o Vinicius pediu), renderizado já no tamanho final e passado pelo nosso pós-processo;
+  o PixelLab não virou a pose (generate-with-style-v2) e o template horse saiu com outro traço. Falta subir o contraste
+  de valor contra o chão (Regra 14) e decidir se o molde de lado da corrida também vem do 3D.
+- **Inpaint do PixelLab no chão ajuda pouco** (terra escura que parece buraco); o contato por código fica.
+- **Canva só como referência de fundo**: o conector devolve prévias; o tamanho cheio exige exportar no Canva.
+
 ## 2026-11-24 — Cena de desafio, retorno à versão 5
 - **Um padrão só de cavalo**: andando ou parado, o mesmo desenho do molde (o trote é o passo de 1 px), e o oponente é o
   próprio molde espelhado — pedido do Vinicius ("mantenha um padrão").

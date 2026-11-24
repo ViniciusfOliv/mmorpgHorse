@@ -45,7 +45,11 @@ no piso), arena 1 e arena 0 no seletor. Lote dos 12 cavalos NÃO aprovado; o opo
 teste pago (perguntado). **Versão 7:** o Vinicius aprovou o teste de frente (10 gerações, saldo 824 → 814): saiu todo de
 lado, então o oponente passou a ser o próprio molde espelhado (mesmo traço). Pedido dele sobre a arena: os jogadores
 "dentro do cenário", com a arena só de fundo: a imagem da arena vale até o horizonte e abaixo dele há um piso em
-perspectiva por código, onde todos pisam. Vista de frente no estilo do molde segue em aberto (outra técnica a estudar).
+perspectiva por código, onde todos pisam. Vista de frente no estilo do molde segue em aberto (outra técnica a estudar). **Versão 9 (2026-11-24):** arena 0
+escolhida; nome na cor da raridade; comparação de ferramentas aprovada pelo Vinicius: PixelLab inpaint (10 gerações,
+814 → 804), Meshy 3D (30 créditos, 465 → 435; um cavalo 3D renderizado em pixel em 8 vistas coerentes, o melhor
+resultado para frente/costas), Canva (2 fundos, só prévias), Gemini bloqueado (conta sem créditos pré-pagos). Chaves do
+Meshy e do Gemini salvas no ambiente (proxy), nunca no código.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 
