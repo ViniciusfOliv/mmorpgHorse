@@ -207,6 +207,11 @@ seu teste e o seu commit. O `balance.js` não muda.
 
 ## Etapa 2 — Cavalos
 
+> **Feita no ramo em 2026-11-24** (00d5896, fcf90d7). Desvios: o olho foi gravado nos JSONs por
+> `prototype/tools/moldes-olho.mjs` (o `--reprocessar` dos portes precisa dos mestres crus, que não estão no repositório;
+> o gerador passa a gravar o olho nos moldes novos); o idle repinta por mudança de estado num canvas por cavalo (não
+> no cache dos moldes). Os cards pequenos ficam parados (o retrato de 64 × 56).
+
 **Arquivos:**
 - mexe: `prototype/src/sprites.js` (idle e os quadros do PixelLab), `prototype/src/game.js` (onde os retratos e as cenas
   chamam o desenho), `prototype/tools/pixellab-moldes.mjs` e `moldes-lib.mjs` (âncora do olho),

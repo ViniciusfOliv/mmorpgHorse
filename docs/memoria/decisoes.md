@@ -1265,4 +1265,6 @@ Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, 
 - 2026-11-24 · Casco: opção C (meio-termo) como padrão do jogo; natural, meio e casada na gaveta DEV · escolha do Vinicius ("Prossiga", pela coordenação).
 - 2026-11-24 · Pré-assado por estado quantizado da peça (Deforma.preassado), não por quadros de tempo com vento fixo · quadros por tempo matariam a rajada que atravessa a tela e só os coqueiros passariam de 2 MB; por estado, cada peça segue o seu vento, com teto de memória.
 - 2026-11-24 · O motor (ambiente.js) entra no build do jogo só quando o jogo o usar (etapas 2–3) · evita ~60 KB sem uso no jogo.html.
+- 2026-11-24 · Olho dos moldes gravado por ferramenta própria (moldes-olho.mjs) sobre os JSONs de hoje · o --reprocessar dos portes precisa dos mestres crus (fora do repositório); o gerador já grava o olho nos próximos.
+- 2026-11-24 · Idle do jogo liga por opts.anima ('cena' com os gestos do PixelLab) só nas cenas grandes (Estábulo, desafio, largada) · o retrato pequeno não comporta a cabeça do comer, e os cards ficam leves.
 

@@ -97,7 +97,12 @@ cenas saíram da amostra sem mudar um pixel, conferido por hash), API `Ambiente.
 (`prototype/tools/arte-animacao-mascaras.mjs`), pré-assado por estado da peça (coqueiros, torcida, araucárias; ≤ 1,42 MB
 por tela), testes no fx-test e no arte-check. **Achado e corrigido:** desde que o "fatia" saiu, as peças da deformação
 do Litoral e do Planalto ficavam paradas na tela da amostra (faltava o putImageData). O motor ainda não está no build do
-jogo (entra quando o jogo usar, etapas 2–3). **Próximo:** etapa 2 (cavalos). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
+jogo (entra quando o jogo usar, etapa 3). **Etapa 2 feita (cavalos vivos no jogo):** âncora `olho` nos 12 moldes
+(`moldes-lib.mjs` olhoMolde + `prototype/tools/moldes-olho.mjs`; 4 à mão no OLHO_MANUAL), `Sprites.IdleMolde` (idle de
+código pintado pelo pipeline do molde) e os gestos do PixelLab (comer e cavar no retrato, cavar com jóquei no parado; a
+cada 15–30 s, embutidos no build: +240 KB) no Estábulo, no desafio e na espera da largada (`opts.anima`). Folha:
+`node prototype/tools/folha-cavalos-idle.mjs`. O esguio-chamas parado não abana a cauda (a crina não fica atrás da
+garupa). **Próximo:** etapa 3 (cenas das abas e arenas). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
