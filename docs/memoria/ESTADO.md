@@ -146,8 +146,9 @@ garças da Várzea (cabeça que abaixa) e a revoada de garças. **Etapa 4 (mapas
 peixe; lava em ciclo de cor pela distância da fenda, brasas, fumaça, tufos; copas ao vento, sombras de nuvem, borboletas,
 folhas), tique de 8 q/s, desenho direto no buffer do mapa; custo 0,105/0,113/0,286 ms por quadro (teto 0,35); 2 testes
 no `fx-test` (determinismo, paleta, nada nasce no caminho). Vitrine: https://claude.ai/artifact/AAxGUNY1Fa8SjoRNTrfoRW
-(`prototype/tools/mapas-vivos-vitrine.mjs`). **Pendente da frente 2:** passar `{ imagem, caminho: MP.mascaraCaminho() }`
-no `Ambiente.cena('mapa:' + g.element)` do `trilhaObj` (pedido mandado); sem a imagem a cena lança e o mapa fica parado.
+(`prototype/tools/mapas-vivos-vitrine.mjs`). `check.sh` completo OK (168 de efeitos, 82 blocos de interface); DEV
+versão 7. A frente 2 já passa `{ imagem, caminho: MP.mascaraCaminho() }` no `trilhaObj` (entra no `claude/mapa-ginasios`
+depois do bloco B); no jogo, os mapas só mexem quando os ramos se juntarem.
 Quando os ramos se juntarem: 'frente'/'costas' na condição do `vivo` do `drawHorseMolde`. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
