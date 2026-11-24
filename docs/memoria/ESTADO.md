@@ -28,7 +28,11 @@ zero. **v1 aprovada como direção (2026-11-24); piloto pago feito** (confirmado
 gerações (saldo 879 → 858), script `prototype/tools/arte-mapa-mundo.mjs`, folha `prototype/arte/folha-mapa-mundo.html`. A
 amostra v2 (mesmo artefato) abre na ilha pintada A (s9902), com a B (s9901) e a v1 no seletor, os ginásios do piloto
 assentados com sombra de contato e todos os candidatos embaixo. **Próximo:** escolha do Vinicius (ilha e ginásios),
-retoques e a spec.
+retoques e a spec. **Guia de integração (`docs/arte/integracao.md`, na `main`) aplicado na amostra, só código (versão
+3 do artefato):** ginásios com sombra de silhueta e capim na base, estandartes do líder no lugar dos medalhões, espuma
+nas margens, névoa em massas de 2 × 2, bases de pedra e sombras dos treinadores e do cavalo na trilha, pista com borda
+recortada e trecho fechado como chão pisado. Pendentes do Vinicius: D1 (REST pintado × Map Workshop) e D5 (origem das
+referências); nada mais é gasto antes.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

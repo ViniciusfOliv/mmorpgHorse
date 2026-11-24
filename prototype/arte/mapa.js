@@ -455,6 +455,8 @@
     return SP.drawText(g, t, Math.round(x), Math.round(y), { fonte: fonte || 'g7', scale: 1, color: cor || '#ffffff', shadow: '#2e222f', align: alinha });
   }
   var largCache = {}, largCtx = null;
+  var HEX = {};
+  function hexC(c) { if (!HEX[c]) HEX[c] = '#' + [c & 255, (c >>> 8) & 255, (c >>> 16) & 255].map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join(''); return HEX[c]; }
   function larguraTexto(t, fonte) { var kk = (fonte || 'g7') + t; if (largCache[kk] == null) { largCtx = largCtx || tela(1, 1).getContext('2d'); largCache[kk] = SP.drawText(largCtx, t, 0, 0, { fonte: fonte || 'g7', scale: 1, color: '#ffffff' }); } return largCache[kk]; }
 
   // ================================================================ o mundo vivo
@@ -578,7 +580,7 @@
     for (i = nevMetade; i < L.length; i += 2) {
       p = L[i]; var x = p % W, y = (p / W) | 0;
       var c = nevCampo[((y + oy) % H) * NEV_W + (((x - ox) % NEV_W) + NEV_W) % NEV_W], f = nevV[p] * (0.3 + c * 1.05);
-      var lim1 = BAY[((y & 3) << 2) | (x & 3)];
+      var lim1 = BAY[(((y >> 1) & 3) << 2) | ((x >> 1) & 3)];   // borda em massas de 2 × 2, não pontinhos
       d[p] = f > 1.02 ? NV[c > 0.85 ? 2 : c > 0.6 ? 1 : 0] : f > 0.86 ? (lim1 < (f - 0.86) * 6 ? NV[c > 0.7 ? 1 : 0] : lavado[p]) : (f > 0.6 && lim1 < (f - 0.6) * 3.8) ? lavado[p] : 0;
     }
     nevMetade++;
@@ -685,7 +687,7 @@
     }
     return (cabecas[el] = m.poe().c);
   }
-  var POS_G = GEO.ginasios, MARCA = { topo: -26, haste: 8, placa: 13 };
+  var POS_G = GEO.ginasios, MARCA = { topo: -40, ex: -4, base: -6, placa: 13 };
   function bandeira(x, y, cor, t, fase) {
     R(x, y - 9, 1, 10, '#4c3e24');
     for (var i = 0; i < 5; i++) {
@@ -711,26 +713,52 @@
   }
   var sel = { mundo: 0, trilha: 0 };
   var ORDEM = ['fogo', 'agua', 'grama'];
-  function marcadorGinasio(el, t, i) {
-    var p = POS_G[el], x = p[0], y = p[1] + MARCA.topo, conq = est.prog[el] >= 5, quica = Math.round(Math.max(0, fsin(t * 2.2 + i)) * 1.4);
-    // haste do alfinete até o ginásio
-    R(x, y + 8, 1, MARCA.haste, '#2e222f');
-    var cab = cabeca(el); if (cab) D(cab, x - 8, y - 8 - quica);
-    if (conq) {
-      var ins = IMG['i-ins-' + el];
-      if (ins) { D(ins, x + 7, y - 12 - quica); var br = mod(t * 14, 40); if (br < 10) R(x + 9 + Math.floor(br * 2), y - 10 - quica + Math.floor(br), 1, 1, '#ffffff'); }
+  // estandarte do líder: mastro fincado atrás do ginásio, pano na cor do elemento com a cabeça do líder (do corpo 32 × 48,
+  // 1:1), barra dourada e medalha pendurada quando conquistado; 4 fases do vento pré-assadas (1 desenho por quadro)
+  var estandartes = {};
+  function estandarte(el, fase, conq) {
+    var kk = el + fase + (conq ? 'c' : ''), c0 = estandartes[kk]; if (c0) return c0;
+    var b = new Buf(22, 34), cor = COR_EL[el].map(k), TINTA = K['2e222f'], OURO = [K.f79617, K.f9c22b, K.fbb954], MAD = [K['4c3e24'], K['9e4539']];
+    var im = IMG['t-' + idTreinador(GYM[el].etapas[4])], cb = im ? Buf.de(im) : null, topo = 0, cx = 16, x, y;
+    if (cb) { for (y = 0; y < cb.h && !topo; y++) for (x = 0; x < cb.w; x++) if (cb.d[y * cb.w + x]) { topo = y; break; }
+      var x0 = cb.w, x1 = 0; for (y = topo; y < topo + 10; y++) for (x = 0; x < cb.w; x++) if (cb.d[y * cb.w + x]) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); } cx = Math.round((x0 + x1) / 2); }
+    for (y = 1; y < 34; y++) { b.d[y * 22 + 1] = MAD[0]; b.d[y * 22 + 2] = y < 32 ? MAD[1] : MAD[0]; }   // mastro (luz da esquerda)
+    b.d[0 * 22 + 1] = OURO[1]; b.d[0 * 22 + 2] = OURO[2];
+    for (x = 1; x < 19; x++) b.d[2 * 22 + x] = conq ? (x < 4 ? OURO[2] : OURO[0]) : MAD[1];             // travessa
+    for (var r = 0; r < 19; r++) {
+      var dx = Math.round(fsin(fase * 1.5708 + r * 0.33) * Math.min(1, r / 9)), y2 = 3 + r, larg = 15;
+      for (x = 0; x < larg; x++) {
+        if (r >= 16 && Math.abs(x - 7) < (r - 15) * 2.4) continue;   // ponta em rabo de andorinha
+        var X = 3 + x + dx, cc = x === 0 ? cor[2] : x === larg - 1 || r === 18 || (r >= 16 && Math.abs(x - 7) < (r - 14) * 2.4) ? cor[0] : cor[1];
+        if (conq && (x === 0 || x === larg - 1)) cc = x === 0 ? OURO[2] : OURO[0];
+        if (r < 1) cc = cor[0];
+        var hx = x - 1, hy = r - 2;   // a cabeça do líder no pano
+        if (cb && hx >= 0 && hx < 13 && hy >= 0 && hy < 13) { var hc = cb.em(cx - 6 + hx, topo - 1 + hy); if (hc) cc = hc; }
+        b.d[y2 * 22 + X] = cc;
+      }
     }
+    if (conq) {   // a insígnia: medalha de ouro pendurada na ponta
+      for (y = 0; y < 6; y++) for (x = 0; x < 6; x++) { var d = Math.hypot(x - 2.5, y - 2.5); if (d < 3.1) b.d[(27 + y) * 22 + 8 + x] = d > 2.2 ? TINTA : (x + y < 4 ? OURO[2] : OURO[1]); }
+    }
+    return (estandartes[kk] = b.poe().c);
+  }
+  function marcadorGinasio(el, t, i) {
+    var p = POS_G[el], conq = est.prog[el] >= 5, bx = p[0] + MARCA.ex, by = p[1] + MARCA.base, fase = Math.floor(t * 4 + i) & 3;
+    // sombra do mastro no chão: diagonal para baixo e para a direita, no chão escurecido
+    for (var q = 1; q < 9; q++) { var sx = bx + 2 + q, sy = by + (q >> 1); if (sx >= 0 && sy >= 0 && sx < W && sy < H) R(sx, sy, 1, 1, hexC(escuro.d[sy * W + sx] || K['3e3546'])); }
+    D(estandarte(el, fase, conq), bx - 1, by - 33);
+    if (conq) { var br = mod(t * 9, 30); if (br < 6) R(bx + 9 + Math.floor(br / 2), by - 5 + (Math.floor(br) % 3), 1, 1, '#ffffff'); }
     var rv = est.revanche[el];
-    if (conq && rv === 'livre') balao(x - 12, y - 3, t, '#f79617');
-    // placa: nome e as 5 etapas (cheia = vencida)
-    var nome = NOMES[el], lw = larguraTexto(nome), pw = Math.max(lw + 6, 33), px = x - Math.round(pw / 2), py = p[1] + MARCA.placa + (el === 'agua' ? 0 : 1);
+    if (conq && rv === 'livre') balao(bx - 4, by - 30, t, '#f79617');
+    // placa: nome e as 5 etapas (cheia = vencida); a única peça de interface no mapa
+    var x = p[0], nome = NOMES[el], lw = larguraTexto(nome), pw = Math.max(lw + 6, 33), px = x - Math.round(pw / 2), py = p[1] + MARCA.placa + (el === 'agua' ? 0 : 1);
     R(px - 1, py - 1, pw + 2, 15, '#2e222f'); R(px, py, pw, 13, '#3e3546'); R(px, py, pw, 1, '#484a77');
     texto(nome, x, py + 2, conq ? '#f9c22b' : '#ffffff', 'center');
     var pr = est.prog[el];
     for (var e = 0; e < 5; e++) R(x - 12 + e * 5, py + 10, 3, 2, e < pr ? '#f9c22b' : '#625565');
   }
   function cursorMundo(t) {
-    var el = ORDEM[sel.mundo], p = POS_G[el], y = p[1] + MARCA.topo - 20 - Math.round(Math.abs(fsin(t * 3)) * 3);
+    var el = ORDEM[sel.mundo], p0 = POS_G[el], p = [p0[0] + MARCA.ex + 8, p0[1]], y = p0[1] + MARCA.base - 44 - Math.round(Math.abs(fsin(t * 3)) * 3);
     var cor = '#f9c22b';
     R(p[0] - 3, y, 7, 1, '#2e222f'); R(p[0] - 3, y + 1, 7, 1, cor); R(p[0] - 2, y + 2, 5, 1, cor); R(p[0] - 1, y + 3, 3, 1, cor); R(p[0], y + 4, 1, 1, cor);
     R(p[0] - 4, y + 1, 1, 1, '#2e222f'); R(p[0] + 4, y + 1, 1, 1, '#2e222f'); R(p[0] - 3, y + 2, 1, 1, '#2e222f'); R(p[0] + 3, y + 2, 1, 1, '#2e222f');
@@ -783,15 +811,24 @@
     var esc = function (c) { return escurecer((c | 0xff000000) >>> 0); };
     // sombra de contato e objeto de cada ginásio, assados no chão (a água e a lava debaixo deles não ciclam)
     ORDEM.forEach(function (el) {
-      var o = objetoGinasio(el), pp = P.pos[el], ox = pp[0] - 32, oy = pp[1] - 32, w = (o.x1 - o.x0) / 2 + 2, h = Math.max(6, (o.y1 - o.y0) * 0.28);
-      var cx = ox + (o.x0 + o.x1) / 2 + 4, cy = oy + o.y1 - h * 0.55 + 2;
-      for (var y = Math.floor(cy - h); y <= cy + h; y++) for (var x = Math.floor(cx - w); x <= cx + w; x++) {
-        if (x < 0 || y < 0 || x >= W || y >= H) continue;
-        var e = Math.pow((x + 0.5 - cx) / w, 2) + Math.pow((y + 0.5 - cy) / h, 2);
-        if (e > 1 || (e > 0.7 && bayer(x, y) < (e - 0.7) / 0.3)) continue;   // borda em pontilhado
-        base.d[y * W + x] = esc(terr.d[y * W + x]); cobre[y * W + x] = 1;
+      var o = objetoGinasio(el), pp = P.pos[el], ox = pp[0] - 32, oy = pp[1] - 32, x, y;
+      // sombra: a silhueta inteira do objeto deslocada (+3, +3), no chão escurecido 1 degrau; e contato sob a base (2 degraus)
+      for (y = 0; y < 64; y++) for (x = 0; x < 64; x++) {
+        if (!o.b.d[y * 64 + x]) continue;
+        [[3, 3], [2, 2]].forEach(function (dd, j) {
+          var X = ox + x + dd[0], Y = oy + y + dd[1]; if (X < 0 || Y < 0 || X >= W || Y >= H) return;
+          if (j === 0 || !o.b.em(x + dd[0], y + dd[1] + 1)) base.d[Y * W + X] = j === 1 && y > o.y1 - 6 ? esc(esc(terr.d[Y * W + X])) : esc(terr.d[Y * W + X]);
+          cobre[Y * W + X] = 1;
+        });
       }
       for (y = 0; y < 64; y++) for (x = 0; x < 64; x++) { var c = o.b.d[y * 64 + x], X = ox + x, Y = oy + y; if (c && X >= 0 && Y >= 0 && X < W && Y < H) { base.d[Y * W + X] = c; cobre[Y * W + X] = 1; } }
+      // capim do chão invadindo a base do objeto (contato, Regra 7): na borda de baixo, o pixel vira o chão de 3 px abaixo
+      for (x = 0; x < 64; x++) for (y = 63; y > 0; y--) if (o.b.d[y * 64 + x]) {
+        var X2 = ox + x, Y2 = oy + y, chao = terr.d[Math.min(H - 1, Y2 + 4) * W + X2];
+        if (hash(X2 >> 1, Y2) < 0.38) base.d[Y2 * W + X2] = chao;
+        if (hash(X2 >> 1, Y2 + 9) < 0.16) base.d[(Y2 - 1) * W + X2] = chao;
+        break;
+      }
       obj[el] = o;
     });
     for (var p = 0; p < N; p++) {
@@ -801,6 +838,12 @@
       else if ((i = AGUA_TEAL.indexOf(c)) >= 0) agua.push(p, 1, i);
       else if (y2 < P.lavaAte && (i = LAVA_R.indexOf(c)) >= 0) lava.push(p, i);
     }
+    var espuma = [];   // água encostada na terra (abaixo do céu): espuma que pisca em 2 quadros
+    for (p = W * 70; p < N - W; p++) {
+      if (cobre[p]) continue; var cw = terr.d[p]; if (AGUA_NAVY.indexOf(cw) < 0 && AGUA_TEAL.indexOf(cw) < 0) continue;
+      var ehAgua = function (q) { var c2 = terr.d[q]; return AGUA_NAVY.indexOf(c2) >= 0 || AGUA_TEAL.indexOf(c2) >= 0 || LAVA_R.indexOf(c2) >= 0 || c2 === K.ffffff || c2 === K.c7dcd0; };
+      if (!ehAgua(p - 1) || !ehAgua(p + 1) || !ehAgua(p - W) || !ehAgua(p + W)) espuma.push(p);
+    }
     var regDe = function (pp) {
       var c = terr.d[pp]; if (AGUA_NAVY.indexOf(c) >= 0 || AGUA_TEAL.indexOf(c) >= 0 && ((pp / W) | 0) < 60) return 0;
       var x = pp % W, y = (pp / W) | 0, ry = y + (fbm(x / 30, y / 30, 7, 3) - 0.5) * 30;
@@ -809,7 +852,7 @@
     var lav = new Uint32Array(N), es = new Buf(W, H);
     for (p = 0; p < N; p++) { lav[p] = lavar((base.d[p] | 0xff000000) >>> 0); es.d[p] = esc(terr.d[p]); }
     es.poe(); base.poe();
-    return (varCache[id] = { id: id, P: P, base: base, agua: agua, lava: lava, pesos: calculaPesos(regDe), lavado: lav, escuro: es, cicloT: -1 });
+    return (varCache[id] = { id: id, P: P, base: base, agua: agua, lava: lava, espuma: espuma, pesos: calculaPesos(regDe), lavado: lav, escuro: es, cicloT: -1 });
   }
   function usaVariante(id) {
     if (id === 'v1') {
@@ -817,7 +860,7 @@
       pesoReg = varCache.v1.pesos; lavado = varCache.v1.lavado; escuro = varCache.v1.escuro;
       vivo.d.set(mundo.b.d); vivo.poe(); cicloT = -1;
     } else {
-      VAR = preparaVariante(id); POS_G = VAR.P.pos; MARCA = { topo: -40, haste: 12, placa: 24 }; CRATERA = VAR.P.cratera;
+      VAR = preparaVariante(id); POS_G = VAR.P.pos; MARCA = { topo: -52, ex: -10, base: -18, placa: 24 }; CRATERA = VAR.P.cratera;
       pesoReg = VAR.pesos; lavado = VAR.lavado; escuro = VAR.escuro;
       vivo.d.set(VAR.base.d); vivo.poe(); VAR.cicloT = -1;
     }
@@ -843,6 +886,8 @@
       var f = mod(y * 0.55 - x * 0.12 - t * 6 + hash(x >> 2, y >> 2) * 3, 9);
       d[p] = LAVA_R[lim(L[i + 1] + (f < 1.5 ? 2 : f < 3.5 ? 1 : f > 7 ? -1 : 0), 0, 5)];
     }
+    var E = VAR.espuma, fase2 = Math.floor(t * 3);
+    for (i = 0; i < E.length; i++) { p = E[i]; var hh = hash(p % W >> 1, (p / W | 0) + fase2); if (hh < 0.45) d[p] = hh < 0.2 ? K.c7dcd0 : K['8ff8e2']; }
     vivo.poe();
   }
   function quadroMundoPintado(t, dt) {
@@ -884,7 +929,15 @@
       else if (el === 'grama' && capim[0] === c && hash(p % W, (p / W) | 0) < 0.25) ciclo.push(p);
     }
     var camada = new Buf(W, H), vivoT = new Buf(W, H); vivoT.d.set(base.d); vivoT.poe();
-    return (trilhas[el] = { el: el, base: base, vivo: vivoT, dist: dist, arco: arco, px: px, ponte: agua, camada: camada, ciclo: ciclo, cicloT: -1, chave: '' });
+    var escT = new Buf(W, H); for (p = 0; p < N; p++) escT.d[p] = escurecer((base.d[p] | 0xff000000) >>> 0); escT.poe();
+    // sombra das bases de pedra no chão: a elipse deslocada (+3, +3), 1 degrau abaixo na rampa do próprio chão
+    var somb = new Buf(W, H);
+    PARADAS.forEach(function (pp, i) {
+      var rx = i === 4 ? 14 : 11;
+      elipse(pp[0] + 3, pp[1] + 4, rx + 1, 5.5, function (x, y) { if (x >= 0 && y >= 0 && x < W && y < H) somb.d[y * W + x] = escT.d[y * W + x]; });
+    });
+    somb.poe();
+    return (trilhas[el] = { el: el, base: base, vivo: vivoT, esc: escT, sombras: somb, dist: dist, arco: arco, px: px, ponte: agua, camada: camada, ciclo: ciclo, cicloT: -1, chave: '' });
   }
   function cicloTrilha(tr, t) {
     var q = Math.floor(t * CICLO_FPS); if (q === tr.cicloT) return; tr.cicloT = q; t = q / CICLO_FPS;
@@ -911,14 +964,19 @@
         var sobreAgua = tr.ponte.indexOf(tr.base.d[p]) >= 0;
         if (tile < tiles) {
           if (sobreAgua) { d[p] = e > 0.82 ? MAD[0] : (Math.floor(s) % 3 === 0 ? MAD[1] : e < 0 ? MAD[3] : MAD[2]); continue; }
-          var c = e > 0.8 ? RA[1] : (e > 0.3 && e < 0.46 && hash(x, y) < 0.65) ? RA[2] : RA[hash(x, y + 3) < 0.25 ? 2 : 3];
-          if (e < 0.25 && hash(x + 9, y) < 0.04) c = RA[4];
+          // borda recortada em massas de 2 px (nunca reta); o capim do chão invade em tufos; faixa escura de 1 px na junta
+          var borda = 0.74 + (hash(x >> 1, y >> 1) - 0.5) * 0.36;
+          if (e > borda) continue;
+          if (e > borda - 0.3 && hash((x >> 1) + 40, y >> 1) < 0.13) continue;
+          var c = e > borda - 0.14 ? RA[1] : (e > 0.28 && e < 0.42 && hash(x, y >> 1) < 0.5) ? RA[2] : RA[hash(x >> 1, (y >> 1) + 3) < 0.3 ? 2 : 3];
+          if (e < 0.55 && hash(x >> 1, (y >> 1) + 17) < 0.03) c = RA[4];
+          if (e < 0.6 && hash(x, y - 1 + 17) < 0.008) c = RA[1];
           if (tile === tiles - 1 && novo >= 0) c = e > 0.8 ? RA[2] : RA[4];   // o tile que acabou de pintar acende
           d[p] = c;
         } else {   // pontilhado: uma pegada de terra a cada tile, com a sombra embaixo
+          // trecho fechado: só marcas de chão pisado (o próprio chão, 1 degrau mais escuro), em tufos irregulares
           var m = s - tile * TILE;
-          if (m > 2 && m < 5 && e < 0.42) d[p] = sobreAgua ? MAD[2] : RA[3];
-          else if (m > 2 && m < 5 && e < 0.62 && tr.dist[p - W] < 0.42) d[p] = sobreAgua ? MAD[0] : RA[1];
+          if (m > 1.5 && m < 5 && e < 0.5 && hash(x >> 1, (y >> 1) + 23) < 0.7) d[p] = sobreAgua ? MAD[1] : tr.esc.d[p];
         }
       }
       tr.camada.poe();
@@ -938,23 +996,55 @@
     }
     return apagado ? apagados[id] : corpos[id];
   }
+  // base de pedra baixa (3/4 de cima): tampo com luz da esquerda, face da frente escura; o estado vem num friso
+  // embutido no tampo (dourado pulsando na vez, dourado fixo na vencida, nada na fechada), sem disco chapado
+  var pedras = {};
+  function pedra(rx) {   // a base parada, pré-assada (1 desenho por quadro)
+    if (pedras[rx]) return pedras[rx];
+    var c = tela(2 * rx + 2, 12), q = c.getContext('2d'), ry = 4.5;
+    function r(x, y, w, h, cor) { q.fillStyle = cor; q.fillRect(x + rx, y + 4, w, h); }
+    for (var yy = -4; yy <= 6; yy++) {
+      var w = Math.round(rx * Math.sqrt(Math.max(0, 1 - Math.pow(Math.min(yy, 3.4) / ry, 2))));
+      if (yy > 3) { r(-w, yy, 2 * w, 1, yy === 6 ? '#2e222f' : '#3e3546'); r(-w, yy, 2, 1, '#625565'); continue; }
+      r(-w, yy, 2 * w, 1, yy < -1 ? '#ab947a' : yy < 2 ? '#966c6c' : '#7f708a');
+      r(-w, yy, 1, 1, '#c7dcd0'); r(w - 1, yy, 1, 1, '#625565');
+    }
+    return (pedras[rx] = c);
+  }
+  // base de pedra baixa (3/4 de cima): tampo com luz da esquerda, face da frente escura; o estado vem num friso
+  // embutido no tampo (dourado pulsando na vez, dourado fixo na vencida, nada na fechada), sem disco chapado
   function tablado(x, y, rx, estado, t) {
     var vez = estado === 'proxima' || estado === 'revanche', ouro = estado === 'vencida' || estado === 'feita';
-    var topo = vez ? (fsin(t * 4) > 0 ? '#fbff86' : '#f9c22b') : ouro ? '#f79617' : '#9babb2', meio = vez ? '#f79617' : ouro ? '#cd683d' : '#625565';
-    for (var yy = -4; yy <= 4; yy++) {
-      var w = Math.round(rx * Math.sqrt(1 - (yy * yy) / 20.25));
-      R(x - w, y + yy, 2 * w, 1, Math.abs(yy) === 4 ? '#2e222f' : yy < 0 ? topo : meio);
-      if (Math.abs(yy) < 4) { R(x - w, y + yy, 1, 1, '#2e222f'); R(x + w - 1, y + yy, 1, 1, '#2e222f'); }
+    D(pedra(rx), x - rx, y - 4);
+    var friso = vez ? (fsin(t * 4) > 0 ? '#fbff86' : '#f9c22b') : ouro ? '#f79617' : null;
+    if (!friso) return;
+    var wf = rx - 3;
+    R(x - wf + 2, y - 2, 2 * wf - 4, 1, friso); R(x - wf + 2, y + 2, 2 * wf - 4, 1, friso);
+    R(x - wf, y - 1, 1, 3, friso); R(x + wf - 1, y - 1, 1, 3, friso); R(x - wf + 1, y - 2, 1, 1, friso); R(x + wf - 2, y - 2, 1, 1, friso); R(x - wf + 1, y + 2, 1, 1, friso); R(x + wf - 2, y + 2, 1, 1, friso);
+    if (vez) { var a = mod(t * 2.2, 6.283); R(Math.round(x + Math.cos(a) * wf), Math.round(y + Math.sin(a) * 2.2), 1, 1, '#ffffff'); }
+  }
+  // sombra do treinador: a silhueta cisalhada para baixo e para a direita, deitada no tampo (1 degrau abaixo da pedra)
+  var sombrasT = {};
+  function sombraTreinador(nome) {
+    var id = idTreinador(nome); if (sombrasT[id]) return sombrasT[id];
+    var cp = corpo(nome, false); if (!cp) return null;
+    var b = cp.b, sb = new Buf(48, 24), pe = cp.pe;
+    for (var y = 0; y <= pe; y++) for (var x = 0; x < 32; x++) {
+      if (!b.d[y * 32 + x]) continue;
+      var h = pe - y, X = x + Math.round(h * 0.5) + 2, Y = 4 + Math.round(h * 0.22);
+      for (var k2 = 0; k2 < 2; k2++) if (X + k2 < 48 && Y < 24) sb.d[Y * 48 + X + k2] = K['625565'];
     }
-    R(x - rx + 2, y + 5, 2 * rx - 4, 1, '#2e222f');
-    if (vez) {   // anel pulsando em volta (contorno ciclando)
-      var r2 = rx + 3 + Math.round((fsin(t * 3) + 1) * 1.2);
-      for (var a = 0; a < 40; a++) if ((a + Math.floor(t * 10)) % 4 < 2) { var an = a / 40 * Math.PI * 2; R(Math.round(x + Math.cos(an) * r2), Math.round(y + Math.sin(an) * r2 * 0.42), 1, 1, '#fbff86'); }
-    }
+    return (sombrasT[id] = { c: sb.poe().c });
   }
   function cadeado(x, y) { R(x - 2, y - 7, 5, 1, '#2e222f'); R(x - 3, y - 6, 1, 3, '#2e222f'); R(x + 3, y - 6, 1, 3, '#2e222f'); R(x - 2, y - 6, 1, 2, '#9babb2'); R(x + 2, y - 6, 1, 2, '#9babb2'); R(x - 4, y - 3, 9, 6, '#2e222f'); R(x - 3, y - 2, 7, 4, '#f79617'); R(x - 3, y - 2, 7, 1, '#f9c22b'); R(x, y - 1, 1, 2, '#2e222f'); }
   function balao(x, y, t, cor) { cor = cor || '#e83b3b'; var by = y - Math.round(Math.abs(fsin(t * 3.3)) * 3); R(x - 3, by - 9, 7, 9, '#2e222f'); R(x - 2, by - 8, 5, 7, '#ffffff'); R(x, by - 7, 1, 3, cor); R(x, by - 3, 1, 1, cor); R(x - 1, by, 2, 2, '#2e222f'); R(x - 1, by, 1, 1, '#ffffff'); }
-  function tablados(tr, t) { PARADAS.forEach(function (pp, i) { tablado(pp[0], pp[1], i === 4 ? 14 : 11, estadoEtapa(tr.el, i), t); }); }
+  function tablados(tr, t) {
+    D(tr.sombras.c, 0, 0);
+    PARADAS.forEach(function (pp, i) {
+      tablado(pp[0], pp[1], i === 4 ? 14 : 11, estadoEtapa(tr.el, i), t);
+      var sm = sombraTreinador(GYM[tr.el].etapas[i]); if (sm) D(sm.c, pp[0] - 16, pp[1] - 4);
+    });
+  }
   function oponente(tr, t, i) {
     var el = tr.el, pp = PARADAS[i], st = estadoEtapa(el, i);
     var cp = corpo(GYM[el].etapas[i], st === 'fechada'); if (!cp) return;
@@ -973,6 +1063,8 @@
   // ---- o cavalo ativo do jogador (o molde do jogo, recolorido pelo sprites.js): idle na parada, trote entre elas
   var CAVALO = (GD && GD.STARTERS && GD.STARTERS[0]) || { palette: { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' }, element: 'fogo' };
   var cav = { s: 0, alvo: 0, olhaEsq: false, fase: 0, poeira: 0 };
+  var cavC = tela(80, 70), cavG = cavC.getContext('2d'), somC = tela(80, 70), somG = somC.getContext('2d');
+  cavG.imageSmoothingEnabled = false;
   var NPO = 24, poX = new Float32Array(NPO), poY = new Float32Array(NPO), poV = new Float32Array(NPO);
   function arcoDoCavalo(i) { return Math.max(0, arcoParada[i] - 12); }
   // onde o cavalo fica em cada parada: ao lado do tablado, do lado de dentro da tela, virado para o oponente; no
@@ -1001,10 +1093,22 @@
     var o = { palette: CAVALO.palette, element: CAVALO.element, scale: 1, jockey: true, silks: '#f9c22b', reduzido: reduzido,
       quadro: { topo: -1e6, base: base, grade: 1, centro: cx } };
     if (anda && !reduzido) { o.idle = false; o.frame = cav.fase % 9; } else { o.idle = true; o.t = reduzido ? 0.5 : t; }
-    g.save();
-    if (cav.olhaEsq) { g.translate(2 * cx, 0); g.scale(-1, 1); }
-    SP.drawHorse(g, cx - 20, base - 36, o); medidor.chamadas += 4;
-    g.restore();
+    // o cavalo vai primeiro para um quadro próprio (80 × 70, cascos em y 60); dele saem a sombra e o desenho
+    var hx = cx - 40, hy = base - 60;
+    cavG.setTransform(1, 0, 0, 1, 0, 0); cavG.globalCompositeOperation = 'source-over'; cavG.clearRect(0, 0, 80, 70);
+    if (cav.olhaEsq) { cavG.translate(80, 0); cavG.scale(-1, 1); }
+    SP.drawHorse(cavG, 20, 24, o);
+    cavG.setTransform(1, 0, 0, 1, 0, 0);
+    var tr0 = trilhas[atual];
+    if (tr0) {
+      somG.globalCompositeOperation = 'copy'; somG.drawImage(cavC, 0, 0);
+      somG.globalCompositeOperation = 'source-in'; somG.drawImage(tr0.esc.c, -(hx + 3), -(hy + 2));
+      somG.globalCompositeOperation = 'source-over';
+      g.drawImage(somC, hx + 3, hy + 2);
+      var chao = tr0.base.d[lim(base, 0, H - 1) * W + lim(cx, 0, W - 1)], cc = hexC(escurecer(escurecer((chao | 0xff000000) >>> 0)));
+      R(cx - 13, base, 26, 1, cc); R(cx - 10, base + 1, 20, 1, cc);
+    }
+    g.drawImage(cavC, hx, hy); medidor.chamadas += 8;
     return base;
   }
   var selTrilhaAtiva = false;
@@ -1237,13 +1341,13 @@
         : '<span class="tag pago">piloto pago</span> <b>Ilha pintada</b> pelo PixelLab (Pixen, 256 × 384, 1 geração cada) e <b>ginásios</b> como objetos 64 × 64 (arena de pedra, plataforma de tábuas, picadeiro com cerca), assentados por código: sombra de contato com a luz da esquerda e cores na Resurrect 64. Sobre a pintura, o código anima a água, a lava, a fumaça, as nuvens e a névoa.',
       '<span class="tag cod">código</span> <b>Mundo vivo</b>: mar com arrebentação e brilho, correnteza no rio, ondinhas no lago e lava descendo do vulcão (ciclo de cor, 12 q/s); copas no vento em faixas; fumaça e bombas do vulcão; nuvens com a sombra correndo no chão; pássaros.',
       '<span class="tag cod">código</span> <b>Névoa</b> sobre o que não foi conquistado: densa com 0 de 5, mais rala a cada etapa vencida, some com a insígnia. Só visual: as três trilhas continuam abertas desde o começo, como hoje.',
-      '<span class="tag jogo">arte do jogo</span> <b>Líder</b> no medalhão de cada ginásio (a cabeça do corpo de 32 × 48 já pago, recortada 1:1), insígnia brilhando no conquistado e o "!" da revanche do dia.',
+      '<span class="tag jogo">arte do jogo</span> <b>Estandarte do líder</b> fincado em cada ginásio (pano na cor do elemento com a cabeça do líder, recortada 1:1 do corpo já pago; mastro com sombra), barra e medalha de ouro no conquistado e o "!" da revanche do dia. Só a placa do nome é interface.',
       '<b>Entrar</b>: aproximação em escala inteira (1× → 2× → 3×) e íris na cor do elemento; na volta, o caminho inverso.'
     ] : [
       '<span class="tag jogo">arte do jogo</span> <b>Mapa da trilha</b> de hoje (etapa 6), com a lava, a água ou o capim em ciclo de cor.',
-      '<span class="tag cod">código</span> <b>Pista de terra</b> pelas paradas, em S: pontilhada (pegadas) onde ainda não se venceu e pintada tile a tile ao vencer, com poeira; no Remanso vira ponte de tábuas sobre a água.',
+      '<span class="tag cod">código</span> <b>Pista de terra</b> pelas paradas, em S, com borda recortada, capim invadindo e pedrinhas: no trecho fechado é só chão pisado; ao vencer, ela se pinta pedaço a pedaço, com poeira; no Remanso vira ponte de tábuas sobre a água.',
       '<span class="tag jogo">arte do jogo</span> <b>Cavalo ativo</b> (o molde do jogo, com jóquei): parado em idle diante do oponente da vez e trotando até o próximo quando a trilha termina de pintar.',
-      '<b>Estados</b>: fechada (oponente apagado e cadeado), próxima (tablado pulsando e "!"), vencida (tablado dourado e estrela), líder conquistado (insígnia) e revanche do dia ("!") ou feita.',
+      '<b>Estados</b>: fechada (oponente apagado e cadeado), próxima (friso dourado pulsando na base de pedra e "!"), vencida (friso dourado e estrela), líder conquistado (insígnia) e revanche do dia ("!") ou feita. <b>Sombras</b> (guia de integração): treinadores e cavalo com a silhueta deitada para baixo e para a direita, na cor do chão escurecida.',
       '<b>Acessível</b>: a trilha continua numa lista de botões abaixo do mapa (leitor de tela e teclado: setas, Enter, Esc volta).'
     ];
     if (telaAtual === 'mundo' && VAR.id !== 'v1') N.push('<b>Ainda por código na versão final</b>: as árvores da ilha pintada não balançam nesta amostra (a técnica de deformação da frente da animação faz isso na implementação).');
