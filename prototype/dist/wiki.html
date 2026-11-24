@@ -547,9 +547,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
  *   hora do desenho). Sem eles (o wiki embute só este arquivo), marcas, jóquei e raridade não desenham nada.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./marcas.js'), require('./data.js'));
-  else root.Sprites = factory(null, null);   // no navegador: Marcas e GameData globais, procurados na hora (ver marcasApi)
-}(typeof self !== 'undefined' ? self : this, function (MARCAS_NODE, DADOS_NODE) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./marcas.js'), require('./data.js'), require('./luz.js'));
+  else root.Sprites = factory(null, null, null);   // no navegador: Marcas, GameData e Luz globais, procurados na hora (ver marcasApi)
+}(typeof self !== 'undefined' ? self : this, function (MARCAS_NODE, DADOS_NODE, LUZ_NODE) {
   'use strict';
 
   // ===================================================================
@@ -1365,11 +1365,11 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     var s = Math.max(1, Math.round(opts.scale || 1));
     x = Math.round(x); y = Math.round(y);
     crisp(ctx);
-    if (opts.shadow !== false) {
-      ctx.fillStyle = 'rgba(20,10,20,0.28)';
+    if (opts.shadow !== false) {   // opaca, na rampa do chão (Regra 2), 2 px de arte para a direita
+      var Lz = luzApi(), Sz = Lz ? Lz.sombraDoChao(opts.chao || '#cd683d') : { projetada: '#9e4539', contato: '#6e2727' };
       var sy = y + (FOOT_Y - 1) * s;
-      ctx.fillRect(x + 9 * s, sy, 22 * s, s);
-      ctx.fillRect(x + 11 * s, sy + s, 18 * s, s);
+      ctx.fillStyle = Sz.projetada; ctx.fillRect(x + 11 * s, sy, 22 * s, s); ctx.fillRect(x + 13 * s, sy + s, 18 * s, s);
+      ctx.fillStyle = Sz.contato; ctx.fillRect(x + 15 * s, sy, 12 * s, s);
     }
     ctx.drawImage(horseBase(opts).canvas, x, y, HORSE_W * s, HORSE_H * s);
   }
@@ -1428,6 +1428,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   var CORTE_MAX = 0.1;     // fração da altura do bbox que pode ser cortada no topo de um quadro de altura fixa
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
   var moldCache = new LruCanvasCache(8 * 1024 * 1024);
+  var sombraCache = new LruCanvasCache(2 * 1024 * 1024);   // sombras dos moldes por quadro, chão e vista (sombraMolde)
   LruCanvasCache.prototype.clear = function () { this.map.clear(); this.bytes = 0; };
   // máscaras da crina para o brilho da raridade (recortadas na crina: poucos KB cada); fora do moldCache, que o
   // ui-test conta por corrida e no pódio
@@ -1794,6 +1795,113 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     return { S: S, ox: ox, oy: pe - (ref.footY + 1) * S, pe: pe, topo: pe - ref.altura * S, cx: Math.round(ox + ref.centro * S) };
   }
 
+  // Sombra do cavalo (guia de integração, Regra 2: a causa nº 1 do "PNG colado"). Opaca, na rampa do chão da cena
+  // (Luz.sombraDoChao: 1 degrau abaixo = projetada, 2 = contato), nunca preto com alfa. Pura: devolve os pixels
+  // [{ x, y, cor, n }] no espaço do molde (pintados nessa ordem; o contato vem por último; n = degraus abaixo do chão).
+  //   'lateral' (corrida, idle, retratos): elipse achatada sob os cascos, centrada 2 px à direita do corpo (luz de cima e
+  //             da esquerda, guia §4), mais a faixa de contato logo abaixo de cada casco
+  //   'cima'    (cenas vistas de cima: arena, desafio, trilha): a silhueta inteira deslocada 3 px à direita e 2 para baixo,
+  //             em 1 tom, mais o contato sob os cascos
+  var SOMBRA = { dxLateral: 2, ryLateral: 1.7, rxFrac: 0.42, dxCima: 3, dyCima: 2 };
+  function pixelsSombra(idx, w, h, ancora, chao, vista, espelho) {
+    var L = luzApi(), S = L ? L.sombraDoChao(chao || '#cd683d') : { projetada: '#9e4539', contato: '#6e2727' };
+    var out = [], foot = ancora.footY, b = ancora.bbox, x, y;
+    if (vista === 'cima') {
+      // espelho: o desenho vai ser virado (cena do desafio), então a sombra sai para a esquerda e volta à direita na tela
+      var dxC = espelho ? -SOMBRA.dxCima : SOMBRA.dxCima;
+      for (y = 0; y < h; y++) for (x = 0; x < w; x++) if (idx[y * w + x]) out.push({ x: x + dxC, y: y + SOMBRA.dyCima, cor: S.projetada, n: -1 });
+    } else {
+      var cx = b.x + b.w / 2 + (espelho ? -SOMBRA.dxLateral : SOMBRA.dxLateral), rx = Math.max(6, Math.round(b.w * SOMBRA.rxFrac)), ry = SOMBRA.ryLateral, cy = foot + 0.5;
+      for (y = foot - 1; y <= foot + 2; y++) for (x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        var ex = (x - cx) / rx, ey = (y - cy) / ry;
+        if (ex * ex + ey * ey <= 1 && x >= 0 && x < w + 4) out.push({ x: x, y: y, cor: S.projetada, n: -1 });
+      }
+    }
+    // contato: logo abaixo de cada casco (pixel opaco na linha dos pés com o de baixo vazio), e 1 à direita
+    for (x = 0; x < w; x++) {
+      if (idx[foot * w + x] && !(foot + 1 < h && idx[(foot + 1) * w + x])) { out.push({ x: x, y: foot + 1, cor: S.contato, n: -2 }); out.push({ x: x + (espelho ? -1 : 1), y: foot + 1, cor: S.contato, n: -2 }); }
+    }
+    return out;
+  }
+  // o sprite da sombra de um quadro do molde, num chão e numa vista (cache próprio, fora dos moldes recoloridos).
+  // em (opcional, cenas pintadas de chão variado, como a arena do desafio): { fn(x, y) -> hex do chão ou null, chave, x, y }
+  // — cada pixel da sombra é o chão de verdade sob ele, 1 ou 2 degraus abaixo (Luz.degrau); (x, y) é o pixel de arte, no
+  // espaço do ctx, do canto do sprite da sombra; chave identifica a cena e a posição (entra no cache)
+  function sombraMolde(nome, estado, quadro, chao, vista, espelho, em) {
+    var key = 'sombra|' + nome + '|' + estado + '|' + quadro + '|' + chao + '|' + vista + (espelho ? '|e' : '') +
+      (em ? '|' + em.chave + '|' + em.x + '|' + em.y : ''), c = sombraCache.get(key);
+    if (c) return c;
+    var M = moldes[nome], idx = indicesMolde(M, estado, quadro), anc = ancoraMolde(M, estado, quadro), Lz = luzApi();
+    var ps = pixelsSombra(idx, M.w, M.h, anc, chao, vista, espelho);
+    // margem de 4 px em volta (o deslocamento da sombra sai do quadro do molde)
+    c = makeCanvas(M.w + 8, M.h + 8);
+    var g = c.getContext('2d');
+    ps.forEach(function (p) {
+      var cor = p.cor, sob = em && Lz ? em.fn(em.x + p.x + 4, em.y + p.y + 4) : null;
+      if (sob) cor = Lz.degrau(naMestra(sob), p.n);
+      g.fillStyle = cor; g.fillRect(p.x + 4, p.y + 4, 1, 1);
+    });
+    c.sombra = true;   // marca para os testes separarem a sombra do cavalo
+    sombraCache.set(key, c);
+    return c;
+  }
+
+  // a cor-base do piso da pista (a mesma do tile do surfaceTile, como o drawTrack o escolhe), para a sombra dos cavalos na
+  // corrida: com a arte da região pronta, o piso no clima mostrado pela LUT; sem ela, o tile de sempre (molhado na chuva)
+  function corDoPiso(surface, clima, regiao) {
+    var a = (SURF[surface] || SURF.grama).a, RG = regiaoPronta(regiao);
+    if (RG) return corClima(lutClima(clima || 'sol'), naMestra(a)).toLowerCase();
+    return corClima(null, naMestra(clima === 'chuva' ? shade(a, 0.22) : a)).toLowerCase();
+  }
+  // a cor mais comum na faixa de pixels [x0, x1] × [y, y1] de uma imagem (o chão sob os pés numa cena pintada; a faixa
+  // pula as linhas de borda, como a beira bege do piso do estábulo); lida uma vez por imagem e posição (fora do laço)
+  var chaoCache = {};
+  function corDoChaoEm(img, x0, x1, y, y1) {
+    if (y1 == null || y1 < y) y1 = y;
+    if (!img || img.complete === false || img.naturalWidth === 0) return null;   // ainda carregando: nada no cache
+    var key = (img.src || img.width + 'x' + img.height) + '|' + x0 + '|' + x1 + '|' + y + '|' + y1;
+    if (chaoCache[key]) return chaoCache[key];
+    var w = Math.max(1, x1 - x0 + 1), hh = y1 - y + 1, c = makeCanvas(w, hh), g = c.getContext('2d');
+    g.drawImage(img, -x0, -y);
+    var d = g.getImageData(0, 0, w, hh).data, cont = {}, melhor = '#cd683d', mc = 0;
+    for (var i = 0; i < w * hh; i++) {
+      if (d[i * 4 + 3] < 128) continue;
+      var h = rgbToHex(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]).toLowerCase();
+      cont[h] = (cont[h] || 0) + 1; if (cont[h] > mc) { mc = cont[h]; melhor = h; }
+    }
+    return (chaoCache[key] = naMestra(melhor).toLowerCase());
+  }
+  // o chão de uma imagem pintada, pixel a pixel: fn(x, y) -> '#rrggbb' (null fora dela, no transparente ou ainda carregando);
+  // os pixels são lidos uma vez por imagem (para a sombra por pixel, opção chaoEm do drawHorse)
+  var imgPxCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function chaoDaImagem(img) {
+    if (!img || img.complete === false || img.naturalWidth === 0 || !imgPxCache) return null;
+    var P = imgPxCache.get(img);
+    if (!P) {
+      var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, c = makeCanvas(w, h), g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      P = { w: w, h: h, d: g.getImageData(0, 0, w, h).data };
+      imgPxCache.set(img, P);
+    }
+    return function (x, y) {
+      x = Math.floor(x); y = Math.floor(y);
+      if (x < 0 || y < 0 || x >= P.w || y >= P.h) return null;
+      var i = (y * P.w + x) * 4;
+      return P.d[i + 3] < 128 ? null : rgbToHex(P.d[i], P.d[i + 1], P.d[i + 2]).toLowerCase();
+    };
+  }
+  // sombra dos pés de um personagem que não é molde (treinador, objeto): elipse de 2 tons da rampa do chão, 2 px de arte
+  // para a direita, com os pés em (cx, y) e a largura larg (pixels de arte; k = escala)
+  function drawSombraPes(ctx, cx, y, larg, chao, k) {
+    var Lz = luzApi(), S = Lz ? Lz.sombraDoChao(chao) : { projetada: '#9e4539', contato: '#6e2727' }, rx = larg / 2;
+    for (var dy = -1; dy <= 1; dy++) for (var dx = -Math.ceil(rx); dx <= Math.ceil(rx); dx++) {
+      var e = (dx / rx) * (dx / rx) + (dy / 1.4) * (dy / 1.4);
+      if (e > 1) continue;
+      ctx.fillStyle = e < 0.3 ? S.contato : S.projetada;
+      ctx.fillRect((Math.round(cx) + 2 + dx) * k, (y + dy) * k, k, k);
+    }
+  }
+
   function drawHorseMolde(ctx, x, y, o, estado) {
     var k = Math.max(1, Math.round(o.scale || 1));
     var nome = chaveMolde(o.element, o.porte), M = moldes[nome];
@@ -1801,17 +1909,10 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     x = Math.round(x); y = Math.round(y);
     var L = layoutMolde(nome, estado, x, y, k, o.quadro);
     crisp(ctx);
-    if (o.shadow !== false) {   // a mesma sombra do sprite por código, sob os cascos e centrada no corpo do molde
-      ctx.fillStyle = 'rgba(20,10,20,0.28)';
-      if (L.grade) {   // na grade: a sombra em pixels do molde (opaca seria mancha; o véu fica até a etapa 2 trocar a pista)
-        var u = L.S, syG = L.pe - 3 * u;
-        ctx.fillRect(L.cx - 16 * u, syG, 32 * u, u);
-        ctx.fillRect(L.cx - 13 * u, syG + u, 26 * u, u);
-      } else {
-        var sy = L.pe - 2 * k;
-        ctx.fillRect(L.cx - 11 * k, sy, 22 * k, k);
-        ctx.fillRect(L.cx - 9 * k, sy + k, 18 * k, k);
-      }
+    if (o.shadow !== false) {   // sombra opaca na rampa do chão (o.chao, o.vista; padrão: terra da pista, lateral)
+      var em = typeof o.chaoEm === 'function' ? { fn: o.chaoEm, chave: String(o.chaoChave || ''), x: Math.round(L.ox / L.S) - 4, y: Math.round(L.oy / L.S) - 4 } : null;
+      var som = sombraMolde(nome, estado, quadro, (o.chao || '#cd683d').toLowerCase(), o.vista === 'cima' ? 'cima' : 'lateral', !!o.espelhado, em);
+      ctx.drawImage(som, L.ox - 4 * L.S, L.oy - 4 * L.S, som.width * L.S, som.height * L.S);
     }
     ctx.drawImage(moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
   }
@@ -2098,7 +2199,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   }
   function quadroGalopeTeste(element, frame, porte) { return moldsOk ? quadroGalope(moldes[chaveMolde(element, porte)], frame) : null; }
 
-  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
+  function limparCacheMoldes() { moldCache.clear(); sombraCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
@@ -3397,9 +3498,11 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // carrega os dois antes do sprites.js). Sem eles (o wiki embute só o sprites.js): sem marcas, jóquei e raridade.
   function marcasApi() { return MARCAS_NODE || (typeof self !== 'undefined' && self.Marcas) || null; }
   function dadosApi() { return DADOS_NODE || (typeof self !== 'undefined' && self.GameData) || null; }
+  function luzApi() { return LUZ_NODE || (typeof self !== 'undefined' && self.Luz) || null; }
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
+    pixelsSombra: pixelsSombra, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,

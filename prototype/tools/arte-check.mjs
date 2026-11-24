@@ -29,5 +29,39 @@ for (const [r, reg] of Object.entries(manifesto)) {
     else console.log(`  ok  ${r}/${camada} ${img.width}×${img.height}${e.emenda ? `, emenda ${c.emenda.toFixed(2)}` : ''}`);
   }
 }
-console.log(`\n${n} camadas de arte conferidas, ${falhas} falhas`);
+console.log(`\n${n} camadas de arte conferidas`);
+
+// Catraca do alfa parcial (guia de integração docs/arte/integracao.md, Regra 2a): cada fonte de alfa parcial no código de
+// desenho — rgba/hsla com alfa entre 0 e 1 (literal ou montado), globalAlpha diferente de 0 e 1 (restaurar o anterior não
+// conta), #rrggbbaa, ctx.filter, gradiente, suavização ligada — conta. O teto por arquivo só pode DIMINUIR: ao migrar
+// uma fonte para cor opaca, baixe o número aqui (o teste falha até baixar, para a folga não ser reaproveitada). A única
+// exceção permanente é o relâmpago (guia §3: o clarão da tela, fx.js).
+// Ponto de partida (2026-11-24, depois de sair a sombra translúcida dos cavalos): o guia contou 23, 24 e 5 com outro
+// critério (lá as restaurações do globalAlpha contavam; aqui, os tokens de cor da interface em game.js contam).
+const CATRACA_ALFA = { 'fx.js': 20, 'sprites.js': 12, 'game.js': 6 };
+const FONTES_ALFA = [
+  /\b(rgba|hsla)\(\s*[^)]*?,\s*0?\.\d+\s*\)/g,
+  /['"](rgba|hsla)\(['"]\s*\+/g,
+  /globalAlpha\s*[*+-]?=(?!=)\s*(?!\s|(0|1|prev|a0)\s*[;,)])/g,
+  /['"]#[0-9a-fA-F]{8}['"]/g,
+  /\.filter\s*=/g,
+  /create(Linear|Radial|Conic)Gradient/g,
+  /imageSmoothingEnabled\s*=\s*true/g
+];
+export function contaAlfaParcial(texto) {
+  let k = 0;
+  for (const l of texto.split('\n')) {
+    if (/^\s*(\/\/|\*)/.test(l)) continue;
+    for (const re of FONTES_ALFA) { re.lastIndex = 0; k += (l.match(re) || []).length; }
+  }
+  return k;
+}
+const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
+for (const [f, teto] of Object.entries(CATRACA_ALFA)) {
+  const k = contaAlfaParcial(fs.readFileSync(path.join(SRC, f), 'utf8'));
+  if (k > teto) { falhas++; console.log(`  FALHA alfa parcial em ${f}: ${k} fontes (teto ${teto}); use cor opaca da rampa (Luz.degrau)`); }
+  else if (k < teto) { falhas++; console.log(`  FALHA catraca do alfa: ${f} caiu para ${k} fontes; baixe o teto de ${teto} para ${k} em arte-check.mjs`); }
+  else console.log(`  ok  alfa parcial em ${f}: ${k} fontes (catraca)`);
+}
+console.log(`${falhas} falhas`);
 process.exit(falhas ? 1 : 0);

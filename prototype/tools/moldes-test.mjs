@@ -2944,5 +2944,45 @@ test('as arenas dos três ginásios: 256×160, opacas', () => {
   }
 });
 
+// ---------------------------------------------------------------- sombra opaca na cor do chão (guia de integração, Regra 2)
+console.log('\n## Sombra do cavalo: opaca, na rampa do chão, 2 px para a direita');
+{
+  const req = createRequire(import.meta.url), SP = req('../src/sprites.js'), LUZ = req('../src/luz.js');
+  const lerMolde = (chave, est) => {
+    const d = decodePng(fs.readFileSync(path.join(DIR, `molde-${chave}-${est}.png`)));
+    const idx = new Uint8Array(64 * 64); for (let i = 0; i < 4096; i++) idx[i] = d.rgba[i * 4 + 3] < 128 ? 0 : Math.round(d.rgba[i * 4] / 25);
+    return { idx, anc: JSON.parse(fs.readFileSync(path.join(DIR, `molde-${chave}.json`), 'utf8')).ancoras[est] };
+  };
+  const CHAOS = ['#cd683d', '#547e64', '#239063', '#fbb954', '#ab947a', '#0b8a8f', '#e6904e'];
+  test('pixelsSombra existe no Sprites', () => assert.strictEqual(typeof SP.pixelsSombra, 'function'));
+  for (const chave of ['padrao-lisa', 'robusto-folhas', 'esguio-ondas']) for (const est of ['retrato', 'parado']) {
+    const { idx, anc } = lerMolde(chave, est);
+    test(`${chave} ${est}: vista lateral — só as 2 cores da rampa do chão, faixa sob os cascos, deslocada para a direita`, () => {
+      for (const chao of CHAOS) {
+        const ps = SP.pixelsSombra(idx, 64, 64, anc, chao, 'lateral'), S = LUZ.sombraDoChao(chao);
+        assert.ok(ps.length > 20, `${chao}: sombra pequena demais (${ps.length})`);
+        let sx = 0, contato = 0;
+        for (const p of ps) {
+          assert.ok(p.cor === S.projetada || p.cor === S.contato, `${chao}: cor ${p.cor} fora da rampa`);
+          assert.ok(p.y >= anc.footY - 1 && p.y <= anc.footY + 2, `${chao}: linha ${p.y} longe dos cascos (${anc.footY})`);
+          sx += p.x; if (p.cor === S.contato) contato++;
+        }
+        const cxSombra = sx / ps.length, cxCorpo = anc.bbox.x + anc.bbox.w / 2;
+        assert.ok(cxSombra >= cxCorpo + 1, `${chao}: centro da sombra ${cxSombra.toFixed(1)} não está à direita do corpo ${cxCorpo}`);
+        assert.ok(contato >= 4, `${chao}: sem faixa de contato sob os cascos`);
+      }
+    });
+    test(`${chave} ${est}: vista de cima — a silhueta inteira, deslocada para baixo e para a direita, em 1 tom`, () => {
+      const ps = SP.pixelsSombra(idx, 64, 64, anc, '#547e64', 'cima'), S = LUZ.sombraDoChao('#547e64');
+      let opacos = 0; for (let i = 0; i < 4096; i++) if (idx[i]) opacos++;
+      const proj = ps.filter(p => p.cor === S.projetada);
+      assert.ok(proj.length >= opacos * 0.95, `silhueta incompleta: ${proj.length} de ${opacos}`);
+      let dx = 0, dy = 0; for (const p of proj) { dx += p.x; dy += p.y; }
+      let ox = 0, oy = 0; for (let i = 0; i < 4096; i++) if (idx[i]) { ox += i & 63; oy += i >> 6; }
+      assert.ok(dx / proj.length > ox / opacos && dy / proj.length > oy / opacos, 'não desceu para a direita');
+    });
+  }
+}
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

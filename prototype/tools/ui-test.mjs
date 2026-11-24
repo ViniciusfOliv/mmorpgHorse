@@ -6030,6 +6030,33 @@ try {
       if (Math.abs(r.css[0] - r.canvas[0] / r.dpr) > 0.5 || Math.abs(r.css[1] - r.canvas[1] / r.dpr) > 0.5) problems.push(`[${label}] o CSS não mostra 1 pixel do canvas por pixel do aparelho: ${r.canvas} → ${r.css}`)
       if (r.cavalo[0] > 64 || r.cavalo[1] > 64) problems.push(`[${label}] cavalo maior que o molde 1:1: ${r.cavalo}`)
       if (r.render !== 'pixelated') problems.push(`[${label}] canvas sem image-rendering: pixelated (${r.render})`)
+      // sombra opaca na rampa do chão (etapa 0 da animação ambiente; guia de integração, Regra 2): todos os cavalos da pista
+      // pedem a sombra num só piso (Sprites.corDoPiso), em vista lateral, e sob os cascos do jogador a tela mostra esse
+      // piso (então ele é o chão de verdade) e as duas cores da sombra (1 e 2 degraus abaixo na rampa dele), opacas
+      const som = await pg.evaluate(async () => {
+        const SP = window.Sprites, orig = SP.drawHorse, chaos = []
+        SP.drawHorse = function (c, x, y, o) { if (o && !o.quadro) chaos.push(String(o.chao) + '|' + (o.vista || 'lateral') + '|' + (o.shadow !== false)); return orig.apply(this, arguments) }
+        await new Promise((ok) => setTimeout(ok, 300))
+        SP.drawHorse = orig
+        const L = window.__galope.ui.lobby, s = window.__galope.race._state, st = window.RaceFx._stats
+        const piso = chaos.length ? chaos[chaos.length - 1].split('|')[0] : '?', S = window.Luz.sombraDoChao(piso)
+        const b = st.caixasCavalos.find((c) => c.racer === L.playerIdx), cv = document.getElementById('pista'), g = cv.getContext('2d'), k = s.sTela
+        const cores = {}
+        if (b) {
+          for (let y = b.y + b.h - 2; y <= b.y + b.h + 3; y++) for (let x = b.x; x < b.x + b.w + 4; x++) {
+            const d = g.getImageData(x * k + (k >> 1), y * k + (k >> 1), 1, 1).data
+            const h = '#' + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, '0')).join('')
+            cores[h] = (cores[h] || 0) + 1
+          }
+        }
+        return { piso, S, chaos: [...new Set(chaos)], caixa: b || null, cores }
+      })
+      notes[label + '-sombra'] = som
+      if (som.chaos.length !== 1 || som.chaos[0] !== som.piso + '|lateral|true') problems.push(`[${label}] sombra dos cavalos da pista em mais de um piso ou sem vista lateral: ${som.chaos.join(', ')}`)
+      if (!som.caixa) problems.push(`[${label}] sem a caixa do cavalo do jogador para conferir a sombra`)
+      else for (const [nome, cor] of [['chão', som.piso], ['sombra projetada', som.S.projetada], ['contato', som.S.contato]]) {
+        if (!som.cores[cor]) problems.push(`[${label}] sob os cascos do jogador falta a cor do ${nome} (${cor}); cores: ${JSON.stringify(som.cores)}`)
+      }
       await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
       await pg.waitForSelector('#t-resultado')
     } catch (e) {

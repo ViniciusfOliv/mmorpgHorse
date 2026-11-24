@@ -1454,7 +1454,7 @@
             vis.reduzido = reduced();
             SP.drawHorse(s.ctx, Math.round((RW - 40) / 2) * s.k, (RH - 37) * s.k, comVisuais({
               palette: horse.palette, element: horse.element, idle: true, t: reduced() ? 0.5 : t + phase,
-              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS,
+              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS, chao: C.palha2,   // sombra na palha da baia
               quadro: { topo: 0, base: (RH - 3) * s.k, grade: s.k, centro: Math.round(RW / 2) * s.k }
             }, vis));
           }
@@ -3506,10 +3506,10 @@
     return { W: W, ox: Math.floor((TELA_W - W) / 2) };
   }
   // o cavalo parado 1:1 com o corpo centrado em cx e os cascos em base (pixels de arte do canvas)
-  function cavaloParado(ctx, k, h, vis, cx, base, t) {
+  function cavaloParado(ctx, k, h, vis, cx, base, t, chao) {
     vis.reduzido = reduced();
     SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
-      jockey: false, silks: PLAYER_SILKS, quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
+      jockey: false, silks: PLAYER_SILKS, chao: chao, quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
   }
   function drawCenaAba(cv) {
     var aba = cv.getAttribute('data-cena-aba'), L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, CENA_ABA_H), k = s.k, ctx = s.ctx;
@@ -3525,7 +3525,8 @@
         if (!img) return;
         ctx.drawImage(img, -L.ox * k, 0, TELA_W * k, CENA_ABA_H * k);
         // o cavalo ativo no meio da baia, com os cascos acima da placa do título (que cobre as últimas ~40 linhas)
-        if (h) cavaloParado(ctx, k, h, vis, TELA_W / 2 - L.ox, 112, reduced() ? 0.5 : t);
+        // a sombra na cor do chão da cena, lida da imagem sob os cascos (uma vez; guia de integração, Regra 2)
+        if (h) cavaloParado(ctx, k, h, vis, TELA_W / 2 - L.ox, 112, reduced() ? 0.5 : t, SP.corDoChaoEm(img, TELA_W / 2 - 16, TELA_W / 2 + 16, 113, 118));
       }
     };
     item.draw(0);
@@ -3648,10 +3649,17 @@
     cv.setAttribute('data-arte', W + 'x' + CENA_H);
     var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, null), img = null, arena = null;
     // o cavalo 1:1 com o corpo centrado em cx e os cascos em base (pixels da cena); espelhado em volta de cx
+    // a cor do chão da arena sob os pés (lida da imagem; a arena é desenhada com o corte de CENA_CORTE em cima)
+    function chaoArena(cx, base, meia) { return arena ? SP.corDoChaoEm(arena, Math.round(cx - meia), Math.round(cx + meia), base + CENA_CORTE + 1, base + CENA_CORTE + 4) : null; }
     function cavalo(h, vis, cx, base, t, espelha) {
+      var chao = chaoArena(cx, base, 16), chaoPx = arena ? SP.chaoDaImagem(arena) : null;
       cx -= ox;
       vis.reduzido = reduced();
       var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k, jockey: false, silks: PLAYER_SILKS,
+        chao: chao, vista: 'cima', espelhado: !!espelha,   // a arena é vista de cima: sombra da silhueta na diagonal (Regra 2)
+        // o chão da arena varia (areia, lava, pedra): cada pixel da sombra é o pixel da arena sob ele, 1 degrau abaixo
+        chaoEm: chaoPx ? function (x, y) { return chaoPx((espelha ? 2 * cx - x - 1 : x) + ox, y + CENA_CORTE); } : null,
+        chaoChave: e.gymId + '|' + ox + '|' + cx + '|' + base,
         quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
       if (!espelha) { SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); return; }
       ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
@@ -3673,6 +3681,8 @@
         img = img || treinadorImg(ginTreinadorId(e.dono));
         if (img) {
           var tx = P.treinador.x - ox, ty = P.treinador.base - img.naturalHeight;
+          var chaoT = chaoArena(P.treinador.x + img.naturalWidth / 2, P.treinador.base, 12);
+          if (chaoT) SP.drawSombraPes(ctx, tx + img.naturalWidth / 2, P.treinador.base, Math.round(img.naturalWidth * 0.7), chaoT, k);
           ctx.drawImage(img, tx * k, ty * k, img.naturalWidth * k, img.naturalHeight * k);
           cv.setAttribute('data-treinador', [tx, ty, img.naturalWidth, img.naturalHeight].join(','));
         }
@@ -6715,6 +6725,7 @@
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
       var tr = self.tReal, red = reduced();
       var clima = climaMostrado(self.simT);
+      var chaoPista = SP.corDoPiso(L.cond.surface, clima, regiaoDaPista(L));   // a sombra dos cavalos nesse piso e clima (Regra 2)
       FX._stats.climaPista = clima;   // para o ui-test: o clima desenhado na pista neste quadro
       // em reduced nada congela: o cenário (nuvens, torcida, bandeiras, grama) anda a 40 % e a natureza
       // (fx.js) recebe o tempo real com a marca reduced (chuva a 40 %, metade dos pingos, sem relâmpago)
@@ -6750,7 +6761,8 @@
         var cavalo = comVisuais({
           // fase contínua do galope: o código usa o quadro inteiro; o molde mapeia o ciclo (mesma duração)
           palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
-          scale: S, silks: r.silks, t: tr, idle: standing
+          scale: S, silks: r.silks, t: tr, idle: standing,
+          chao: chaoPista   // sombra opaca na cor do piso no clima (guia de integração, Regra 2)
         }, visuais[j]);
         cavalo.reduzido = red;
         // caixa do que vai ser desenhado (molde ou código): o corte nas bordas e o monitor de câmera usam ela,
@@ -7199,7 +7211,7 @@
       var r = L.racers[ri], kS = k;
       var opts = comVisuais({
         palette: r.horse.palette, element: r.horse.element, idle: true, t: 0,
-        scale: kS, silks: r.silks, shadow: false, quadro: { topo: -1e6, base: 0, grade: k, centro: 0 }
+        scale: kS, silks: r.silks, quadro: { topo: -1e6, base: 0, grade: k, centro: 0 }
       }, opcoesVisuais(r.horse, joqueiDoCorredor(L, ri)));   // parte 2a
       var b = SP.horseBox(0, -HORSE_PE * kS, opts);
       var alto = Math.max(-b.y, HORSE_PE * kS);   // o desenho por código ocupa HORSE_PE·kS acima dos cascos
@@ -7222,6 +7234,7 @@
       sl.hx = sl.left - sl.bx;
       sl.hy = sl.top * k - HORSE_PE * sl.kS;
       sl.opts.quadro = { topo: -1e6, base: sl.top * k, grade: k, centro: sl.left - sl.bx };   // em pé no degrau, 1:1
+      sl.opts.chao = sl.col;   // a sombra na cor do degrau do pódio
       sl.caixa = SP.horseBox(sl.hx, sl.hy, sl.opts);
       podio.push({ lugar: sl.place, x: sl.caixa.x / dpr(), y: sl.caixa.y / dpr(), w: sl.caixa.w / dpr(), h: sl.caixa.h / dpr(), escala: sl.kS / dpr() });
     });

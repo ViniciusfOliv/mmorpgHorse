@@ -1897,7 +1897,14 @@ function com() {
   for (var i = 0; i < arguments.length; i++) for (var k in arguments[i]) if (Object.prototype.hasOwnProperty.call(arguments[i], k)) o[k] = arguments[i][k];
   return o;
 }
-function desenhaCav(o, x, y) { var c = ctxFalso(); SPR.drawHorse(c, x == null ? 40 : x, y == null ? 30 : y, o); return c; }
+// a sombra opaca do molde (etapa 0 da animação ambiente) é um drawImage antes do cavalo: vai para c.sombras, e c.imgs
+// fica só com o cavalo (e os efeitos), como os testes esperam
+function desenhaCav(o, x, y) {
+  var c = ctxFalso(); SPR.drawHorse(c, x == null ? 40 : x, y == null ? 30 : y, o);
+  c.sombras = c.imgs.filter(function (im) { return im.args[0] && im.args[0].sombra; });
+  c.imgs = c.imgs.filter(function (im) { return !(im.args[0] && im.args[0].sombra); });
+  return c;
+}
 // cruzes de 1 px de arte (u px): uma barra deitada (3u × u) e uma em pé (u × 3u) com o mesmo centro
 function cruzes(c, cor, u) {
   var deitadas = c.rects.filter(function (r) { return r.cor === cor && r.w === 3 * u && r.h === u; });
@@ -2167,8 +2174,37 @@ test('com moldes (sintéticos): sem as opções novas, o mesmo desenho de hoje (
     casos.push(com(CAVM, { idle: true, element: 'grama', palette: PAL.grama, quadro: { topo: 0, base: 108 } }));
     var sig = casos.map(function (o) { return assinatura(desenhaCav(o, 50, 40)); }).join('\n');
     // assinatura do desenho sem as opções novas, com este mesmo molde sintético: era b16463ea (sprites.js em 91c48ab, antes da
-    // parte 2a); desde a etapa 1b da direção de arte (2026-11-21) as cores saem da paleta-mestra, o resto igual
-    assert.strictEqual(fnvTexto(sig), '30adc27e');
+    // parte 2a); desde a etapa 1b da direção de arte (2026-11-21) as cores saem da paleta-mestra (30adc27e); desde a etapa 0
+    // da animação ambiente (2026-11-24) a sombra translúcida saiu (a opaca é outra imagem, em c.sombras), o resto igual
+    assert.strictEqual(fnvTexto(sig), '801eda5');
+  });
+});
+
+// etapa 0 da animação ambiente (guia de integração, Regra 2): a sombra do molde é opaca, na rampa do chão, e vem antes
+test('com moldes: sombra opaca na rampa do chão, antes do cavalo, por chão e vista; shadow:false tira', function () {
+  comMoldes(function () {
+    var c = ctxFalso(); SPR.drawHorse(c, 40, 30, CAVM);
+    assert.ok(c.imgs.length >= 2 && c.imgs[0].args[0].sombra, 'a sombra é a 1ª imagem, antes do cavalo');
+    assert.ok(!c.rects.some(function (r) { return /rgba/.test(r.cor) || r.a < 1; }), 'nada translúcido');
+    var a = desenhaCav(CAVM), b = desenhaCav(com(CAVM, { chao: '#547e64' })), v = desenhaCav(com(CAVM, { vista: 'cima' }));
+    assert.strictEqual(a.sombras.length, 1);
+    assert.notStrictEqual(a.sombras[0].args[0], b.sombras[0].args[0], 'outro chão, outra sombra');
+    assert.notStrictEqual(a.sombras[0].args[0], v.sombras[0].args[0], 'vista de cima, outra sombra');
+    assert.strictEqual(desenhaCav(CAVM).sombras[0].args[0], a.sombras[0].args[0], 'em cache');
+    assert.strictEqual(desenhaCav(com(CAVM, { shadow: false })).sombras.length, 0);
+    var n = SPR._cacheMoldes(); desenhaCav(com(CAVM, { chao: '#0b8a8f' }));
+    assert.strictEqual(SPR._cacheMoldes(), n, 'a sombra não ocupa o cache dos moldes recoloridos');
+    // cores: a rampa do chão (terra: projetada #9e4539, contato #6e2727), opacas
+    var cores = function (cav) { var k = {}; cav.sombras[0].args[0].getContext().rects.forEach(function (r) { k[r.cor] = 1; }); return Object.keys(k).sort().join(','); };
+    assert.strictEqual(cores(desenhaCav(com(CAVM, { chao: '#cd683d' }))), '#6e2727,#9e4539');
+    // chão pintado e variado (chaoEm): cada pixel da sombra é o chão sob ele, 1 degrau abaixo (contato, 2); a chave entra no cache
+    var areia = function (x) { return x % 2 ? '#e6904e' : '#239063'; };
+    var p1 = desenhaCav(com(CAVM, { vista: 'cima', chaoEm: areia, chaoChave: 'arena-a' })), sp = p1.sombras[0].args[0].getContext().rects;
+    assert.ok(sp.length > 50, 'silhueta inteira');
+    assert.ok(sp.every(function (r) { return ['#cd683d', '#165a4c', '#9e4539', '#313638'].indexOf(r.cor) >= 0; }), 'só degraus do chão sob cada pixel: ' + cores(p1));
+    assert.ok(sp.some(function (r) { return r.cor === '#cd683d'; }) && sp.some(function (r) { return r.cor === '#165a4c'; }), 'as duas rampas');
+    assert.notStrictEqual(desenhaCav(com(CAVM, { vista: 'cima', chaoEm: areia, chaoChave: 'arena-b' })).sombras[0].args[0], p1.sombras[0].args[0], 'outra cena, outra sombra');
+    assert.strictEqual(desenhaCav(com(CAVM, { vista: 'cima', chaoEm: areia, chaoChave: 'arena-a' })).sombras[0].args[0], p1.sombras[0].args[0], 'mesma cena e posição: cache');
   });
 });
 
