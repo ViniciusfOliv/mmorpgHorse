@@ -61,8 +61,13 @@ A volta é o inverso (~0,9 s). Com movimento reduzido (`prefers-reduced-motion` 
 sem zoom nem íris.
 
 ### 3.3 Trilha do ginásio
-- **Arte:** o mapa da trilha de hoje (`telas/finais/mapa-<ginásio>.png`, 256 × 384), com o ciclo de cor da água e da
-  lava. O ambiente das trilhas (bichos, vento) é da frente 1 e entra por cima, sem conflito.
+- **Arte:** o mapa da trilha de hoje (`telas/finais/mapa-<ginásio>.png`, 256 × 384), sem troca de imagem nem de
+  resolução. **O fundo animado é da frente 1** (combinado em 2026-11-24): `Ambiente.cena('mapa:<elemento>')` desenha a
+  imagem e o que mexe nela (água, lava, copas, bichos) num buffer de 256 × 384; esta frente chama `atualiza(t, dt)` e
+  `desenha(ctx, { x0, x1, y0, y1 })` com o trecho visível (a 360 px as laterais se cortam; a trilha cabe inteira na
+  altura, sem rolagem) a cada quadro do seu laço, e `parada(ctx)` com movimento reduzido; depois desenha por cima a pista,
+  as paradas, os treinadores, o cavalo e a poeira. O ciclo de cor da água e da lava que a amostra faz na trilha sai do
+  código desta frente.
 - **Pista de terra:** curva Catmull-Rom pelas paradas, desenhada tile a tile (7 px) com borda recortada; o trecho já
   vencido é chão pisado; no Remanso, ponte de tábuas sobre a água. Ao vencer uma etapa, o trecho até a parada seguinte
   se pinta em ~1 s (com movimento reduzido, aparece pronto).
