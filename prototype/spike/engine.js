@@ -314,7 +314,7 @@
     if (C.cenario) {
       SP.drawTrack(ctx, { width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: cam * ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: PISO, finishM: D, hills: MORROS, curves: CURVAS, distanceMarkersEvery: 200, t: T, weather: clima, pixel: S,
-        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo });
+        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo, relevo: CFG.relevo || undefined });
       SP.drawSombraCerca(ctx, W, laneTop, cam * ppm, S, chao);
     } else {
       ctx.fillStyle = '#6fa8d8'; ctx.fillRect(0, 0, W, laneTop);
@@ -619,7 +619,8 @@
   // as subidas (a pista anda 50 m/s: 17 s = 850 m, um pouco antes da 1ª subida, que vai até 1.250 m)
   var SUBIDAS = [
     fase6('S1. subida com o relevo (como o jogo)', { camadas: TUDO, t0: 17, s: 20 }),
-    fase6('S2. subida sem o relevo (pista plana)', { camadas: TUDO, t0: 17, s: 20, semRelevo: true })
+    fase6('S2. subida sem o relevo (pista plana)', { camadas: TUDO, t0: 17, s: 20, semRelevo: true }),
+    fase6('S3. subida com o relevo numa tela fora (a correção)', { camadas: TUDO, t0: 17, s: 20, relevo: 'fora' })
   ];
   var RODADA = null;
   function aplicar(c) {
@@ -628,7 +629,7 @@
     if (c.clima) CFG.clima = c.clima;
     if (c.limite) CFG.limite = c.limite;
     if (c.regiao) CFG.regiao = c.regiao;
-    CFG.semRelevo = !!c.semRelevo;
+    CFG.semRelevo = !!c.semRelevo; CFG.relevo = c.relevo || null;
     if (window.Ambiente) window.Ambiente.config({ regiaoSem: c.regiaoSem || {} });
     if (c.camadas) CAMADAS.forEach(function (k) { if (k in c.camadas) CFG.camadas[k] = !!c.camadas[k]; });
     montar(); reinicia(); marcaBotoes();
@@ -644,7 +645,7 @@
           i++;
           if (i >= fases.length) { GRAV = null; RODADA = null; return ok(res); }
           var f = fases[i];
-          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao, regiaoSem: f.regiaoSem, semRelevo: f.semRelevo });
+          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao, regiaoSem: f.regiaoSem, semRelevo: f.semRelevo, relevo: f.relevo });
           if (f.t0) R.T = f.t0;   // começa noutro ponto da pista (as subidas ficam em 1.000–1.250 m e 2.350–2.600 m)
           GRAV = novaGravacao(f.nome); GRAV.res = L.W + '×' + L.H + ' (S' + L.S + ')';
           zeraAmbiente();
