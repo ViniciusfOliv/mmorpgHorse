@@ -165,6 +165,10 @@ comparação está na amostra). Todo asset novo vai para `docs/memoria/assets.md
   de lado espelhado).
   As âncoras das duas vistas entram com eles, para o `IdleMolde` da frente 1 animar a cena (§4); a parte de idle é
   combinada com aquele chat, que é o dono da peça.
+  A frente 1 já implementou o modo de âncoras explícitas no `IdleMolde` (ramo `claude/animacao-ambiente`, commit 7bf5977:
+  gestos por estado, sem marcas em `frente`/`costas`). Ao integrar, falta só incluir `frente` e `costas` na condição de
+  `vivo` do `drawHorseMolde` (hoje só `parado` e `retrato`) e desenhar a cena com `opts.anima`; quem integrar por último
+  faz essa linha.
 - **Build:** embute a ilha, os ginásios do mapa e os papéis de frente e costas; o `jogo.html` continua sem modo DEV.
 - **Testes:** `moldes-test` (os 24 PNGs novos: tamanho, tons de papel, contorno); `ui-test` com blocos novos (mapa com os
   três ginásios tocáveis e a lista equivalente, entrar e voltar, trilha depois de vencer, cena com o duelo gravado,
