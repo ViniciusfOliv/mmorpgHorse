@@ -44,7 +44,7 @@ const DURACOES = {
   escala: 5, 'fluxo-dev': 4, selo: 4, retrato: 3, gravacao2: 3, 'fluxo-capturas-itens': 3, 'selo-teto': 3, reserva: 3,
   areasegura: 3, texto: 3, 'vaga-tipo': 3, gravacao: 4, 'nivel-pontos': 3, 'fluxo-saves': 3, adulterado: 2,
   corrompido: 2, treino: 2, 'fluxo-equipamento': 2, aviso: 2, 'fluxo-sem-icones': 2, 'build-nivel1': 2, inicial: 2,
-  'fluxo-build-teste': 2, 'valor-peca': 1, 'fluxo-loja': 1, ginasio: 104, 'ginasio-corrida': 86, 'fluxo-capturas-ginasio': 14,
+  'fluxo-build-teste': 2, 'valor-peca': 1, 'fluxo-loja': 1, ginasio: 104, 'ginasio-corrida': 86, 'fluxo-capturas-ginasio': 14, 'expedicao-mapa': 8,
   afk: 40, bestiario: 5, equipamento: 30, forja: 6, reforja: 8
 }
 

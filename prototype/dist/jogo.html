@@ -1690,6 +1690,8 @@ img.icone.icone--n24 { width: calc(var(--px) * 24); height: calc(var(--px) * 24)
 .cena-aba { display: block; margin: 0 auto calc(var(--px) * -40); image-rendering: pixelated; }
 .cena-aba + .titulo--tela { position: relative; margin: 0; }
 .trilha-mapa-palco { display: flex; justify-content: center; margin: 0 0 12px; }
+.mapa-mundo-palco { display: flex; justify-content: center; margin: 0 0 12px; }
+.mapa-mundo { display: block; image-rendering: pixelated; cursor: pointer; box-shadow: 0 0 0 2px var(--sombra); }
 .trilha-mapa { display: block; image-rendering: pixelated; cursor: pointer; box-shadow: 0 0 0 2px var(--sombra); }
 
 /* ---------- Créditos (etapa 8 da direção de arte), uma vista do Perfil ---------- */
@@ -9865,8 +9867,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     for (p = 0; p < N; p++) {
       if (cobre[p]) continue;
       var c0 = terr.d[p];
-      if ((i = AGUA_NAVY.indexOf(c0)) >= 0) agua.push(p, 0, i);
-      else if ((i = AGUA_TEAL.indexOf(c0)) >= 0) agua.push(p, 1, i);
+      // água: só os pixels que podem mudar (os candidatos a brilho, que são fixos por posição, e os do tom mais claro, que
+      // apagam); o resto fica com a cor do chão
+      var px0 = p % W, py0 = (p / W) | 0;
+      if ((i = AGUA_NAVY.indexOf(c0)) >= 0) { if (hash(px0 >> 1, py0) < 0.14 || i === AGUA_NAVY.length - 1) agua.push(p, 0, i); }
+      else if ((i = AGUA_TEAL.indexOf(c0)) >= 0) { if (hash(px0 >> 1, py0) < 0.35 || i === AGUA_TEAL.length - 1) agua.push(p, 1, i); }
       else if (((p / W) | 0) < ILHA.lavaAte && (i = LAVA_R.indexOf(c0)) >= 0) lava.push(p, i);
     }
     var ehAgua = function (q) { var c2 = terr.d[q]; return AGUA_NAVY.indexOf(c2) >= 0 || AGUA_TEAL.indexOf(c2) >= 0 || LAVA_R.indexOf(c2) >= 0 || c2 === K.ffffff || c2 === K.c7dcd0; };
@@ -9880,10 +9885,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     escuro.poe(); base.poe();
     var vivo = new Buf(W, H); vivo.d.set(base.d); vivo.poe();
 
-    // ---- ciclo de cor (12 q/s): água com brilhos em ondas cruzadas, lava escorrendo, espuma piscando
-    var cicloT = -1;
+    // ---- ciclo de cor (8 passos por segundo, no ritmo do laço do jogo): água com brilhos em ondas cruzadas, lava
+    // escorrendo, espuma piscando
+    var cicloT = -1, CICLO_FPS = 8;
     function ciclo(t) {
-      var q = Math.floor(t * 12); if (q === cicloT) return; cicloT = q; t = q / 12;
+      var q = Math.floor(t * CICLO_FPS); if (q === cicloT) return; cicloT = q; t = q / CICLO_FPS;
       var d = vivo.d, x, y, j;
       for (i = 0; i < agua.length; i += 3) {
         p = agua[i]; x = p % W; y = (p / W) | 0;
@@ -9928,33 +9934,42 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var f1 = fbm(nx / 34, ny / 26, 91, 4), f2 = fbm((nx - W) / 34, ny / 26, 91, 4);
       nevCampo[ny * W + nx] = suave(0.34, 0.66, (f1 * (W - nx) + f2 * nx) / W);
     }
-    var nevoa = new Buf(W, H), nevT = -1, nevChave = '', nevLista = [], nevV = new Float32Array(N), nevMetade = 3, NEV_FPS = 4, NEV_PARTES = 3;
+    var nevoa = new Buf(W, H), nevT = -1, nevChave = '', nevLista = [], nevV = new Float32Array(N), nevMetade = 2, NEV_FPS = 3, NEV_PARTES = 2, nevCaixa = null;
     var NV = [K['9babb2'], K.c7dcd0, K.ffffff];
     function atualizaNevoa(t) {
       var dens = nevoaDe(est), chave = dens.fogo + ',' + dens.agua + ',' + dens.grama, d = nevoa.d;
       if (chave !== nevChave) {
         nevChave = chave; nevT = -1; nevLista = [];
         var dr = { 1: dens.fogo, 2: dens.agua, 3: dens.grama };
-        for (p = 0; p < N; p++) {
+        for (p = 0; p < N; p++) d[p] = 0;
+        // por bloco de 2 × 2 (a borda da névoa já anda em massas desse tamanho): o canto de cima à esquerda decide o bloco
+        for (var by = 0; by < H; by += 2) for (var bx = 0; bx < W; bx += 2) {
+          p = by * W + bx;
           var v = 0; for (var r = 1; r <= 3; r++) if (dr[r] > 0) v += dr[r] * pesos[r][p];
-          nevV[p] = v * 1.25; d[p] = 0;
+          nevV[p] = v * 1.25;
           if (v * 1.25 * 1.35 > 0.6) nevLista.push(p);
         }
+        // a caixa onde pode haver névoa: só ela volta para o canvas a cada passo
+        var ys = nevLista.map(function (q) { return (q / W) | 0; });
+        nevCaixa = nevLista.length ? [Math.min.apply(null, ys), Math.max.apply(null, ys) + 2] : null;
         nevMetade = NEV_PARTES; nevoa.poe();
       }
       var q = Math.floor(t * NEV_FPS);
       if (q !== nevT) { nevT = q; nevMetade = 0; }
       if (nevMetade >= NEV_PARTES) return;
-      t = nevT / NEV_FPS;   // um terço dos pixels por quadro, em três quadros seguidos (4 passos por segundo)
+      t = nevT / NEV_FPS;   // metade dos pixels por quadro, em dois quadros seguidos (3 passos por segundo)
       var ox = Math.floor(t * 2.5), oy = Math.floor(t * 0.6), L = nevLista;
       for (i = nevMetade; i < L.length; i += NEV_PARTES) {
         p = L[i]; var x = p % W, y = (p / W) | 0;
         var c = nevCampo[((y + oy) % H) * W + mod(x - ox, W)], f = nevV[p] * (0.3 + c * 1.05);
         var l1 = BAY[(((y >> 1) & 3) << 2) | ((x >> 1) & 3)];
-        d[p] = f > 1.02 ? NV[c > 0.85 ? 2 : c > 0.6 ? 1 : 0] : f > 0.86 ? (l1 < (f - 0.86) * 6 ? NV[c > 0.7 ? 1 : 0] : lavado[p]) : (f > 0.6 && l1 < (f - 0.6) * 3.8) ? lavado[p] : 0;
+        // 0 = sem névoa, 1 = terreno lavado, ou a cor da névoa
+        var nv = f > 1.02 ? NV[c > 0.85 ? 2 : c > 0.6 ? 1 : 0] : f > 0.86 ? (l1 < (f - 0.86) * 6 ? NV[c > 0.7 ? 1 : 0] : 1) : (f > 0.6 && l1 < (f - 0.6) * 3.8) ? 1 : 0;
+        if (nv === 1) { d[p] = lavado[p]; d[p + 1] = lavado[p + 1]; d[p + W] = lavado[p + W]; d[p + W + 1] = lavado[p + W + 1]; }
+        else { d[p] = d[p + 1] = d[p + W] = d[p + W + 1] = nv; }
       }
       nevMetade++;
-      if (nevMetade === NEV_PARTES) nevoa.poe();
+      if (nevMetade === NEV_PARTES && nevCaixa) nevoa.g.putImageData(nevoa.img, 0, 0, 0, nevCaixa[0], W, nevCaixa[1] - nevCaixa[0]);
     }
 
     // ---- nuvens altas com sombra (o chão escurecido na forma da nuvem, refeito só quando a nuvem anda um pixel)
@@ -12076,7 +12091,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja, MP = window.Mapa;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
   if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !AF || !telaEl) {
@@ -13492,6 +13507,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     for (var w = 0; w < cenas.length; w++) drawGinCena(cenas[w]);
     var abas = root.querySelectorAll('canvas[data-cena-aba]');
     for (var wa = 0; wa < abas.length; wa++) drawCenaAba(abas[wa]);
+    var mundos = root.querySelectorAll('canvas[data-mapa-mundo]');
+    for (var wn = 0; wn < mundos.length; wn++) drawMapaMundo(mundos[wn]);
     var mapas = root.querySelectorAll('canvas[data-mapa]');
     for (var wm = 0; wm < mapas.length; wm++) drawMapaTrilha(mapas[wm]);
   }
@@ -14456,6 +14473,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
+      mapaMundoHtml() +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
       '</section>' + afkCartaoHtml() + selvagensBlocoHtml() +
@@ -14921,6 +14939,89 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var g = GD.GYMS[id], txt = g.etapas.map(function (e, i) { return ginEtapaRotulo(e, i) + ' ' + e.nome + ': ' + trilhaEstadoTxt(id, i); }).join('; ');
     return '<div class="trilha-mapa-palco"><canvas class="trilha-mapa" data-mapa="' + esc(id) + '" role="img" aria-label="' +
       esc('Mapa da trilha, de baixo para cima. ' + txt + '.') + '"></canvas></div>';
+  }
+  // ---- O mapa-múndi da aba Expedição (spec 2026-11-24-mapa-ginasios §3.1): a ilha com os três ginásios, viva (água, lava,
+  // nuvens, fumaça, névoa sobre o que não foi conquistado). Só desenho (prototype/src/mapa.js); o progresso vem do save e o
+  // toque num ginásio é o toque no cartão dele (a lista de cartões continua embaixo, com o controle completo).
+  var mapaArte = { imgs: {}, mundo: null, falhou: false };
+  function mapaImg(chave, src) {
+    var im = mapaArte.imgs[chave];
+    if (!im && typeof Image === 'function') {
+      im = mapaArte.imgs[chave] = new Image();
+      im.onload = function () { telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.src = src;
+    }
+    return im && im.complete && im.naturalWidth ? im : null;
+  }
+  function temMapaMundo() { var m = window.__MAPA_MUNDO; return !!(MP && m && typeof m.terreno === 'string' && m.ginasios); }
+  // o mundo é montado uma vez (≈ 0,1 s), quando a ilha, os ginásios e os corpos dos líderes já chegaram; null até lá
+  function mapaMundo() {
+    if (mapaArte.mundo || mapaArte.falhou || !temMapaMundo()) return mapaArte.mundo;
+    var m = window.__MAPA_MUNDO, arte = { terreno: mapaImg('terreno', m.terreno), ginasios: {}, lideres: {} }, falta = !arte.terreno;
+    MP.ORDEM.forEach(function (el) {
+      arte.ginasios[el] = mapaImg('g-' + el, m.ginasios[el]); if (!arte.ginasios[el]) falta = true;
+      var g = GD.GYMS[el], lider = g && g.etapas[g.etapas.length - 1];
+      if (lider && window.__TREINADORES && hasOwn(window.__TREINADORES, ginTreinadorId(lider.nome))) { arte.lideres[el] = treinadorImg(ginTreinadorId(lider.nome)); if (!arte.lideres[el]) falta = true; }
+    });
+    if (falta) return null;
+    try { mapaArte.mundo = MP.mundo(arte, { sprites: SP }); } catch (e) { mapaArte.falhou = true; console.warn('mapa-múndi: ' + (e && e.message)); }
+    return mapaArte.mundo;
+  }
+  // o progresso que o mapa mostra (o mesmo dos cartões)
+  function mapaProgresso() {
+    var out = {};
+    GD.GYM_ORDER.forEach(function (id) {
+      out[GD.GYMS[id].element] = { vencidas: ginProgresso(id), insignia: ginTemInsignia(id), revanche: ginRevancheHoje(id) ? 'livre' : ginRevancheFeita(id) ? 'feita' : null };
+    });
+    return out;
+  }
+  function mapaMundoTxt() {
+    return 'Mapa da ilha dos ginásios. ' + GD.GYM_ORDER.map(function (id) {
+      return GD.GYMS[id].name + ': ' + ginProgressoTxt(id) + (ginRevancheHoje(id) ? ', revanche hoje' : '');
+    }).join('; ') + '.';
+  }
+  function mapaMundoHtml() {
+    if (!temMapaMundo()) return '';
+    return '<div class="mapa-mundo-palco"><canvas class="mapa-mundo" data-mapa-mundo="1" role="img" aria-label="' + esc(mapaMundoTxt()) + '"></canvas></div>';
+  }
+  function drawMapaMundo(cv) {
+    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
+    cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        var m = mapaMundo();
+        item.t = t;
+        if (!m) return;
+        if (!item.drawn) m.estado(mapaProgresso());
+        var r = reduced(), dt = tAnt ? Math.max(0, t - tAnt) : 0;
+        tAnt = t;
+        if (item.drawn && r) return;
+        item.drawn = true;
+        var t0 = window.performance ? performance.now() : 0;
+        m.quadro(t, dt, r);
+        var t1 = t0 ? performance.now() : 0;
+        ctx.drawImage(m.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        // o custo (média móvel, para o ui-test): o desenho do quadro (data-ms) e a cópia ampliada para a tela (data-ms-copia)
+        if (t0) {
+          var t2 = performance.now(), ms = t1 - t0, mc = t2 - t1;
+          item.ms = item.n ? item.ms * 0.9 + ms * 0.1 : ms; item.mc = item.n ? item.mc * 0.9 + mc * 0.1 : mc; item.n = (item.n || 0) + 1;
+          if (item.n > 3) { cv.setAttribute('data-ms', item.ms.toFixed(3)); cv.setAttribute('data-ms-copia', item.mc.toFixed(3)); }
+        }
+      }
+    };
+    item.draw(0);
+    telaItems.push(item);
+    vivo(item, cv);
+    // tocar num ginásio do mapa é tocar no cartão dele
+    cv.addEventListener('click', function (ev) {
+      var r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * L.W + ox, y = (ev.clientY - r.top) / r.height * MAPA_H;
+      var el = MP.ginasioEm(x, y), id = null;
+      if (!el) return;
+      GD.GYM_ORDER.forEach(function (g) { if (GD.GYMS[g].element === el) id = g; });
+      var b = id && document.querySelector('#tela [data-acao="ginasio-abrir"][data-id="' + id + '"]');
+      if (b) b.click();
+    });
   }
   function drawMapaTrilha(cv) {
     var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];

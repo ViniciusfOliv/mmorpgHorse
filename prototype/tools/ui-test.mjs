@@ -48,7 +48,7 @@ const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adultera
   'skills', 'skills-aba', 'skills-resumo', 'ranks', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
   'crescimento-jogo',
   'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
-  'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
+  'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'expedicao-mapa', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
   'fluxo-pequeno']
 if (process.argv.includes('--blocos')) { console.log(BLOCOS.join('\n')); process.exit(0) }
 // UI_SO=reserva,gravacao,...: roda só os blocos com esses nomes (para desenvolver um teste sem esperar o resto); sem UI_SO
@@ -14358,6 +14358,56 @@ try {
       await pg.evaluate(() => window.scrollTo(0, 0)); await sleep(300)
       await checkOverflow(pg, label + '-resumo')
       await pg.screenshot({ path: join(SHOTS, 'final-28-resumo.png') })
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    } finally {
+      await pg.context().close()
+    }
+  }
+
+  // ---------------- o mapa-múndi da aba Expedição (spec 2026-11-24-mapa-ginasios §3.1, plano A3): desenhado sobre o
+  // progresso do save (Fornalha com 2 etapas, Remanso com a insígnia e a revanche livre, Capoeira do zero), a descrição
+  // para o leitor de tela com o estado dos três, os cartões continuam, tocar num ginásio do mapa abre a trilha dele (o mesmo
+  // caminho do cartão), nada rola de lado a 360 px e o custo de desenho por quadro medido. O teto da spec (0,35 ms num
+  // computador) foi medido na amostra a 60 q/s; aqui o laço do jogo desenha a ~14 q/s (cada quadro junta o ciclo de cor e a
+  // névoa de vários) e o Chromium de teste não tem placa de vídeo: ~0,9 ms por quadro em 2026-11-24, régua de 1,2 ms
+  if (quer('expedicao-mapa')) {
+    const label = 'expedicao-mapa'
+    const save = ginT6Save({ ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 }, agua: { etapa: 5, revDia: null, revVitorias: 0 } }) })
+    const pg = await ginAbre(label, { save, chave: GIN_REAL, pagina: 'preview.html', vp: { width: 360, height: 780 } })
+    try {
+      const abreAba = async () => { await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao') }
+      await abreAba()
+      await pg.waitForSelector('canvas[data-mapa-mundo][data-ms]', { timeout: 6000 }).catch(() => problems.push(`${label}: o mapa-múndi não foi desenhado`))
+      const info = await pg.locator('canvas[data-mapa-mundo]').evaluate((c) => ({ aria: c.getAttribute('aria-label'), arte: c.getAttribute('data-arte'), cartoes: document.querySelectorAll('#tela .ginasio-cartao').length }))
+      if (!info.aria.includes(G.GYMS.agua.name + ': 5 de 5 vencidos, revanche hoje') || !info.aria.includes(G.GYMS.fogo.name + ': 2 de 5 vencidos')) problems.push(`${label}: a descrição do mapa "${info.aria}"`)
+      if (info.cartoes !== 3) problems.push(`${label}: ${info.cartoes} cartões de ginásio embaixo do mapa`)
+      await checkOverflow(pg, label)
+      // o custo: a média móvel do desenho (data-ms), depois de alguns segundos de animação
+      await sleep(3000)
+      const ms = Number(await pg.locator('canvas[data-mapa-mundo]').getAttribute('data-ms')), mc = Number(await pg.locator('canvas[data-mapa-mundo]').getAttribute('data-ms-copia'))
+      console.log(`  ${label}: desenho do mapa-múndi ${ms.toFixed(3)} ms por quadro (+ ${mc.toFixed(3)} ms da cópia ampliada)`)
+      if (!(ms < 1.2)) problems.push(`${label}: o mapa-múndi custa ${ms} ms por quadro (régua: 1,2 ms sem placa de vídeo)`)
+      // tocar num ginásio do mapa (o centro do objeto, em pixels de arte) abre a trilha dele
+      const toca = async (x, y) => {
+        const r = await pg.locator('canvas[data-mapa-mundo]').evaluate((c) => { const b = c.getBoundingClientRect(); return { l: b.left, t: b.top, w: b.width, h: b.height, W: Number(c.getAttribute('data-arte').split('x')[0]) } })
+        const ox = Math.floor((256 - r.W) / 2)
+        await pg.mouse.click(r.l + (x - ox + 0.5) / r.W * r.w, r.t + (y + 0.5) / 384 * r.h)
+      }
+      for (const id of ['agua', 'fogo']) {
+        await pg.locator('canvas[data-mapa-mundo]').scrollIntoViewIfNeeded()
+        const pos = await pg.evaluate((el) => window.Mapa.POS[el], id)
+        await toca(pos[0], pos[1])
+        await pg.waitForSelector('#t-ginasio', { timeout: 3000 }).catch(() => {})
+        const t = await pg.locator('#t-ginasio').textContent().catch(() => null)
+        if (t !== G.GYMS[id].name) problems.push(`${label}: tocar em ${id} no mapa abriu "${t}"`)
+        await pg.locator('#tela [data-acao="ginasio-voltar"]').click()
+        await pg.waitForSelector('#t-expedicao')
+      }
+      // fora dos ginásios (o mar no canto) não abre nada
+      await toca(130, 380)
+      await sleep(200)
+      if (!(await pg.locator('#t-expedicao').count())) problems.push(`${label}: tocar no mar abriu outra tela`)
     } catch (e) {
       problems.push(`[${label}] ` + e.message)
     } finally {

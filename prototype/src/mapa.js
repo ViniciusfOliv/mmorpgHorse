@@ -162,8 +162,11 @@
     for (p = 0; p < N; p++) {
       if (cobre[p]) continue;
       var c0 = terr.d[p];
-      if ((i = AGUA_NAVY.indexOf(c0)) >= 0) agua.push(p, 0, i);
-      else if ((i = AGUA_TEAL.indexOf(c0)) >= 0) agua.push(p, 1, i);
+      // água: só os pixels que podem mudar (os candidatos a brilho, que são fixos por posição, e os do tom mais claro, que
+      // apagam); o resto fica com a cor do chão
+      var px0 = p % W, py0 = (p / W) | 0;
+      if ((i = AGUA_NAVY.indexOf(c0)) >= 0) { if (hash(px0 >> 1, py0) < 0.14 || i === AGUA_NAVY.length - 1) agua.push(p, 0, i); }
+      else if ((i = AGUA_TEAL.indexOf(c0)) >= 0) { if (hash(px0 >> 1, py0) < 0.35 || i === AGUA_TEAL.length - 1) agua.push(p, 1, i); }
       else if (((p / W) | 0) < ILHA.lavaAte && (i = LAVA_R.indexOf(c0)) >= 0) lava.push(p, i);
     }
     var ehAgua = function (q) { var c2 = terr.d[q]; return AGUA_NAVY.indexOf(c2) >= 0 || AGUA_TEAL.indexOf(c2) >= 0 || LAVA_R.indexOf(c2) >= 0 || c2 === K.ffffff || c2 === K.c7dcd0; };
@@ -177,10 +180,11 @@
     escuro.poe(); base.poe();
     var vivo = new Buf(W, H); vivo.d.set(base.d); vivo.poe();
 
-    // ---- ciclo de cor (12 q/s): água com brilhos em ondas cruzadas, lava escorrendo, espuma piscando
-    var cicloT = -1;
+    // ---- ciclo de cor (8 passos por segundo, no ritmo do laço do jogo): água com brilhos em ondas cruzadas, lava
+    // escorrendo, espuma piscando
+    var cicloT = -1, CICLO_FPS = 8;
     function ciclo(t) {
-      var q = Math.floor(t * 12); if (q === cicloT) return; cicloT = q; t = q / 12;
+      var q = Math.floor(t * CICLO_FPS); if (q === cicloT) return; cicloT = q; t = q / CICLO_FPS;
       var d = vivo.d, x, y, j;
       for (i = 0; i < agua.length; i += 3) {
         p = agua[i]; x = p % W; y = (p / W) | 0;
@@ -225,33 +229,42 @@
       var f1 = fbm(nx / 34, ny / 26, 91, 4), f2 = fbm((nx - W) / 34, ny / 26, 91, 4);
       nevCampo[ny * W + nx] = suave(0.34, 0.66, (f1 * (W - nx) + f2 * nx) / W);
     }
-    var nevoa = new Buf(W, H), nevT = -1, nevChave = '', nevLista = [], nevV = new Float32Array(N), nevMetade = 3, NEV_FPS = 4, NEV_PARTES = 3;
+    var nevoa = new Buf(W, H), nevT = -1, nevChave = '', nevLista = [], nevV = new Float32Array(N), nevMetade = 2, NEV_FPS = 3, NEV_PARTES = 2, nevCaixa = null;
     var NV = [K['9babb2'], K.c7dcd0, K.ffffff];
     function atualizaNevoa(t) {
       var dens = nevoaDe(est), chave = dens.fogo + ',' + dens.agua + ',' + dens.grama, d = nevoa.d;
       if (chave !== nevChave) {
         nevChave = chave; nevT = -1; nevLista = [];
         var dr = { 1: dens.fogo, 2: dens.agua, 3: dens.grama };
-        for (p = 0; p < N; p++) {
+        for (p = 0; p < N; p++) d[p] = 0;
+        // por bloco de 2 × 2 (a borda da névoa já anda em massas desse tamanho): o canto de cima à esquerda decide o bloco
+        for (var by = 0; by < H; by += 2) for (var bx = 0; bx < W; bx += 2) {
+          p = by * W + bx;
           var v = 0; for (var r = 1; r <= 3; r++) if (dr[r] > 0) v += dr[r] * pesos[r][p];
-          nevV[p] = v * 1.25; d[p] = 0;
+          nevV[p] = v * 1.25;
           if (v * 1.25 * 1.35 > 0.6) nevLista.push(p);
         }
+        // a caixa onde pode haver névoa: só ela volta para o canvas a cada passo
+        var ys = nevLista.map(function (q) { return (q / W) | 0; });
+        nevCaixa = nevLista.length ? [Math.min.apply(null, ys), Math.max.apply(null, ys) + 2] : null;
         nevMetade = NEV_PARTES; nevoa.poe();
       }
       var q = Math.floor(t * NEV_FPS);
       if (q !== nevT) { nevT = q; nevMetade = 0; }
       if (nevMetade >= NEV_PARTES) return;
-      t = nevT / NEV_FPS;   // um terço dos pixels por quadro, em três quadros seguidos (4 passos por segundo)
+      t = nevT / NEV_FPS;   // metade dos pixels por quadro, em dois quadros seguidos (3 passos por segundo)
       var ox = Math.floor(t * 2.5), oy = Math.floor(t * 0.6), L = nevLista;
       for (i = nevMetade; i < L.length; i += NEV_PARTES) {
         p = L[i]; var x = p % W, y = (p / W) | 0;
         var c = nevCampo[((y + oy) % H) * W + mod(x - ox, W)], f = nevV[p] * (0.3 + c * 1.05);
         var l1 = BAY[(((y >> 1) & 3) << 2) | ((x >> 1) & 3)];
-        d[p] = f > 1.02 ? NV[c > 0.85 ? 2 : c > 0.6 ? 1 : 0] : f > 0.86 ? (l1 < (f - 0.86) * 6 ? NV[c > 0.7 ? 1 : 0] : lavado[p]) : (f > 0.6 && l1 < (f - 0.6) * 3.8) ? lavado[p] : 0;
+        // 0 = sem névoa, 1 = terreno lavado, ou a cor da névoa
+        var nv = f > 1.02 ? NV[c > 0.85 ? 2 : c > 0.6 ? 1 : 0] : f > 0.86 ? (l1 < (f - 0.86) * 6 ? NV[c > 0.7 ? 1 : 0] : 1) : (f > 0.6 && l1 < (f - 0.6) * 3.8) ? 1 : 0;
+        if (nv === 1) { d[p] = lavado[p]; d[p + 1] = lavado[p + 1]; d[p + W] = lavado[p + W]; d[p + W + 1] = lavado[p + W + 1]; }
+        else { d[p] = d[p + 1] = d[p + W] = d[p + W + 1] = nv; }
       }
       nevMetade++;
-      if (nevMetade === NEV_PARTES) nevoa.poe();
+      if (nevMetade === NEV_PARTES && nevCaixa) nevoa.g.putImageData(nevoa.img, 0, 0, 0, nevCaixa[0], W, nevCaixa[1] - nevCaixa[0]);
     }
 
     // ---- nuvens altas com sombra (o chão escurecido na forma da nuvem, refeito só quando a nuvem anda um pixel)

@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja, MP = window.Mapa;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
   if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !AF || !telaEl) {
@@ -1471,6 +1471,8 @@
     for (var w = 0; w < cenas.length; w++) drawGinCena(cenas[w]);
     var abas = root.querySelectorAll('canvas[data-cena-aba]');
     for (var wa = 0; wa < abas.length; wa++) drawCenaAba(abas[wa]);
+    var mundos = root.querySelectorAll('canvas[data-mapa-mundo]');
+    for (var wn = 0; wn < mundos.length; wn++) drawMapaMundo(mundos[wn]);
     var mapas = root.querySelectorAll('canvas[data-mapa]');
     for (var wm = 0; wm < mapas.length; wm++) drawMapaTrilha(mapas[wm]);
   }
@@ -3072,6 +3074,7 @@
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
+      mapaMundoHtml() +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
       '</section>' + afkCartaoHtml() + selvagensBlocoHtml() +
@@ -3537,6 +3540,89 @@
     var g = GD.GYMS[id], txt = g.etapas.map(function (e, i) { return ginEtapaRotulo(e, i) + ' ' + e.nome + ': ' + trilhaEstadoTxt(id, i); }).join('; ');
     return '<div class="trilha-mapa-palco"><canvas class="trilha-mapa" data-mapa="' + esc(id) + '" role="img" aria-label="' +
       esc('Mapa da trilha, de baixo para cima. ' + txt + '.') + '"></canvas></div>';
+  }
+  // ---- O mapa-múndi da aba Expedição (spec 2026-11-24-mapa-ginasios §3.1): a ilha com os três ginásios, viva (água, lava,
+  // nuvens, fumaça, névoa sobre o que não foi conquistado). Só desenho (prototype/src/mapa.js); o progresso vem do save e o
+  // toque num ginásio é o toque no cartão dele (a lista de cartões continua embaixo, com o controle completo).
+  var mapaArte = { imgs: {}, mundo: null, falhou: false };
+  function mapaImg(chave, src) {
+    var im = mapaArte.imgs[chave];
+    if (!im && typeof Image === 'function') {
+      im = mapaArte.imgs[chave] = new Image();
+      im.onload = function () { telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.src = src;
+    }
+    return im && im.complete && im.naturalWidth ? im : null;
+  }
+  function temMapaMundo() { var m = window.__MAPA_MUNDO; return !!(MP && m && typeof m.terreno === 'string' && m.ginasios); }
+  // o mundo é montado uma vez (≈ 0,1 s), quando a ilha, os ginásios e os corpos dos líderes já chegaram; null até lá
+  function mapaMundo() {
+    if (mapaArte.mundo || mapaArte.falhou || !temMapaMundo()) return mapaArte.mundo;
+    var m = window.__MAPA_MUNDO, arte = { terreno: mapaImg('terreno', m.terreno), ginasios: {}, lideres: {} }, falta = !arte.terreno;
+    MP.ORDEM.forEach(function (el) {
+      arte.ginasios[el] = mapaImg('g-' + el, m.ginasios[el]); if (!arte.ginasios[el]) falta = true;
+      var g = GD.GYMS[el], lider = g && g.etapas[g.etapas.length - 1];
+      if (lider && window.__TREINADORES && hasOwn(window.__TREINADORES, ginTreinadorId(lider.nome))) { arte.lideres[el] = treinadorImg(ginTreinadorId(lider.nome)); if (!arte.lideres[el]) falta = true; }
+    });
+    if (falta) return null;
+    try { mapaArte.mundo = MP.mundo(arte, { sprites: SP }); } catch (e) { mapaArte.falhou = true; console.warn('mapa-múndi: ' + (e && e.message)); }
+    return mapaArte.mundo;
+  }
+  // o progresso que o mapa mostra (o mesmo dos cartões)
+  function mapaProgresso() {
+    var out = {};
+    GD.GYM_ORDER.forEach(function (id) {
+      out[GD.GYMS[id].element] = { vencidas: ginProgresso(id), insignia: ginTemInsignia(id), revanche: ginRevancheHoje(id) ? 'livre' : ginRevancheFeita(id) ? 'feita' : null };
+    });
+    return out;
+  }
+  function mapaMundoTxt() {
+    return 'Mapa da ilha dos ginásios. ' + GD.GYM_ORDER.map(function (id) {
+      return GD.GYMS[id].name + ': ' + ginProgressoTxt(id) + (ginRevancheHoje(id) ? ', revanche hoje' : '');
+    }).join('; ') + '.';
+  }
+  function mapaMundoHtml() {
+    if (!temMapaMundo()) return '';
+    return '<div class="mapa-mundo-palco"><canvas class="mapa-mundo" data-mapa-mundo="1" role="img" aria-label="' + esc(mapaMundoTxt()) + '"></canvas></div>';
+  }
+  function drawMapaMundo(cv) {
+    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
+    cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        var m = mapaMundo();
+        item.t = t;
+        if (!m) return;
+        if (!item.drawn) m.estado(mapaProgresso());
+        var r = reduced(), dt = tAnt ? Math.max(0, t - tAnt) : 0;
+        tAnt = t;
+        if (item.drawn && r) return;
+        item.drawn = true;
+        var t0 = window.performance ? performance.now() : 0;
+        m.quadro(t, dt, r);
+        var t1 = t0 ? performance.now() : 0;
+        ctx.drawImage(m.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        // o custo (média móvel, para o ui-test): o desenho do quadro (data-ms) e a cópia ampliada para a tela (data-ms-copia)
+        if (t0) {
+          var t2 = performance.now(), ms = t1 - t0, mc = t2 - t1;
+          item.ms = item.n ? item.ms * 0.9 + ms * 0.1 : ms; item.mc = item.n ? item.mc * 0.9 + mc * 0.1 : mc; item.n = (item.n || 0) + 1;
+          if (item.n > 3) { cv.setAttribute('data-ms', item.ms.toFixed(3)); cv.setAttribute('data-ms-copia', item.mc.toFixed(3)); }
+        }
+      }
+    };
+    item.draw(0);
+    telaItems.push(item);
+    vivo(item, cv);
+    // tocar num ginásio do mapa é tocar no cartão dele
+    cv.addEventListener('click', function (ev) {
+      var r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * L.W + ox, y = (ev.clientY - r.top) / r.height * MAPA_H;
+      var el = MP.ginasioEm(x, y), id = null;
+      if (!el) return;
+      GD.GYM_ORDER.forEach(function (g) { if (GD.GYMS[g].element === el) id = g; });
+      var b = id && document.querySelector('#tela [data-acao="ginasio-abrir"][data-id="' + id + '"]');
+      if (b) b.click();
+    });
   }
   function drawMapaTrilha(cv) {
     var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];
