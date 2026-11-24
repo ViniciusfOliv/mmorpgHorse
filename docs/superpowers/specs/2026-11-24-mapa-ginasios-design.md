@@ -102,6 +102,13 @@ sem zoom nem íris.
   (decidido); entram depois, por âncoras.
 - **Feito:** os 12 moldes, 30 créditos cada (360, o teto do lote), saída em `prototype/assets/arte/desafio/bakeoff/
   meshy-<molde>-papeis-dir0..7.png` (frente = vista 1, costas = vista 5). Os PNGs entram no jogo pelo plano.
+- **Idle (combinado com a frente 1):** a vida do cavalo parado é a mesma peça da animação ambiente, `Sprites.IdleMolde`
+  (ramo `claude/animacao-ambiente`, etapa 2): como as vistas 3D já são mapas de papéis, ela monta o quadro e o pipeline do
+  molde pinta (4 tons, LUT da cena, contraluz). Nenhum idle novo é criado aqui. O que falta para as vistas de frente e de
+  costas é só o que o `IdleMolde.pecas` lê das âncoras de lado (`nose`, `rear`, `footY`, `olho`): cada vista ganha as
+  suas âncoras (cabeça e orelhas no topo, cauda embaixo e ao centro na de costas, olhos na de frente) e os gestos que
+  não fazem sentido de frente ou de costas (aceno de lado, cauda na de frente) ficam desligados por vista. Os gestos do
+  PixelLab (comer, cavar) são de lado e não entram nessas vistas.
 
 ## 5. Estados e o que cada tela mostra
 | Situação | Mapa-múndi | Trilha | Cena |
@@ -152,6 +159,8 @@ comparação está na amostra). Todo asset novo vai para `docs/memoria/assets.md
   a trilha nova; `ginCenaHtml`/`drawGinCena` passam a usar a cena nova (256 × 160) e as placas no canvas.
 - **`sprites.js`:** estados `frente` e `costas` nos moldes (carga tudo ou nada, como hoje; sem eles, a cena cai no molde
   de lado espelhado).
+  As âncoras das duas vistas entram com eles, para o `IdleMolde` da frente 1 animar a cena (§4); a parte de idle é
+  combinada com aquele chat, que é o dono da peça.
 - **Build:** embute a ilha, os ginásios do mapa e os papéis de frente e costas; o `jogo.html` continua sem modo DEV.
 - **Testes:** `moldes-test` (os 24 PNGs novos: tamanho, tons de papel, contorno); `ui-test` com blocos novos (mapa com os
   três ginásios tocáveis e a lista equivalente, entrar e voltar, trilha depois de vencer, cena com o duelo gravado,
