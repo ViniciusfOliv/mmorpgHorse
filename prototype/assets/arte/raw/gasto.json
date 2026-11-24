@@ -936,6 +936,114 @@
       "base": "desafio-bakeoff/meshy-ipe",
       "creditos_meshy": 30,
       "data": "2026-11-24T02:52:51.178Z"
+    },
+    {
+      "base": "desafio-bakeoff/gemini-0",
+      "usd_estimado": 0.039,
+      "tokens": {
+        "promptTokenCount": 347,
+        "candidatesTokenCount": 1290,
+        "totalTokenCount": 1637,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 89
+          },
+          {
+            "modality": "IMAGE",
+            "tokenCount": 258
+          }
+        ],
+        "candidatesTokensDetails": [
+          {
+            "modality": "IMAGE",
+            "tokenCount": 1290
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "data": "2026-11-24T09:56:33.184Z"
+    },
+    {
+      "base": "desafio-bakeoff/gemini-1",
+      "usd_estimado": 0.039,
+      "tokens": {
+        "promptTokenCount": 330,
+        "candidatesTokenCount": 1290,
+        "totalTokenCount": 1620,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 72
+          },
+          {
+            "modality": "IMAGE",
+            "tokenCount": 258
+          }
+        ],
+        "candidatesTokensDetails": [
+          {
+            "modality": "IMAGE",
+            "tokenCount": 1290
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "data": "2026-11-24T09:56:39.682Z"
+    },
+    {
+      "base": "desafio-bakeoff/gemini-2",
+      "usd_estimado": 0.039,
+      "tokens": {
+        "promptTokenCount": 347,
+        "candidatesTokenCount": 1290,
+        "totalTokenCount": 1637,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 89
+          },
+          {
+            "modality": "IMAGE",
+            "tokenCount": 258
+          }
+        ],
+        "candidatesTokensDetails": [
+          {
+            "modality": "IMAGE",
+            "tokenCount": 1290
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "data": "2026-11-24T09:56:46.934Z"
+    },
+    {
+      "base": "desafio-bakeoff/gemini-3",
+      "usd_estimado": 0.039,
+      "tokens": {
+        "promptTokenCount": 330,
+        "candidatesTokenCount": 1290,
+        "totalTokenCount": 1620,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 72
+          },
+          {
+            "modality": "IMAGE",
+            "tokenCount": 258
+          }
+        ],
+        "candidatesTokensDetails": [
+          {
+            "modality": "IMAGE",
+            "tokenCount": 1290
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "data": "2026-11-24T09:56:53.550Z"
     }
   ]
 }

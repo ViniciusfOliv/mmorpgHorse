@@ -1,17 +1,43 @@
 {
-  "error": {
-    "code": 401,
-    "message": "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
-    "status": "UNAUTHENTICATED",
-    "details": [
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "inlineData": {
+              "mimeType": "image/png",
+              "data": "<b64>"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 347,
+    "candidatesTokenCount": 1290,
+    "totalTokenCount": 1637,
+    "promptTokensDetails": [
       {
-        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
-        "reason": "API_KEY_SERVICE_BLOCKED",
-        "metadata": {
-          "method": "google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent",
-          "service": "generativelanguage.googleapis.com"
-        }
+        "modality": "TEXT",
+        "tokenCount": 89
+      },
+      {
+        "modality": "IMAGE",
+        "tokenCount": 258
       }
-    ]
-  }
+    ],
+    "candidatesTokensDetails": [
+      {
+        "modality": "IMAGE",
+        "tokenCount": 1290
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-2.5-flash-image",
+  "responseId": "Sl8Fa9uIMdbAytMPwNqe-Qo"
 }
