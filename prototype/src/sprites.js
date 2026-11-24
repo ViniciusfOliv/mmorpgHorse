@@ -928,7 +928,7 @@
   var PORTES_MOLDE = ['esguio', 'padrao', 'robusto'], PORTE_PADRAO = 'padrao';
   var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
   var moldes = null;       // chave do molde -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
-  var moldsOk = false;
+  var moldsOk = false, vistasOk = false;   // vistasOk: os moldes têm as vistas de frente e de costas
   var moldesLref = 0;      // maior larguraUtil entre os 4 moldes do padrão: escala única
   var alturaMaxEstado = {}; // estado -> maior altura de bbox entre os 12 moldes: o passo da escala num quadro fixo
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
@@ -1035,7 +1035,7 @@
   // Chave a mais na tabela (a de um molde antigo '<estilo>') é ignorada.
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
-    moldsOk = false; api.moldsReady = false; api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
+    moldsOk = false; vistasOk = false; api.moldsReady = false; api.moldesVistas = false; api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
     if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
     if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
@@ -1046,6 +1046,9 @@
       return;
     }
     var novos = {}, pendentes = 1, motivo = null;   // 1 = o próprio laço abaixo (fecha no fim)
+    // as vistas de frente e de costas (cena de desafio, spec 2026-11-24-mapa-ginasios §4): tudo ou nada nos 12 moldes; sem
+    // elas os moldes ligam do mesmo jeito e estadoMolde cai na vista de lado
+    var comVistas = chaves.every(function (ch) { var e2 = est[ch], A2 = e2 && e2.json && e2.json.ancoras; return !!(e2 && e2.frente && e2.costas && A2 && A2.frente && A2.costas); });
     function falha(m) { if (!motivo) motivo = m || 'falha'; }
     function fim() {
       pendentes--;
@@ -1060,7 +1063,7 @@
         var E = novos[ch].estados;
         for (var est in E) if (Object.prototype.hasOwnProperty.call(E, est)) alturaMaxEstado[est] = Math.max(alturaMaxEstado[est] || 0, E[est].altura);
       });
-      moldes = novos; api.moldesConjunto = 'portes'; moldsOk = true; api.moldsReady = true;
+      moldes = novos; api.moldesConjunto = 'portes'; moldsOk = true; api.moldsReady = true; vistasOk = comVistas; api.moldesVistas = comVistas;
       if (typeof pronto === 'function') pronto();
     }
     try {
@@ -1088,6 +1091,10 @@
         }
         carrega(e.retrato, 'retrato', function (idx) { M.retrato = idx; });
         carrega(e.parado, 'parado', function (idx) { M.parado = idx; });
+        if (comVistas) ['frente', 'costas'].forEach(function (vq) {
+          M.estados[vq] = refDe(vq, [A[vq]]); M.ancoras[vq] = ancoraComL(A[vq], J.larguraUtil);
+          carrega(e[vq], vq, function (idx) { M[vq] = idx; });
+        });
         e.galope.forEach(function (url, q) { carrega(url, 'galope-' + q, function (idx) { M.galope[q] = idx; }); });
       });
     } catch (ex) {
@@ -1098,6 +1105,7 @@
 
   // Estado do molde para as opções do drawHorse; null = pose sem molde (galope sem jóquei): usa o código.
   function estadoMolde(o) {
+    if ((o.vista === 'frente' || o.vista === 'costas') && vistasOk) return o.vista;   // de frente ou de costas (cena de desafio)
     if (o.retrato) return 'retrato';
     if (o.jockey === false) return o.idle ? 'retrato' : null;
     return o.idle ? 'parado' : 'galope';
@@ -1230,7 +1238,8 @@
   // chave e os pixels de antes da parte 2a.
   // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o);
+    // nas vistas de frente e de costas não há marcas nem camadas do jóquei (decisão da spec: primeira versão sem marcas)
+    var cores = coresNaMestra(coresMolde(o)), v = estado === 'frente' || estado === 'costas' ? null : visuaisMolde(o);
     var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
     var c = moldCache.get(key);
     if (!c) {

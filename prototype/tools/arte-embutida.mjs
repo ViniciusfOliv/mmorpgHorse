@@ -56,13 +56,28 @@ export async function lerMoldes(root, avisos = [], dir = 'assets/pixellab') {
       const galope = []
       for (let i = 0; i < frames; i++) galope.push(await dataUrl(root, png('galope-' + i)))
       estilos[chave] = {
-        json: { estilo: chave, w: J.w, h: J.h, footY: J.footY, frames, larguraUtil: J.larguraUtil, ancoras: J.ancoras },
+        json: { estilo: chave, w: J.w, h: J.h, footY: J.footY, frames, larguraUtil: J.larguraUtil, ancoras: Object.assign({}, J.ancoras) },
         retrato: await dataUrl(root, png('retrato')),
         parado: await dataUrl(root, png('parado')),
         galope
       }
     } catch (e) {
       avisos.push(`molde "${chave}" ignorado: ${e.message}`)
+    }
+  }
+  // as vistas de frente e de costas (Meshy, cena de desafio; arte-desafio-moldes.mjs): tudo ou nada nos 12 moldes. Os PNGs
+  // assets/arte/desafio/vistas/vista-<chave>-frente/costas.png e as âncoras de vistas-3d.json entram em cada estilo (frente, costas, json.ancoras.frente
+  // e .costas); faltando alguma, nenhum molde leva vista (a cena usa o molde de lado) e fica um aviso
+  const DV = 'assets/arte/desafio/vistas', vj = join(root, DV, 'vistas-3d.json'), chaves = Object.keys(estilos)
+  if (chaves.length && existsSync(vj)) {
+    const V = JSON.parse(await readFile(vj, 'utf8')).moldes || {}
+    const falta = chaves.filter((ch) => !V[ch] || !V[ch].frente || !V[ch].costas || !['frente', 'costas'].every((q) => existsSync(join(root, DV, `vista-${ch}-${q}.png`))))
+    if (falta.length) avisos.push(`vistas de frente e de costas ignoradas: faltam ${falta.join(', ')}`)
+    else for (const ch of chaves) {
+      estilos[ch].frente = await dataUrl(root, join(DV, `vista-${ch}-frente.png`))
+      estilos[ch].costas = await dataUrl(root, join(DV, `vista-${ch}-costas.png`))
+      estilos[ch].json.ancoras.frente = V[ch].frente
+      estilos[ch].json.ancoras.costas = V[ch].costas
     }
   }
   return { estilos }
