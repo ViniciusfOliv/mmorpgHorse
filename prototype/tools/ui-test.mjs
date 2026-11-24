@@ -118,8 +118,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // page.clock.setSystemTime muda o dia) — use com timezoneId para o dia local não depender da máquina;
 // extra.moldes (padrão true): espera os moldes do PixelLab carregarem (Sprites.moldsReady === true) — o jogo
 // re-renderiza a tela quando eles chegam, e esperar evita clicar num botão que está sendo trocado.
+// Nas capturas oficiais (prototype/screens/), a página abre com ?quadro=3: a animação ambiente parada no mesmo instante,
+// e a captura sai igual a cada vez (plano da animação ambiente, etapa 6); extra.vivo = true abre sem (o bloco ambiente).
+const QUADRO_CAPTURAS = 3
 async function newPage(browser, viewport, label, extra = {}) {
-  const { pagina = 'preview.html', query = '', init = null, moldes = true, bloquear = [], relogio = null, ...ctxExtra } = extra
+  const { pagina = 'preview.html', vivo = false, init = null, moldes = true, bloquear = [], relogio = null, ...ctxExtra } = extra
+  let { query = '' } = extra
+  delete ctxExtra.query
+  if (SHOTS_SAO_OFICIAIS && !vivo && !/[?&]quadro=/.test(query)) query += (query.includes('?') ? '&' : '?') + 'quadro=' + QUADRO_CAPTURAS
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, ...ctxExtra })
   const page = await ctx.newPage()
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
@@ -6225,7 +6231,7 @@ try {
     }
     for (const reduzido of [false, true]) {
       const lab = label + (reduzido ? '-reduzidas' : '')
-      const pg = await newPage(browser, { width: 1000, height: 800 }, lab, { query: '?dev=1', reducedMotion: reduzido ? 'reduce' : 'no-preference' })
+      const pg = await newPage(browser, { width: 1000, height: 800 }, lab, { query: '?dev=1', vivo: true, reducedMotion: reduzido ? 'reduce' : 'no-preference' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
         const vistos = {}, ms = {}, CENA = { expedicao: 'expedicao', haras: 'cavalos', estabulo: 'estabulo', loja: 'loja' }
@@ -6263,7 +6269,7 @@ try {
     const TETO_REG = 0.30
     for (const reduzido of [false, true]) {
       const lab = label + '-corrida' + (reduzido ? '-reduzidas' : '')
-      const pg = await newPage(browser, { width: 1280, height: 800 }, lab, { query: '?dev=1', reducedMotion: reduzido ? 'reduce' : 'no-preference' })
+      const pg = await newPage(browser, { width: 1280, height: 800 }, lab, { query: '?dev=1', vivo: true, reducedMotion: reduzido ? 'reduce' : 'no-preference' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
         const regs = reduzido ? ['litoral'] : ['litoral', 'planalto', 'varzea', 'cerrado', 'sertao'], vistas = {}

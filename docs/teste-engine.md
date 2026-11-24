@@ -307,8 +307,10 @@ O resumo traz o veredito:
     trava em 60 numa tela de 120 Hz (o acumulador da v3 pula uma batida sim, uma não, e um atraso da tela vira um
     quadro de 25 ms), não do conteúdo. **O jogo não trava em 60** (`game.js` segue o `requestAnimationFrame`), então
     se comporta como a 5ª rodada.
-  - **Em aberto:** a recomendação do item 3 acima (travar em 60 para poupar bateria) precisa de uma trava melhor
-    antes de entrar; decisão do Vinicius e da coordenação.
+  - **Decidido (Vinicius, 2026-11-24, "faça o melhor por enquanto"):** sem trava por enquanto. O jogo segue o
+    `requestAnimationFrame`. **Pendente para perto do lançamento:** a trava em 60 para poupar bateria (item 3 acima)
+    volta com um método melhor que o acumulador da v3, que soluça numa tela de 120 Hz, e com a rodada da etapa 6
+    travada passando no aparelho.
 
 ## 8. Além de web e Godot: outras opções, com jogos de referência
 

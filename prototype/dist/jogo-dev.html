@@ -15217,6 +15217,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // claude.ai não repassa a query). Nele o jogo só lê e grava o save de teste.
   DV = window.Dev;
   DEV_MODE = /[?&]dev=1(&|$)/.test(window.location.search) || window.__GALOPE_DEV === true;
+  // ?quadro=<segundos>: o relógio da animação ambiente parado nesse instante (cenas das abas, arena do desafio, cavalos
+  // parados), para as capturas oficiais saírem iguais a cada vez; a corrida não muda. Só apresentação.
+  var QUADRO_FIXO = (function () { var m = /[?&]quadro=([0-9]+(?:\.[0-9]+)?)(&|$)/.exec(window.location.search); return m ? Number(m[1]) : null; }());
   DEV_BUILD = window.__GALOPE_DEV === true;   // jogo-dev.html: não há "jogo real" para onde voltar
   if (DEV_MODE && !DV) {
     telaEl.textContent = 'Não foi possível carregar o jogo (falta dev.js).';
@@ -23784,7 +23787,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       if (raceView) raceView.frame(now);
       if (live.length && !reducedQuadro && now - lastIdle > 70) {
         lastIdle = now;
-        var t = now / 1000;
+        var t = QUADRO_FIXO != null ? QUADRO_FIXO : now / 1000;
         for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel) live[i].draw(t);
       }
     } finally { reducedQuadro = null; }

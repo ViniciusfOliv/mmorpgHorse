@@ -22812,7 +22812,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       if (raceView) raceView.frame(now);
       if (live.length && !reducedQuadro && now - lastIdle > 70) {
         lastIdle = now;
-        var t = now / 1000;
+        var t = QUADRO_FIXO != null ? QUADRO_FIXO : now / 1000;
         for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel) live[i].draw(t);
       }
     } finally { reducedQuadro = null; }
