@@ -44,11 +44,11 @@ pixel inteiro, na Resurrect 64 e dentro do orçamento de cada tela.
 | Asset | Onde | Custo |
 |---|---|---|
 | Comer e cavar nos 12 moldes (retrato) | `prototype/assets/pixellab/idle/<porte>-<crina>-retrato-{comer-s8102,cavar-s8111}-0..8.png` | 6 (piloto) + 30 gerações |
-| Cavar com jóquei nos 12 moldes (parado) | `prototype/assets/pixellab/idle/<porte>-<crina>-parado-cavar-s*-0..8.png`; escolhas em `idle/escolhas-joquei.json` | __JOQUEI__ gerações |
+| Cavar com jóquei nos 12 moldes (parado) | `prototype/assets/pixellab/idle/<porte>-<crina>-parado-cavar-s*-0..8.png`; escolhas em `idle/escolhas-joquei.json` | 14 gerações (12 + 2 refações com a seed 8113) |
 | Planalto sem as pás pintadas (para o rotor por código) | `prototype/assets/arte/planalto/meio-sem-pas.png` (`arte-animacao-moinho.mjs --compor 8203`) | 3 gerações |
 | Motor, primitivas, adereços, rotor, idle por código | `prototype/arte/animacao.js` (vira `prototype/src/ambiente.js` na etapa 1) | código |
 
-Total da frente: __TOTAL__ gerações do PixelLab; nada na Retro Diffusion.
+Total da frente: 53 gerações do PixelLab (6 + 30 + 14 + 3), contadas pelos registros da API (1 por chamada); nada na Retro Diffusion. Saldo em 2026-11-24: 848/2000 (o saldo caiu 14 a mais no mesmo período, provavelmente por outro chat usando a mesma conta).
 
 ## Visão das etapas
 
@@ -107,7 +107,7 @@ Total da frente: __TOTAL__ gerações do PixelLab; nada na Retro Diffusion.
   raridade inclusos). Não entram no retrato pequeno (64 × 56): a cabeça do comer sai do quadro.
 - [ ] Cavar com jóquei na espera antes da largada (o estado parado), com a mesma regra.
 - [ ] **Integração do personagem** (o mínimo; o guia da coordenação manda):
-  - **sombra de contato**: elipse achatada de 2 tons sob os cascos, nos tons escuros da cena (troca de paleta do chão,
+  - **sombra de contato** (já na amostra, `sombraContato`): elipse achatada de 2 tons sob os cascos, nos tons escuros da cena (troca de paleta do chão,
     não preto com alfa), deslocada 2 px para a direita pela luz de cima e da esquerda; ela acompanha o cavar e encolhe
     1 px quando a pata sobe;
   - **o chão por cima dos cascos**: na grama e no capim, uma faixa de 2–3 px de folhas da própria cena redesenhada na

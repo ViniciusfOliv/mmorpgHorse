@@ -16,6 +16,11 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   automática não separa o olho das linhas da cara do robusto-folhas).
 - **Na Fornalha, o pico da esquerda vira vulcão por código** (cratera, fios de lava, fumaça, bombas) — a arena gerada
   não tem vulcão; dá para desligar e comparar, e o `/v2/vfx` fica de reserva se o Vinicius não gostar.
+- **Cata-vento do Planalto: fundo pelo PixelLab, rotor por código** (2026-11-24) — as pás pintadas eram assimétricas
+  (6 braços) e não ficariam bonitas girando; o `/inpaint` (1 geração; o Pro custaria 10–20) refez o fundo depois que a
+  entrada veio sem as pás (com elas, o modelo as repintava), e o rotor de treliça é rasterizado na grade em 24 ângulos.
+- **Sombra de contato feita do próprio chão** (um degrau mais escuro da cor que está sob os cascos, miolo dois degraus,
+  borda em pontilhado, 2 px para a direita) — o primeiro passo para o personagem não parecer colado por cima do fundo.
 - **"Mais movimento" é a versão do jogo, com a vegetação e a água mexendo sempre** (Vinicius, 2ª rodada, 2026-11-23) —
   substitui a decisão anterior (atual como principal); a anterior fica só na amostra para comparar.
 - **No comer do PixelLab, os fiapos de capim soltos da boca são apagados por código** (peças desconectadas do corpo de

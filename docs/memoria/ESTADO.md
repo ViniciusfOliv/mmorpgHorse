@@ -32,8 +32,15 @@ limite: o remédio é pré-assar os loops, na spec). **Lote pago autorizado e ro
 gerações (o teto; PixelLab 909 → 879), os 24 limpos depois de apagar por código os fiapos de capim soltos da boca no
 comer; painel com o seletor dos 12 moldes na amostra. **Spec da entrega 2 escrita**:
 `docs/superpowers/specs/2026-11-23-animacao-ambiente-design.md` (todas as imagens, arquitetura `ambiente.js` +
-manifesto + pré-assado, orçamento por tela, custo, testes, ordem). **Próximo:** aprovação da spec pelo Vinicius; depois
-o plano. Nada no jogo antes disso. Total gasto na frente: 36 gerações do PixelLab. O olho de cada molde deve virar âncora no JSON (a busca automática
+manifesto + pré-assado, orçamento por tela, custo, testes, ordem). **Spec aprovada (2026-11-24)**, com os opcionais
+cata-vento e cavar com jóquei (o vulcão por VFX fica para depois); pedido de qualidade: "o personagem não pode parecer
+PNG por cima do fundo" (referências em `docs/arte/referencias/2026-11-24-estilo-*.png`, no branch da coordenação; guia
+de integração a caminho). **Opcionais rodados**: cavar com jóquei nos 12 moldes (14 gerações, todos limpos) e o
+Planalto sem as pás (3 gerações de `/inpaint` + preenchimento por código; rotor de 4 pás por código, cena nova
+"Planalto · cata-vento" na amostra). Sombra de contato sob os cavalos já na amostra (versão 5). **Plano escrito**:
+`docs/superpowers/plans/2026-11-24-animacao-ambiente.md` (6 etapas; divisão com o chat do mapa: esta frente faz o
+ambiente dentro dos mapas das trilhas). **Próximo:** aprovação do plano pelo Vinicius (via coordenação); nada no jogo
+antes. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
