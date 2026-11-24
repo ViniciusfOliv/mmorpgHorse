@@ -583,6 +583,9 @@
   // a rodada da etapa 6 da animação ambiente (docs/teste-engine.md §7): 60 s travada em 60 FPS no pior caso do jogo
   var ETAPA6 = { nome: 'ETAPA 6: 12 cavalos, Litoral vivo, chuva + ventania, travado em 60 FPS, 60 s', n: 12, escala: 'jogo',
     camadas: TUDO, clima: 'chuva', regiao: 'litoral', limite: '60', s: 60 };
+  // o mesmo pior caso sem a trava em 60 (no ritmo da tela): separa o custo do desenho do ritmo da trava
+  var ETAPA6L = { nome: 'ETAPA 6 SEM TRAVA: 12 cavalos, Litoral vivo, chuva + ventania, no ritmo da tela, 60 s', n: 12, escala: 'jogo',
+    camadas: TUDO, clima: 'chuva', regiao: 'litoral', limite: 'livre', s: 60 };
   var FASES = [
     { nome: 'PIOR CASO: 12 cavalos, escala jogo, tudo ligado', n: 12, escala: 'jogo', camadas: TUDO, limite: 'livre', s: 12 },
     { nome: 'PIOR CASO travado em 60 FPS', n: 12, escala: 'jogo', camadas: TUDO, limite: '60', s: 10 },
@@ -712,7 +715,15 @@
       if (ks.length) linhas.push('  passos das camadas (méd por quadro/pior passo ms): ' + ks.map(function (k) { return k + ' ' + d2(a.camadas[k] / a.q) + '/' + f1(a.camadasMax[k]); }).join(' · '));
     });
     r.fases.forEach(function (f) {
-      if (f.nome !== ETAPA6.nome || !f.st) return;
+      if ((f.nome !== ETAPA6.nome && f.nome !== ETAPA6L.nome) || !f.st) return;
+      if (f.nome === ETAPA6L.nome) {
+        // sem trava: o orçamento é o da batida da tela; conta quadros que perderam 2 batidas ou mais
+        var bat = 1000 / (r.hz || 60), perdas = f.st.lentos, pct2 = 100 * perdas / f.st.quadros;
+        linhas.push('');
+        linhas.push('Sem trava (~' + (r.hz || '?') + ' Hz, batida de ' + f1(bat) + ' ms): FPS ' + f1(f.st.fps) + ' · 1% low ' + f1(f.st.low1) + ' · quadros acima de 20 ms ' + f1(pct2) + '%');
+        if (f.st.sec) linhas.push('JS por parte (méd/p95/máx ms): ' + f.st.sec.map(function (q) { return { cen: 'cenário', cav: 'cavalos', efe: 'efeitos', cam: 'câmera', hud: 'HUD' }[q.k] + ' ' + f1(q.med) + '/' + f1(q.p95) + '/' + f1(q.max); }).join(' · '));
+        return;
+      }
       var pct = 100 * f.st.lentos / f.st.quadros, ok1 = pct <= 1, ok2 = f.st.low1 >= 55;
       linhas.push('');
       linhas.push('Critério da etapa 6: quadros acima de 20 ms ≤ 1% → ' + f1(pct) + '% (' + (ok1 ? 'ok' : 'NÃO') + ') · 1% low ≥ 55 → ' + f1(f.st.low1) + ' (' + (ok2 ? 'ok' : 'NÃO') + ')');
@@ -748,7 +759,7 @@
   var travado = false;
   function travar(v) {
     travado = v;
-    document.querySelectorAll('.controles button, #b-bateria, #b-livre, #b-etapa6, #b-diag, #b-subidas').forEach(function (b) { b.disabled = v; });
+    document.querySelectorAll('.controles button, #b-bateria, #b-livre, #b-etapa6, #b-etapa6l, #b-diag, #b-subidas').forEach(function (b) { b.disabled = v; });
   }
   function marcaBotoes() {
     document.querySelectorAll('.seg').forEach(function (g) {
@@ -772,6 +783,7 @@
   });
   el('b-bateria').addEventListener('click', function () { rodar(FASES, 1, 'Bateria'); });
   el('b-etapa6').addEventListener('click', function () { rodar([ETAPA6], 1, 'Etapa 6'); });
+  el('b-etapa6l').addEventListener('click', function () { rodar([ETAPA6L], 1, 'Etapa 6 sem trava'); });
   el('b-diag').addEventListener('click', function () { rodar(DIAG, 1, 'Diagnóstico'); });
   el('b-subidas').addEventListener('click', function () { rodar(SUBIDAS, 1, 'Subidas'); });
   el('b-livre').addEventListener('click', function () {
@@ -819,7 +831,7 @@
     api.pronto = true;
   }
   var api = {
-    pronto: false, cfg: CFG, aplicar: aplicar, fases: FASES, etapa6: ETAPA6, diag: DIAG, subidas: SUBIDAS,
+    pronto: false, cfg: CFG, aplicar: aplicar, fases: FASES, etapa6: ETAPA6, etapa6l: ETAPA6L, diag: DIAG, subidas: SUBIDAS,
     bateria: function (o) { o = o || {}; return rodar(o.fases || FASES, o.fator || 1, o.titulo || 'Bateria'); },
     ultimo: function () { return ULTIMO; }, texto: function () { return ULTIMO ? textoResumo(ULTIMO) : ''; },
     moldes: function () { return SP.moldsReady; }
