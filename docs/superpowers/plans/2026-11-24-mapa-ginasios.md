@@ -116,11 +116,11 @@ desenha(ctx, k, ox), mascaraCaminho() }`. **Consome (opcional):** `window.Ambien
   Commit "desenha a trilha com a pista que se pinta e o cavalo ativo".
 
 ### Tarefa A6: fechamento do bloco A
-- [ ] **Passo 1:** capturas oficiais `final-24-expedicao-ginasios.png` e `final-25-trilha.png` (rodar `ui-test.mjs` direto e
+- [x] **Passo 1:** capturas oficiais `final-24-expedicao-ginasios.png` e `final-25-trilha.png` (rodar `ui-test.mjs` direto e
   commitar as imagens; a interface muda de propósito). Conferir a 360 px e com movimento reduzido.
-- [ ] **Passo 2:** `wiki.mjs`: a descrição da aba Expedição (`descreverAba`) cita o mapa; regerar o wiki.
-- [ ] **Passo 3:** `node prototype/build.mjs` e `./scripts/check.sh` completos, com o resultado no relatório.
-- [ ] **Passo 4:** memória (`ESTADO.md`, `decisoes.md`), aviso à coordenação e ao chat da animação ("a camada das trilhas
+- [x] **Passo 2:** `wiki.mjs`: a descrição da aba Expedição (`descreverAba`) cita o mapa; regerar o wiki.
+- [x] **Passo 3:** `node prototype/build.mjs` e `./scripts/check.sh` completos, com o resultado no relatório.
+- [x] **Passo 4:** memória (`ESTADO.md`, `decisoes.md`), aviso à coordenação e ao chat da animação ("a camada das trilhas
   está pronta: `Mapa.trilha` chama `Ambiente.cena('mapa:<el>')`; máscara do caminho em `mascaraCaminho()`").
 
 ---

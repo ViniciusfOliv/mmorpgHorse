@@ -71,7 +71,8 @@ aprovação. `main` (e157f3f5) trazida para o ramo. **Plano aprovado pelo Vinici
 build (`window.__MAPA_MUNDO`, +35 KB), mapa-múndi na aba Expedição (acima dos cartões; tocar = cartão), viagem com zoom e
 íris, trilha com a pista que se pinta e o cavalo ativo (o fundo animado das trilhas fica com a frente 1, por
 `window.Ambiente.cena('mapa:<el>')`, com a máscara do caminho), bloco `expedicao-mapa` no `ui-test`, capturas final-24 e
-final-25 novas. Próximo: bloco B (cena de desafio). Lote dos 12 cavalos segue não aprovado.
+final-25 novas. `check.sh` completo OK (82 blocos de interface, 132 metas). DEV do ramo publicado para teste:
+https://claude.ai/artifact/EmQzDqJgwnWjZAgagDkXcC. Nada na `main`. Próximo: bloco B (cena de desafio). Lote dos 12 cavalos segue não aprovado.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 
