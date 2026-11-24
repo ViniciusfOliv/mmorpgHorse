@@ -1442,7 +1442,7 @@
   // corrida: com a arte da região pronta, o piso no clima mostrado pela LUT; sem ela, o tile de sempre (molhado na chuva)
   function corDoPiso(surface, clima, regiao) {
     var a = (SURF[surface] || SURF.grama).a, RG = regiaoPronta(regiao);
-    if (RG) return corClima(lutClima(clima || 'sol'), naMestra(a)).toLowerCase();
+    if (RG) { var c0 = corClima(lutClima(clima || 'sol'), naMestra(a)).toLowerCase(), sh = passoLeitura(surface, clima); return sh ? luzApi().degrau(c0, sh) : c0; }
     return corClima(null, naMestra(clima === 'chuva' ? shade(a, 0.22) : a)).toLowerCase();
   }
   // a cor mais comum na faixa de pixels [x0, x1] × [y, y1] de uma imagem (o chão sob os pés numa cena pintada; a faixa
@@ -2360,6 +2360,20 @@
   function skyKey(weather) { return weather === 'nevoa' ? 'nublado' : weather; }
 
   var tileCache = new Map();
+  // Leitura por valor (guia de integração, Regra 14): o degrau do piso das raias num clima, escolhido pela tabela da cena
+  // (Luz.leituraPiso) com as pelagens das paletas dos elementos; 0 sem o luz.js. Vale para o tile da pista e para a cor do
+  // piso da sombra (corDoPiso), que andam juntos.
+  var leituraCache = {};
+  function passoLeitura(surface, clima) {
+    var Lz = luzApi(), k = SURF[surface] ? surface : 'grama';
+    if (!Lz || !Lz.leituraPiso) return 0;
+    if (!leituraCache[k]) {
+      var pel = Object.keys(PALETTES).map(function (n) { return naMestra(PALETTES[n].coat.toLowerCase()); });
+      leituraCache[k] = Lz.leituraPiso(naMestra(SURF[k].a), pel);
+    }
+    var e = leituraCache[k][CLIMA_PALETA[clima] ? clima : 'sol'];
+    return e ? e.passo : 0;
+  }
   // regiao: o piso no clima por troca de paleta (sem o escurecido e as poças de antes, que eram mistura fora da mestra)
   function surfaceTile(surface, weather, artH, regiao) {
     var key = surface + '|' + weather + '|' + artH + (regiao ? '|r' : '');
@@ -2367,7 +2381,7 @@
     if (c) return c;
     var TW = 64, S = SURF[surface] || SURF.grama;
     var cols = new Array(TW * artH);
-    var wet = weather === 'chuva' && !regiao, lutT = regiao ? lutClima(weather) : null;
+    var wet = weather === 'chuva' && !regiao, lutT = regiao ? lutClima(weather) : null, Lz = luzApi(), sh = regiao ? passoLeitura(surface, weather) : 0;
     for (var y = 0; y < artH; y++) {
       for (var x = 0; x < TW; x++) {
         var h = hash2(x, y), col;
@@ -2395,7 +2409,7 @@
           if (surface !== 'grama' && pd > 0.42) col = mix(col, '#9fb4c8', 0.35);
           if (surface === 'grama' && h > 0.9) col = mix(col, '#cfe8ff', 0.4);
         }
-        cols[y * TW + x] = corClima(lutT, naMestra(col));
+        cols[y * TW + x] = sh ? Lz.degrau(corClima(lutT, naMestra(col)), sh) : corClima(lutT, naMestra(col));
       }
     }
     c = gridToCanvas(cols, TW, artH);
@@ -3242,7 +3256,7 @@
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
-    pixelsSombra: pixelsSombra, passadaDe: passadaDe, cascosNoChao: cascosNoChao, contatoGalope: contatoGalope, cascosNaTela: cascosNaTela, drawContatoRaia: drawContatoRaia, drawSombraCerca: drawSombraCerca, contatoEm: contatoEm, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes, drawTufosFrente: drawTufosFrente,
+    pixelsSombra: pixelsSombra, passoLeitura: passoLeitura, passadaDe: passadaDe, cascosNoChao: cascosNoChao, contatoGalope: contatoGalope, cascosNaTela: cascosNaTela, drawContatoRaia: drawContatoRaia, drawSombraCerca: drawSombraCerca, contatoEm: contatoEm, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes, drawTufosFrente: drawTufosFrente,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,

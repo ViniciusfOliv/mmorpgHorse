@@ -6909,7 +6909,36 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // a LUT das figuras (cavalos, pessoas) numa condição do fundo
   function lutFigura(cond) { return lutCondicao(CONDICAO_FIGURA[cond] || 'sol'); }
 
-  return { RAMPAS: RAMPAS, rampaDe: rampaDe, degrau: degrau, valor: valor, sombraDoChao: sombraDoChao,
+  // Leitura por valor (Regra 14): a claridade L* (CIE, 0 a 100) e o remédio "outra cor de chão na faixa das raias". Para
+  // um piso e as pelagens que correm nele, em cada condição: se a menor diferença de L* entre o corpo (na LUT de figura)
+  // e o chão (na LUT da condição) fica abaixo de LEITURA_MIN, o piso desloca 1 degrau (para baixo ou para cima, o que mais
+  // separa); senão fica. Na escada sol → nublado → chuva o chão nunca clareia (o degrau escolhido respeita a ordem do
+  // anterior); a névoa escolhe sozinha. leituraPiso(piso, pelagens) -> { <cond>: { passo, min, chao } }.
+  var LEITURA_MIN = 5, ESCADA_LEITURA = ['sol', 'nublado', 'chuva'];
+  function claridade(hex) { var y = valor(hex); return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y; }
+  function leituraPiso(piso, pelagens) {
+    piso = norm(piso);
+    function opcao(cond, passo) {
+      var fig = lutFigura(cond), ch = lutCondicao(cond)[degrau(piso, passo)], m = Infinity;
+      pelagens.forEach(function (c) { m = Math.min(m, Math.abs(claridade(fig[norm(c)] || norm(c)) - claridade(ch))); });
+      return { passo: passo, min: m, chao: ch };
+    }
+    function escolhe(cond, teto) {
+      var ops = [0, -1, 1].map(function (p) { return opcao(cond, p); }).filter(function (o) { return teto == null || claridade(o.chao) <= teto + 1e-9; });
+      if (!ops.length) ops = [opcao(cond, -1)];
+      var base = ops[0].passo === 0 ? ops[0] : null;
+      if (base && base.min >= LEITURA_MIN) return base;
+      var melhor = ops[0];
+      ops.forEach(function (o) { if (o.min > melhor.min + 0.5) melhor = o; });
+      return melhor;
+    }
+    var out = {}, teto = null;
+    ESCADA_LEITURA.forEach(function (c) { out[c] = escolhe(c, teto); teto = claridade(out[c].chao); });
+    out.nevoa = escolhe('nevoa', null);
+    return out;
+  }
+
+  return { RAMPAS: RAMPAS, LEITURA_MIN: LEITURA_MIN, claridade: claridade, leituraPiso: leituraPiso, rampaDe: rampaDe, degrau: degrau, valor: valor, sombraDoChao: sombraDoChao,
     CONDICOES: CONDICOES, CONDICAO_FIGURA: CONDICAO_FIGURA, CONTRALUZ: CONTRALUZ, lutCondicao: lutCondicao, lutFigura: lutFigura, degrauEstendido: degrauEstendido };
 }));
 </script>
@@ -8359,7 +8388,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // corrida: com a arte da região pronta, o piso no clima mostrado pela LUT; sem ela, o tile de sempre (molhado na chuva)
   function corDoPiso(surface, clima, regiao) {
     var a = (SURF[surface] || SURF.grama).a, RG = regiaoPronta(regiao);
-    if (RG) return corClima(lutClima(clima || 'sol'), naMestra(a)).toLowerCase();
+    if (RG) { var c0 = corClima(lutClima(clima || 'sol'), naMestra(a)).toLowerCase(), sh = passoLeitura(surface, clima); return sh ? luzApi().degrau(c0, sh) : c0; }
     return corClima(null, naMestra(clima === 'chuva' ? shade(a, 0.22) : a)).toLowerCase();
   }
   // a cor mais comum na faixa de pixels [x0, x1] × [y, y1] de uma imagem (o chão sob os pés numa cena pintada; a faixa
@@ -9277,6 +9306,20 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   function skyKey(weather) { return weather === 'nevoa' ? 'nublado' : weather; }
 
   var tileCache = new Map();
+  // Leitura por valor (guia de integração, Regra 14): o degrau do piso das raias num clima, escolhido pela tabela da cena
+  // (Luz.leituraPiso) com as pelagens das paletas dos elementos; 0 sem o luz.js. Vale para o tile da pista e para a cor do
+  // piso da sombra (corDoPiso), que andam juntos.
+  var leituraCache = {};
+  function passoLeitura(surface, clima) {
+    var Lz = luzApi(), k = SURF[surface] ? surface : 'grama';
+    if (!Lz || !Lz.leituraPiso) return 0;
+    if (!leituraCache[k]) {
+      var pel = Object.keys(PALETTES).map(function (n) { return naMestra(PALETTES[n].coat.toLowerCase()); });
+      leituraCache[k] = Lz.leituraPiso(naMestra(SURF[k].a), pel);
+    }
+    var e = leituraCache[k][CLIMA_PALETA[clima] ? clima : 'sol'];
+    return e ? e.passo : 0;
+  }
   // regiao: o piso no clima por troca de paleta (sem o escurecido e as poças de antes, que eram mistura fora da mestra)
   function surfaceTile(surface, weather, artH, regiao) {
     var key = surface + '|' + weather + '|' + artH + (regiao ? '|r' : '');
@@ -9284,7 +9327,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (c) return c;
     var TW = 64, S = SURF[surface] || SURF.grama;
     var cols = new Array(TW * artH);
-    var wet = weather === 'chuva' && !regiao, lutT = regiao ? lutClima(weather) : null;
+    var wet = weather === 'chuva' && !regiao, lutT = regiao ? lutClima(weather) : null, Lz = luzApi(), sh = regiao ? passoLeitura(surface, weather) : 0;
     for (var y = 0; y < artH; y++) {
       for (var x = 0; x < TW; x++) {
         var h = hash2(x, y), col;
@@ -9312,7 +9355,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
           if (surface !== 'grama' && pd > 0.42) col = mix(col, '#9fb4c8', 0.35);
           if (surface === 'grama' && h > 0.9) col = mix(col, '#cfe8ff', 0.4);
         }
-        cols[y * TW + x] = corClima(lutT, naMestra(col));
+        cols[y * TW + x] = sh ? Lz.degrau(corClima(lutT, naMestra(col)), sh) : corClima(lutT, naMestra(col));
       }
     }
     c = gridToCanvas(cols, TW, artH);
@@ -10159,7 +10202,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
-    pixelsSombra: pixelsSombra, passadaDe: passadaDe, cascosNoChao: cascosNoChao, contatoGalope: contatoGalope, cascosNaTela: cascosNaTela, drawContatoRaia: drawContatoRaia, drawSombraCerca: drawSombraCerca, contatoEm: contatoEm, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes, drawTufosFrente: drawTufosFrente,
+    pixelsSombra: pixelsSombra, passoLeitura: passoLeitura, passadaDe: passadaDe, cascosNoChao: cascosNoChao, contatoGalope: contatoGalope, cascosNaTela: cascosNaTela, drawContatoRaia: drawContatoRaia, drawSombraCerca: drawSombraCerca, contatoEm: contatoEm, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes, drawTufosFrente: drawTufosFrente,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,

@@ -63,5 +63,33 @@ for (const [f, teto] of Object.entries(CATRACA_ALFA)) {
   else if (k < teto) { falhas++; console.log(`  FALHA catraca do alfa: ${f} caiu para ${k} fontes; baixe o teto de ${teto} para ${k} em arte-check.mjs`); }
   else console.log(`  ok  alfa parcial em ${f}: ${k} fontes (catraca)`);
 }
+
+// Leitura por valor (guia de integração, Regra 14): para cada piso de corrida (na arte da região) e clima, a menor
+// diferença de claridade L* entre o corpo das pelagens dos elementos (na LUT de figura) e o chão das raias (na LUT do
+// clima, com o degrau que a tabela da cena escolheu). Na escada sol → nublado → chuva o chão nunca clareia. Cada degrau
+// escolhido é o melhor dos permitidos e, quando um permitido alcança Luz.LEITURA_MIN, pelo menos isso.
+{
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url), SP = req('../src/sprites.js'), LZ = req('../src/luz.js');
+  const pel = Object.values(SP.PALETTES).map((p) => SP.naMestra(p.coat.toLowerCase()));
+  const linhas = [];
+  for (const piso of ['grama', 'terra', 'areia']) {
+    const base = SP.naMestra({ grama: '#239063', terra: '#cd683d', areia: '#fbb954' }[piso]);
+    const minC = (p, cl) => { const ch = LZ.lutCondicao(cl)[LZ.degrau(base, p)]; return { m: Math.min(...pel.map((c) => Math.abs(LZ.claridade(LZ.lutFigura(cl)[c] || c) - LZ.claridade(ch)))), l: LZ.claridade(ch) }; };
+    let teto = Infinity; const partes = [];
+    for (const cl of ['sol', 'nublado', 'chuva', 'nevoa']) {
+      if (cl === 'nevoa') teto = Infinity;
+      const passo = SP.passoLeitura(piso, cl), tem = minC(passo, cl);
+      const perm = [-1, 0, 1].map((p) => minC(p, cl)).filter((o) => o.l <= teto + 1e-9), melhor = Math.max(...perm.map((o) => o.m));
+      if (tem.l > teto + 1e-9) { falhas++; console.log(`  FALHA leitura ${piso}/${cl}: o chão clareou em relação ao clima anterior`); }
+      if (tem.m < melhor - 0.51) { falhas++; console.log(`  FALHA leitura ${piso}/${cl}: degrau ${passo} dá ${tem.m.toFixed(1)} de L*, outro permitido dá ${melhor.toFixed(1)}`); }
+      else if (melhor >= LZ.LEITURA_MIN && tem.m < LZ.LEITURA_MIN) { falhas++; console.log(`  FALHA leitura ${piso}/${cl}: ${tem.m.toFixed(1)} de L* (mínimo ${LZ.LEITURA_MIN})`); }
+      partes.push(`${cl} ${passo >= 0 ? '+' : ''}${passo} ${tem.m.toFixed(1)}`);
+      teto = tem.l;
+    }
+    linhas.push(`${piso}: ${partes.join(', ')}`);
+  }
+  console.log(`  ok  leitura por valor (degrau do piso e menor diferença de L*): ${linhas.join(' · ')}`);
+}
 console.log(`${falhas} falhas`);
 process.exit(falhas ? 1 : 0);

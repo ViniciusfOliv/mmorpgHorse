@@ -156,6 +156,35 @@
   // a LUT das figuras (cavalos, pessoas) numa condição do fundo
   function lutFigura(cond) { return lutCondicao(CONDICAO_FIGURA[cond] || 'sol'); }
 
-  return { RAMPAS: RAMPAS, rampaDe: rampaDe, degrau: degrau, valor: valor, sombraDoChao: sombraDoChao,
+  // Leitura por valor (Regra 14): a claridade L* (CIE, 0 a 100) e o remédio "outra cor de chão na faixa das raias". Para
+  // um piso e as pelagens que correm nele, em cada condição: se a menor diferença de L* entre o corpo (na LUT de figura)
+  // e o chão (na LUT da condição) fica abaixo de LEITURA_MIN, o piso desloca 1 degrau (para baixo ou para cima, o que mais
+  // separa); senão fica. Na escada sol → nublado → chuva o chão nunca clareia (o degrau escolhido respeita a ordem do
+  // anterior); a névoa escolhe sozinha. leituraPiso(piso, pelagens) -> { <cond>: { passo, min, chao } }.
+  var LEITURA_MIN = 5, ESCADA_LEITURA = ['sol', 'nublado', 'chuva'];
+  function claridade(hex) { var y = valor(hex); return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y; }
+  function leituraPiso(piso, pelagens) {
+    piso = norm(piso);
+    function opcao(cond, passo) {
+      var fig = lutFigura(cond), ch = lutCondicao(cond)[degrau(piso, passo)], m = Infinity;
+      pelagens.forEach(function (c) { m = Math.min(m, Math.abs(claridade(fig[norm(c)] || norm(c)) - claridade(ch))); });
+      return { passo: passo, min: m, chao: ch };
+    }
+    function escolhe(cond, teto) {
+      var ops = [0, -1, 1].map(function (p) { return opcao(cond, p); }).filter(function (o) { return teto == null || claridade(o.chao) <= teto + 1e-9; });
+      if (!ops.length) ops = [opcao(cond, -1)];
+      var base = ops[0].passo === 0 ? ops[0] : null;
+      if (base && base.min >= LEITURA_MIN) return base;
+      var melhor = ops[0];
+      ops.forEach(function (o) { if (o.min > melhor.min + 0.5) melhor = o; });
+      return melhor;
+    }
+    var out = {}, teto = null;
+    ESCADA_LEITURA.forEach(function (c) { out[c] = escolhe(c, teto); teto = claridade(out[c].chao); });
+    out.nevoa = escolhe('nevoa', null);
+    return out;
+  }
+
+  return { RAMPAS: RAMPAS, LEITURA_MIN: LEITURA_MIN, claridade: claridade, leituraPiso: leituraPiso, rampaDe: rampaDe, degrau: degrau, valor: valor, sombraDoChao: sombraDoChao,
     CONDICOES: CONDICOES, CONDICAO_FIGURA: CONDICAO_FIGURA, CONTRALUZ: CONTRALUZ, lutCondicao: lutCondicao, lutFigura: lutFigura, degrauEstendido: degrauEstendido };
 }));
