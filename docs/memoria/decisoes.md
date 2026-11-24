@@ -3,6 +3,11 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Animação ambiente (etapas 4 e 5) e mapa dos ginásios (blocos A e B) aprovados (Vinicius: "Aprovados")
+- Aprovados: as regiões vivas na corrida (etapa 5), as trilhas animadas (etapa 4), o mapa-múndi com a viagem e a trilha
+  que se pinta (bloco A) e a cena de desafio com as vistas Meshy (bloco B). A junção dos dois ramos é feita no ramo da
+  animação; com o check completo OK, a coordenação integra na `main` e republica os oficiais.
+
 ## 2026-11-24 — Desempenho no celular, correção das subidas e spec do mapa (Vinicius)
 - **Correção das subidas na `main`** (e157f3f5, avanço direto; check completo OK, desenho por quadro 1,79 ms) e
   oficiais republicados (jogo v17, DEV v15, wiki v14, testadores v3). Causa: hachura das subidas por `createPattern`
