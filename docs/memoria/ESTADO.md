@@ -38,7 +38,11 @@ ficam só como alvo de comparação; mapa pintado é o principal, com o exemplo 
 comparar; **a cena de desafio passa a ser desta frente**, na direção de batalha de RPG de criaturas (oponente de frente no
 alto à direita, o nosso de costas embaixo): piloto da Brasa feito (12 gerações), na amostra (versão 5). Gasto da
 rodada 2: 24 gerações (saldo 848 → 824). Próximo: escolha do candidato de costas e da vista de frente, estimativa do
-lote (12 moldes, de costas e de frente, com idle) e a spec.
+lote (12 moldes, de costas e de frente, com idle) e a spec. **Versão 6 (retorno do Vinicius à 5):** um padrão só de
+cavalo (a trilha trota com o mesmo desenho do parado, passo de 1 px); a cena de desafio com o chão da arena como plano
+(oponente e líder pisando no fundo, o nosso na frente cortado pela borda, marcas de terra gasta no chão, sombras deitadas
+no piso), arena 1 e arena 0 no seletor. Lote dos 12 cavalos NÃO aprovado; o oponente de frente no estilo do molde pede
+teste pago (perguntado).
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

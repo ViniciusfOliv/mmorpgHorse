@@ -36,7 +36,7 @@ const dados = {
   })(),
   desafio: (() => {
     const P = path.join(PROTO, 'assets', 'arte', 'desafio', 'piloto');
-    return { arena: uri(path.join(PROTO, 'assets', 'arte', 'ginasios', 'finais', 'fogo.png')),
+    return { arena: uri(path.join(PROTO, 'assets', 'arte', 'ginasios', 'finais', 'fogo.png')), arena0: uri(path.join(PROTO, 'assets', 'arte', 'ginasios', 'fogo', 'arena-0.png')),
       costas: Array.from({ length: 16 }, (_, i) => uri(path.join(P, `brasa-costas-estilo-${String(i).padStart(2, '0')}.png`))),
       oito: Array.from({ length: 8 }, (_, i) => uri(path.join(P, `brasa-8dir-64-${String(i).padStart(2, '0')}.png`))),
       oito96: Array.from({ length: 8 }, (_, i) => uri(path.join(P, `brasa-8dir-96-${String(i).padStart(2, '0')}.png`))),
