@@ -2858,5 +2858,85 @@ test('tufos na frente dos cascos: determinísticos, só cores da rampa do chão,
   assert.ok(a.rects.some(function (r) { return r.y === 200 && r.w >= 60; }), 'o tapete cobre a linha dos cascos');
 });
 
+section('ambiente.js: o motor da animação ambiente (etapa 1)');
+var AMB = require('../src/ambiente.js');
+// canvas falso com pixels de verdade (createImageData, getImageData, putImageData com retângulo e drawImage de outro canvas
+// falso), o bastante para Buf, CicloCor e Deforma rodarem no Node
+function CanvasPx(w, h) {
+  var cv = this; cv.width = w; cv.height = h; cv.px = new Uint8ClampedArray(w * h * 4);
+  var g = { imageSmoothingEnabled: false, canvas: cv };
+  g.createImageData = function (a, b) { return { width: a, height: b, data: new Uint8ClampedArray(a * b * 4) }; };
+  g.getImageData = function (x, y, a, b) { var d = new Uint8ClampedArray(a * b * 4); for (var j = 0; j < b; j++) for (var i = 0; i < a; i++) for (var k = 0; k < 4; k++) d[(j * a + i) * 4 + k] = cv.px[((y + j) * w + x + i) * 4 + k]; return { width: a, height: b, data: d }; };
+  g.putImageData = function (img, dx, dy, x0, y0, a, b) {
+    x0 = x0 || 0; y0 = y0 || 0; a = a == null ? img.width : a; b = b == null ? img.height : b;
+    for (var j = y0; j < y0 + b; j++) for (var i = x0; i < x0 + a; i++) for (var k = 0; k < 4; k++) cv.px[((dy + j) * w + dx + i) * 4 + k] = img.data[(j * img.width + i) * 4 + k];
+  };
+  g.drawImage = function (src, x, y) { for (var j = 0; j < src.height; j++) for (var i = 0; i < src.width; i++) { var o = (j * src.width + i) * 4; if (src.px[o + 3]) for (var k = 0; k < 4; k++) cv.px[((y + j) * w + x + i) * 4 + k] = src.px[o + k]; } };
+  g.fillRect = function () {}; g.clearRect = function () {};
+  cv.getContext = function () { return g; };
+}
+AMB.config({ criaCanvas: function (w, h) { return new CanvasPx(w, h); } });
+// uma imagem sintética 24×12: céu (c7dcd0), mar numa rampa de 3 tons e uma "folha" verde que a deformação dobra
+function imagemSintetica() {
+  var c = new CanvasPx(24, 12), C = { c7dcd0: [199, 220, 208], '0b5e65': [11, 94, 101], '0eaf9b': [14, 175, 155], '8ff8e2': [143, 248, 226], '239063': [35, 144, 99] };
+  for (var y = 0; y < 12; y++) for (var x = 0; x < 24; x++) {
+    var h = y < 6 ? 'c7dcd0' : ['0b5e65', '0eaf9b', '8ff8e2'][(x + y) % 3];
+    if (y >= 2 && y <= 4 && x >= 4 && x <= 10) h = '239063';
+    var v = C[h], o = (y * 24 + x) * 4; c.px[o] = v[0]; c.px[o + 1] = v[1]; c.px[o + 2] = v[2]; c.px[o + 3] = 255;
+  }
+  return c;
+}
+function rodaMotor() {
+  var b = AMB.Buf.de(imagemSintetica()), rng = AMB.rngCosmetica(7);
+  var ciclo = new AMB.CicloCor(b, function (x, y, h) { return y >= 6 ? 0 : -1; }, [['0b5e65', '0eaf9b', '8ff8e2']], function (x, y, r, d, t) { return (d + Math.floor(t * 4) + x) % 3; }, 12);
+  var m = new Int16Array(24 * 12); for (var y = 2; y <= 4; y++) for (var x = 4; x <= 10; x++) m[y * 24 + x] = 1;
+  var def = new AMB.Deforma(b, m, [{ id: 1, x0: 2, x1: 14, y0: 1, y1: 6 }], function (x, y, cx, t, v) { v[0] = Math.round(cx.amp * (x - 4) / 6); v[1] = 0; }, 12,
+    function (t) { this.caixas[0].amp = 2 * AMB.vento(t) * (0.5 + 0.5 * Math.sin(t * 3 + rng() * 0)); });
+  def.prepara = def.prepara.bind(def);
+  var quadros = [];
+  [1, 1.5, 2.25].forEach(function (t) {
+    ciclo.passo = -1; ciclo.atualiza(t); def.passo = -1; def.atualiza(t);
+    quadros.push(fnvBytes(new Uint8Array(ciclo.saida.d.buffer)) + '/' + fnvBytes(new Uint8Array(def.saida.d.buffer)) + '/' + fnvBytes(def.saida.c.px));
+  });
+  var p = new AMB.Particulas(8); for (var k = 0; k < 5; k++) p.nasce(1, rng() * 24, rng() * 12, rng() - 0.5, -1, 2, rng());
+  p.passo(0.1, 1); p.passo(0.1, 1.1);
+  quadros.push(fnvBytes(new Uint8Array(p.x.buffer)) + '/' + fnvBytes(new Uint8Array(p.y.buffer)));
+  return quadros;
+}
+test('ambiente.js: sem sim.js, sem Math.random, sem DOM no topo (só pelo criaCanvas)', function () {
+  var txt = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'ambiente.js'), 'utf8');
+  var semComent = txt.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(!/require\(['"][^'"]*sim(\.js)?['"]\)/.test(semComent) && !/\bSim\./.test(semComent), 'não importa sim.js');
+  assert.ok(!/Math\.random/.test(semComent), 'sem Math.random (só a RNG cosmética)');
+  assert.strictEqual(typeof AMB.cena, 'function'); assert.strictEqual(typeof AMB.dados, 'function');
+});
+test('ambiente.js: a mesma semente desenha os mesmos 3 quadros (ciclo de cor, deformação e partículas)', function () {
+  var a = rodaMotor(), b = rodaMotor();
+  assert.deepStrictEqual(a, b);
+  assert.notStrictEqual(a[0], a[1], 'o ciclo de cor anda entre os quadros');
+  // instantâneo: muda só se o motor mudar de comportamento (então conferir a amostra e atualizar aqui)
+  assert.strictEqual(fnvTexto(a.join('|')), 'c7fa9b88');
+});
+test('ambiente.js: a deformação põe o passo no canvas da saída (a peça mexe na tela, não só nos dados)', function () {
+  var b = AMB.Buf.de(imagemSintetica()), m = new Int16Array(24 * 12);
+  for (var y = 2; y <= 4; y++) for (var x = 4; x <= 10; x++) m[y * 24 + x] = 1;
+  var def = new AMB.Deforma(b, m, [{ id: 1, x0: 2, x1: 14, y0: 1, y1: 6 }], function (x, y, cx, t, v) { v[0] = t > 1 ? 2 : 0; v[1] = 0; }, 12);
+  def.atualiza(0.5); var antes = fnvBytes(def.saida.c.px);
+  def.atualiza(1.5); assert.notStrictEqual(fnvBytes(def.saida.c.px), antes);
+});
+test('ambiente.js: pré-assado por estado da peça: o mesmo estado repete os mesmos pixels, com teto de memória', function () {
+  function monta(pre) {
+    var b = AMB.Buf.de(imagemSintetica()), m = new Int16Array(24 * 12);
+    for (var y = 2; y <= 4; y++) for (var x = 4; x <= 10; x++) m[y * 24 + x] = 1;
+    var d = new AMB.Deforma(b, m, [{ id: 1, x0: 2, x1: 14, y0: 1, y1: 6 }], function (x, y, cx, t, v) { v[0] = cx.k; v[1] = 0; }, 12, function (t) { d.caixas[0].k = Math.floor(t * 12) % 3; });
+    if (pre) d.preassado(function (cx) { return cx.k; }, 1e6);
+    return d;
+  }
+  var a = monta(false), c = monta(true), ts = [0, 0.09, 0.17, 0.26, 0.34, 0.42, 0.51];
+  ts.forEach(function (t) { a.atualiza(t); c.atualiza(t); assert.strictEqual(fnvBytes(c.saida.c.px), fnvBytes(a.saida.c.px), 't = ' + t); });
+  assert.strictEqual(c.erros, 3, '3 estados calculados'); assert.ok(c.acertos >= 3, 'os outros copiados');
+  var z = monta(true); z.preassado(function (cx) { return cx.k; }, 10); z.atualiza(0); assert.strictEqual(z.cacheBytes, 0, 'acima do teto não guarda');
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

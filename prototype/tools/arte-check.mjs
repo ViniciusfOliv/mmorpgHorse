@@ -91,5 +91,27 @@ for (const [f, teto] of Object.entries(CATRACA_ALFA)) {
   }
   console.log(`  ok  leitura por valor (degrau do piso e menor diferença de L*): ${linhas.join(' · ')}`);
 }
+
+// Manifesto da animação ambiente (prototype/assets/arte/animacao.json; etapa 1): toda imagem que o motor
+// (prototype/src/ambiente.js) usa tem entrada, e toda cor do manifesto (rampas, cores das peças, contorno) é da
+// Resurrect 64
+{
+  const { createRequire } = await import('node:module');
+  const LZ = createRequire(import.meta.url)('../src/luz.js');
+  const R64 = new Set([].concat(...Object.values(LZ.RAMPAS)).map((h) => h.replace('#', '')));
+  const MAN = JSON.parse(fs.readFileSync(path.join(DIR, 'animacao.json'), 'utf8'));
+  const motor = fs.readFileSync(path.join(SRC, 'ambiente.js'), 'utf8');
+  const usadas = [...new Set([...motor.matchAll(/IMG\['([^']+)'\]/g)].map((m) => m[1]))];
+  const sem = usadas.filter((n) => !MAN.imagens[n]);
+  if (sem.length) { falhas++; console.log(`  FALHA manifesto da animação: sem entrada para ${sem.join(', ')}`); }
+  const fora = [];
+  (function varre(o, onde) {
+    if (Array.isArray(o)) o.forEach((v, i) => varre(v, onde));
+    else if (o && typeof o === 'object') Object.entries(o).forEach(([k, v]) => varre(v, onde + '.' + k));
+    else if (typeof o === 'string' && /^[0-9a-f]{6}$/.test(o) && !R64.has(o)) fora.push(onde + ': ' + o);
+  })(MAN.imagens, 'imagens');
+  if (fora.length) { falhas++; console.log(`  FALHA manifesto da animação: cores fora da Resurrect 64: ${fora.slice(0, 5).join('; ')}`); }
+  if (!sem.length && !fora.length) console.log(`  ok  manifesto da animação: ${usadas.length} imagens do motor com entrada, cores na Resurrect 64`);
+}
 console.log(`${falhas} falhas`);
 process.exit(falhas ? 1 : 0);

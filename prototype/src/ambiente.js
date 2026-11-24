@@ -38,11 +38,30 @@
       var c;
       if (typeof document !== 'undefined' && document.createElement) c = document.createElement('canvas');
       else if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
-      else throw new Error('Ambiente: nenhum canvas (use Ambiente.config({ criaCanvas }))');
+      else return canvasMudo(w, h);   // Node sem canvas: carrega o módulo (os testes passam o criaCanvas deles)
       c.width = w; c.height = h; return c;
     },
-    pilotoCanvas: null
+    pilotoCanvas: null,
+    preassado: true   // pré-assado por estado das peças (Deforma.preassado); false: tudo calculado a cada passo
   };
+  // um canvas que não desenha nada (para o módulo carregar fora do navegador)
+  function canvasMudo(w, h) {
+    var nada = function () {}, img = function (a, b) { return { width: a, height: b, data: new Uint8ClampedArray(a * b * 4) }; };
+    var g = { fillRect: nada, clearRect: nada, drawImage: nada, putImageData: nada, save: nada, restore: nada, beginPath: nada, fill: nada,
+      createImageData: img, getImageData: function (x, y, a, b) { return img(a, b); } };
+    return { width: w, height: h, getContext: function () { return g; } };
+  }
+  var DOIS_PI = Math.PI * 2;
+  // quantiza para o pré-assado: v em degraus de passo; a fase (radianos) em n passos da volta
+  function qv(v, passo) { return Math.round(v / passo) * passo; }
+  // ao abrir a tela: roda os primeiros segundos das peças pré-assadas nas duas versões (com e sem "mais movimento")
+  function aquecer(lista, seg) {
+    if (!cfg.preassado) return;
+    var m0 = MAIS;
+    [true, false].forEach(function (m) { MAIS = m; lista.forEach(function (d) { if (d.chave) d.aquece(0, seg); }); });
+    MAIS = m0;
+  }
+  function qfase(a, n) { return Math.round(mod(a, DOIS_PI) / DOIS_PI * n) % n * DOIS_PI / n; }
 
   // ================================================================ cores e canvas
   function rgbDe(h) { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
@@ -199,7 +218,21 @@
     var bb = { x0: w, y0: h, x1: 0, y1: 0 };
     caixas.forEach(function (cx) { bb.x0 = Math.min(bb.x0, cx.x0); bb.y0 = Math.min(bb.y0, cx.y0); bb.x1 = Math.max(bb.x1, cx.x1); bb.y1 = Math.max(bb.y1, cx.y1); });
     this.bb = bb;
+    this.chave = null; this.cacheMax = 0; this.cacheBytes = 0; this.acertos = 0; this.erros = 0;
   }
+  // Pré-assado por estado da peça (spec §2.3; plano, etapa 1): chave(caixa) -> a chave dos parâmetros dela (que a cena
+  // quantiza no prepara) ou null. O resultado de cada caixa em cada chave fica guardado (só os pixels que a caixa
+  // escreve; 0 = não escreveu) até maxBytes; com a chave já vista, o passo copia em vez de calcular. Cada peça segue o
+  // seu vento (a rajada continua atravessando a tela). aquece(t0, t1) roda os passos de [t0, t1) para encher ao abrir.
+  Deforma.prototype.preassado = function (chave, maxBytes) {
+    this.chave = chave; this.cacheMax = maxBytes;
+    this.caixas.forEach(function (cx) { cx.cache = new Map(); });
+    return this;
+  };
+  Deforma.prototype.aquece = function (t0, t1) {
+    for (var p = Math.ceil(t0 * this.fps); p < t1 * this.fps; p++) { this.passo = -1; this.atualiza(p / this.fps); }
+    this.passo = -1;
+  };
   Deforma.prototype.precisa = function (t) { return Math.floor(t * this.fps) !== this.passo; };
   Deforma.prototype.atualiza = function (t, origemNova) {
     var p = Math.floor(t * this.fps); if (p === this.passo && !origemNova) return false;
@@ -208,15 +241,22 @@
     if (this.prepara) this.prepara(tq);
     if (origemNova) { for (var q = 0; q < d.length; q++) d[q] = m[q] ? 0 : o[q]; } else d.set(this.limpo);
     for (var c = 0; c < this.caixas.length; c++) {
-      var cx = this.caixas[c], id = cx.id, L = cx.lista;
-      for (var n = 0; n < L.length; n++) {
+      var cx = this.caixas[c], id = cx.id, L = cx.lista, k = this.chave && !origemNova ? this.chave(cx) : null, guarda = null, n;
+      if (k !== null) {
+        var achou = cx.cache.get(k);
+        if (achou) { for (n = 0; n < L.length; n++) if (achou[n]) d[L[n]] = achou[n]; this.acertos++; continue; }
+        this.erros++;
+        if (this.cacheBytes + L.length * 4 <= this.cacheMax) guarda = new Uint32Array(L.length);
+      }
+      for (n = 0; n < L.length; n++) {
         var i = L[n], x = i % w, y = (i / w) | 0;
         this.desloc(x, y, cx, tq, v, i);
         var sx = x - v[0], sy = y - v[1];
         if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
         var s = sy * w + sx;
-        if (m[s] === id) d[i] = o[s];
+        if (m[s] === id) { d[i] = o[s]; if (guarda) guarda[n] = o[s]; }
       }
+      if (guarda) { cx.cache.set(k, guarda); this.cacheBytes += guarda.byteLength; }
     }
     // o canvas da saída (sem isto, a peça ficava parada na tela: o passo só mudava os dados)
     var bb = this.bb;
@@ -835,8 +875,11 @@
         pc.caixas.forEach(function (cx) {
           var vv = ventoEm(cx.cx, t); cx.bal = vv * (0.55 + 0.45 * Math.sin(t * (1.6 + vv * 1.8) + cx.fase)) * (MAIS ? 1.45 : 1);
           cx.ond = MAIS ? 0.75 + vv * 0.6 : 0; cx.tt = t * 3.4 + cx.fase;   // mais movimento: as folhas ondulam sempre
+          if (cfg.preassado) { cx.bal = qv(cx.bal, 0.25); cx.ond = qv(cx.ond, 0.3); cx.tt = qfase(cx.tt, 12); }
         });
       });
+      // pré-assado: cada coqueiro guarda o desenho de cada (dobra, ondulação, fase); até 1,2 MB
+      if (cfg.preassado) s.coqueiros.preassado(function (cx) { return cx.bal + '|' + cx.ond + '|' + cx.tt.toFixed(3) + (MAIS ? '+' : ''); }, 1.2e6);
       s.meioY = lt + 26 - meio.h + (R_.posicao.meio || 0);
       // --- torcida (arquibancada): grupos de 3 colunas pulam 1 px
       var MA = man('litoral/arquibancada'), MT = MA.torcida, GR = MT.grupo;
@@ -853,6 +896,7 @@
           cx.pula = d < 5 ? -2 : d < 14 ? -1 : hash3(cx.gx, 7, q) < (MAIS ? 0.24 : 0.16) ? -1 : 0;
         });
       });
+      if (cfg.preassado) s.torcida.preassado(function (cx) { return cx.pula; }, 0.2e6);   // 3 estados por grupo
       s.arqY = lt - 6 - arq.h; s.arqX = MA.x;   // no jogo a 1ª fica em 60; aqui mais à direita para o mar aparecer
       // --- capim da praia (frente): tudo acima da linha 33 balança, mais no alto
       var MF = man('litoral/frente').capim, YC = MF.yMax, FX = MF.faixa;
@@ -888,6 +932,7 @@
       var fundoP = new Buf(s.W, s.H); fundoP.g.drawImage(s.pista, 0, lt - 16); fundoP.img = fundoP.g.getImageData(0, 0, s.W, s.H); fundoP.d = new Uint32Array(fundoP.img.data.buffer);
       s.cavalos.forEach(function (h) { var a = h.cv.anc.bbox; h.sombra = sombraContato(fundoP, h.x + Math.round(a.x + a.w / 2) + 2, h.pe + 1, Math.round(a.w * 0.42), 3); });
       s.antes = this.desenhaAntes();
+      aquecer([s.coqueiros, s.torcida], 4);
       s.agenda = new Agenda(); s.agenda.itens = [s.mar, s.coqueiros, s.capim, s.torcida];
       s.mar.camada = 'mar'; s.coqueiros.camada = 'coqueiros'; s.capim.camada = 'capim'; s.torcida.camada = 'torcida';
     },
@@ -1060,7 +1105,11 @@
       for (y = 0; y < YP; y++) for (x = 0; x < mb.w; x++) { var dd = y - TOPO[x]; PESO[y * mb.w + x] = dd >= 0 && dd < FP ? 1 - dd / (FP + 2) : 0; }
       s.copas = new Deforma(mb, mm, [{ id: 1, x0: 0, x1: mb.w, y0: 0, y1: YP }], function (x, y, cx, t, v, i) {
         v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.09)) : 0; v[1] = 0;
-      }, 6, function (t) { var c = s.copas.caixas[0]; c.tt = t * 1.3; c.amp = 0.8 + vento(t) * (MAIS ? 0.9 : 0.5); });
+      }, 6, function (t) {
+        var c = s.copas.caixas[0]; c.tt = t * 1.3; c.amp = 0.8 + vento(t) * (MAIS ? 0.9 : 0.5);
+        if (cfg.preassado) { c.tt = qfase(c.tt, 12); c.amp = qv(c.amp, 0.25); }
+      });
+      if (cfg.preassado) s.copas.preassado(function (cx) { return cx.amp + '|' + cx.tt.toFixed(3) + (MAIS ? '+' : ''); }, 1.5e6);
       // capim alto: tudo acima da linha 50 da camada balança, mais no alto, numa onda contínua
       var MF = man('planalto/frente').capim, YC = MF.yMax, FX = MF.faixa;
       var fr = Buf.de(IMG['planalto/frente']), mf = new Int16Array(fr.w * fr.h), ALT = new Float32Array(64), GC = new Float32Array(fr.w);
@@ -1073,6 +1122,7 @@
       s.pista = desenhaPistaLitoral(s);
       s.longe = new Bando(rngCosmetica(61), 4, { tipo: 'longe', cor: P.sombra, y0: 10, y1: 40, v: 5, qps: 7, largura: 380, paralaxe: 0.08, dir: -1 });
       s.revoada = new Revoada({ tipo: 'longe', cor: P.sombra, n: 7, y: 18, v: 12, qps: 8, periodo: 20, fase: 5 });
+      aquecer([s.copas], 4);
       s.agenda = new Agenda(); s.agenda.itens = [s.copas, s.capim]; s.copas.camada = 'copas'; s.capim.camada = 'capim';
       // antes: as camadas de hoje (o meio com as pás pintadas)
       var c = tela(s.W, s.H), g0 = g; g = c.getContext('2d');
@@ -1538,7 +1588,7 @@
     manifesto: function (m) { MAN = m || { imagens: {} }; },
     mais: function (b) { MAIS = !!b; },
     usa: function (ctx) { g = ctx; },
-    cena: cena, CENAS: CENAS, IMG: IMG, estado: estado, medidor: medidor, Camada: Camada, tela: tela,
+    cena: cena, CENAS: CENAS, IMG: IMG, Buf: Buf, estado: estado, medidor: medidor, Camada: Camada, tela: tela,
     rngCosmetica: rngCosmetica, vento: vento, ventoEm: ventoEm,
     CicloCor: CicloCor, Deforma: Deforma, Agenda: Agenda, Particulas: Particulas, Bando: Bando, Revoada: Revoada
   };

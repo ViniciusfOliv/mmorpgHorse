@@ -14,7 +14,8 @@
   var E = window.Ambiente, A = E.dados(window.__ANIM);
   // o motor e as cenas estão em prototype/src/ambiente.js (etapa 1); aqui fica só a interface da amostra
   var CENAS = E.CENAS, estado = E.estado, medidor = E.medidor, IMG = E.IMG, Camada = E.Camada, tela = E.tela;
-  E.config({ pilotoCanvas: document.getElementById('piloto') });
+  // ?pre=0: sem o pré-assado das peças (para comparar o custo e o desenho)
+  E.config({ pilotoCanvas: document.getElementById('piloto'), preassado: !/[?&]pre=0/.test(location.search) });
   var MAIS = false;
 
   // ================================================================ interface
