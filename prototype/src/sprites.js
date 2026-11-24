@@ -1790,7 +1790,7 @@
       // pintava um estado novo a cada troca (~0,5 ms cada)
       r.aquecido = true;
       var aq = new IdleMolde(M, estado, sem * 2654435761 + estado.length, null), fim = t + aq.respira + 0.5;
-      for (var ta = t; ta < fim && r.pintados.size < 40; ta += 1 / 14) {
+      for (var ta = t; ta < fim && r.pintados.size < 64; ta += 1 / 14) {
         aq.agenda(ta);
         var ka = aq.monta(ta) + cc;
         if (!r.pintados.has(ka)) r.pintados.set(ka, pintaMolde(M, aq.mapa, M.ancoras[estado], oP, vista));
@@ -1802,7 +1802,7 @@
       r.chave = chave; r.canvas = r.pintados.get(chave);
       if (!r.canvas) {
         r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP, vista);
-        if (r.pintados.size >= 48) r.pintados.clear();
+        if (r.pintados.size >= 96) r.pintados.delete(r.pintados.keys().next().value);   // sai o mais antigo
         r.pintados.set(chave, r.canvas);
       }
     }

@@ -8735,7 +8735,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       // pintava um estado novo a cada troca (~0,5 ms cada)
       r.aquecido = true;
       var aq = new IdleMolde(M, estado, sem * 2654435761 + estado.length, null), fim = t + aq.respira + 0.5;
-      for (var ta = t; ta < fim && r.pintados.size < 40; ta += 1 / 14) {
+      for (var ta = t; ta < fim && r.pintados.size < 64; ta += 1 / 14) {
         aq.agenda(ta);
         var ka = aq.monta(ta) + cc;
         if (!r.pintados.has(ka)) r.pintados.set(ka, pintaMolde(M, aq.mapa, M.ancoras[estado], oP, vista));
@@ -8747,7 +8747,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       r.chave = chave; r.canvas = r.pintados.get(chave);
       if (!r.canvas) {
         r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP, vista);
-        if (r.pintados.size >= 48) r.pintados.clear();
+        if (r.pintados.size >= 96) r.pintados.delete(r.pintados.keys().next().value);   // sai o mais antigo
         r.pintados.set(chave, r.canvas);
       }
     }
@@ -14087,12 +14087,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     function cavalo(op, vista, t) {
       var chave = vista + '|' + (op.chave || ''), c = cavalos.get(chave), vivo = t != null;
       if (c && !vivo && !c.__vivo) return c;
+      // o idle muda no máximo ~6 vezes por segundo e a piscada fechada dura 0,11 s: consultar a 10 q/s não perde nada
+      var qt = vivo ? Math.floor(t * 10) : null;
+      if (c && vivo && c.__vivo && c.__qt === qt) return c;
       if (!c) { c = tela(64, 64); cavalos.set(chave, c); }
       var q2 = c.getContext('2d'); q2.imageSmoothingEnabled = false;
       var o = {}; for (var kk in op) if (kk !== 'chave') o[kk] = op[kk];
       o.scale = 1; o.idle = true; o.t = vivo ? t : 0.5; o.shadow = false; o.vista = vista; o.quadro = { topo: -1e6, base: 60, grade: 1, centro: 32 };
       if (vivo) o.anima = 'cena';
-      c.__vivo = vivo;
+      c.__vivo = vivo; c.__qt = qt;
       if (vivo && SP && SP.quadroIdle) {   // o idle não mudou: o cavalo já desenhado serve
         var qi = SP.quadroIdle(o);
         if (qi && qi === c.__quadro) return c;
@@ -20113,7 +20116,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         item.drawn = true;
         item.rapido = !r && tr.anda();   // a pista se pintando e o trote: desenho a cada quadro
         var t0 = window.performance ? performance.now() : 0;
-        tr.quadro(t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
+        // (com ?quadro=, enquanto a pista se pinta e o cavalo trota, o relógio: a espera da pintura é marcada em t)
+        tr.quadro(QUADRO_FIXO != null && item.rapido ? tr0 : t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
         var t1 = t0 ? performance.now() : 0, V = passoDaViagem('trilha');
         if (V) { var hp = tr.posCavalo(); MP.desenhaViagem(ctx, k, ox, L.W, tr.c, [128, 192], 1, V.r, [hp[0], hp[1] - 20], viagem.el); }
         else ctx.drawImage(tr.c, -ox * k, 0, TELA_W * k, MAPA_H * k);

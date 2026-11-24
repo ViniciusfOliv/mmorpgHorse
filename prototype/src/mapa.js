@@ -833,12 +833,15 @@
     function cavalo(op, vista, t) {
       var chave = vista + '|' + (op.chave || ''), c = cavalos.get(chave), vivo = t != null;
       if (c && !vivo && !c.__vivo) return c;
+      // o idle muda no máximo ~6 vezes por segundo e a piscada fechada dura 0,11 s: consultar a 10 q/s não perde nada
+      var qt = vivo ? Math.floor(t * 10) : null;
+      if (c && vivo && c.__vivo && c.__qt === qt) return c;
       if (!c) { c = tela(64, 64); cavalos.set(chave, c); }
       var q2 = c.getContext('2d'); q2.imageSmoothingEnabled = false;
       var o = {}; for (var kk in op) if (kk !== 'chave') o[kk] = op[kk];
       o.scale = 1; o.idle = true; o.t = vivo ? t : 0.5; o.shadow = false; o.vista = vista; o.quadro = { topo: -1e6, base: 60, grade: 1, centro: 32 };
       if (vivo) o.anima = 'cena';
-      c.__vivo = vivo;
+      c.__vivo = vivo; c.__qt = qt;
       if (vivo && SP && SP.quadroIdle) {   // o idle não mudou: o cavalo já desenhado serve
         var qi = SP.quadroIdle(o);
         if (qi && qi === c.__quadro) return c;

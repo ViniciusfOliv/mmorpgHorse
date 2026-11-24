@@ -3791,7 +3791,8 @@
         item.drawn = true;
         item.rapido = !r && tr.anda();   // a pista se pintando e o trote: desenho a cada quadro
         var t0 = window.performance ? performance.now() : 0;
-        tr.quadro(t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
+        // (com ?quadro=, enquanto a pista se pinta e o cavalo trota, o relógio: a espera da pintura é marcada em t)
+        tr.quadro(QUADRO_FIXO != null && item.rapido ? tr0 : t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
         var t1 = t0 ? performance.now() : 0, V = passoDaViagem('trilha');
         if (V) { var hp = tr.posCavalo(); MP.desenhaViagem(ctx, k, ox, L.W, tr.c, [128, 192], 1, V.r, [hp[0], hp[1] - 20], viagem.el); }
         else ctx.drawImage(tr.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
