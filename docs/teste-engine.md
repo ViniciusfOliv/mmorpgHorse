@@ -299,7 +299,16 @@ O resumo traz o veredito:
   - **Na 3ª:** passa folgado no limite de quadros lentos, mas o 1% low (média dos 36 piores) fica 2,5 abaixo de 55.
     Os 7 quadros lentos não batem com pico de JS (nenhuma parte passou de 4,1 ms) e parecem os soluços que aparecem até
     sem cenário (fase D6 do diagnóstico: 7 de 712). É o ritmo da tela de 120 Hz travada em 60, como na seção 4.2.
-  - **Em aberto:** repetir a rodada ou ajustar o critério (decisão do Vinicius e da coordenação).
+  - 4ª rodada (travada em 60): 0,4% acima de 20 ms (15 de 3.587), 1% low 48,1, JS 4,8/6,7. Os soluços mudam de
+    rodada para rodada com o mesmo conteúdo.
+  - **5ª rodada, sem a trava** (botão "Etapa 6 sem trava (120 Hz)", no ritmo da tela): 119,1 FPS, **1% low 69,4**,
+    p99 8,5 ms, **1 de 7.138 quadros acima de 20 ms**, JS 3,1/4,3 ms, cenário 0,8/1,5/5,7. **Passa.**
+  - **Conclusão:** o desenho cabe com folga (cerca de 8 ms por quadro a 120 Hz). Os soluços das rodadas travadas são da
+    trava em 60 numa tela de 120 Hz (o acumulador da v3 pula uma batida sim, uma não, e um atraso da tela vira um
+    quadro de 25 ms), não do conteúdo. **O jogo não trava em 60** (`game.js` segue o `requestAnimationFrame`), então
+    se comporta como a 5ª rodada.
+  - **Em aberto:** a recomendação do item 3 acima (travar em 60 para poupar bateria) precisa de uma trava melhor
+    antes de entrar; decisão do Vinicius e da coordenação.
 
 ## 8. Além de web e Godot: outras opções, com jogos de referência
 
