@@ -3021,5 +3021,35 @@ test('ambiente.js: partículas do ambiente da corrida ≤ 60 (spec §2.4) e o ve
   assert.strictEqual(retratoReg(p1, 3), retratoReg(regiaoTeste('planalto'), 3));
 });
 
+// Mapas das trilhas (plano da animação ambiente, etapa 4): as imagens de verdade, uma máscara de caminho de exemplo (a
+// de verdade é o Mapa.mascaraCaminho() da frente 2); monta, mexe, repete com o mesmo t, só Resurrect 64, nada nasce
+// em cima do caminho
+var MAPAS = require('path').join(ARTE, 'telas', 'finais');
+var caminhoEx = new Uint8Array(256 * 384);
+for (var cy = 0; cy < 384; cy++) { var cxc = 128 + Math.sin(cy / 60) * 50; for (var cxx = Math.round(cxc - 7); cxx <= cxc + 7; cxx++) if (cxx >= 0 && cxx < 256) caminhoEx[cy * 256 + cxx] = 1; }
+function mapaTeste(el) {
+  AMB.CENAS['mapa:' + el].pronta = false;
+  var c = AMB.cena('mapa:' + el, { imagem: pngPx(require('path').join(MAPAS, 'mapa-' + el + '.png')), caminho: caminhoEx });
+  return { c: c, alvo: new CanvasPx(256, 384) };
+}
+function quadroMapa(m, t) { m.c.atualiza(t, 1 / 15); m.c.desenha(m.alvo.getContext(), { x0: 0, x1: 256, y0: 0, y1: 384 }); return fnvBytes(new Uint8Array(m.c.def.saida.d.buffer)); }
+test('ambiente.js: os 3 mapas das trilhas montam, mexem e repetem com o mesmo t (etapa 4)', function () {
+  ['agua', 'fogo', 'grama'].forEach(function (el) {
+    var a = mapaTeste(el), ha = []; for (var q = 0; q < 24; q++) ha.push(quadroMapa(a, 1 + q / 8));
+    var b = mapaTeste(el), hb = []; for (q = 0; q < 24; q++) hb.push(quadroMapa(b, 1 + q / 8));
+    assert.deepStrictEqual(ha, hb, el + ': as duas montagens desenham igual');
+    assert.ok(new Set(ha).size > 6, el + ': o mapa mexe (' + new Set(ha).size + ' quadros diferentes em 3 s)');
+    var px = b.c.def.saida.d, fora = {};
+    for (var i = 0; i < px.length; i++) if (px[i]) { var h = AMB.Buf ? ('000000' + ((px[i] & 255) << 16 | (px[i] >>> 8 & 255) << 8 | px[i] >>> 16 & 255).toString(16)).slice(-6) : ''; if (!R64[h]) fora[h] = 1; }
+    assert.deepStrictEqual(Object.keys(fora), [], el + ': cores fora da Resurrect 64');
+  });
+});
+test('ambiente.js: nos mapas, peixe, brasas e fumaça nunca nascem em cima do caminho', function () {
+  var ag = mapaTeste('agua').c.def, fo = mapaTeste('fogo').c.def;
+  for (var k = 0; k < ag.lagos.length; k += 2) assert.strictEqual(caminhoEx[ag.lagos[k + 1] * 256 + ag.lagos[k]], 0, 'peixe no caminho');
+  for (k = 0; k < fo.quentes.length; k += 2) assert.strictEqual(caminhoEx[fo.quentes[k + 1] * 256 + fo.quentes[k]], 0, 'brasa no caminho');
+  assert.ok(ag.lagos.length > 20 && fo.quentes.length > 20, 'sobram lugares fora do caminho');
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
