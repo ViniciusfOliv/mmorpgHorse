@@ -3434,13 +3434,14 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   var fabricaViva = null, filaViva = [], filaRodando = false;
   // para os testes: a região viva do último quadro (null: as paradas), o maior passo de montagem e quantas montaram
   // ms: o tempo gasto no passo e no que vai por cima (o custo do ambiente além das camadas, que trocam 1 por 1)
-  var statsViva = { usada: null, maiorPassoMs: 0, passos: 0, montadas: 0, ms: 0, quadros: 0, por: {} };
+  var statsViva = { usada: null, maiorPassoMs: 0, passos: 0, montadas: 0, ms: 0, quadros: 0, por: {}, max: {} };
   function medeViva(v) {
     ['atualiza', 'desenha', 'nuvens'].forEach(function (k) {
       var f = v[k];
       v[k] = function () {
         var t0 = agoraMs(), r = f.apply(v, arguments), d = agoraMs() - t0, nome = k === 'desenha' ? arguments[0] : k;
         statsViva.ms += d; statsViva.por[nome] = (statsViva.por[nome] || 0) + d; if (k === 'atualiza') statsViva.quadros++;
+        statsViva.max[nome] = Math.max(statsViva.max[nome] || 0, d);
         return r;
       };
     });

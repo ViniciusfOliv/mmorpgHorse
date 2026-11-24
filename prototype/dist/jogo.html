@@ -9827,13 +9827,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   var fabricaViva = null, filaViva = [], filaRodando = false;
   // para os testes: a região viva do último quadro (null: as paradas), o maior passo de montagem e quantas montaram
   // ms: o tempo gasto no passo e no que vai por cima (o custo do ambiente além das camadas, que trocam 1 por 1)
-  var statsViva = { usada: null, maiorPassoMs: 0, passos: 0, montadas: 0, ms: 0, quadros: 0, por: {} };
+  var statsViva = { usada: null, maiorPassoMs: 0, passos: 0, montadas: 0, ms: 0, quadros: 0, por: {}, max: {} };
   function medeViva(v) {
     ['atualiza', 'desenha', 'nuvens'].forEach(function (k) {
       var f = v[k];
       v[k] = function () {
         var t0 = agoraMs(), r = f.apply(v, arguments), d = agoraMs() - t0, nome = k === 'desenha' ? arguments[0] : k;
         statsViva.ms += d; statsViva.por[nome] = (statsViva.por[nome] || 0) + d; if (k === 'atualiza') statsViva.quadros++;
+        statsViva.max[nome] = Math.max(statsViva.max[nome] || 0, d);
         return r;
       };
     });
@@ -10577,7 +10578,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       c.width = w; c.height = h; return c;
     },
     pilotoCanvas: null,
-    preassado: true   // pré-assado por estado das peças (Deforma.preassado); false: tudo calculado a cada passo
+    preassado: true,   // pré-assado por estado das peças (Deforma.preassado); false: tudo calculado a cada passo
+    regiaoSem: {}      // diagnóstico (spike do teste de engine): { camadas: true } congela as camadas vivas, { cima: true } tira o que vai por cima
   };
   // um canvas que não desenha nada (para o módulo carregar fora do navegador)
   function canvasMudo(w, h) {
@@ -12773,11 +12775,13 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var s = this, m0 = MAIS, KR0 = KR;
     MAIS = true; KR = s.K; RV.k = VENTO_REG[(v && v.intensity) || 'brisa'] || 1; RV.dir = v && v.dir < 0 ? -1 : 1; PDIR = RV.dir;
     s.t = t; s.dt = Math.min(0.1, Math.max(0, dt || 0));
-    var vez = s.agenda.roda(t);
-    if (vez) {   // (msPor: o tempo de cada camada e da cópia para a vitrine, para medir no jogo)
+    var vez = cfg.regiaoSem.camadas ? null : s.agenda.roda(t);
+    if (vez) {   // (msPor / msMax: o tempo de cada camada e da cópia para a vitrine, somado e o pior, para medir no aparelho)
       var t0 = performance.now(), mudou = vez.atualiza(t), t1 = performance.now();
       if (mudou) vitrine(vez);
-      var mp = s.msPor || (s.msPor = {}); mp[vez.camada] = (mp[vez.camada] || 0) + t1 - t0; mp.vitrine = (mp.vitrine || 0) + performance.now() - t1;
+      var t2 = performance.now(), mp = s.msPor || (s.msPor = {}), mx = s.msMax || (s.msMax = {});
+      mp[vez.camada] = (mp[vez.camada] || 0) + t1 - t0; mp.vitrine = (mp.vitrine || 0) + t2 - t1;
+      mx[vez.camada] = Math.max(mx[vez.camada] || 0, t1 - t0); mx.vitrine = Math.max(mx.vitrine || 0, t2 - t1);
     }
     // partículas: fumaça (horizonte), pétalas e areia (meio), cada uma nas coordenadas da sua camada
     var r = s.rng, dtt = s.dt, p = s.part;
@@ -12799,6 +12803,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // o que vai por cima de uma camada, em ctx com a escala de arte (P), com a camada repetida a partir de X (pixels de
   // arte; X ≤ 0) e o topo em Y; Wa = largura da tela em pixels de arte; cam = o rolar da câmera em pixels de arte
   RegiaoViva.prototype.desenha = function (onde, ctx, P_, X, Y, Wa, cam, dyArte) {
+    if (cfg.regiaoSem.cima) return;
     var s = this, fn = onde === 'antesHorizonte' ? s.antes.horizonte : s.cima[onde];
     var temPart = onde === 'horizonte' || onde === 'meio';
     if (!fn && !temPart && onde !== 'ceu') return;

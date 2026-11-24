@@ -314,7 +314,7 @@
     if (C.cenario) {
       SP.drawTrack(ctx, { width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: cam * ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: PISO, finishM: D, hills: MORROS, curves: CURVAS, distanceMarkersEvery: 200, t: T, weather: clima, pixel: S,
-        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao, vivo: !!C.ambiente });
+        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente });
       SP.drawSombraCerca(ctx, W, laneTop, cam * ppm, S, chao);
     } else {
       ctx.fillStyle = '#6fa8d8'; ctx.fillRect(0, 0, W, laneTop);
@@ -593,6 +593,29 @@
     { nome: '20 cavalos, jogo, tudo', n: 20, escala: 'jogo', camadas: TUDO, limite: 'livre', s: 6 },
     { nome: '6 cavalos, jogo, tudo', n: 6, escala: 'jogo', camadas: TUDO, limite: 'livre', s: 6 }
   ];
+  // o tempo do ambiente na fase (Sprites.statsViva e o msPor/msMax da região viva): zera no começo, lê no fim
+  function vivaAtual() { try { return CFG.camadas.ambiente && CFG.regiao !== 'nenhuma' ? SP.regiaoViva(CFG.regiao, CFG.clima === 'ciclo' ? 'sol' : CFG.clima) : null; } catch (e) { return null; } }
+  function zeraAmbiente() {
+    var st = SP.statsViva && SP.statsViva(); if (st) { st.ms = 0; st.quadros = 0; st.por = {}; st.max = {}; }
+    var v = vivaAtual(); if (v) { v.msPor = {}; v.msMax = {}; }
+  }
+  function leAmbiente() {
+    var st = SP.statsViva && SP.statsViva(), v = vivaAtual();
+    if (!st || !st.quadros) return null;
+    return { q: st.quadros, ms: st.ms, por: JSON.parse(JSON.stringify(st.por)), max: JSON.parse(JSON.stringify(st.max)),
+      camadas: v && v.msPor ? JSON.parse(JSON.stringify(v.msPor)) : {}, camadasMax: v && v.msMax ? JSON.parse(JSON.stringify(v.msMax)) : {} };
+  }
+  // diagnóstico (~80 s): liga e desliga cada parte do cenário, travado em 60 FPS, para achar o que pesa no aparelho
+  var BASE6 = { n: 12, escala: 'jogo', clima: 'chuva', regiao: 'litoral', limite: '60', s: 12 };
+  function fase6(nome, extra) { var f = {}; Object.keys(BASE6).forEach(function (k) { f[k] = BASE6[k]; }); Object.keys(extra || {}).forEach(function (k) { f[k] = extra[k]; }); f.nome = nome; return f; }
+  var DIAG = [
+    fase6('D1. tudo (como a etapa 6)', { camadas: TUDO }),
+    fase6('D2. regiões paradas (sem o ambiente vivo)', { camadas: sem(['ambiente']) }),
+    fase6('D3. ambiente vivo, camadas congeladas (só o que vai por cima)', { camadas: TUDO, regiaoSem: { camadas: true } }),
+    fase6('D4. ambiente vivo, sem o que vai por cima (só as camadas)', { camadas: TUDO, regiaoSem: { cima: true } }),
+    fase6('D5. cenário por código (sem as imagens das regiões)', { camadas: sem(['ambiente']), regiao: 'nenhuma' }),
+    fase6('D6. sem cenário', { camadas: sem(['cenario', 'ambiente']) })
+  ];
   var RODADA = null;
   function aplicar(c) {
     if (c.n) CFG.n = c.n;
@@ -600,6 +623,7 @@
     if (c.clima) CFG.clima = c.clima;
     if (c.limite) CFG.limite = c.limite;
     if (c.regiao) CFG.regiao = c.regiao;
+    if (window.Ambiente) window.Ambiente.config({ regiaoSem: c.regiaoSem || {} });
     if (c.camadas) CAMADAS.forEach(function (k) { if (k in c.camadas) CFG.camadas[k] = !!c.camadas[k]; });
     montar(); reinicia(); marcaBotoes();
   }
@@ -610,12 +634,13 @@
     return calibrar(1000).then(function () {
       return new Promise(function (ok) {
         function proxima() {
-          if (GRAV) { var st = stats(GRAV); res.push({ nome: GRAV.nome, cfg: GRAV.cfg, res: GRAV.res, oculto: GRAV.oculto, st: st }); }
+          if (GRAV) { var st = stats(GRAV); res.push({ nome: GRAV.nome, cfg: GRAV.cfg, res: GRAV.res, oculto: GRAV.oculto, st: st, amb: leAmbiente() }); }
           i++;
           if (i >= fases.length) { GRAV = null; RODADA = null; return ok(res); }
           var f = fases[i];
-          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao });
+          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao, regiaoSem: f.regiaoSem });
           GRAV = novaGravacao(f.nome); GRAV.res = L.W + '×' + L.H + ' (S' + L.S + ')';
+          zeraAmbiente();
           var restante = f.s * 1000 * fator + 500;
           el('estado').textContent = titulo + ': fase ' + (i + 1) + ' de ' + fases.length + ' — ' + f.nome;
           RODADA = { passo: function (dt) { restante -= dt; if (restante <= 0) proxima(); } };
@@ -656,6 +681,18 @@
       linhas.push((i + 1) + '. ' + f.nome + (f.oculto ? ' (ABA ESCONDIDA: descartar)' : '') + ' | ' + f.res + ' | ' + f1(s.fps) + ' | ' + f1(s.low1) + ' | ' + f1(s.msMed) +
         ' | ' + f1(s.msP99) + ' | ' + s.lentos + '/' + s.quadros + ' | ' + f1(s.jsMed) + '/' + f1(s.jsP95) + ' | ' + s.part + ' | ' + s.cham);
     });
+    // cenário por fase e o ambiente por parte (média e pior, em ms por quadro)
+    r.fases.forEach(function (f, i) {
+      if (!f.st || !f.st.sec) return;
+      var c = f.st.sec[0];
+      linhas.push('cenário na fase ' + (i + 1) + ' (méd/p95/máx ms): ' + f1(c.med) + '/' + f1(c.p95) + '/' + f1(c.max));
+      var a = f.amb;
+      if (!a) return;
+      var d2 = function (v) { return v == null ? '—' : v.toFixed(2); };
+      linhas.push('  ambiente (méd/máx ms): ' + Object.keys(a.por).map(function (k) { return k + ' ' + d2(a.por[k] / a.q) + '/' + f1(a.max[k]); }).join(' · '));
+      var ks = Object.keys(a.camadas);
+      if (ks.length) linhas.push('  passos das camadas (méd por quadro/pior passo ms): ' + ks.map(function (k) { return k + ' ' + d2(a.camadas[k] / a.q) + '/' + f1(a.camadasMax[k]); }).join(' · '));
+    });
     r.fases.forEach(function (f) {
       if (f.nome !== ETAPA6.nome || !f.st) return;
       var pct = 100 * f.st.lentos / f.st.quadros, ok1 = pct <= 1, ok2 = f.st.low1 >= 55;
@@ -693,7 +730,7 @@
   var travado = false;
   function travar(v) {
     travado = v;
-    document.querySelectorAll('.controles button, #b-bateria, #b-livre, #b-etapa6').forEach(function (b) { b.disabled = v; });
+    document.querySelectorAll('.controles button, #b-bateria, #b-livre, #b-etapa6, #b-diag').forEach(function (b) { b.disabled = v; });
   }
   function marcaBotoes() {
     document.querySelectorAll('.seg').forEach(function (g) {
@@ -717,6 +754,7 @@
   });
   el('b-bateria').addEventListener('click', function () { rodar(FASES, 1, 'Bateria'); });
   el('b-etapa6').addEventListener('click', function () { rodar([ETAPA6], 1, 'Etapa 6'); });
+  el('b-diag').addEventListener('click', function () { rodar(DIAG, 1, 'Diagnóstico'); });
   el('b-livre').addEventListener('click', function () {
     rodar([{ nome: 'Rodada livre: ' + CFG.n + ' cavalos, escala ' + CFG.escala + ', limite ' + CFG.limite + ', camadas ' + CAMADAS.filter(function (c) { return CFG.camadas[c]; }).join('+'), s: 60 }], 1, 'Rodada livre');
   });
@@ -762,7 +800,7 @@
     api.pronto = true;
   }
   var api = {
-    pronto: false, cfg: CFG, aplicar: aplicar, fases: FASES, etapa6: ETAPA6,
+    pronto: false, cfg: CFG, aplicar: aplicar, fases: FASES, etapa6: ETAPA6, diag: DIAG,
     bateria: function (o) { o = o || {}; return rodar(o.fases || FASES, o.fator || 1, o.titulo || 'Bateria'); },
     ultimo: function () { return ULTIMO; }, texto: function () { return ULTIMO ? textoResumo(ULTIMO) : ''; },
     moldes: function () { return SP.moldsReady; }
