@@ -3,6 +3,16 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Mapa, referências e cena de desafio (decisões do Vinicius)
+- **Ilha B** é o mapa-múndi; o mapa **pintado** continua o principal; um exemplo de mapa **montado** (Map Workshop/tiles)
+  só se sair barato (até ~15 gerações sem perguntar de novo).
+- **As referências de estilo vieram da página inicial do PixelLab** — por não serem nossas, ficam só como alvo de
+  comparação, nunca como `style_image`; a âncora de estilo é a ilha B e os nossos assets aprovados (coordenação).
+- **Cena de desafio do ginásio no layout clássico das batalhas de RPG de criaturas:** oponente de frente ao fundo,
+  nosso cavalo de costas em primeiro plano, bases de chão, cenário vivo — só a convenção de layout; arte e interface
+  são nossas (`docs/arte/guia.md`). Pede cavalos em vista de costas e 3/4 de frente: amostra com 1 molde primeiro, com
+  confirmação de créditos. Fica com a frente dos ginásios (`claude/mapa-ginasios`).
+
 ## 2026-11-24 — Como usar o PixelLab (pergunta do Vinicius)
 - **Produção pela API v2 com scripts versionados** (dry-run, `--gerar`, `--teto`, `--reprocessar`), com a chave
   injetada pelo proxy da sessão — não pelo MCP: cada geração fica reprodutível, com custo controlado e registrada em
