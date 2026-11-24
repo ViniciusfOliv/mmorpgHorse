@@ -3522,7 +3522,8 @@
   function cavaloParado(ctx, k, h, vis, cx, base, t, chao) {
     vis.reduzido = reduced();
     SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
-      jockey: false, silks: PLAYER_SILKS, chao: chao, cena: 'estabulo', quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
+      jockey: false, silks: PLAYER_SILKS, chao: chao, cena: 'estabulo', anima: 'cena',   // vivo: idle e gestos (animação ambiente, etapa 2)
+      quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
     // a palha do chão na frente dos cascos (Regra 7)
     if (chao) SP.drawTufosFrente(ctx, cx, base, 46, chao, k, 1, true);
   }
@@ -3676,6 +3677,7 @@
         chaoEm: chaoPx ? function (x, y) { return chaoPx((espelha ? 2 * cx - x - 1 : x) + ox, y + CENA_CORTE); } : null,
         chaoChave: e.gymId + '|' + ox + '|' + cx + '|' + base,
         cena: CENA_LUZ[e.gymId] || null,   // tinta ambiente e contraluz da arena (Regra 8)
+        anima: 'cena',                     // vivo: idle e gestos (animação ambiente, etapa 2)
         quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
       if (!espelha) SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
       else {
@@ -6815,7 +6817,8 @@
           palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
           scale: S, silks: r.silks, t: tr, idle: standing,
           chao: chaoPista,   // sombra opaca na cor do piso no clima (guia de integração, Regra 2)
-          clima: climaCor    // o cavalo na LUT do clima mostrado, como o fundo (Regra 8)
+          clima: climaCor,   // o cavalo na LUT do clima mostrado, como o fundo (Regra 8)
+          anima: standing ? 'cena' : false   // parado na largada: vivo, com o cavar com jóquei (animação ambiente, etapa 2)
         }, visuais[j]);
         cavalo.reduzido = red;
         // caixa do que vai ser desenhado (molde ou código): o corte nas bordas e o monitor de câmera usam ela,

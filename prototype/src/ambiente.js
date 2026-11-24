@@ -631,7 +631,7 @@
       var d = Math.pow(mx - (nx - 8), 2) + Math.pow(my - (ny - 6), 2) * 1.5; if (d < md && d < 40) { md = d; melhor = g; }
     });
     }
-    this.olho = melhor || OLHO_MANUAL[this.nome] || [];
+    this.olho = (a.olho && a.olho.length ? a.olho : null) || melhor || OLHO_MANUAL[this.nome] || [];   // a âncora do JSON (etapa 2) vem antes
     this.olhoBaixo = 0; for (var k = 1; k < this.olho.length; k += 2) this.olhoBaixo = Math.max(this.olhoBaixo, this.olho[k]);
     // cauda: crina (4/5) atrás da garupa + o contorno que só encosta nela
     var cauda = new Uint8Array(64 * 64), c0 = 64, c1 = 0;

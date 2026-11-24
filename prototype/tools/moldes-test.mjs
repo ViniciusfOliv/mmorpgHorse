@@ -3071,5 +3071,45 @@ console.log('\n## Âncora do olho (o idle pisca: animação ambiente, etapa 2)')
   });
 }
 
+console.log('\n## Idle dos moldes no jogo (Sprites.IdleMolde; animação ambiente, etapa 2)');
+{
+  const req = createRequire(import.meta.url), SP = req('../src/sprites.js');
+  const CH = [...new Set(fs.readdirSync(DIR).filter((f) => /^molde-(esguio|padrao|robusto)-\w+\.json$/.test(f)).map((f) => f.slice(6, -5)))];
+  const lerIdx = (f) => { const d = decodePng(fs.readFileSync(f)), idx = new Uint8Array(4096); for (let i = 0; i < 4096; i++) idx[i] = d.rgba[i * 4 + 3] < 128 ? 0 : Math.round(d.rgba[i * 4] / 25); return idx; };
+  const molde = (c) => { const J = JSON.parse(fs.readFileSync(path.join(DIR, `molde-${c}.json`), 'utf8')); return { w: 64, h: 64, retrato: lerIdx(path.join(DIR, `molde-${c}-retrato.png`)), parado: lerIdx(path.join(DIR, `molde-${c}-parado.png`)), ancoras: J.ancoras }; };
+  const roda = (M, est, sem, gestos, seg = 40) => { const a = new SP.IdleMolde(M, est, sem, gestos), ch = []; for (let t = 0; t < seg; t += 0.1) { a.agenda(t); ch.push(a.monta(t)); } return { a, ch }; };
+  test('sprites.js sem Math.random (o idle sorteia só da RNG cosmética)', () => {
+    const txt = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'sprites.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    assert.ok(!/Math\.random/.test(txt));
+  });
+  for (const c of CH) test(`${c}: as peças do idle (olho, orelhas, cauda, barriga, crina) e 40 s de quadros válidos, iguais com a mesma semente`, () => {
+    const M = molde(c);
+    for (const est of ['retrato', 'parado']) {
+      const { a, ch } = roda(M, est, 77);
+      assert.ok(a.olho.length >= 2, `${est}: olho`); assert.ok(a.orelhas.length > 0, `${est}: orelhas`);
+      // (o esguio-chamas parado não tem crina atrás da garupa: a cauda dele não abana; o resto do idle vale)
+      if (!(c === 'esguio-chamas' && est === 'parado')) assert.ok(a.cauda.length > 0, `${est}: cauda`);
+      assert.ok(a.barriga.length > 0, `${est}: barriga`);
+      assert.ok(a.mapa.every((v) => v >= 0 && v <= 9), `${est}: só papéis 0–9`);
+      const tipos = new Set(ch.map((k) => k.replace(/[0-9-]/g, '')));
+      assert.ok(new Set(ch).size >= 6, `${est}: o idle muda (${new Set(ch).size} estados)`);
+      assert.ok([...tipos].some((k) => k.includes('p')), `${est}: pisca`);
+      assert.deepStrictEqual(roda(M, est, 77).ch, ch, `${est}: a mesma semente, a mesma sequência`);
+      assert.notDeepStrictEqual(roda(M, est, 78).ch, ch, `${est}: outra semente, outra sequência`);
+    }
+  });
+  test('gesto do PixelLab: entra entre 6 e 18 s, toca os quadros a 6 q/s e volta ao idle; nada de gesto de código durante ele', () => {
+    const M = molde('padrao-lisa'), q = Array.from({ length: 9 }, () => M.retrato.slice());
+    const { ch } = roda(M, 'retrato', 5, { comer: q }, 60);
+    const ini = ch.findIndex((k) => k.startsWith('gcomer'));
+    assert.ok(ini >= 60 && ini <= 180, 'o 1º gesto em ' + ini / 10 + ' s');
+    const fim = ch.findIndex((k, i) => i > ini && !k.startsWith('g'));
+    assert.ok(Math.abs((fim - ini) / 10 - 1.5) <= 0.11, 'dura 9 quadros a 6 q/s: ' + (fim - ini) / 10 + ' s');
+    assert.deepStrictEqual([...new Set(ch.slice(ini, fim))].length, 9, 'os 9 quadros');
+    const n = ch.filter((k, i) => k.startsWith('gcomer0') && (i === 0 || !ch[i - 1].startsWith('gcomer0'))).length;
+    assert.ok(n >= 2 && n <= 4, n + ' gestos em 60 s (um a cada 15–30 s)');
+  });
+}
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

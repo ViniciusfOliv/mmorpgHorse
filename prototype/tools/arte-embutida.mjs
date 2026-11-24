@@ -57,13 +57,32 @@ export async function lerMoldes(root, avisos = [], dir = 'assets/pixellab') {
         json: { estilo: chave, w: J.w, h: J.h, footY: J.footY, frames, larguraUtil: J.larguraUtil, ancoras: J.ancoras },
         retrato: await dataUrl(root, png('retrato')),
         parado: await dataUrl(root, png('parado')),
-        galope
+        galope,
+        gestos: await lerGestos(root, chave, dir)
       }
     } catch (e) {
       avisos.push(`molde "${chave}" ignorado: ${e.message}`)
     }
   }
   return { estilos }
+}
+
+// Gestos do idle (animação ambiente, etapa 2): os quadros do PixelLab escolhidos para o molde (prototype/assets/pixellab/
+// idle/escolhas-todos.json: comer e cavar no retrato; escolhas-joquei.json: cavar com jóquei no parado), em papéis
+// (cinza = papel × 25), como os moldes. { comer: [url…], cavar: […], cavarJ: […] }; o que faltar fica de fora.
+async function lerGestos(root, chave, dir) {
+  const D = join(dir, 'idle'), out = {}
+  const esc = async (n) => { try { return JSON.parse(await readFile(join(root, D, n), 'utf8')) } catch (e) { return {} } }
+  const todos = await esc('escolhas-todos.json'), joq = await esc('escolhas-joquei.json')
+  const pedidos = [['comer', 'retrato', 'comer', todos], ['cavar', 'retrato', 'cavar', todos], ['cavarJ', 'parado', 'cavar', joq]]
+  for (const [nome, est, acao, tab] of pedidos) {
+    const e = tab[chave] && tab[chave][acao]
+    if (!e || !e.seed) continue
+    const lista = []
+    for (let q = 0; existsSync(join(root, D, `${chave}-${est}-${acao}-s${e.seed}-${q}.png`)); q++) lista.push(await dataUrl(root, join(D, `${chave}-${est}-${acao}-s${e.seed}-${q}.png`)))
+    if (lista.length) out[nome] = lista
+  }
+  return out
 }
 
 // os ícones finais (etapa 4 da direção de arte): 16×16 desenhados em código e 24×24 do PixelLab Pro, mostrados 1:1 na

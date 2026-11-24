@@ -1092,6 +1092,17 @@
         carrega(e.retrato, 'retrato', function (idx) { M.retrato = idx; });
         carrega(e.parado, 'parado', function (idx) { M.parado = idx; });
         e.galope.forEach(function (url, q) { carrega(url, 'galope-' + q, function (idx) { M.galope[q] = idx; }); });
+        // gestos do idle (PixelLab): opcionais; um quadro que falhe tira só o gesto dele
+        M.gestos = {};
+        Object.keys(e.gestos || {}).forEach(function (g) {
+          var urls = e.gestos[g], lista = new Array(urls.length), ok = true;
+          M.gestos[g] = lista;
+          urls.forEach(function (url, q) {
+            pendentes++;
+            decodificaMolde(url, M.w, M.h, function (idx) { lista[q] = idx; fim(); }, function () { ok = false; delete M.gestos[g]; fim(); });
+          });
+          void ok;
+        });
       });
     } catch (ex) {
       falha(ex.message);   // as decodificações já pedidas terminam sem ligar os moldes
@@ -1314,16 +1325,31 @@
       (ce ? '|s' + ce + (cz ? ',' + cz.lado : '') : '');
     var c = moldCache.get(key);
     if (!c) {
-      var M = moldes[nome], idx = indicesMolde(M, estado, quadro), sb = sombreiaPelagem(idx, M.w, M.h), tons = coresTons(cores);
+      var M = moldes[nome];
+      c = pintaMolde(M, indicesMolde(M, estado, quadro), ancoraMolde(M, estado, quadro), o);
+      moldCache.set(key, c);
+    }
+    return c;
+  }
+  // a chave da recoloração (cores, marcas, jóquei, clima, cena), sem o molde e o quadro
+  function chaveCores(o) {
+    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce);
+    return cores.slice(2, 8).join(',') + (v ? v.chave : '') + (cl ? '|c' + cl : '') + (ce ? '|s' + ce + (cz ? ',' + cz.lado : '') : '');
+  }
+  // um mapa de papéis do molde (o do quadro, ou um montado pelo idle) pintado com as opções do drawHorse: 4 tons, marcas,
+  // jóquei, LUT do clima e da cena, contraluz. Sem cache (quem chama guarda).
+  function pintaMolde(M, idx, ancora, o) {
+    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o), cl = climaDoCavalo(o), ce = cenaDoCavalo(o), cz = contraluzDe(o, ce), c;
+    {
+      var sb = sombreiaPelagem(idx, M.w, M.h), tons = coresTons(cores);
       if (cz) sb = comContraluz(sb, idx, M.w, M.h, cz.lado);
       var lut = cl ? lutFigura(cl) : null, lutC = ce ? lutFigura('cena|' + ce) : null;
       var noClima = function (lista) {
         return lista.map(function (x) { if (!x) return x; x = x.toLowerCase(); if (lut) x = corClima(lut, x); return lutC ? corClima(lutC, x) : x; });
       };
       var extra = [cz ? cz.cor : null];
-      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v, sb), M.w, M.h, noClima(coresNaMestra(coresComCamadas(cores, v)).concat(tons)).concat(extra))
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancora, v, sb), M.w, M.h, noClima(coresNaMestra(coresComCamadas(cores, v)).concat(tons)).concat(extra))
         : pintaIndices(sb, M.w, M.h, noClima(cores.concat([null, null, null, null, null, null], tons)).concat(extra));
-      moldCache.set(key, c);
     }
     return c;
   }
@@ -1528,6 +1554,186 @@
     }
   }
 
+  // ---------------------------------------------------------------- idle dos moldes (animação ambiente, etapa 2)
+  // O cavalo parado vivo (spec 2026-11-23-animacao-ambiente §3; igual à amostra, prototype/src/ambiente.js, CavaloIdle):
+  // a cada quadro monta-se um mapa de papéis novo a partir do molde — respiração (a barriga desce 1 px), piscar (o olho
+  // da âncora), cauda (abana; a ponta vai com o vento), orelha (gira 1 px), aceno e sacudir da cabeça, crina do
+  // pescoço no vento — e ele é pintado pelo mesmo pipeline do molde (4 tons, marcas, jóquei, LUT, contraluz) só quando
+  // muda. Gestos do PixelLab (comer e cavar no retrato, cavar com jóquei no parado), raros: um a cada 15–30 s.
+  // Sorteios só da RNG cosmética do cavalo (mulberry32 da semente), nunca da seed das regras; nada de Math.random.
+  // Liga com opts.anima (true: os gestos de código; 'cena': também os do PixelLab, para os cavalos grandes das cenas).
+  function rngCosmetica(semente) {
+    var a = semente >>> 0;
+    return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  // o vento cosmético das cenas (o mesmo da amostra, na versão "mais movimento", a escolhida)
+  function ventoCena(t) {
+    var base = 0.42 + 0.12 * Math.sin(t * 0.13 + 0.4);
+    var r1 = Math.pow(Math.max(0, Math.sin(t * 0.31 + 1.3)), 8) * 0.55, r2 = Math.pow(Math.max(0, Math.sin(t * 0.83 + 0.2)), 10) * 0.25;
+    var forte = Math.pow(Math.max(0, Math.sin(t * 0.42 + 2.2)), 10) * 0.8;
+    return Math.min(1, base * 1.05 + r1 * 1.2 + r2 * 1.2 + forte);
+  }
+  var IDLE_EVENTOS = { piscar: 0.22, cauda: 0.9, orelha: 0.7, cabeca: 1.3, sacode: 0.75 };
+  var IDLE_GESTO_QPS = 6;   // os quadros do PixelLab, na base comum de 6/12 q/s
+  function IdleMolde(M, estado, semente, gestos) {
+    var idx = M[estado], a = M.ancoras[estado];
+    this.M = M; this.estado = estado; this.idx = idx; this.w = M.w; this.h = M.h; this.anc = a;
+    this.rng = rngCosmetica(semente);
+    this.respira = 3.2 + this.rng() * 1.2; this.faseR = this.rng() * 6;
+    this.eventos = []; this.proximo = 1 + this.rng() * 3;
+    this.gestos = gestos || null; this.proxGesto = 6 + this.rng() * 12; this.gesto = null;
+    this.mapa = new Uint8Array(idx.length);
+    this.pecas();
+  }
+  IdleMolde.prototype.em = function (x, y) { return x < 0 || y < 0 || x >= this.w || y >= this.h ? 0 : this.idx[y * this.w + x]; };
+  IdleMolde.prototype.pecas = function () {
+    var I = this.idx, a = this.anc, W = this.w, nx = a.nose[0], ny = a.nose[1], rx = a.rear[0], ry = a.rear[1], x, y, v;
+    var topo = this.h; for (y = 0; y < this.h && topo === this.h; y++) for (x = nx - 12; x <= nx; x++) if (this.em(x, y)) { topo = y; break; }
+    this.orelhas = [];
+    for (y = topo; y <= topo + 2; y++) for (x = nx - 12; x <= nx + 1; x++) { v = this.em(x, y); if (v) this.orelhas.push(x, y, v); }
+    this.olho = (a.olho || []).slice();
+    this.olhoBaixo = 0; for (var k = 1; k < this.olho.length; k += 2) this.olhoBaixo = Math.max(this.olhoBaixo, this.olho[k]);
+    var cauda = new Uint8Array(W * this.h), c0 = this.h, c1 = 0;
+    for (y = ry - 10; y < this.h; y++) for (x = 0; x <= rx + 7; x++) { v = this.em(x, y); if (v === 4 || v === 5) cauda[y * W + x] = 1; }
+    for (y = ry - 10; y < this.h; y++) for (x = 0; x <= rx + 7; x++)
+      if (this.em(x, y) === 6 && (cauda[y * W + x - 1] || cauda[y * W + x + 1] || cauda[(y - 1) * W + x] || cauda[(y + 1) * W + x])) cauda[y * W + x] = 1;
+    for (y = ry - 10; y < this.h; y++) for (x = 0; x <= rx + 8; x++) {
+      if (this.em(x, y) !== 1) continue;
+      var toca = false, corpo = false;
+      for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) {
+        if (!ox && !oy) continue; var q = this.em(x + ox, y + oy);
+        if (cauda[(y + oy) * W + x + ox]) toca = true; else if (q >= 2 && q !== 4 && q !== 5) corpo = true;
+      }
+      if (toca && !corpo) cauda[y * W + x] = 2;
+    }
+    this.cauda = [];
+    for (y = 0; y < this.h; y++) for (x = 0; x < W; x++) if (cauda[y * W + x]) { this.cauda.push(x, y, I[y * W + x]); c0 = Math.min(c0, y); c1 = Math.max(c1, y); }
+    this.caudaY0 = c0; this.caudaY1 = c1;
+    this.barriga = [];
+    for (x = rx + 8; x <= nx - 16; x++) {
+      for (y = a.footY - 6; y > ry; y--) {
+        if (this.em(x, y) && !this.em(x, y + 1) && !this.em(x, y + 2) && !this.em(x, y + 3)) { this.barriga.push(x, y); break; }
+        if (this.em(x, y) && this.em(x, y + 1)) break;
+      }
+    }
+    this.cabeca = { x0: nx - 15, y1: ny + 5 };
+    this.crina = [];
+    for (x = rx + 20; x <= nx - 6; x++) for (y = 0; y < ny + 4; y++) {
+      v = this.em(x, y); if (!v) continue;
+      if (v === 1 && (this.em(x, y + 1) === 4 || this.em(x, y + 1) === 5)) this.crina.push(x, y);
+      break;
+    }
+  };
+  IdleMolde.prototype.dispara = function (nome, t) { this.eventos.push({ nome: nome, t0: t, lado: this.rng() < 0.5 ? -1 : 1, forte: (0.6 + this.rng() * 0.4) * 1.3 }); };
+  // a agenda da versão "mais movimento" (a escolhida): um gesto a cada 1–3,5 s, às vezes dois juntos; os do PixelLab
+  // (quando há) a cada 15–30 s, um de cada vez, e os de código esperam o fim dele
+  IdleMolde.prototype.agenda = function (t) {
+    if (this.gesto && t >= this.gesto.t0 + this.gesto.q.length / IDLE_GESTO_QPS) { this.gesto = null; this.proximo = t + 0.8; }
+    if (this.gestos && !this.gesto && t >= this.proxGesto) {
+      var nomes = Object.keys(this.gestos);
+      if (nomes.length) this.gesto = { nome: nomes[Math.floor(this.rng() * nomes.length)], t0: t };
+      if (this.gesto) this.gesto.q = this.gestos[this.gesto.nome];
+      this.proxGesto = t + 15 + this.rng() * 15;
+    }
+    if (this.gesto || t < this.proximo) return;
+    var r = this.rng(), nome = r < 0.26 ? 'piscar' : r < 0.5 ? 'cauda' : r < 0.66 ? 'orelha' : r < 0.84 ? 'cabeca' : 'sacode';
+    this.dispara(nome, t);
+    if (nome === 'piscar' && this.rng() < 0.3) this.dispara('piscar', t + 0.32);
+    this.proximo = t + 1 + this.rng() * 2.5;
+    if (nome !== 'cauda' && this.rng() < 0.35) this.dispara('cauda', t + 0.2 + this.rng() * 0.4);
+  };
+  // o mapa do quadro t e a chave do que mudou (a pintura só refaz quando a chave muda)
+  IdleMolde.prototype.monta = function (t) {
+    var m = this.mapa, I = this.idx, W = this.w, k, x, y;
+    if (this.gesto) {
+      var q = Math.min(this.gesto.q.length - 1, Math.floor((t - this.gesto.t0) * IDLE_GESTO_QPS));
+      m.set(this.gesto.q[q]);
+      return 'g' + this.gesto.nome + q;
+    }
+    m.set(I);
+    var chave = '';
+    var fr = mod(t + this.faseR, this.respira) / this.respira, inspira = fr > 0.1 && fr < 0.55;
+    if (inspira) for (k = 0; k < this.barriga.length; k += 2) { x = this.barriga[k]; y = this.barriga[k + 1]; m[(y + 1) * W + x] = 1; m[y * W + x] = 3; }
+    chave += inspira ? 'r' : '-';
+    var cauda = 0, orelha = 0, olho = 0, cabeca = 0;
+    for (k = this.eventos.length - 1; k >= 0; k--) {
+      var e = this.eventos[k], u = (t - e.t0) / IDLE_EVENTOS[e.nome];
+      if (u < 0) continue;
+      if (u >= 1) { this.eventos.splice(k, 1); continue; }
+      if (e.nome === 'piscar') olho = u < 0.25 || u > 0.75 ? 1 : 2;
+      else if (e.nome === 'cauda') cauda = Math.round(e.lado * e.forte * 3 * Math.sin(u * Math.PI * 2) * (1 - u * 0.4));
+      else if (e.nome === 'orelha') orelha = u < 0.75 ? 1 : 0;
+      else if (e.nome === 'cabeca') cabeca = u < 0.15 || u > 0.85 ? 0 : u < 0.3 || u > 0.7 ? 1 : 2;
+      else if (e.nome === 'sacode') { cabeca = Math.floor(u * 6) % 2; orelha = u > 0.2 && u < 0.8 ? 1 : orelha; }
+    }
+    var vc = Math.round(Math.max(0, ventoCena(t) - 0.55) * 2.2 * Math.max(0, Math.sin(t * 3.1 + this.faseR)));
+    var dc = cauda || -vc;
+    if (dc) {
+      for (k = 0; k < this.cauda.length; k += 3) { x = this.cauda[k]; y = this.cauda[k + 1]; if (m[y * W + x] === this.cauda[k + 2]) m[y * W + x] = 0; }
+      var span = Math.max(1, this.caudaY1 - this.caudaY0);
+      for (k = 0; k < this.cauda.length; k += 3) {
+        x = this.cauda[k]; y = this.cauda[k + 1];
+        var u2 = (y - this.caudaY0) / span, dx = Math.round(dc * Math.pow(u2, 1.4)), dy = Math.abs(dc) >= 2 && u2 > 0.8 ? -1 : 0, nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < W && ny >= 0 && ny < this.h) m[ny * W + nx] = this.cauda[k + 2];
+      }
+    }
+    chave += 'c' + dc;
+    if (cabeca) {
+      var cb = this.cabeca;
+      for (y = cb.y1; y >= 0; y--) for (x = cb.x0; x < W; x++) {
+        var dy2 = x < cb.x0 + 3 ? Math.min(1, cabeca) : cabeca, sy = y - dy2;
+        m[y * W + x] = sy >= 0 ? (I[sy * W + x] || (y > cb.y1 - dy2 ? m[y * W + x] : 0)) : 0;
+      }
+      chave += 'h' + cabeca;
+    }
+    if (orelha) {
+      var o = this.orelhas, yTop = o[1];
+      for (k = 0; k < o.length; k += 3) if (o[k + 1] <= yTop + 1) m[(o[k + 1] + cabeca) * W + o[k]] = 0;
+      for (k = 0; k < o.length; k += 3) if (o[k + 1] <= yTop + 1) { var xx = o[k] - 1; if (xx >= 0) m[(o[k + 1] + cabeca) * W + xx] = o[k + 2]; }
+      chave += 'o';
+    }
+    if (olho) {
+      for (k = 0; k < this.olho.length; k += 2) {
+        x = this.olho[k]; y = this.olho[k + 1];
+        if (olho === 2 ? y < this.olhoBaixo : y < this.olhoBaixo - 1) m[(y + (cabeca || 0)) * W + x] = 3;
+      }
+      chave += 'p' + olho;
+    }
+    // crina do pescoço no vento: 5 fases que se repetem (a chave fica num conjunto pequeno)
+    if (ventoCena(t) > 0.5) {
+      var fq = Math.floor(t * 6) % 5;
+      for (k = 0; k < this.crina.length; k += 2) {
+        x = this.crina[k]; y = this.crina[k + 1] + (x >= this.cabeca.x0 ? cabeca : 0);
+        if (Math.sin(x * 0.9 + fq * DOIS_PI / 5) > 0.55 && y > 0 && !m[(y - 1) * W + x]) { m[(y - 1) * W + x] = 1; m[y * W + x] = 4; }
+      }
+      chave += 'v' + fq;
+    }
+    return chave;
+  };
+  var DOIS_PI = Math.PI * 2;
+  // um animador por cavalo e estado (a semente das marcas, a pose e o molde); quem some da tela sai no limpar do cache
+  var idleRegistro = new Map();
+  function moldeIdle(nome, estado, o) {
+    var M = moldes[nome], sem = (o.semente >>> 0) || 0, k = nome + '|' + estado + '|' + sem + '|' + (o.anima === 'cena' ? 'c' : '');
+    var r = idleRegistro.get(k);
+    if (!r) {
+      var gestos = null;
+      if (o.anima === 'cena' && M.gestos) {
+        gestos = {};
+        (estado === 'retrato' ? ['comer', 'cavar'] : ['cavarJ']).forEach(function (g) { if (M.gestos[g] && M.gestos[g].length) gestos[g] = M.gestos[g]; });
+        if (!Object.keys(gestos).length) gestos = null;
+      }
+      r = { anim: new IdleMolde(M, estado, sem * 2654435761 + estado.length, gestos), chave: '', canvas: null };
+      if (idleRegistro.size > 48) idleRegistro.clear();
+      idleRegistro.set(k, r);
+    }
+    var t = Number(o.t) || 0;
+    r.anim.agenda(t);
+    var chave = r.anim.monta(t) + '#' + chaveCores(o);
+    if (chave !== r.chave || !r.canvas) { r.chave = chave; r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], o); }
+    return r.canvas;
+  }
+
   function drawHorseMolde(ctx, x, y, o, estado) {
     var k = Math.max(1, Math.round(o.scale || 1));
     var nome = chaveMolde(o.element, o.porte), M = moldes[nome];
@@ -1540,7 +1746,9 @@
       var som = sombraMolde(nome, estado, quadro, (o.chao || '#cd683d').toLowerCase(), o.vista === 'cima' ? 'cima' : 'lateral', !!o.espelhado, em);
       ctx.drawImage(som, L.ox - 4 * L.S, L.oy - 4 * L.S, som.width * L.S, som.height * L.S);
     }
-    ctx.drawImage(moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
+    // parado vivo (o.anima): o mapa montado pelo idle; fora isso (e no movimento reduzido), o quadro do molde
+    var vivo = o.anima && !o.reduzido && (estado === 'parado' || estado === 'retrato');
+    ctx.drawImage(vivo ? moldeIdle(nome, estado, o) : moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
   }
 
   function drawHorse(ctx, x, y, opts) {
@@ -1934,7 +2142,7 @@
   }
   function quadroGalopeTeste(element, frame, porte) { return moldsOk ? quadroGalope(moldes[chaveMolde(element, porte)], frame) : null; }
 
-  function limparCacheMoldes() { moldCache.clear(); sombraCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
+  function limparCacheMoldes() { idleRegistro.clear(); moldCache.clear(); sombraCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
@@ -3256,7 +3464,7 @@
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
-    pixelsSombra: pixelsSombra, passoLeitura: passoLeitura, passadaDe: passadaDe, cascosNoChao: cascosNoChao, contatoGalope: contatoGalope, cascosNaTela: cascosNaTela, drawContatoRaia: drawContatoRaia, drawSombraCerca: drawSombraCerca, contatoEm: contatoEm, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes, drawTufosFrente: drawTufosFrente,
+    pixelsSombra: pixelsSombra, IdleMolde: IdleMolde, passoLeitura: passoLeitura, passadaDe: passadaDe, cascosNoChao: cascosNoChao, contatoGalope: contatoGalope, cascosNaTela: cascosNaTela, drawContatoRaia: drawContatoRaia, drawSombraCerca: drawSombraCerca, contatoEm: contatoEm, imagemNaCena: imagemNaCena, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes, drawTufosFrente: drawTufosFrente,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,
