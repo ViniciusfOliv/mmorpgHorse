@@ -29,6 +29,10 @@
 }(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   var A = {};   // dados embutidos (Ambiente.dados)
+  var MAN = { imagens: {} };   // o manifesto (prototype/assets/arte/animacao.json; Ambiente.dados com A.manifesto, ou Ambiente.manifesto)
+  function man(nome) { var e = MAN.imagens && MAN.imagens[nome]; if (!e) throw new Error('Ambiente: a imagem ' + nome + ' não está no manifesto'); return e; }
+  function dentro(c, x, y) { return x >= c[0] && y >= c[1] && x < c[2] && y < c[3]; }
+  function dentroDe(lista, x, y) { for (var i = 0; i < (lista || []).length; i++) if (dentro(lista[i], x, y)) return true; return false; }
   var cfg = {
     criaCanvas: function (w, h) {
       var c;
@@ -763,13 +767,11 @@
       // --- mar (horizonte): rampa de brilho; os pixels do mar são os destes tons abaixo da linha do horizonte, fora da ilha
       var hz = Buf.de(IMG['litoral/horizonte']);
       s.hz = hz;
-      var RAMPA = ['2e222f', '3e3546', '0b5e65', '547e64', '0eaf9b', '9babb2', 'c7dcd0', 'ffffff'];
-      var praiaX = 296;
+      var MM = man('litoral/horizonte').mar, RAMPA = MM.rampa;
       s.mar = new CicloCor(hz, function (x, y, h) {
-        if (y < 30 || y > 88) return -1;
-        if (x >= 122 && x <= 206 && y < 46) return -1;   // a ilha do farol
-        if (x >= 268 && y < 50) return -1;                // a ponta de terra à direita
-        if (x >= praiaX + (y - 50) * 0.6 && (h === 'fdcbb0' || h === 'ab947a')) return -1;
+        if (y < MM.y[0] || y > MM.y[1]) return -1;
+        if (dentroDe(MM.exclui, x, y)) return -1;   // a ilha do farol e a ponta de terra à direita
+        if (x >= MM.praiaX + (y - MM.praiaY) * MM.praiaInclina && MM.praiaCores.indexOf(h) >= 0) return -1;
         return RAMPA.indexOf(h) >= 0 ? 0 : -1;
       }, [RAMPA], function (x, y, r, d, t, j) {
         if (d < 2) return d;                                       // as sombras do mar ficam
@@ -788,16 +790,16 @@
         var xm = s.mar.px[jm * 5 + 1], ym = s.mar.px[jm * 5 + 2], pt = (ym - 30) / 58;
         s.mA[jm] = ym * (2.1 - pt * 1.2); s.mS[jm] = 1.6 + pt * 1.4; s.mB[jm] = xm * (0.11 - pt * 0.05) + ym * 0.7; s.mL[jm] = 1 / (6 + pt * 10); s.mH[jm] = hash(xm, ym);
       }
-      s.barcos = [[113, 30, 123, 40], [232, 30, 243, 40], [273, 32, 283, 42], [221, 39, 231, 48]];
+      s.barcos = man('litoral/horizonte').barcos;
       // --- coqueiros (meio): folhas = verdes acima da linha 72, mais o contorno encostado nelas
-      var meio = Buf.de(IMG['litoral/meio']), VERDES = ['165a4c', '239063', '1ebc73', '91db69', '547e64', '676633', '0b5e65', '0eaf9b', '30e1b9', '8ff8e2'];
+      var MC = man('litoral/meio').coqueiros, meio = Buf.de(IMG['litoral/meio']), VERDES = MC.cores;
       var pc = pecas(meio, function (x, y, h) {
-        if (y > 74) return false;
+        if (y > MC.yMax) return false;
         if (VERDES.indexOf(h) >= 0) return true;
-        if (h !== '2e222f') return false;
+        if (h !== MC.contorno) return false;
         for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) { var v = meio.em(x + ox, y + oy); if (v && VERDES.indexOf(hexDe(v)) >= 0) return true; }
         return false;
-      }, 3, 40);
+      }, MC.margem, MC.minPx);
       pc.caixas.forEach(function (cx, i) {
         cx.raio = Math.max(cx.bx1 - cx.bx0, cx.by1 - cx.by0) / 2 + 1; cx.fase = hash(i, 3) * 6;
         cx.coroaY = cx.by0 + (cx.by1 - cx.by0) * 0.45;   // a coroa fica um pouco abaixo do meio da copa
@@ -830,9 +832,10 @@
       });
       s.meioY = lt + 26 - meio.h + (R_.posicao.meio || 0);
       // --- torcida (arquibancada): grupos de 3 colunas pulam 1 px
+      var MA = man('litoral/arquibancada'), MT = MA.torcida, GR = MT.grupo;
       var arq = Buf.de(IMG['litoral/arquibancada']), mt = new Int16Array(arq.w * arq.h), caixasT = [];
-      for (var y = 34; y <= 54; y++) for (var x = 0; x < arq.w; x++) if (arq.d[y * arq.w + x]) mt[y * arq.w + x] = 1 + ((x / 3) | 0);
-      for (var gx = 0; gx * 3 < arq.w; gx++) caixasT.push({ id: gx + 1, x0: gx * 3, x1: Math.min(arq.w, gx * 3 + 3), y0: 33, y1: 55, gx: gx });
+      for (var y = MT.y[0]; y <= MT.y[1]; y++) for (var x = 0; x < arq.w; x++) if (arq.d[y * arq.w + x]) mt[y * arq.w + x] = 1 + ((x / GR) | 0);
+      for (var gx = 0; gx * GR < arq.w; gx++) caixasT.push({ id: gx + 1, x0: gx * GR, x1: Math.min(arq.w, gx * GR + GR), y0: MT.caixaY[0], y1: MT.caixaY[1], gx: gx });
       s.torcida = new Deforma(arq, mt, caixasT, function (x, y, cx, t, v) {
         v[0] = 0; v[1] = cx.pula;
       }, 6, function (t) {
@@ -843,14 +846,15 @@
           cx.pula = d < 5 ? -2 : d < 14 ? -1 : hash3(cx.gx, 7, q) < (MAIS ? 0.24 : 0.16) ? -1 : 0;
         });
       });
-      s.arqY = lt - 6 - arq.h; s.arqX = 168;   // no jogo a 1ª fica em 60; aqui mais à direita para o mar aparecer
+      s.arqY = lt - 6 - arq.h; s.arqX = MA.x;   // no jogo a 1ª fica em 60; aqui mais à direita para o mar aparecer
       // --- capim da praia (frente): tudo acima da linha 33 balança, mais no alto
+      var MF = man('litoral/frente').capim, YC = MF.yMax, FX = MF.faixa;
       var fr = Buf.de(IMG['litoral/frente']), mf = new Int16Array(fr.w * fr.h);
-      for (var y2 = 0; y2 < 34; y2++) for (var x2 = 0; x2 < fr.w; x2++) if (fr.d[y2 * fr.w + x2]) mf[y2 * fr.w + x2] = 1;
-      var ALT = new Float32Array(34), GC = new Float32Array(fr.w);
-      for (var ya = 0; ya < 34; ya++) { var al = Math.max(0, 33 - ya) / 27; ALT[ya] = al * al; }
-      for (var ym = 0; ym < 34; ym++) for (var xm = 0; xm < fr.w; xm++) if (mf[ym * fr.w + xm]) mf[ym * fr.w + xm] = 1 + ((xm / 48) | 0);
-      var faixas = []; for (var fx = 0; fx < fr.w; fx += 48) faixas.push({ id: 1 + fx / 48, x0: Math.max(0, fx - 3), x1: Math.min(fr.w, fx + 51), y0: 0, y1: 34 });
+      for (var y2 = 0; y2 < YC; y2++) for (var x2 = 0; x2 < fr.w; x2++) if (fr.d[y2 * fr.w + x2]) mf[y2 * fr.w + x2] = 1;
+      var ALT = new Float32Array(YC), GC = new Float32Array(fr.w);
+      for (var ya = 0; ya < YC; ya++) { var al = Math.max(0, YC - 1 - ya) / 27; ALT[ya] = al * al; }
+      for (var ym = 0; ym < YC; ym++) for (var xm = 0; xm < fr.w; xm++) if (mf[ym * fr.w + xm]) mf[ym * fr.w + xm] = 1 + ((xm / FX) | 0);
+      var faixas = []; for (var fx = 0; fx < fr.w; fx += FX) faixas.push({ id: 1 + fx / FX, x0: Math.max(0, fx - MF.folga), x1: Math.min(fr.w, fx + FX + MF.folga), y0: 0, y1: YC });
       s.capim = new Deforma(fr, mf, faixas, function (x, y, cx, t, v) {
         v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0;
       }, 6, function (t) {
@@ -1040,19 +1044,21 @@
       s.nuvemBaixa = tela(nuv.width, nuv.height); s.nuvemBaixa.getContext('2d').drawImage(nuv, 0, 0); s.nuvemBaixa.getContext('2d').clearRect(0, 0, nuv.width, 15);
       s.meioY = lt + 26 - 112;
       // araucárias: a faixa de cima de cada copa (6 px abaixo do topo da coluna) balança 1 px; fora do cata-vento
-      var mb = Buf.de(IMG['planalto/meio-sem-pas']), VERDE = ['374e4a', '165a4c', '547e64', '676633', '239063'], mm = new Int16Array(mb.w * mb.h), TOPO = new Int16Array(mb.w).fill(999), PESO = new Float32Array(mb.w * mb.h);
-      for (var y = 0; y < 70; y++) for (var x = 0; x < mb.w; x++) {
-        if (x >= 160 && x <= 236) continue;
+      var MP = man('planalto/meio-sem-pas').copas, YP = MP.yMax, FP = MP.faixa;
+      var mb = Buf.de(IMG['planalto/meio-sem-pas']), VERDE = MP.cores, mm = new Int16Array(mb.w * mb.h), TOPO = new Int16Array(mb.w).fill(999), PESO = new Float32Array(mb.w * mb.h);
+      for (var y = 0; y < YP; y++) for (var x = 0; x < mb.w; x++) {
+        if (dentroDe(MP.exclui, x, y)) continue;   // o cata-vento
         if (VERDE.indexOf(hexDe(mb.d[y * mb.w + x])) >= 0) { mm[y * mb.w + x] = 1; if (TOPO[x] === 999) TOPO[x] = y; }
       }
-      for (y = 0; y < 70; y++) for (x = 0; x < mb.w; x++) { var dd = y - TOPO[x]; PESO[y * mb.w + x] = dd >= 0 && dd < 6 ? 1 - dd / 8 : 0; }
-      s.copas = new Deforma(mb, mm, [{ id: 1, x0: 0, x1: mb.w, y0: 0, y1: 70 }], function (x, y, cx, t, v, i) {
+      for (y = 0; y < YP; y++) for (x = 0; x < mb.w; x++) { var dd = y - TOPO[x]; PESO[y * mb.w + x] = dd >= 0 && dd < FP ? 1 - dd / (FP + 2) : 0; }
+      s.copas = new Deforma(mb, mm, [{ id: 1, x0: 0, x1: mb.w, y0: 0, y1: YP }], function (x, y, cx, t, v, i) {
         v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.09)) : 0; v[1] = 0;
       }, 6, function (t) { var c = s.copas.caixas[0]; c.tt = t * 1.3; c.amp = 0.8 + vento(t) * (MAIS ? 0.9 : 0.5); });
       // capim alto: tudo acima da linha 50 da camada balança, mais no alto, numa onda contínua
+      var MF = man('planalto/frente').capim, YC = MF.yMax, FX = MF.faixa;
       var fr = Buf.de(IMG['planalto/frente']), mf = new Int16Array(fr.w * fr.h), ALT = new Float32Array(64), GC = new Float32Array(fr.w);
-      for (y = 0; y < 50; y++) { for (x = 0; x < fr.w; x++) if (fr.d[y * fr.w + x]) mf[y * fr.w + x] = 1 + ((x / 48) | 0); var al = Math.max(0, 50 - y) / 44; ALT[y] = al * al; }
-      var faixas = []; for (var fx = 0; fx < fr.w; fx += 48) faixas.push({ id: 1 + fx / 48, x0: Math.max(0, fx - 4), x1: Math.min(fr.w, fx + 52), y0: 0, y1: 50 });
+      for (y = 0; y < YC; y++) { for (x = 0; x < fr.w; x++) if (fr.d[y * fr.w + x]) mf[y * fr.w + x] = 1 + ((x / FX) | 0); var al = Math.max(0, YC - y) / 44; ALT[y] = al * al; }
+      var faixas = []; for (var fx = 0; fx < fr.w; fx += FX) faixas.push({ id: 1 + fx / FX, x0: Math.max(0, fx - MF.folga), x1: Math.min(fr.w, fx + FX + MF.folga), y0: 0, y1: YC });
       s.capim = new Deforma(fr, mf, faixas, function (x, y, cx, t, v) { v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0; }, 6, function (t) {
         for (var x = 0; x < fr.w; x++) { var w = ventoEm(x * 0.9, t), onda = Math.sin(x * 0.06 - t * 2.8) * 0.5 + 0.5; GC[x] = MAIS ? w * 2.6 + onda * 1.8 + Math.sin(x * 0.21 - t * 4.6) * 0.4 : w * 2.4 + (w - 0.4) * onda * 1.6; }
       });
@@ -1107,16 +1113,16 @@
       ['particulas', 'Brasas e fumaça'], ['fundo', 'Fundo parado']
     ],
     init: function () {
-      var s = this, b = Buf.de(IMG['ginasios/fogo']); s.base = b;
-      var cx = 128, cy = 113;
-      var RAMPA = ['6e2727', 'e83b3b', 'f79617', 'fbb954', 'fbff86'];
+      var s = this, b = Buf.de(IMG['ginasios/fogo']), MG = man('ginasios/fogo'), ML = MG.lava, EN = ML.encosta; s.base = b;
+      var cx = ML.centro[0], cy = ML.centro[1];
+      var RAMPA = ML.rampa;
       // fosso de lava: tons de lava no anel entre a areia e a mureta, mais o caminho de lava da frente
       s.lava = new CicloCor(b, function (x, y, h) {
-        var ex = (x - cx) / 100, ey = (y - cy) / 50, rr = Math.sqrt(ex * ex + ey * ey);
-        var anel = rr > 0.78 && rr < 1.12 && y > 70, frente = y > 140 && x > 110 && x < 146;
-        var encosta = y < 72 && (x < 44 || x > 214) && y > 6;
+        var ex = (x - cx) / ML.raio[0], ey = (y - cy) / ML.raio[1], rr = Math.sqrt(ex * ex + ey * ey);
+        var anel = rr > ML.anel[0] && rr < ML.anel[1] && y > ML.anelYMin, frente = y > ML.frente[1] && x > ML.frente[0] && x < ML.frente[2];
+        var encosta = y < EN.yMax && (x < EN.xEsq || x > EN.xDir) && y > EN.yMin;
         if (!(anel || frente || encosta)) return -1;
-        return h === 'e83b3b' || h === '6e2727' ? 0 : -1;   // só o vermelho da lava (a pedra e a areia ficam)
+        return ML.cores.indexOf(h) >= 0 ? 0 : -1;   // só o vermelho da lava (a pedra e a areia ficam)
       }, [RAMPA], function (x, y, r, d, t, j) {
         var v = fsin(s.lA[j] - t * s.lS[j]) + fsin(s.lA[j] * 0.37 + t * 0.7) * 0.6;
         if (s.lE[j]) return s.lH[j] < 0.3 && v > 1.0 ? d + 1 : d;              // encosta: veios esparsos que descem
@@ -1125,14 +1131,14 @@
       // partes fixas por pixel: fase (ângulo no anel; altura na encosta), velocidade, ruído
       var nl = s.lava.n; s.lA = new Float32Array(nl); s.lS = new Float32Array(nl); s.lH = new Float32Array(nl); s.lE = new Uint8Array(nl);
       for (var jl = 0; jl < nl; jl++) {
-        var xl = s.lava.px[jl * 5 + 1], yl = s.lava.px[jl * 5 + 2], enc = yl < 72 && (xl < 44 || xl > 214);
+        var xl = s.lava.px[jl * 5 + 1], yl = s.lava.px[jl * 5 + 2], enc = yl < EN.yMax && (xl < EN.xEsq || xl > EN.xDir);
         s.lE[jl] = enc ? 1 : 0; s.lH[jl] = hash(xl, yl);
         s.lA[jl] = enc ? yl * 0.55 + xl * 0.1 + hash(xl >> 1, yl >> 2) * 2 : Math.atan2((yl - cy) * 2, xl - cx) * 9 + hash(xl >> 2, yl >> 1) * 1.4;
         s.lS[jl] = enc ? 3.2 : 2.4;
       }
       // emblemas de fogo nos estandartes (pixels quentes dentro das 5 caixas)
-      var CAIXAS = [[22, 52, 40, 76], [68, 38, 84, 60], [119, 34, 137, 56], [164, 38, 182, 60], [216, 52, 234, 76]];
-      var RAMPA_E = ['e83b3b', 'f79617', 'fbb954', 'fbff86', 'f9c22b'];
+      var CAIXAS = MG.emblemas.caixas;
+      var RAMPA_E = MG.emblemas.rampa;
       s.emblemas = new CicloCor(s.lava.saida, function (x, y, h) {
         for (var i = 0; i < CAIXAS.length; i++) { var c = CAIXAS[i]; if (x >= c[0] && x < c[2] && y >= c[1] && y < c[3]) return RAMPA_E.indexOf(h) >= 0 ? 0 : -1; }
         return -1;
@@ -1141,14 +1147,14 @@
         return d === 0 ? 0 : Math.max(0, Math.min(3, d + (pulso > 0.55 ? 1 : pulso < -0.6 ? -1 : 0)));
       }, 12);
       // braseiros e tochas (topo da chama de cada um)
-      s.chamas = [[10, 50], [51, 58], [204, 58], [246, 50], [16, 99], [241, 99], [108, 31], [149, 31]];
+      s.chamas = MG.chamas;
       s.brasas = new Particulas(150); s.rng = rngCosmetica(31);
       // vulcão: o pico da esquerda (cratera em 78..82, y 16)
-      s.vx = 80; s.vy = 16; s.proxEstouro = 2; s.estouro = -9;
+      s.vx = MG.vulcao[0]; s.vy = MG.vulcao[1]; s.proxEstouro = 2; s.estouro = -9;
       s.antes = tela(256, 160); s.antes.getContext('2d').drawImage(IMG['ginasios/fogo'], 0, 0);
       s.saida = new Buf(256, 160);
       s.muralha = new Uint8Array(256 * 160);   // a muralha (escura) não ondula no ar quente
-      for (var y = 20; y < 34; y++) for (var x = 0; x < 256; x++) { var h = hexDe(b.d[y * 256 + x]); if (h === '3e3546' || h === '2e222f') s.muralha[y * 256 + x] = 1; }
+      for (var y = MG.muralha.y[0]; y < MG.muralha.y[1]; y++) for (var x = 0; x < 256; x++) { var h = hexDe(b.d[y * 256 + x]); if (MG.muralha.cores.indexOf(h) >= 0) s.muralha[y * 256 + x] = 1; }
     },
     quadro: function (t, dt, L) {
       var s = this, q = Math.floor(t * 12);
@@ -1229,13 +1235,13 @@
       ['ceu', 'Nuvens finas e pássaros'], ['particulas', 'Fumaça, brasas e folhas'], ['fundo', 'Fundo parado']
     ],
     init: function () {
-      var s = this, b = Buf.de(IMG['telas/expedicao']); s.base = b;
+      var s = this, b = Buf.de(IMG['telas/expedicao']), MX = man('telas/expedicao'); s.base = b;
       // lava do vulcão (cratera e encostas) e rio: duas rampas no mesmo ciclo
-      var LAVA = ['7a3045', 'b33831', 'ea4f36', 'fb6b1d', 'f79617', 'f9c22b', 'fbff86'];
-      var AGUA = ['0b5e65', '0b8a8f', '0eaf9b', '4d9be6', '8fd3ff', '8ff8e2', 'c7dcd0', 'ffffff'];
+      var LAVA = MX.lava.rampa;
+      var AGUA = MX.rio.rampa;
       s.ciclo = new CicloCor(b, function (x, y, h) {
-        if (x > 186 && x < 238 && y > 18 && y < 90 && LAVA.indexOf(h) >= 0) return 0;
-        if (x > 90 && x < 182 && y > 100 && y < 146 && AGUA.indexOf(h) >= 0) return 1;
+        if (dentro(MX.lava.caixa, x, y) && LAVA.indexOf(h) >= 0) return 0;
+        if (dentro(MX.rio.caixa, x, y) && AGUA.indexOf(h) >= 0) return 1;
         return -1;
       }, [LAVA, AGUA], function (x, y, r, d, t, j) {
         if (r === 0) {
@@ -1256,8 +1262,8 @@
         s.rA[j] = y * (1.6 - pt * 0.8); s.rS[j] = 3 + pt * 2; s.rB[j] = x * 0.2 + y * 0.3; s.rH[j] = hash(x, y);
       }
       // placas: os três braços (sem o poste), encolhendo em volta do poste
-      var POSTE = [52, 63], MADEIRA = ['9e4539', 'cd683d', '6e2727', '4c3e24', 'e6904e', '2e222f', '753c54', '45293f', '7a3045', '966c6c', 'ab947a', '694f62', '3e3546'];
-      var placas = [[30, 37, 100, 54], [33, 52, 82, 67], [28, 67, 95, 82]];
+      var POSTE = MX.placas.poste, MADEIRA = MX.placas.madeira, EIXO = MX.placas.eixo;
+      var placas = MX.placas.caixas;
       var mp = new Int16Array(256 * 160), caixasP = [];
       placas.forEach(function (p, i) {
         for (var y = p[1]; y < p[3]; y++) for (var x = p[0]; x < p[2]; x++) {
@@ -1268,7 +1274,7 @@
       });
       s.mascaraPlacas = mp;
       s.giro = new Deforma(b, mp, caixasP, function (x, y, cx, t, v) {
-        var dist = x - 57.5, L = dist > 0 ? cx.b - 57.5 : 57.5 - cx.a;
+        var dist = x - EIXO, L = dist > 0 ? cx.b - EIXO : EIXO - cx.a;
         var dd = Math.round(Math.abs(dist) / L * cx.enc);
         v[0] = dist > 0 ? -dd : dd; v[1] = 0;
       }, 12, function (t) {
@@ -1280,20 +1286,19 @@
         return src[y * 256 + Math.max(0, Math.min(255, fx))];
       };
       // capim do primeiro plano (1) e pontas dos pinheiros das bordas (2)
-      var CAPIM = ['a2a947', 'cddf6c', 'd5e04b', '676633', '92a984', 'fbff86', '91db69', 'b2ba90'];
-      var PINHO = ['165a4c', '374e4a', '313638', '239063', '547e64', '0b5e65'];
+      var MCP = MX.capim, MPI = MX.pinheiros, CAPIM = MCP.cores, PINHO = MPI.cores;
       var mc = new Int16Array(256 * 160);
-      for (var y2 = 108; y2 < 160; y2++) for (var x2 = 0; x2 < 256; x2++) if (CAPIM.indexOf(hexDe(b.d[y2 * 256 + x2])) >= 0 && !(x2 >= 50 && x2 <= 64)) mc[y2 * 256 + x2] = 1;
-      for (y2 = 30; y2 < 100; y2++) for (x2 = 0; x2 < 256; x2++) { if (!(x2 < 26 || x2 > 236)) continue; if (PINHO.indexOf(hexDe(b.d[y2 * 256 + x2])) >= 0) mc[y2 * 256 + x2] = 2; }
+      for (var y2 = MCP.y[0]; y2 < MCP.y[1]; y2++) for (var x2 = 0; x2 < 256; x2++) if (CAPIM.indexOf(hexDe(b.d[y2 * 256 + x2])) >= 0 && !dentroDe(MCP.exclui, x2, y2)) mc[y2 * 256 + x2] = 1;
+      for (y2 = MPI.y[0]; y2 < MPI.y[1]; y2++) for (x2 = 0; x2 < 256; x2++) { if (!(x2 < MPI.bordas[0] || x2 > MPI.bordas[1])) continue; if (PINHO.indexOf(hexDe(b.d[y2 * 256 + x2])) >= 0) mc[y2 * 256 + x2] = 2; }
       // matas do vale (mais movimento): a faixa de cima de cada copa (7 px abaixo do topo da coluna) balança 1 px
-      var mm = new Int16Array(256 * 160), TOPO = new Int16Array(256).fill(999), PESO = new Float32Array(256 * 160);
-      for (y2 = 26; y2 < 112; y2++) for (x2 = 0; x2 < 256; x2++) {
-        var i2 = y2 * 256 + x2; if (mc[i2] || (x2 >= 26 && x2 <= 102 && y2 < 150 && (mp[i2] || (x2 >= 52 && x2 <= 63)))) continue;
-        if (x2 > 186 && x2 < 240 && y2 < 90) continue;   // o vulcão
+      var MMT = MX.matas, mm = new Int16Array(256 * 160), TOPO = new Int16Array(256).fill(999), PESO = new Float32Array(256 * 160);
+      for (y2 = MMT.y[0]; y2 < MMT.y[1]; y2++) for (x2 = 0; x2 < 256; x2++) {
+        var i2 = y2 * 256 + x2; if (mc[i2] || (x2 >= 26 && x2 <= 102 && y2 < 150 && (mp[i2] || (x2 >= POSTE[0] && x2 <= POSTE[1])))) continue;
+        if (dentro(MMT.excluiVulcao, x2, y2)) continue;   // o vulcão
         if (PINHO.indexOf(hexDe(b.d[i2])) >= 0) { mm[i2] = 1; if (TOPO[x2] === 999) TOPO[x2] = y2; }
       }
-      for (y2 = 26; y2 < 112; y2++) for (x2 = 0; x2 < 256; x2++) { var dd2 = y2 - TOPO[x2]; PESO[y2 * 256 + x2] = dd2 >= 0 && dd2 < 7 ? 1 - dd2 / 9 : 0; }
-      s.mata = new Deforma(b, mm, [{ id: 1, x0: 0, x1: 256, y0: 26, y1: 112 }], function (x, y, cx, t, v, i) {
+      for (y2 = MMT.y[0]; y2 < MMT.y[1]; y2++) for (x2 = 0; x2 < 256; x2++) { var dd2 = y2 - TOPO[x2]; PESO[y2 * 256 + x2] = dd2 >= 0 && dd2 < MMT.faixa ? 1 - dd2 / (MMT.faixa + 2) : 0; }
+      s.mata = new Deforma(b, mm, [{ id: 1, x0: 0, x1: 256, y0: MMT.y[0], y1: MMT.y[1] }], function (x, y, cx, t, v, i) {
         v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.13 + (TOPO[x] & 7) * 0.4)) : 0; v[1] = 0;
       }, 12, function (t) { var c = s.mata.caixas[0]; c.tt = t * 1.5; c.amp = 0.8 + vento(t) * 0.6; });
       var AC = new Float32Array(160), AP = new Float32Array(160), GC = new Float32Array(256);
@@ -1388,7 +1393,7 @@
     camadas: [['cavalos', 'Cavalos (idle)'], ['paisagem', 'Árvores e pasto'], ['ceu', 'Pássaros, borboletas e folhas'], ['piloto', 'Painel PixelLab × código'], ['fundo', 'Fundo parado']],
     init: function () {
       var s = this;
-      var defs = [['robusto-folhas', 'castanho', 'retrato', 4, 150, false], ['padrao-lisa', 'baio', 'retrato', 62, 156, true], ['esguio-ondas', 'tordilho', 'retrato', 118, 152, false], ['padrao-chamas', 'alazao', 'parado', 186, 158, false]];
+      var MH = man('telas/haras'), defs = MH.cavalos;
       s.cavalos = defs.map(function (d, j) {
         var cv = new CavaloIdle(A.moldes[d[0]], d[2], PELAGENS[d[1]], 300 + j * 29, { espelho: d[5] });
         return { cv: cv, x: d[3], pe: d[4], ref: cv.anc.footY };
@@ -1398,21 +1403,22 @@
       s.part = new Particulas(60); s.rng = rngCosmetica(52);
       // paisagem (mais movimento): o pasto ondula em faixas de brilho que correm (vento no campo) e as copas balançam
       var hb = Buf.de(IMG['telas/haras']); s.hb = hb; s.comp = new Buf(256, 160);
-      s.pasto = new CicloCor(hb, function (x, y, h) { return y >= 104 && y < 134 ? (['676633', 'a2a947', '91db69', 'cddf6c'].indexOf(h) >= 0 ? 0 : -1) : -1; },
-        [['676633', 'a2a947', '91db69', 'cddf6c']], function (x, y, r, d, t) {
+      var PA = MH.pasto;
+      s.pasto = new CicloCor(hb, function (x, y, h) { return y >= PA.y[0] && y < PA.y[1] ? (PA.rampa.indexOf(h) >= 0 ? 0 : -1) : -1; },
+        [PA.rampa], function (x, y, r, d, t) {
           var v = fsin(x * 0.055 - t * 1.9 + y * 0.18) + 0.45 * fsin(x * 0.13 + t * 0.7 - y * 0.3);
           return Math.max(0, Math.min(3, d + (v > 0.95 ? 1 : v < -1.1 ? -1 : 0)));
         }, 12);
-      var VERDE_H = ['165a4c', '239063', '1ebc73', '676633', '547e64', '374e4a', 'a2a947'], mh = new Int16Array(256 * 160), TOPO = new Int16Array(256).fill(999), PESO = new Float32Array(256 * 160);
-      for (var y = 40; y < 96; y++) for (var x = 0; x < 256; x++) {
-        if (!(x < 100 || x > 220)) continue;
+      var AV = MH.arvores, VERDE_H = AV.cores, mh = new Int16Array(256 * 160), TOPO = new Int16Array(256).fill(999), PESO = new Float32Array(256 * 160);
+      for (var y = AV.y[0]; y < AV.y[1]; y++) for (var x = 0; x < 256; x++) {
+        if (dentroDe(AV.exclui, x, y)) continue;
         if (VERDE_H.indexOf(hexDe(hb.d[y * 256 + x])) >= 0) { mh[y * 256 + x] = 1; if (TOPO[x] === 999) TOPO[x] = y; }
       }
-      for (y = 40; y < 96; y++) for (x = 0; x < 256; x++) { var dd = y - TOPO[x]; PESO[y * 256 + x] = dd >= 0 && dd < 8 ? 1 - dd / 10 : dd >= 8 && dd < 20 ? 0.45 : 0; }
+      for (y = AV.y[0]; y < AV.y[1]; y++) for (x = 0; x < 256; x++) { var dd = y - TOPO[x]; PESO[y * 256 + x] = dd >= 0 && dd < AV.faixa ? 1 - dd / (AV.faixa + 2) : dd >= AV.faixa && dd < 20 ? 0.45 : 0; }
       s.arvores = new Deforma(hb, mh, [{ id: 1, x0: 0, x1: 102, y0: 40, y1: 96 }, { id: 1, x0: 218, x1: 256, y0: 40, y1: 96 }], function (x, y, cx, t, v, i) {
         v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.11 + y * 0.05)) : 0; v[1] = 0;
       }, 12, function (t) { s.arvores.caixas.forEach(function (c) { c.tt = t * 1.4; c.amp = 0.9 + ventoEm(c.x0, t) * 0.7; }); });
-      s.borboletas = [{ x: 40, y: 112, f: 0, cor: P.ouro }, { x: 170, y: 120, f: 2.1, cor: P.branco }, { x: 230, y: 108, f: 4.3, cor: P.ouroC }];
+      s.borboletas = MH.borboletas.map(function (b, i) { return { x: b[0], y: b[1], f: b[2], cor: [P.ouro, P.branco, P.ouroC][i % 3] }; });
       // painel do piloto pago: o mesmo cavalo (padrão, baio) por código à esquerda e com os quadros do PixelLab à direita
       s.pl = { acoes: {}, ordem: [], buf: tela(256, 88), fundo: tela(256, 88), atual: null, t0: 0, fila: 0, seq: true };
       s.pl.fundo.getContext('2d').drawImage(IMG['telas/haras'], 0, -72);
@@ -1521,7 +1527,8 @@
 
   return {
     config: function (o) { Object.keys(o || {}).forEach(function (k) { cfg[k] = o[k]; }); },
-    dados: function (d) { A = d || {}; return A; },
+    dados: function (d) { A = d || {}; if (A.manifesto) MAN = A.manifesto; return A; },
+    manifesto: function (m) { MAN = m || { imagens: {} }; },
     mais: function (b) { MAIS = !!b; },
     usa: function (ctx) { g = ctx; },
     cena: cena, CENAS: CENAS, IMG: IMG, estado: estado, medidor: medidor, Camada: Camada, tela: tela,

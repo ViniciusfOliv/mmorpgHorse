@@ -44,7 +44,9 @@ if (fs.existsSync(DIR_IDLE)) for (const f of fs.readdirSync(DIR_IDLE).sort()) {
   const chave = (est === 'parado' ? acao + 'J' : acao) + '-' + seed;   // cavarJ = cavar com jóquei
   ((piloto[molde] ||= {})[chave] ||= [])[+q] = uri(path.join(DIR_IDLE, f));
 }
-const dados = { imagens, moldes, piloto, regioes: { litoral: { posicao: manifesto.litoral.posicao || {} } } };
+// o manifesto da animação (peças, rampas e pontos de cada imagem; prototype/assets/arte/animacao.json)
+const manifestoAnim = JSON.parse(fs.readFileSync(path.join(ARTE, 'animacao.json'), 'utf8'));
+const dados = { imagens, moldes, piloto, manifesto: manifestoAnim, regioes: { litoral: { posicao: manifesto.litoral.posicao || {} } } };
 
 let html = fs.readFileSync(path.join(RAIZ, 'prototype', 'arte', 'animacao.html'), 'utf8');
 // o motor (prototype/src/ambiente.js, desde a etapa 1) e a interface da amostra, no mesmo <script>
