@@ -273,7 +273,7 @@ seu teste e o seu commit. O `balance.js` não muda.
 **Arquivos:** mexe `prototype/src/sprites.js` (o fundo da região, `fundoRegiao` e a arquibancada) e o manifesto. A
 câmera da `claude/ajustes-1` já está na `main`.
 
-- [ ] As 5 regiões, em todas as camadas (spec §3.1):
+- [x] As 5 regiões, em todas as camadas (spec §3.1):
   - céu, nuvens, pássaros e revoadas;
   - água em ciclo de cor (mar do Litoral, lagoa da Várzea);
   - vegetação em quadros pré-assados;
@@ -281,14 +281,19 @@ câmera da `claude/ajustes-1` já está na `main`.
   - bandeiras e bandeirinhas;
   - placa e biruta na cerca;
   - chaminé, ar quente, neblina e pétalas dos ipês.
-- [ ] Planalto: `meio-sem-pas.png` no lugar do meio e o rotor por código (24 ângulos, velocidade pelo vento) preso à
+  - _Feito (2026-11-24): `RegiaoViva` no `ambiente.js`, uma por região e clima, montada aos poucos na contagem da
+    largada. A lagoa da Várzea é reflexo que treme (linhas que ondulam) com brilhos correndo, não ciclo de cor: o
+    reflexo pintado não tem rampa de água. Ficaram fora as garças (cabeça que abaixa e uma que voa)._
+- [x] Planalto: `meio-sem-pas.png` no lugar do meio e o rotor por código (24 ângulos, velocidade pelo vento) preso à
   paralaxe da camada.
-- [ ] As camadas continuam emendando com a câmera que enquadra a disputa, no zoom de 4 a 12 px/m (o rolar acumulado,
+- [x] As camadas continuam emendando com a câmera que enquadra a disputa, no zoom de 4 a 12 px/m (o rolar acumulado,
   sem salto).
-- [ ] Teto de 0,30 ms do ambiente na corrida. As partículas do ambiente (≤ 60) somam com as da corrida, e o total fica
+- [x] Teto de 0,30 ms do ambiente na corrida. As partículas do ambiente (≤ 60) somam com as da corrida, e o total fica
   em ≤ 150.
-- [ ] O bloco `fluxo-desempenho` continua passando (completas − reduzidas ≤ 6 ms).
-- [ ] O `balance.js` dá o mesmo resultado, porque a corrida não muda.
+  - _Medido no jogo (1280, chuva e ventania): Litoral 0,27, Sertão 0,22, Várzea 0,19, Planalto 0,18 ms por quadro; bloco
+    `ambiente` do `ui-test` falha acima de 1,5 × 0,30. Partículas ≤ 60 (teste no `fx-test`)._
+- [x] O bloco `fluxo-desempenho` continua passando (completas − reduzidas ≤ 6 ms).
+- [x] O `balance.js` dá o mesmo resultado, porque a corrida não muda.
 - [ ] Capturas, DEV e aprovação.
 
 ## Etapa 6 — Desempenho real e fechamento

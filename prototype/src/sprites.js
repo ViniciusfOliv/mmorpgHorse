@@ -2769,7 +2769,7 @@
   function drawTrackFront(ctx) {
     var F = frenteQuadro;
     if (!F) return false;
-    var img = camadasNoClima(F.RG, F.clima).frente, P = F.P;
+    var img = F.viv ? F.viv.camada('frente') : camadasNoClima(F.RG, F.clima).frente, P = F.P;
     if (!F.trA) camadaRepetida(ctx, img, F.camArt * 1.25, F.y, F.W, P);
     else for (var i = 0; i < F.trA.length; i++) camadaColunas(ctx, img, F.camArt * 1.25, F.y - F.trA[i][2] * P, F.trA[i][0], F.trA[i][1], P);
     return true;
@@ -2933,7 +2933,69 @@
     var r = id && regioesImg[id];
     if (!r || !r.camadas) return null;
     for (var i = 0; i < CAMADAS_REGIAO.length; i++) if (!r.camadas[CAMADAS_REGIAO[i]]) return null;
+    r.id = id;
     return r;
+  }
+  // Animação ambiente na corrida (plano da animação ambiente, etapa 5): o game.js passa a fábrica do motor
+  // (Ambiente.regiao); cada região ganha uma RegiaoViva por clima, que troca as camadas paradas pelas vivas (mesmo
+  // tamanho e lugar) e desenha por cima pássaros, placa, biruta, fumaça e o rotor. Sem a fábrica, sem a região pronta
+  // ou com o.vivo falso (movimento reduzido), as camadas paradas de sempre.
+  var fabricaViva = null, filaViva = [], filaRodando = false;
+  // para os testes: a região viva do último quadro (null: as paradas), o maior passo de montagem e quantas montaram
+  // ms: o tempo gasto no passo e no que vai por cima (o custo do ambiente além das camadas, que trocam 1 por 1)
+  var statsViva = { usada: null, maiorPassoMs: 0, passos: 0, montadas: 0, ms: 0, quadros: 0, por: {} };
+  function medeViva(v) {
+    ['atualiza', 'desenha', 'nuvens'].forEach(function (k) {
+      var f = v[k];
+      v[k] = function () {
+        var t0 = agoraMs(), r = f.apply(v, arguments), d = agoraMs() - t0, nome = k === 'desenha' ? arguments[0] : k;
+        statsViva.ms += d; statsViva.por[nome] = (statsViva.por[nome] || 0) + d; if (k === 'atualiza') statsViva.quadros++;
+        return r;
+      };
+    });
+    return v;
+  }
+  function setAmbiente(fn) { fabricaViva = typeof fn === 'function' ? fn : null; }
+  // a região viva de RG no clima, se já está montada; senão põe na fila de montagem (um passo por tarefa, sem travar
+  // quadro) e devolve null: até ficar pronta, a pista usa as camadas paradas. sync: monta na hora (testes)
+  function regiaoViva(RG, clima, sync) {
+    if (!fabricaViva || !RG) return null;
+    var V = RG.vivas || (RG.vivas = {});
+    if (!Object.prototype.hasOwnProperty.call(V, clima)) {
+      var v = null;
+      try {
+        var sol = clima === 'sol' || !CLIMA_PALETA[clima], cm = camadasNoClima(RG, clima);
+        v = fabricaViva(RG.id, { sol: RG.camadas, clima: sol ? null : cm, nevoa: RG.nevoa || null }, sol ? null : lutClima(clima), { aosPoucos: true }) || null;
+      } catch (e) { v = null; avisoViva(RG, clima, e); }
+      V[clima] = v || false;
+      if (v) { medeViva(v); filaViva.push({ RG: RG, clima: clima, v: v }); rodaFilaViva(); }
+    }
+    var r = V[clima];
+    if (r && !r.pronta && sync) { while (filaViva.length) passoFilaViva(); }
+    return r && r.pronta ? r : null;
+  }
+  function avisoViva(RG, clima, e) { if (typeof console !== 'undefined') console.warn('região viva ' + RG.id + ' (' + clima + '): ' + e.message); }
+  function passoFilaViva() {
+    var it = filaViva[0], t0 = agoraMs();
+    try { if (it.v.montaPasso()) { filaViva.shift(); statsViva.montadas++; } }
+    catch (e) { filaViva.shift(); it.RG.vivas[it.clima] = false; avisoViva(it.RG, it.clima, e); }
+    statsViva.passos++; statsViva.maiorPassoMs = Math.max(statsViva.maiorPassoMs, agoraMs() - t0);
+  }
+  function agoraMs() { return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now(); }
+  function rodaFilaViva() {
+    if (filaRodando || !filaViva.length || typeof setTimeout !== 'function') return;
+    filaRodando = true;
+    setTimeout(function passo() {
+      passoFilaViva();
+      if (filaViva.length) setTimeout(passo, 0); else filaRodando = false;
+    }, 0);
+  }
+  // põe na fila as regiões vivas dos climas da corrida (a do clima inicial primeiro): montam na contagem da largada
+  function prepararRegiaoViva(id, climas) {
+    var RG = regiaoPronta(id), n = 0;
+    if (!RG) return 0;
+    (climas || []).forEach(function (c) { regiaoViva(RG, c); n++; });
+    return n;
   }
   // Clima por troca de paleta (guia §3; a mesma conta da amostra): cada cor da mestra misturada k com o rumo e levada de
   // volta à mestra. Sol = a paleta como está. As camadas da região, a faixa de grama, o céu, o piso e as cercas trocam
@@ -3066,14 +3128,23 @@
     }
   }
   // o fundo da região: céu, sol, nuvens, horizonte e meio (a arquibancada e a faixa de grama vêm depois, com o arco)
-  function fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P) {
-    var lt = Math.round(laneTop / P), cm = camadasNoClima(RG, weather);
+  // viv: a região viva (regiaoViva) ou null: as camadas paradas
+  function fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P, viv) {
+    var lt = Math.round(laneTop / P), cm = camadasNoClima(RG, weather), Wa = Math.ceil(W / P);
     ctx.drawImage(ceuRegiao(weather, lt), 0, 0, W, lt * P);
-    if (weather === 'sol') ctx.drawImage(solDaRegiao(), 100 * P, (lt - 104) * P, 23 * P, 23 * P);   // à esquerda (a luz vem de cima e da esquerda), fora do minimapa
-    camadaRepetida(ctx, cm.nuvens, camArt * 0.04 - vento.dir * t * 3 * (vento.k.nuvem || 1), (lt - 110) * P, W, P);
-    camadaRepetida(ctx, cm.horizonte, camArt * 0.1, (lt - 32 - cm.horizonte.height) * P, W, P);
+    // à esquerda (a luz vem de cima e da esquerda), fora do minimapa; vivo, o halo gira (4 quadros de 25 px, mesmo centro)
+    if (weather === 'sol') { if (viv) ctx.drawImage(viv.quadroSol(t), 99 * P, (lt - 105) * P, 25 * P, 25 * P); else ctx.drawImage(solDaRegiao(), 100 * P, (lt - 104) * P, 23 * P, 23 * P); }
+    var dN = camArt * 0.04 - vento.dir * t * 3 * (vento.k.nuvem || 1);
+    if (viv) { viv.nuvens(ctx, dN, (lt - 110) * P, W, P); viv.desenha('ceu', ctx, P, 0, lt - 128, Wa, camArt); }
+    else camadaRepetida(ctx, cm.nuvens, dN, (lt - 110) * P, W, P);
+    var hz = viv ? viv.camada('horizonte') : cm.horizonte, yH = lt - 32 - hz.height, xH = -mod(Math.floor(camArt * 0.1), hz.width);
+    if (viv) viv.desenha('antesHorizonte', ctx, P, xH, yH, Wa, camArt);
+    camadaRepetida(ctx, hz, camArt * 0.1, yH * P, W, P);
+    if (viv) viv.desenha('horizonte', ctx, P, xH, yH, Wa, camArt);
     if (weather === 'nevoa') ctx.drawImage(veuNevoa(Math.ceil(W / P), lt), 0, 0, Math.ceil(W / P) * P, (lt + 10) * P);
-    camadaRepetida(ctx, cm.meio, camArt * 0.3, (lt + 26 - cm.meio.height + ((RG.posicao || {}).meio || 0)) * P, W, P);
+    var me = viv ? viv.camada('meio') : cm.meio, yM = lt + 26 - me.height + ((RG.posicao || {}).meio || 0);
+    camadaRepetida(ctx, me, camArt * 0.3, yM * P, W, P);
+    if (viv) viv.desenha('meio', ctx, P, -mod(Math.floor(camArt * 0.3), me.width), yM, Wa, camArt);
   }
   // o que drawTrack deixou para o primeiro plano do mesmo quadro (drawTrackFront): os trechos do arco das curvas
   var frenteQuadro = null;
@@ -3094,7 +3165,14 @@
     var clima = o.weather || 'sol', RG = regiaoPronta(o.regiao), camArt = camPx / P, lutRG = RG ? lutClima(clima) : null;
     function K(c) { return corClima(lutRG, c); }   // com a região, a cor da cerca e do chão no clima (troca de paleta)
     frenteQuadro = null;
-    if (RG) fundoRegiao(ctx, RG, W, laneTop, camArt, t, clima, vento, P);
+    // a região viva: o.vivo (o jogo manda falso em movimento reduzido); um passo por quadro, no tempo t
+    var viv = RG && o.vivo ? regiaoViva(RG, clima) : null;
+    statsViva.usada = viv ? RG.id + '|' + clima : null;
+    if (viv) {
+      var dtv = viv.tAnt == null ? 1 / 60 : Math.min(0.1, Math.max(0, t - viv.tAnt));
+      viv.tAnt = t; viv.atualiza(t, dtv, o.wind);
+    }
+    if (RG) fundoRegiao(ctx, RG, W, laneTop, camArt, t, clima, vento, P, viv);
 
     // --- céu em faixas (sem a região: o cenário por código de antes)
     var sky = SKY[weather] || SKY.sol;
@@ -3179,7 +3257,8 @@
     if (RG) {
       // a da região: um objeto a cada 2600 px da paralaxe 0,75 (a primeira 60 px depois da largada); na curva sobe
       // como a de código (10/6 do arco da cerca), cada trecho de colunas recortado
-      var CMc = camadasNoClima(RG, clima), ar = CMc.arquibancada, arW = ar.width * P, arY = laneTop - (6 + ar.height) * P, PER_AR = 2600 * P;
+      var CMc = camadasNoClima(RG, clima), ar = viv ? viv.camada('arquibancada') : CMc.arquibancada, arW = ar.width * P, arY = laneTop - (6 + ar.height) * P, PER_AR = 2600 * P;
+      var arCima = viv && viv.tem('arquibancada');
       var arX0 = -mod(Math.floor(camArt * 0.75) * P, PER_AR) + 60 * P;
       var arTr = arco ? trechosArco(FXc.CURVA.arquibancada / FXc.CURVA.arco) : [[0, W, 0]];
       for (var ati = 0; ati < arTr.length; ati++) {
@@ -3187,6 +3266,13 @@
         for (var axx = arX0 - PER_AR; axx < W; axx += PER_AR) {
           var ca = Math.max(axx, atr[0]), cb = Math.min(axx + arW, atr[1]);   // só as colunas do trecho (sem recorte)
           if (cb > ca) ctx.drawImage(ar, (ca - axx) / P, 0, (cb - ca) / P, ar.height, ca, arY - atr[2] * P, cb - ca, ar.height * P);
+          // o que vai por cima dela (varais de bandeirolas): recortado no trecho quando o arco o divide
+          if (arCima && cb + 12 * P > ca) {
+            var corta = arTr.length > 1;
+            if (corta) { ctx.save(); ctx.beginPath(); ctx.rect(atr[0], 0, atr[1] - atr[0], laneTop); ctx.clip(); }
+            viv.desenha('arquibancada', ctx, P, Math.round(axx / P), Math.round(arY / P) - atr[2], Math.ceil(W / P), camArt);
+            if (corta) ctx.restore();
+          }
         }
       }
     } else {
@@ -3249,7 +3335,9 @@
     }
     if (RG) {
       camadaNoArco(camadasNoClima(RG, clima).grama || faixaGrama(), 1, laneTop - 16 * P);
-      frenteQuadro = { RG: RG, clima: clima, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P };
+      // placa pendurada e biruta atrás da cerca de trás (vivas), subindo com o arco no x de cada uma
+      if (viv) viv.desenha('cerca', ctx, P, -Math.floor(camArt), Math.round(laneTop / P), Math.ceil(W / P), camArt, function (xa) { return arcoEm(cam + (xa * P + P / 2) / ppm, 1); });
+      frenteQuadro = { RG: RG, clima: clima, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P, viv: viv };
     }
 
     // --- superfície da pista
@@ -3541,6 +3629,7 @@
     drawTrackFront: drawTrackFront,
     setRegioes: setRegioes,
     prepararRegiao: prepararRegiao,
+    setAmbiente: setAmbiente, prepararRegiaoViva: prepararRegiaoViva, statsViva: function () { return statsViva; }, regiaoViva: function (id, clima) { return regiaoViva(regiaoPronta(id), clima || 'sol', true); },
     regiaoPronta: regiaoPronta,
     cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,

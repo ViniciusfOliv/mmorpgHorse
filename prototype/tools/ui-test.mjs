@@ -6220,6 +6220,41 @@ try {
         await pg.context().close()
       }
     }
+    // Regiões na corrida (etapa 5): cada uma, escolhida no cenário da gaveta DEV, fica viva na corrida (Sprites.statsViva:
+    // a região e o clima do último quadro), com o passo e o que vai por cima abaixo de 1,5 × o teto de 0,30 ms por quadro;
+    // em movimento reduzido, as camadas paradas (nenhuma região viva)
+    const TETO_REG = 0.30
+    for (const reduzido of [false, true]) {
+      const lab = label + '-corrida' + (reduzido ? '-reduzidas' : '')
+      const pg = await newPage(browser, { width: 1280, height: 800 }, lab, { query: '?dev=1', reducedMotion: reduzido ? 'reduce' : 'no-preference' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        const regs = reduzido ? ['litoral'] : ['litoral', 'planalto', 'varzea', 'cerrado', 'sertao'], vistas = {}
+        for (const reg of regs) {
+          await devAbrir(pg); await pg.selectOption('#dev-regiao', reg)
+          await devArmar(pg, { clima: 'chuva', vento: 'ventania', direcao: -1, seed: 4242 })
+          if (await pg.locator('#t-resultado').count()) { await pg.getByRole('button', { name: /Correr de novo|Treino gratuito/ }).click(); await pg.waitForSelector('#t-largada') }
+          else await abrirSala(pg)
+          await pg.getByRole('button', { name: /^Largar/ }).click()
+          const q0 = await (await pg.waitForFunction(() => { const r = window.__galope.race; return r && r._state.phase === 'corrida' && window.RaceFx._stats.quadros > 30 ? window.RaceFx._stats.quadros : false }, null, { timeout: 60000, polling: 'raf' })).jsonValue()
+          await pg.evaluate(() => { const st = window.Sprites.statsViva(); st.ms = 0; st.quadros = 0 })
+          await pg.waitForFunction((q) => window.RaceFx._stats.quadros >= q, q0 + 150, { timeout: 60000, polling: 'raf' })
+          const st = await pg.evaluate(() => Object.assign({}, window.Sprites.statsViva()))
+          vistas[reg] = { usada: st.usada, porQuadro: st.quadros ? +(st.ms / st.quadros).toFixed(3) : null, maiorPassoMs: +st.maiorPassoMs.toFixed(1) }
+          await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click(); await pg.waitForSelector('#t-resultado')
+        }
+        notes[lab] = vistas
+        for (const [reg, v] of Object.entries(vistas)) {
+          if (reduzido) { if (v.usada !== null) problems.push(`[${lab}] ${reg}: em movimento reduzido a região ficou viva (${v.usada})`); continue }
+          if (!v.usada || !v.usada.startsWith(reg + '|')) problems.push(`[${lab}] ${reg}: a região não ficou viva na corrida (${v.usada})`)
+          else if (!(v.porQuadro <= 1.5 * TETO_REG)) problems.push(`[${lab}] ${reg}: ambiente ${v.porQuadro} ms por quadro, acima de 1,5 × o teto ${TETO_REG}`)
+        }
+      } catch (e) {
+        problems.push(`[${lab}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
   }
 
   // ---------------- tela da corrida (3c, Tarefa 1): faixa de ordem e narração ----------------

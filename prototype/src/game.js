@@ -239,22 +239,31 @@
     Object.keys(m).forEach(function (r) {
       var cam = m[r] && m[r].camadas;
       if (!cam || typeof cam !== 'object') return;
-      var reg = { posicao: m[r].posicao || {}, camadas: {} };
-      Object.keys(cam).forEach(function (k) {
-        if (typeof cam[k] !== 'string') return;
+      // nevoa: cor crua -> cor do horizonte embutido (a animação ambiente lê as rampas cruas do manifesto)
+      var reg = { posicao: m[r].posicao || {}, camadas: {}, nevoa: m[r].nevoa && typeof m[r].nevoa === 'object' ? m[r].nevoa : null };
+      var chaves = Object.keys(cam).filter(function (k) { return typeof cam[k] === 'string'; }), faltam = chaves.length;
+      chaves.forEach(function (k) {
         var img = new Image();
-        img.onload = function () { reg.camadas[k] = img; prontas[r] = reg; SP.setRegioes(prontas); };
+        // a região entra quando todas as imagens dela chegaram (o meio sem as pás do Planalto junto com as 5 camadas)
+        img.onload = function () { reg.camadas[k] = img; if (--faltam === 0) { prontas[r] = reg; SP.setRegioes(prontas); } };
         img.src = cam[k];
       });
     });
   }
   carregarRegioes();
+  // a animação ambiente das regiões na corrida (ambiente.js, etapa 5): o Sprites pede ao motor uma região viva por clima
+  if (window.Ambiente && SP.setAmbiente) SP.setAmbiente(function (id, imgs, lut, opts) {
+    if (!window.Ambiente.REGIOES_VIVAS[id]) return null;
+    window.Ambiente.dados({ manifesto: window.__ANIM_MANIFESTO });
+    return window.Ambiente.regiao(id, imgs, lut, opts);
+  });
   // a região do cenário de uma corrida: a do ginásio (Fornalha no Sertão, Remanso no Litoral, Capoeira no Cerrado, as
   // mesmas paletas das arenas) ou a da pista (regioes.json, "pistas"); senão o Cerrado
   var GIN_REGIAO = { fogo: 'sertao', agua: 'litoral', grama: 'cerrado' };
   function regiaoDaPista(L) {
     var m = window.__REGIOES;
     if (L && L.regiao) return L.regiao;
+    if (DEV_MODE && ui.dev.regiao && m && hasOwn(m, ui.dev.regiao)) return ui.dev.regiao;   // o cenário escolhido na gaveta DEV
     if (m && typeof m === 'object' && L) for (var r in m) if (hasOwn(m, r) && m[r] && (m[r].pistas || []).indexOf(L.trackName) >= 0) return r;
     return 'cerrado';
   }
@@ -1218,7 +1227,7 @@
     joqueiKeep: null,   // e o jóquei também (padrão e capacete)
     // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
     // (ver a seção "Modo DEV")
-    dev: { aberto: false, ouroInf: true, cadencia: 'meio', msg: '', f: null, confirmZerar: false }, devNext: null };
+    dev: { aberto: false, ouroInf: true, cadencia: 'meio', regiao: '', msg: '', f: null, confirmZerar: false }, devNext: null };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -2224,6 +2233,9 @@
       // 2026-11-24)
       '<div class="dev-campos dev-campos--1">' + devSelect('cadencia', 'Cadência do galope', [['meio', 'Meio-termo (padrão do jogo)'],
         ['natural', 'Natural (casco patina)'], ['casada', 'Casada com o chão (casco não patina; pernas bem mais rápidas)']], ui.dev.cadencia) + '</div>' +
+      // o cenário das corridas (só desenho; a animação ambiente de cada região): fica até mudar de novo
+      '<div class="dev-campos dev-campos--1">' + devSelect('regiao', 'Cenário das corridas', [['', 'O da pista (padrão do jogo)']].concat(
+        Object.keys(window.__REGIOES || {}).map(function (r) { return [r, (window.__REGIOES[r] && window.__REGIOES[r].nome) || r]; })), ui.dev.regiao) + '</div>' +
       '<p class="dev-armado' + (ui.devNext ? ' dev-armado--on' : '') + '" id="dev-armado">' + esc(devResumoArmado(ui.devNext)) + '</p>' +
       '<div class="dev-acoes">' + devBotao('dev-armar', 'Armar', 'btn--ouro') + devBotao('dev-limpar', 'Limpar') + '</div>');
 
@@ -2473,6 +2485,12 @@
     devEl.addEventListener('change', function (e) {
       var k = e.target && e.target.getAttribute ? e.target.getAttribute('data-dev-campo') : null;
       if (!k || !state) return;
+      if (k === 'regiao') {
+        ui.dev.regiao = hasOwn(window.__REGIOES || {}, e.target.value) ? e.target.value : '';
+        ui.dev.msg = 'Cenário das corridas: ' + (ui.dev.regiao ? window.__REGIOES[ui.dev.regiao].nome : 'o da pista') + '.';
+        renderDev();
+        return;
+      }
       if (k === 'cadencia') {
         ui.dev.cadencia = ['natural', 'meio', 'casada'].indexOf(e.target.value) >= 0 ? e.target.value : 'meio';
         ui.dev.msg = 'Cadência do galope: ' + { natural: 'natural', meio: 'meio-termo', casada: 'casada com o chão' }[ui.dev.cadencia] + '.';
@@ -6416,6 +6434,12 @@
     var climasDaCorrida = [L.cond.weather];
     climaEvs.reduce(function (de, e) { climasDaCorrida = climasDaCorrida.concat(caminhoClima(de, e.weather)); return e.weather; }, L.cond.weather);
     climasDaCorrida = climasDaCorrida.filter(function (c, i, a) { return a.indexOf(c) === i; });
+    // a região viva (animação ambiente) em cada clima que a corrida mostra; em movimento reduzido, as camadas paradas
+    if (!reduced() && SP.prepararRegiaoViva) {
+      var tViva = window.performance.now();
+      SP.prepararRegiaoViva(regiaoDaPista(L), climasDaCorrida);   // (já com os degraus das viradas)
+      FX._stats.regiaoVivaMs = window.performance.now() - tViva;
+    }
     // marcas, jóquei, raridade (parte 2a) e porte (parte 2b) de cada corredor, calculados uma vez; cada cavalo é
     // montado já na largada, no molde do porte (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora,
     // ~0,8 ms por quadro com marcas e jóquei), e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi
@@ -6835,7 +6859,7 @@
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: self.camPx, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
         t: red ? tr * 0.4 : tr, weather: climaCor, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
-        curveScale: lay.arcoK, regiao: regiaoDaPista(L)
+        curveScale: lay.arcoK, regiao: regiaoDaPista(L), vivo: !red
       });
       // a sombra da cerca de trás sobre a raia de cima (Regra 7)
       SP.drawSombraCerca(ctx, W, laneTop, self.camPx, S, chaoPista);

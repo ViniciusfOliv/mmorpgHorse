@@ -155,6 +155,12 @@ export function comNevoa(img, paleta, cor = '9babb2', k = 0.45) {
   for (let i = 0; i < out.length; i += 4) for (let c = 0; c < 3; c++) out[i + c] = Math.round(out[i + c] + (n[c] - out[i + c]) * k)
   return quantizar({ width: img.width, height: img.height, rgba: out }, paleta)
 }
+// cor crua -> cor com a névoa (hex sem '#'), pixel a pixel das duas versões do horizonte
+function mapaNevoa(cru, com) {
+  const m = {}, h = (a, i) => [a[i], a[i + 1], a[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')
+  for (let i = 0; i < cru.rgba.length; i += 4) if (cru.rgba[i + 3] >= 128) m[h(cru.rgba, i)] = h(com.rgba, i)
+  return m
+}
 export async function lerRegioes(root) {
   const man = join(root, 'assets/arte/regioes.json')
   if (!existsSync(man)) return {}
@@ -164,12 +170,22 @@ export async function lerRegioes(root) {
     const arqs = CAMADAS_REGIAO.map((k) => join(root, 'assets/arte', r, k + '.png'))
     if (!arqs.every((a) => existsSync(a))) continue
     const camadas = {}
+    let nevoa = null
     for (const [i, k] of CAMADAS_REGIAO.entries()) {
       let buf = await readFile(arqs[i])
-      if (k === 'horizonte' && PALETAS[r]) buf = encodePng(comNevoa(decodePng(buf), PALETAS[r]))
+      if (k === 'horizonte' && PALETAS[r]) {
+        const cru = decodePng(buf), com = comNevoa(cru, PALETAS[r])
+        nevoa = mapaNevoa(cru, com)
+        buf = encodePng(com)
+      }
       camadas[k] = 'data:image/png;base64,' + buf.toString('base64')
     }
+    // a animação ambiente (prototype/src/ambiente.js, etapa 5): o meio do Planalto sem as pás pintadas (o rotor é por
+    // código) e o mapa cor crua -> cor com a névoa do horizonte (as rampas do manifesto são as cores cruas)
+    const semPas = join(root, 'assets/arte', r, 'meio-sem-pas.png')
+    if (existsSync(semPas)) camadas.meioSemPas = await dataUrl(root, join('assets/arte', r, 'meio-sem-pas.png'))
     out[r] = { nome: reg.nome, pistas: reg.pistas || [], posicao: reg.posicao || {}, camadas }
+    if (nevoa) out[r].nevoa = nevoa
   }
   return out
 }

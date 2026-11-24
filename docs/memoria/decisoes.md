@@ -1268,3 +1268,8 @@ Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, 
 - 2026-11-24 · Olho dos moldes gravado por ferramenta própria (moldes-olho.mjs) sobre os JSONs de hoje · o --reprocessar dos portes precisa dos mestres crus (fora do repositório); o gerador já grava o olho nos próximos.
 - 2026-11-24 · Idle do jogo liga por opts.anima ('cena' com os gestos do PixelLab) só nas cenas grandes (Estábulo, desafio, largada) · o retrato pequeno não comporta a cabeça do comer, e os cards ficam leves.
 
+- 2026-11-24 · Etapa 5 antes da 4 · a coordenação mandou adiantar as regiões na corrida enquanto a spec do mapa espera o Vinicius.
+- 2026-11-24 · Região viva por região e clima, com as máscaras tiradas das cores do sol e a deformação lendo a camada já na paleta do clima · as mesmas cores da camada parada, sem trocar paleta a cada passo; o que é comum aos climas (geometria dos coqueiros, degraus do mar, rotor) fica guardado uma vez.
+- 2026-11-24 · Montagem aos poucos (um passo por tarefa, na contagem da largada); até ficar pronta, a pista usa as camadas paradas · montar tudo na largada custava 170–250 ms num quadro só.
+- 2026-11-24 · O mar do Litoral na corrida repete a cada 8 s (48 passos guardados) e os coqueiros usam estados mais grossos (8 fases) · cortou o custo do Litoral de 0,38 para 0,27 ms por quadro; o corte das ondas a cada 8 s coincide com a volta da crista.
+- 2026-11-24 · Cenário das corridas na gaveta DEV (persistente, como a cadência) · para o Vinicius ver as 5 regiões e os testes medirem cada uma; só desenho, não entra na sala.

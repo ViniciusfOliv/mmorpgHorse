@@ -110,8 +110,23 @@ nela). **Etapa 3b feita:** cenas novas do
 Estábulo (lampiões, poeira dourada, poeira no ar, feno nas rajadas) e da Loja (lanternas, lanternas verdes, poções com
 bolhas e brilho, luz do chão — atrás da placa do título —, poeira no facho), no manifesto e no jogo; as 4 abas animam
 (0,04 / 0,07 / 0,24 / 0,11 ms por quadro a 60 q/s). Remanso e Capoeira ficaram fora: a cena de desafio vai ser trocada
-pela da frente 2 (o `IdleMolde` já aceita as vistas de frente e de costas dela). **Próximo:** etapa 4 (mapas das
-trilhas), combinada com o chat do mapa. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
+pela da frente 2 (o `IdleMolde` já aceita as vistas de frente e de costas dela). **Etapa 5 feita (regiões na
+corrida, adiantada pela coordenação; a 4 espera a spec do mapa):** `Ambiente.regiao` / `RegiaoViva` no `ambiente.js`
+(uma por região e clima, montada aos poucos na contagem da largada pela fila do `sprites.js`: `setAmbiente`,
+`regiaoViva`, `prepararRegiaoViva`, `statsViva`); as 5 camadas vivas no lugar das paradas (mesmo tamanho, paralaxe e
+recorte do arco) e o que vai por cima (sol girando, nuvens em 2 velocidades, pássaros e revoada, placa e biruta na
+cerca em carimbos de 12 q/s, fumaça, pétalas, areia, rotor). Litoral: mar em ciclo de cor (ciclo de 8 s guardado),
+farol, veleiros, espuma, coqueiros (cache comum entre climas), torcida e varais; Planalto: `meio-sem-pas` + rotor de
+24 ângulos, copas, nuvem baixa entre os picos; Várzea: reflexo da lagoa e brilhos, copas, bandeiras, torcida; Cerrado:
+neblina, copas e pétalas dos ipês, bandeiras; Sertão: ar quente, fumaça da chaminé, juazeiro, caatinga nas rajadas,
+bandeirinhas de São João. Capim de todas num laço próprio (`OndaRapida`). Custo do ambiente na corrida (1280, chuva e
+ventania; passo + o que vai por cima): Litoral 0,27, Sertão 0,22, Várzea 0,19, Planalto 0,18 ms por quadro; partículas
+≤ 60. Linha de base (pedido da coordenação, mesma condição, 3× cada): desenho por quadro `main` 2,04 / 1,71 / 2,03 ms
+(média 1,93) e o ramo antes da etapa 5 2,32 / 2,17 / 2,18 (média 2,22): +0,3 ms reais da etapa 0 (perfil: `drawImage`
+da sombra, da faixa de contato e da poeira de pouso). Cenário escolhido na gaveta DEV ("Cenário das corridas"). Fora:
+garças da Várzea (cabeça que abaixa) e a revoada de garças. **Próximo:** etapa 4 (mapas das trilhas) quando a spec do
+mapa for aprovada; o chat do mapa já respondeu a camada (imagens iguais, só corte lateral, ele chama
+`atualiza`/`desenha`/`parada`, ciclo de cor da água e da lava fica comigo, máscara do caminho se eu pedir). Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um

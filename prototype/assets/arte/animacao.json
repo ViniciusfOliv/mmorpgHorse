@@ -129,6 +129,11 @@
           ]
         ],
         "faixa": 6
+      },
+      "rotor": {
+        "x": 193,
+        "y": 37,
+        "raio": 25
       }
     },
     "planalto/meio": {
@@ -718,6 +723,256 @@
           "fdcbb0"
         ]
       }
+    },
+    "planalto/arquibancada": {
+      "torcida": {
+        "y": [
+          44,
+          60
+        ],
+        "grupo": 3,
+        "fundo": [
+          "3e3546",
+          "625565",
+          "374e4a"
+        ]
+      }
+    },
+    "varzea/horizonte": {
+      "reflexo": {
+        "y": [
+          25,
+          52
+        ]
+      }
+    },
+    "varzea/meio": {
+      "copas": {
+        "cores": [
+          "165a4c",
+          "547e64",
+          "239063",
+          "676633",
+          "374e4a",
+          "0b5e65"
+        ],
+        "yMax": 60,
+        "faixa": 6
+      }
+    },
+    "varzea/arquibancada": {
+      "bandeiras": {
+        "y": [
+          0,
+          10
+        ],
+        "fundo": [],
+        "minPx": 6
+      },
+      "torcida": {
+        "y": [
+          28,
+          53
+        ],
+        "grupo": 3,
+        "fundo": [
+          "0b8a8f",
+          "0eaf9b",
+          "30e1b9",
+          "9babb2",
+          "c7dcd0",
+          "ffffff",
+          "4d9be6",
+          "0b5e65",
+          "92a984",
+          "313638",
+          "374e4a",
+          "966c6c",
+          "ab947a"
+        ]
+      }
+    },
+    "varzea/frente": {
+      "capim": {
+        "yMax": 50,
+        "topo": 8,
+        "faixa": 48,
+        "folga": 3
+      }
+    },
+    "varzea/nuvens": {
+      "faixaAlta": 15
+    },
+    "cerrado/horizonte": {
+      "neblina": {
+        "y": [
+          58,
+          80
+        ]
+      }
+    },
+    "cerrado/meio": {
+      "copas": {
+        "cores": [
+          "f9c22b",
+          "f79617",
+          "fbb954",
+          "676633",
+          "a2a947",
+          "547e64",
+          "165a4c",
+          "239063",
+          "374e4a"
+        ],
+        "yMax": 70,
+        "faixa": 6,
+        "ipe": [
+          "f9c22b",
+          "f79617",
+          "fbb954"
+        ]
+      }
+    },
+    "cerrado/arquibancada": {
+      "bandeiras": {
+        "y": [
+          0,
+          8
+        ],
+        "fundo": [],
+        "minPx": 6
+      },
+      "torcida": {
+        "y": [
+          40,
+          70
+        ],
+        "grupo": 3,
+        "fundo": [
+          "9e4539",
+          "694f62",
+          "6e2727",
+          "966c6c",
+          "ab947a",
+          "4c3e24",
+          "3e3546"
+        ]
+      }
+    },
+    "cerrado/frente": {
+      "capim": {
+        "yMax": 40,
+        "topo": 12,
+        "faixa": 48,
+        "folga": 3
+      }
+    },
+    "cerrado/nuvens": {
+      "faixaAlta": 15
+    },
+    "sertao/horizonte": {
+      "calor": {
+        "y": [
+          0,
+          50
+        ]
+      },
+      "chamine": [
+        332,
+        10
+      ]
+    },
+    "sertao/meio": {
+      "copas": {
+        "cores": [
+          "d5e04b",
+          "a2a947",
+          "239063",
+          "165a4c",
+          "676633",
+          "cddf6c",
+          "91db69"
+        ],
+        "yMax": 45,
+        "faixa": 6,
+        "inclui": [
+          [
+            140,
+            0,
+            240,
+            60
+          ]
+        ]
+      },
+      "caatinga": {
+        "y": [
+          32,
+          92
+        ],
+        "cores": [
+          "2e222f",
+          "3e3546",
+          "625565",
+          "694f62",
+          "7f708a",
+          "9babb2",
+          "c7dcd0",
+          "ffffff"
+        ],
+        "limiar": 0.7,
+        "exclui": [
+          [
+            140,
+            0,
+            240,
+            60
+          ]
+        ]
+      }
+    },
+    "sertao/arquibancada": {
+      "bandeiras": {
+        "y": [
+          17,
+          22
+        ],
+        "fundo": [
+          "ab947a",
+          "966c6c",
+          "ffffff",
+          "9babb2",
+          "2e222f",
+          "fca790",
+          "e6904e"
+        ],
+        "fica": true,
+        "cordao": true,
+        "minPx": 3
+      },
+      "torcida": {
+        "y": [
+          28,
+          60
+        ],
+        "grupo": 3,
+        "fundo": [
+          "ab947a",
+          "ffffff",
+          "9babb2",
+          "c7dcd0"
+        ]
+      }
+    },
+    "sertao/frente": {
+      "capim": {
+        "yMax": 36,
+        "topo": 8,
+        "faixa": 48,
+        "folga": 3
+      }
+    },
+    "sertao/nuvens": {
+      "faixaAlta": 15
     }
   }
 }

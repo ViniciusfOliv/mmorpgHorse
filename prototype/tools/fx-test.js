@@ -2938,5 +2938,88 @@ test('ambiente.js: pré-assado por estado da peça: o mesmo estado repete os mes
   var z = monta(true); z.preassado(function (cx) { return cx.k; }, 10); z.atualiza(0); assert.strictEqual(z.cacheBytes, 0, 'acima do teto não guarda');
 });
 
+// Regiões na corrida (plano da animação ambiente, etapa 5): as camadas de verdade (PNG RGBA 8 bits, lidos aqui com o
+// zlib do Node) num canvas falso; a região viva monta, mexe, repete com o mesmo t e não sai da Resurrect 64
+function pngPx(arq) {
+  var buf = require('fs').readFileSync(arq), pos = 8, w = 0, h = 0, idat = [];
+  while (pos < buf.length) {
+    var n = buf.readUInt32BE(pos), tipo = buf.toString('ascii', pos + 4, pos + 8), d = buf.subarray(pos + 8, pos + 8 + n);
+    if (tipo === 'IHDR') { w = d.readUInt32BE(0); h = d.readUInt32BE(4); assert.ok(d[8] === 8 && d[9] === 6 && d[12] === 0, arq + ': RGBA 8 bits sem entrelaçar'); }
+    else if (tipo === 'IDAT') idat.push(d);
+    pos += 12 + n;
+  }
+  var raw = require('zlib').inflateSync(Buffer.concat(idat)), c = new CanvasPx(w, h), L = w * 4, ant = new Uint8Array(L);
+  for (var y = 0; y < h; y++) {
+    var f = raw[y * (L + 1)], lin = raw.subarray(y * (L + 1) + 1, (y + 1) * (L + 1)), out = new Uint8Array(L);
+    for (var i = 0; i < L; i++) {
+      var a = i >= 4 ? out[i - 4] : 0, b = ant[i], cc = i >= 4 ? ant[i - 4] : 0, p = a + b - cc, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - cc);
+      out[i] = (lin[i] + (f === 1 ? a : f === 2 ? b : f === 3 ? (a + b) >> 1 : f === 4 ? (pa <= pb && pa <= pc ? a : pb <= pc ? b : cc) : 0)) & 255;
+    }
+    c.px.set(out, y * L); ant = out;
+  }
+  return c;
+}
+var ARTE = require('path').join(__dirname, '..', 'assets', 'arte'), REGS = ['litoral', 'planalto', 'varzea', 'cerrado', 'sertao'];
+var R64 = {}; ('2e222f 3e3546 625565 966c6c ab947a 694f62 7f708a 9babb2 c7dcd0 ffffff 6e2727 b33831 ea4f36 f57d4a ae2334 e83b3b fb6b1d f79617 ' +
+  'f9c22b 7a3045 9e4539 cd683d e6904e fbb954 4c3e24 676633 a2a947 d5e04b fbff86 165a4c 239063 1ebc73 91db69 cddf6c 313638 374e4a 547e64 ' +
+  '92a984 b2ba90 0b5e65 0b8a8f 0eaf9b 30e1b9 8ff8e2 323353 484a77 4d65b4 4d9be6 8fd3ff 45293f 6b3e75 905ea9 a884f3 eaaded 753c54 a24b6f ' +
+  'cf657f ed8099 831c5d c32454 f04f78 f68181 fca790 fdcbb0').split(' ').forEach(function (h) { R64[h] = 1; });
+var camadasReg = {};
+function regiaoTeste(id) {
+  AMB.dados({ manifesto: JSON.parse(require('fs').readFileSync(require('path').join(ARTE, 'animacao.json'), 'utf8')) });
+  var C = camadasReg[id] || (camadasReg[id] = (function () {
+    var o = {};
+    ['nuvens', 'horizonte', 'meio', 'arquibancada', 'frente'].forEach(function (k) { o[k] = pngPx(require('path').join(ARTE, id, k + '.png')); });
+    var sp = require('path').join(ARTE, id, 'meio-sem-pas.png'); if (require('fs').existsSync(sp)) o.meioSemPas = pngPx(sp);
+    return o;
+  })());
+  return AMB.regiao(id, { sol: C, clima: null, nevoa: null }, null);
+}
+function retratoReg(v, t) {
+  v.atualiza(t, 1 / 60, { intensity: 'ventania', dir: 1 });
+  return Object.keys(v.vivas).sort().map(function (k) { return k + ':' + fnvBytes(v.vivas[k].saida.c.px); }).join(' ');
+}
+test('ambiente.js: as 5 regiões da corrida montam com as camadas de verdade e mexem (etapa 5)', function () {
+  REGS.forEach(function (id) {
+    var v = regiaoTeste(id);
+    assert.ok(v.pronta, id + ' pronta');
+    ['meio', 'arquibancada', 'frente'].forEach(function (k) { assert.ok(v.vivas[k], id + ': ' + k + ' viva'); });
+    if (id === 'litoral' || id === 'varzea' || id === 'sertao') assert.ok(v.vivas.horizonte, id + ': horizonte vivo (mar, lagoa, ar quente)');
+    // cada peça passa por um passo (a Agenda faz um por quadro, a mais atrasada primeiro)
+    var a = []; for (var q = 0; q < 12; q++) a.push(retratoReg(v, 1 + q / 60));
+    var b = []; for (q = 0; q < 12; q++) b.push(retratoReg(v, 2.5 + q / 60));
+    assert.notStrictEqual(a[11], b[11], id + ': as camadas mudam entre t = 1,2 s e t = 2,7 s');
+  });
+});
+test('ambiente.js: região viva determinística (o mesmo t desenha o mesmo) e só com cores da Resurrect 64', function () {
+  REGS.forEach(function (id) {
+    var x = regiaoTeste(id), y = regiaoTeste(id), rx = [], ry = [];
+    for (var q = 0; q < 30; q++) { rx.push(retratoReg(x, 1 + q / 20)); ry.push(retratoReg(y, 1 + q / 20)); }
+    assert.deepStrictEqual(rx, ry, id + ': as duas montagens desenham igual');
+    Object.keys(x.vivas).forEach(function (k) {
+      var px = x.vivas[k].saida.c.px, fora = {};
+      for (var i = 0; i < px.length; i += 4) if (px[i + 3]) { var h = [px[i], px[i + 1], px[i + 2]].map(function (c) { return ('0' + c.toString(16)).slice(-2); }).join(''); if (!R64[h]) fora[h] = 1; }
+      assert.deepStrictEqual(Object.keys(fora), [], id + '/' + k + ': cores fora da Resurrect 64');
+    });
+  });
+});
+test('ambiente.js: partículas do ambiente da corrida ≤ 60 (spec §2.4) e o vento da corrida vira o sentido', function () {
+  ['litoral', 'cerrado', 'sertao'].forEach(function (id) {
+    var v = regiaoTeste(id), mx = 0;
+    for (var q = 0; q < 900; q++) { v.atualiza(1 + q / 30, 1 / 30, { intensity: 'ventania', dir: -1 }); mx = Math.max(mx, v.part.n); }
+    assert.ok(mx > 0 && mx <= 60, id + ': ' + mx + ' partículas no pico');
+    if (id !== 'cerrado') {   // a areia (Litoral) e a fumaça (Sertão) vão para a esquerda com o vento ←
+      var sx = 0, nn = 0; for (var k = 0; k < v.part.n; k++) if (v.part.tipo[k] === 4 || v.part.tipo[k] === 2) { sx += v.part.vx[k]; nn++; }
+      assert.ok(nn && sx / nn < 0, id + ': com o vento ← as partículas andam para a esquerda (' + (nn ? sx / nn : '-') + ')');
+    }
+  });
+  // a montagem aos poucos dá o mesmo que a de uma vez
+  var C = camadasReg.planalto, p1 = AMB.regiao('planalto', { sol: C }, null, { aosPoucos: true }), n = 0;
+  assert.ok(!p1.pronta);
+  while (!p1.montaPasso()) n++;
+  assert.ok(n >= 8, 'em passos (' + n + ')');
+  assert.strictEqual(retratoReg(p1, 3), retratoReg(regiaoTeste('planalto'), 3));
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
