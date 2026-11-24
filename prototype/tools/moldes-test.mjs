@@ -714,7 +714,9 @@ moldes.forEach(arq => {
   test(chave + ': ancoras de cada quadro e larguraUtil do JSON = recalculadas dos PNGs', () => {
     nomes.forEach(n => {
       assert.ok(J.ancoras && J.ancoras[n], 'JSON sem ancoras["' + n + '"]');
-      assert.deepStrictEqual(J.ancoras[n], ancoras(quadros[n].idx, 64, 64), n);
+      // (o olho do retrato e do parado, desde a etapa 2 da animação ambiente, sai do olhoMolde: conferido na seção dele)
+      const sem = Object.assign({}, J.ancoras[n]); delete sem.olho;
+      assert.deepStrictEqual(sem, ancoras(quadros[n].idx, 64, 64), n);
     });
     assert.strictEqual(J.larguraUtil, ancoras(quadros.retrato.idx, 64, 64).bbox.w, 'larguraUtil');
   });
@@ -1829,7 +1831,10 @@ await testA('mestres: 3 seeds por etapa, para na 1ª aprovada; o melhor galope f
   assert.deepStrictEqual(Object.keys(J), Object.keys(hoje));
   assert.deepStrictEqual([J.estilo, J.w, J.h, J.frames, J.seeds], ['padrao-lisa', 64, 64, 9, { retrato: 3202, parado: 3102, montado: 3102, galope: 3102 }]);
   const m = Pl().lerMolde(A.dirs.novos, 'padrao-lisa');
-  assert.deepStrictEqual(J.ancoras.retrato, ancoras(m.retrato, 64, 64));
+  // o gravador põe o olho (olhoMolde) no retrato e no parado; o resto da âncora é o ancoras() de sempre
+  assert.ok(Array.isArray(J.ancoras.retrato.olho), 'o gravador põe o olho no retrato');
+  const semOlho = Object.assign({}, J.ancoras.retrato); delete semOlho.olho;
+  assert.deepStrictEqual(semOlho, ancoras(m.retrato, 64, 64));
   assert.deepStrictEqual(falhos(Pc().criterioPernas(m)), []);
 });
 
@@ -3042,6 +3047,27 @@ console.log('\n## Pelagem e crina em 4 tons (sombreado por código) e marcas sem
         }
       }
     }
+  });
+}
+
+console.log('\n## Âncora do olho (o idle pisca: animação ambiente, etapa 2)');
+{
+  const CH = [...new Set(fs.readdirSync(DIR).filter((f) => /^molde-(esguio|padrao|robusto)-\w+\.json$/.test(f)).map((f) => f.slice(6, -5)))];
+  for (const c of CH) test(`${c}: olho no retrato e no parado, de 1 a 6 px de contorno na cabeça, atrás do nariz`, () => {
+    const J = JSON.parse(fs.readFileSync(path.join(DIR, `molde-${c}.json`), 'utf8'));
+    for (const est of ['retrato', 'parado']) {
+      const a = J.ancoras[est], o = a.olho, d = decodePng(fs.readFileSync(path.join(DIR, `molde-${c}-${est}.png`)));
+      assert.ok(Array.isArray(o) && o.length >= 2 && o.length <= 12 && o.length % 2 === 0, `${est}: olho ${JSON.stringify(o)}`);
+      for (let k = 0; k < o.length; k += 2) {
+        const x = o[k], y = o[k + 1], papel = Math.round(d.rgba[(y * 64 + x) * 4] / 25);
+        assert.strictEqual(papel, 1, `${est}: (${x}, ${y}) não é contorno (papel ${papel})`);
+        assert.ok(x < a.nose[0] - 2 && x > a.nose[0] - 16 && y < a.nose[1] && y > a.nose[1] - 12, `${est}: (${x}, ${y}) fora da cabeça`);
+      }
+    }
+  });
+  test('moldes-olho.mjs --check: os JSONs têm o olho que a busca (e o OLHO_MANUAL) dá', () => {
+    const r = spawnSync(process.execPath, [path.join(path.dirname(fileURLToPath(import.meta.url)), 'moldes-olho.mjs'), '--check'], { encoding: 'utf8' });
+    assert.strictEqual(r.status, 0, r.stdout + r.stderr);
   });
 }
 

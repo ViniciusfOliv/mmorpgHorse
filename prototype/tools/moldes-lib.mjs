@@ -84,6 +84,50 @@ export function validar(quadro, { exigeJoquei = false } = {}) {
 }
 
 /**
+ * Olho do molde (âncora "olho" do retrato e do parado; animação ambiente, etapa 2): os pixels do olho, [x, y, x, y, …].
+ * Entre os grupos de contorno (papel 1) "por dentro" da cara — 4 vizinhos pintados, ou 3 se nenhum grupo servir (o olho
+ * de alguns moldes tem um furo transparente) —, na caixa de 11 linhas acima do nariz e de 14 a 3 colunas atrás dele, o
+ * grupo pequeno (≤ 6 px) mais perto de onde o olho fica num cavalo de perfil (8 px atrás e 6 acima do nariz), a menos de
+ * √40. As linhas do cabresto e da cara são compridas. OLHO_MANUAL cobre o que a busca não separa (conferido na folha).
+ * Mesma busca da amostra (prototype/src/ambiente.js, CavaloIdle.pecas).
+ */
+export const OLHO_MANUAL = {
+  'robusto-folhas:retrato': [54, 14, 55, 14, 56, 14, 54, 15, 55, 15, 56, 15],
+  // o olho encosta na linha da cara ou no cabresto (o grupo passa de 6 px): marcado à mão na folha (2026-11-24)
+  'padrao-chamas:retrato': [53, 14, 54, 14, 55, 14, 54, 15, 55, 15],
+  'padrao-lisa:parado': [53, 15, 54, 15, 53, 16, 54, 16],
+  'padrao-ondas:parado': [55, 14, 54, 15, 55, 15]
+};
+export function olhoMolde(idx, w, h, nose, nome) {
+  if (nome && OLHO_MANUAL[nome]) return OLHO_MANUAL[nome].slice();
+  if (!nose) return [];
+  const em = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : idx[y * w + x]);
+  const [nx, ny] = nose;
+  let melhor = null;
+  for (let minViz = 4; minViz >= 3 && !melhor; minViz--) {
+    const dentro = new Map(), grupos = [];
+    let md = 1e9;
+    for (let y = ny - 11; y <= ny - 1; y++) for (let x = nx - 14; x <= nx - 3; x++)
+      if (em(x, y) === 1 && (!!em(x - 1, y) + !!em(x + 1, y) + !!em(x, y - 1) + !!em(x, y + 1)) >= minViz) dentro.set(x + ',' + y, 1);
+    for (const k of dentro.keys()) {
+      if (dentro.get(k) !== 1) continue;
+      const g = [], pilha = [k]; dentro.set(k, 2);
+      while (pilha.length) {
+        const [cx, cy] = pilha.pop().split(',').map(Number); g.push(cx, cy);
+        for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) { const kk = (cx + ox) + ',' + (cy + oy); if (dentro.get(kk) === 1) { dentro.set(kk, 2); pilha.push(kk); } }
+      }
+      grupos.push(g);
+    }
+    for (const g of grupos) {
+      if (g.length / 2 > 6) continue;
+      let mx = 0, my = 0; for (let i = 0; i < g.length; i += 2) { mx += g[i]; my += g[i + 1]; } mx /= g.length / 2; my /= g.length / 2;
+      const d = (mx - (nx - 8)) ** 2 + (my - (ny - 6)) ** 2 * 1.5; if (d < md && d < 40) { md = d; melhor = g; }
+    }
+  }
+  return melhor || [];
+}
+
+/**
  * Âncoras de um quadro de índices. bbox sobre pixels opacos; nose/rear = pixel mais à direita/esquerda
  * na metade superior (linhas bbox.y .. bbox.y + floor(bbox.h/2)), empate ⇒ o mais alto;
  * saddle = centro (arredondado) dos pixels de papel 9, ou null.
