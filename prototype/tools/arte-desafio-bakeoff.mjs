@@ -4,9 +4,10 @@
 // a página, os PNGs na grade de arte (256 × 160 ou 64 × 64), quantizados na Resurrect 64, em desafio/bakeoff/.
 //   inpaint  PixelLab /inpaint-v3: repinta só o chão em volta dos cascos (máscara = elipses nos pés, menos os pixels dos
 //            personagens), para o chão "abraçar" os cavalos. 1 chamada, ~10 gerações. Teto 10.
-//   gemini   Gemini (via compatível com OpenAI, chave injetada pelo proxy): a cena ampliada 4× (vizinho mais próximo) e o
+//   gemini   Gemini (API nativa generateContent, chave no cabeçalho x-goog-api-key injetada pelo proxy): a cena ampliada 4× (vizinho mais próximo) e o
 //            pedido de composição com luz e contato; a resposta é reduzida à grade 256 × 160 (moda por bloco) e quantizada.
 //            4 variações, ~US$ 0,04 cada.
+//   canva    sem rede: reduz os 2 fundos exportados do Canva em tamanho cheio (raw/canva-N-cheio.png) à grade 256 × 160.
 //   meshy    Meshy image-to-3d a partir do molde da Brasa (ampliado 8× sem suavizar); o GLB é renderizado por
 //            prototype/tools/arte-desafio-render.html (three.js no navegador de teste) já no tamanho final. ~30 créditos.
 // O gasto é medido pelo saldo de cada serviço antes e depois e gravado em raw/gasto.json; nenhuma chave no código.
@@ -86,25 +87,32 @@ async function gemini() {
   console.log('gemini: 4 variações (2 pedidos × 2), gemini-2.5-flash-image, ~US$ 0,04 cada');
   if (!gerar) return console.log('Dry-run.');
   let n = 0;
+  // API nativa (generateContent): a via compatível com OpenAI não devolve imagem; a chave vai no cabeçalho
+  // x-goog-api-key, injetada pelo proxy (o valor aqui é só um marcador)
+  const b64 = encodePng(grande).toString('base64');
   for (let k = 0; k < 4; k++) {
-    const corpo = { model: 'gemini-2.5-flash-image', messages: [{ role: 'user', content: [{ type: 'text', text: PED[k % 2] }, { type: 'image_url', image_url: { url: uri } }] }] };
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', { method: 'POST', headers: { Authorization: 'Bearer proxy-injected', 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+    const corpo = { contents: [{ parts: [{ text: PED[k % 2] }, { inline_data: { mime_type: 'image/png', data: b64 } }] }], generationConfig: { responseModalities: ['IMAGE'] } };
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent', { method: 'POST', headers: { 'x-goog-api-key': 'proxy-injected', 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
     const txt = await res.text();
-    fs.writeFileSync(path.join(RAW, `gemini-${k}.json`), txt.replace(/"data:image\/[a-z]+;base64,[^"]+"/g, '"<img>"').replace(/"[A-Za-z0-9+/=]{2000,}"/g, '"<b64>"'));
+    fs.writeFileSync(path.join(RAW, `gemini-${k}.json`), txt.replace(/"data": *"[A-Za-z0-9+/=]{300,}"/g, '"data": "<b64>"'));
     if (!res.ok) { console.log(`  gemini ${k}: HTTP ${res.status} ${txt.slice(0, 300)}`); continue; }
-    const m = txt.match(/data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)/) || txt.match(/"([A-Za-z0-9+/]{5000,}={0,2})"/);
-    const j = JSON.parse(txt), uso = j.usage || {};
+    const j = JSON.parse(txt), uso = j.usageMetadata || {};
     registra(`gemini-${k}`, { usd_estimado: 0.039, tokens: uso });
-    if (!m) { console.log(`  gemini ${k}: sem imagem na resposta (texto: ${(j.choices && j.choices[0] && JSON.stringify(j.choices[0].message).slice(0, 200))})`); continue; }
-    const buf = Buffer.from(m[2] || m[1], 'base64'); fs.writeFileSync(path.join(RAW, `gemini-${k}.${m[1] === 'jpeg' ? 'jpg' : 'png'}`), buf);
-    if (m[1] !== 'png' && m[2]) { console.log(`  gemini ${k}: veio ${m[1]}; convertido pela página de teste depois`); n++; continue; }
-    salvaFinal(`gemini-${k}`, reduzirModa(decodePng(buf), W, H)); n++;
+    const parte = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).find(p => p.inlineData || p.inline_data);
+    if (!parte) { console.log(`  gemini ${k}: sem imagem na resposta (${txt.slice(0, 300)})`); continue; }
+    const dado = parte.inlineData || parte.inline_data, tipo = dado.mimeType || dado.mime_type, buf = Buffer.from(dado.data, 'base64');
+    fs.writeFileSync(path.join(RAW, `gemini-${k}.${tipo === 'image/png' ? 'png' : 'jpg'}`), buf);
+    if (tipo !== 'image/png') { console.log(`  gemini ${k}: veio ${tipo}; reduzir com --lote reduz`); n++; continue; }
+    const im = decodePng(buf); console.log(`  gemini ${k}: ${im.width}×${im.height}`);
+    salvaFinal(`gemini-${k}`, reduzirModa(im, W, H)); n++;
   }
   console.log(`gemini: ${n} imagens`);
 }
 
 async function meshy() {
-  const molde = decodePng(fs.readFileSync(path.join(D, 'brasa-parado-64.png'))), grande = ampliar(molde, 8);
+  const arg = n => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
+  const entrada = arg('--entrada') || 'brasa-parado-64.png', nome = arg('--nome') || 'brasa';
+  const molde = decodePng(fs.readFileSync(path.join(D, entrada))), grande = ampliar(molde, 8);
   const uri = 'data:image/png;base64,' + encodePng(grande).toString('base64');
   console.log('meshy: image-to-3d do molde da Brasa (512×512), com textura, ~20–30 créditos');
   if (!gerar) return console.log('Dry-run.');
@@ -114,16 +122,26 @@ async function meshy() {
   const id = post.result; console.log('  tarefa', id);
   let t;
   for (let i = 0; i < 120; i++) { await dormir(10000); t = await api('GET', '/openapi/v1/image-to-3d/' + id); if (t.status === 'SUCCEEDED' || t.status === 'FAILED') break; process.stdout.write(`  ${t.status} ${t.progress}%\r`); }
-  fs.writeFileSync(path.join(RAW, 'meshy.json'), JSON.stringify(t, null, 2));
+  fs.writeFileSync(path.join(RAW, nome === 'brasa' ? 'meshy.json' : `meshy-${nome}.json`), JSON.stringify(t, null, 2));
   if (t.status !== 'SUCCEEDED') throw new Error('meshy: ' + t.status + ' ' + JSON.stringify(t.task_error || {}));
   const glb = Buffer.from(await (await fetch(t.model_urls.glb)).arrayBuffer());
-  fs.writeFileSync(path.join(RAW, 'meshy-brasa.glb'), glb);
-  if (t.thumbnail_url) fs.writeFileSync(path.join(RAW, 'meshy-thumb.png'), Buffer.from(await (await fetch(t.thumbnail_url)).arrayBuffer()));
+  fs.writeFileSync(path.join(RAW, `meshy-${nome}.glb`), glb);
+  if (t.thumbnail_url) fs.writeFileSync(path.join(RAW, nome === 'brasa' ? 'meshy-thumb.png' : `meshy-${nome}-thumb.png`), Buffer.from(await (await fetch(t.thumbnail_url)).arrayBuffer()));
   const s1 = (await api('GET', '/openapi/v1/balance')).balance;
-  registra('meshy', { creditos_meshy: s0 - s1 });
+  registra(nome === 'brasa' ? 'meshy' : 'meshy-' + nome, { creditos_meshy: s0 - s1 });
   console.log(`\nmeshy: GLB salvo (${(glb.length / 1024).toFixed(0)} KB); gasto ${s0 - s1} créditos (${s0} → ${s1})`);
 }
 
-const L = { inpaint, gemini, meshy }[lote];
-if (!L) { console.error('use --lote inpaint|gemini|meshy [--gerar]'); process.exit(1); }
+async function canva() {   // sem rede: os fundos exportados do Canva (raw/canva-N-cheio.png, 1920×1080) na grade de arte
+  for (let k = 0; k < 2; k++) {
+    const f = path.join(RAW, `canva-${k}-cheio.png`); if (!fs.existsSync(f)) continue;
+    const im = decodePng(fs.readFileSync(f)), w = Math.round(im.height * W / H), x0 = Math.round((im.width - w) / 2);
+    const rec = { width: w, height: im.height, rgba: new Uint8Array(w * im.height * 4) };   // recorte central na proporção 16:10
+    for (let y = 0; y < im.height; y++) rec.rgba.set(im.rgba.subarray((y * im.width + x0) * 4, (y * im.width + x0 + w) * 4), y * w * 4);
+    salvaFinal(`canva-fundo-${k}`, reduzirModa(rec, W, H));
+  }
+}
+
+const L = { inpaint, gemini, meshy, canva }[lote];
+if (!L) { console.error('use --lote inpaint|gemini|meshy|canva [--gerar]'); process.exit(1); }
 L().catch(e => { console.error('ERRO:', e.message); process.exit(1); });

@@ -4,7 +4,8 @@
 // imagem passa pela quantização na Resurrect 64, alfa binário e contorno de 1 px na cor mais escura (guia §5).
 // Saída: prototype/assets/arte/desafio/bakeoff/meshy-<vista>.png e uma folha com as 8 direções (meshy-8dir.png).
 // O three.js vem do jsDelivr só nesta ferramenta (o jogo não muda e o protótipo continua sem dependências).
-// Uso: node prototype/tools/arte-desafio-render.mjs [altura em px de arte, padrão 54]
+// Uso: node prototype/tools/arte-desafio-render.mjs [altura em px de arte, padrão 54] [--glb <nome>, padrão brasa]
+//   --glb ipe lê raw/desafio-bakeoff/meshy-ipe.glb e grava meshy-ipe-dir0..7.png e meshy-ipe-8dir.png
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -16,7 +17,8 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const RAW = path.join(RAIZ, 'prototype', 'assets', 'arte', 'raw', 'desafio-bakeoff'), OUT = path.join(RAIZ, 'prototype', 'assets', 'arte', 'desafio', 'bakeoff');
 const ALT = Number(process.argv[2]) || 54, LADO = 72;
-const glb = fs.readFileSync(path.join(RAW, 'meshy-brasa.glb')).toString('base64');
+const iG = process.argv.indexOf('--glb'), NOME = iG > 0 ? process.argv[iG + 1] : 'brasa', PRE = NOME === 'brasa' ? 'meshy' : 'meshy-' + NOME;
+const glb = fs.readFileSync(path.join(RAW, `meshy-${NOME}.glb`)).toString('base64');
 const html = `<!doctype html><meta charset="utf-8"><body style="margin:0;background:transparent">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <script type="module">
@@ -65,8 +67,8 @@ function pos(buf) {
   return o;
 }
 const finais = imgs.map(u => pos(Buffer.from(u.split(',')[1], 'base64')));
-finais.forEach((f, i) => fs.writeFileSync(path.join(OUT, `meshy-dir${i}.png`), encodePng(f)));
+finais.forEach((f, i) => fs.writeFileSync(path.join(OUT, `${PRE}-dir${i}.png`), encodePng(f)));
 const folha = { width: LADO * 8, height: LADO, rgba: new Uint8Array(LADO * 8 * LADO * 4) };
 finais.forEach((f, i) => { for (let y = 0; y < LADO; y++) for (let x = 0; x < LADO; x++) for (let c = 0; c < 4; c++) folha.rgba[(y * folha.width + i * LADO + x) * 4 + c] = f.rgba[(y * LADO + x) * 4 + c]; });
-fs.writeFileSync(path.join(OUT, 'meshy-8dir.png'), encodePng(folha));
-console.log(`8 vistas de ${LADO}×${LADO} (cavalo com ~${ALT} px de altura) em prototype/assets/arte/desafio/bakeoff/`);
+fs.writeFileSync(path.join(OUT, `${PRE}-8dir.png`), encodePng(folha));
+console.log(`${PRE}: 8 vistas de ${LADO}×${LADO} (cavalo com ~${ALT} px de altura) em prototype/assets/arte/desafio/bakeoff/`);

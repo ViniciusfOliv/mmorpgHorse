@@ -11,6 +11,14 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Inpaint do PixelLab no chão ajuda pouco** (terra escura que parece buraco); o contato por código fica.
 - **Canva só como referência de fundo**: o conector devolve prévias; o tamanho cheio exige exportar no Canva.
 
+## 2026-11-24 — Cena de desafio, rodada 2 da comparação (versão 10)
+- Meshy 2º cavalo (Ipê robusto) aprovado e feito (30 créditos): o porte sai bem, o estilo da crina não. · Mostrar se dá para
+  ter 1 modelo 3D por porte e recolorir. · Conclusão: cor sim (com modelo feito de imagem com cores puras por papel), formato da
+  crina não; o lote de ~90 créditos só vale se o Vinicius aceitar crina com o mesmo formato por porte.
+- Fundos do Canva exportados em tamanho cheio e usados como arena na cena (botões Canva 1/2). · Comparar de verdade.
+- Gemini: a geração de imagem exige a API nativa e o cabeçalho `x-goog-api-key`; a via compatível com OpenAI recusa. ·
+  Chave fica só no segredo do ambiente, nunca no código.
+
 ## 2026-11-24 — Cena de desafio, retorno à versão 5
 - **Um padrão só de cavalo**: andando ou parado, o mesmo desenho do molde (o trote é o passo de 1 px), e o oponente é o
   próprio molde espelhado — pedido do Vinicius ("mantenha um padrão").

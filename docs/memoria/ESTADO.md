@@ -50,6 +50,13 @@ escolhida; nome na cor da raridade; comparação de ferramentas aprovada pelo Vi
 814 → 804), Meshy 3D (30 créditos, 465 → 435; um cavalo 3D renderizado em pixel em 8 vistas coerentes, o melhor
 resultado para frente/costas), Canva (2 fundos, só prévias), Gemini bloqueado (conta sem créditos pré-pagos). Chaves do
 Meshy e do Gemini salvas no ambiente (proxy), nunca no código.
+**Versão 10 (2026-11-24):** rodada aprovada pelo Vinicius: Meshy 2º cavalo (Ipê, porte robusto, crina de folhas; 30
+créditos, 435 → 405): o porte aparece, a crina de folhas virou manchas; troca de cor funciona sem modelo novo só onde as
+cores dos papéis não se misturam (na Brasa crina e jóquei dividem tons), então "1 modelo por porte + recolor" pede modelos
+nascidos de imagem com cores puras por papel, e o formato da crina exige outro modelo. Canva: os 2 fundos exportados em
+1920 × 1080, reduzidos à grade e usados como arenas "Canva 1/2" na cena (créditos do plano). Gemini: a chave nova está
+salva, mas no cabeçalho Authorization; a geração de imagem é só na API nativa, que lê `x-goog-api-key` (401, nada
+cobrado). Falta o Vinicius mudar o cabeçalho do segredo nas configurações do ambiente. Lote dos 12 cavalos segue não aprovado.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

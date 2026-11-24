@@ -43,11 +43,19 @@ const dados = {
       oito96: Array.from({ length: 8 }, (_, i) => uri(path.join(P, `brasa-8dir-96-${String(i).padStart(2, '0')}.png`))),
       hoje: uri(path.join(PROTO, 'screens', 'final-26b-cena-desafio.png')),
       meshy: Array.from({ length: 8 }, (_, i) => uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `meshy-dir${i}.png`))),
+      ipe: Array.from({ length: 8 }, (_, i) => uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `meshy-ipe-dir${i}.png`))),
+      canva: [0, 1].map(k => path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', `canva-fundo-${k}.png`)).filter(f => fs.existsSync(f)).map(f => uri(f)),
+      meshyFolhas: [['meshy-8dir', 'Brasa (1º modelo): 8 direções'], ['meshy-ipe-8dir', 'Ipê (2º modelo, porte robusto, crina de folhas): 8 direções'],
+        ['meshy-recolor', 'Troca de cor sem modelo novo: a pelagem da Brasa trocada pela da Maré']]
+        .filter(([f]) => fs.existsSync(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')))
+        .map(([f, nome]) => ({ nome, uri: uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')) })),
       bake: [['cena', 'Código (v7)', 'chão em perspectiva, molde de lado e de costas; sem custo'],
         ['pixellab-inpaint', 'PixelLab inpaint', 'chão repintado em volta dos cascos; 10 gerações'],
         ['cena-meshy', 'Meshy 3D', 'o mesmo cavalo 3D de frente e de costas, renderizado já em pixel; 30 créditos'],
-        ['canva-0', 'Canva (fundo 1, prévia)', 'só a prévia de 198 px: o tamanho cheio sai exportando no Canva; créditos de IA do plano'],
-        ['canva-1', 'Canva (fundo 2, prévia)', 'marcas no chão para os dois; idem']]
+        ['cena-canva-0', 'Canva, fundo 1', 'exportado em 1920 × 1080 e reduzido à grade (moda por bloco, Resurrect 64); os cavalos do Meshy pisando nele'],
+        ['cena-canva-1', 'Canva, fundo 2', 'idem; o fundo já traz os dois anéis no chão, e os cavalos pisam neles'],
+        ['gemini-0', 'Gemini (pedido 1)', 'a cena do código recomposta; ~US$ 0,04'], ['gemini-1', 'Gemini (pedido 2)', 'repintada inteira; ~US$ 0,04'],
+        ['gemini-2', 'Gemini (pedido 1, 2ª)', '~US$ 0,04'], ['gemini-3', 'Gemini (pedido 2, 2ª)', '~US$ 0,04']]
         .filter(([f]) => fs.existsSync(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')))
         .map(([f, nome, nota]) => ({ nome, nota, uri: uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')) })) };
   })(),

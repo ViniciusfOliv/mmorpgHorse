@@ -119,9 +119,22 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
   </section>
   <section class="caixa">
     <h3>Cena de desafio: comparação de ferramentas</h3>
-    <p class="nota-med">A mesma cena (arena 0) por cada caminho testado. Gemini: não rodou, os créditos pré-pagos da conta do AI Studio
-      acabaram (HTTP 402, nada cobrado).</p>
+    <p class="nota-med">A mesma cena por cada caminho testado. Os dois fundos do Canva agora vêm em tamanho cheio (1920 × 1080, exportados),
+      reduzidos à grade de arte e com os cavalos do Meshy pisando neles; na cena de cima, os botões "Canva 1" e "Canva 2" trocam a arena ao vivo.
+      Gemini: ainda não rodou. A chave está salva e vale (a lista de modelos responde), mas a geração de imagem só existe na API nativa,
+      que lê a chave no cabeçalho x-goog-api-key; a chave salva vai no Authorization, e o Google recusa (HTTP 401, nada cobrado).
     <div class="cands" id="comparacao"></div>
+  </section>
+  <section class="caixa">
+    <h3>Meshy: 2º cavalo e troca de cor</h3>
+    <p class="nota-med">Um modelo 3D por porte e a crina recolorida por papéis cortaria o lote de ~360 para ~90 créditos. O que deu para ver:
+      <b>a cor varia sem modelo novo</b> (a pelagem da Brasa virou a da Maré só trocando cores na imagem final), mas só onde as cores da
+      pelagem não se misturam com as do jóquei e da crina. Na Brasa, crina laranja e roupa amarela usam os mesmos tons, então trocar a cor
+      da crina pinta o jóquei junto. Para recolorir de forma confiável, o modelo tem de nascer de uma imagem com cores puras por papel
+      (pelagem, crina, jóquei, sela), como os "papéis" que o PixelLab já usa. <b>O formato e o estilo da crina</b> (fogo, folhas, onda) fazem
+      parte da malha 3D: mudar exige outro modelo. O Ipê (2º modelo, 30 créditos) mostra isso: o porte robusto aparece bem (pernas e
+      peito mais grossos), mas a crina de folhas virou manchas amarelas. Na cena, o botão "Cavalos" põe o Ipê de costas.</p>
+    <div class="cands" id="meshyFolhas"></div>
   </section>
   <section class="caixa">
     <h3>Piloto pago: todos os candidatos</h3>

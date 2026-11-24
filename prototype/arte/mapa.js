@@ -437,6 +437,8 @@
   M.desafio.costas.forEach(function (u, i) { carrega('d-costas-' + i, u); });
   M.desafio.oito.forEach(function (u, i) { carrega('d-oito-' + i, u); });
   if (M.desafio.meshy) { carrega('d-meshy-1', M.desafio.meshy[1]); carrega('d-meshy-5', M.desafio.meshy[5]); }
+  if (M.desafio.ipe) { carrega('d-ipe-1', M.desafio.ipe[1]); carrega('d-ipe-5', M.desafio.ipe[5]); }
+  (M.desafio.canva || []).forEach(function (u, i) { carrega('d-canva' + i, u); });
   // os moldes do PixelLab (os mesmos do jogo): sem eles o sprites.js cai no cavalo desenhado por código
   if (SP.loadMolds && window.__MOLDES) { faltam++; SP.loadMolds(window.__MOLDES, function () { if (--faltam === 0) pronto(); }); }
   document.getElementById('hojeMundo').src = M.hoje.mundo;
@@ -1379,6 +1381,14 @@
   function preparaDesafio() {
     var A = ARENAS[desafio.arena], arena = Buf.de(IMG[A.img]), b = new Buf(DW, DH), e = new Buf(DW, DH), viv = new Buf(DW, DH), q = [], QU = [K.f9c22b, K.fbff86, K.fb6b1d, K.f79617];
     var HZ = A.hz, x, y, p;
+    if (A.chao === 'img') {   // fundo do Canva: a imagem toda; o brilho corre na lava e nos braseiros (do muro para baixo)
+      b.d.set(arena.d);
+      for (p = DW * Math.max(0, HZ - 24); p < DW * DH; p++) if (QU.indexOf(b.d[p]) >= 0) q.push(p);
+      for (p = 0; p < DW * DH; p++) e.d[p] = escurecer((b.d[p] | 0xff000000) >>> 0);
+      viv.d.set(b.d); e.poe(); viv.poe(); b.poe();
+      desafio.base = b; desafio.esc = e; desafio.viv = viv; desafio.quentes = q;
+      return;
+    }
     for (p = 0; p < DW * HZ; p++) b.d[p] = arena.d[p];
     // rampa do piso: as cores mais comuns do chão da arena, do escuro ao claro (perspectiva atmosférica: longe, mais claro)
     var conta = {};
@@ -1457,7 +1467,10 @@
   // gastas no próprio chão (elipses achatadas na perspectiva do piso), e as sombras são a silhueta deitada no chão.
   // hz: a linha até onde a imagem da arena vale como fundo (céu, montanhas, muro); abaixo dela, o piso em perspectiva
   var ARENAS = { a1: { img: 'd-arena', hz: 74, op: [170, 104], lider: [204, 101], nos: [70, 172], marca: [26, 4, 46, 7] },
-    a0: { img: 'd-arena0', hz: 92, op: [168, 114], lider: [201, 111], nos: [70, 172], marca: [24, 4, 46, 7] } };
+    a0: { img: 'd-arena0', hz: 92, op: [168, 114], lider: [201, 111], nos: [70, 172], marca: [24, 4, 46, 7] },
+    // os fundos do Canva (teste): a imagem inteira vale, chão incluído (chao: 'img'); o fundo 2 já traz os 2 anéis no chão
+    c0: { img: 'd-canva0', hz: 87, chao: 'img', op: [172, 110], lider: [206, 107], nos: [74, 170], marca: [24, 4, 46, 7] },
+    c1: { img: 'd-canva1', hz: 74, chao: 'img', op: [175, 89], lider: [208, 87], nos: [82, 130], marca: null } };
   function marcaNoChao(cx, cy, rx, ry) {   // terra gasta: 1 degrau abaixo do chão, borda em massas de 2 px
     var B = desafio.base;
     for (var y = Math.floor(cy - ry); y <= cy + ry; y++) for (var x = Math.floor(cx - rx); x <= cx + rx; x++) {
@@ -1500,23 +1513,25 @@
     dg.drawImage(desafio.viv.c, 0, 0);
     var resp = reduzido ? 0 : (Math.floor(t * 1.4) & 1), resp2 = reduzido ? 0 : (Math.floor(t * 1.4 + 0.5) & 1);
     var M0 = A.marca;
-    marcaNoChao(A.op[0] + 6, A.op[1], M0[0], M0[1]);
-    marcaNoChao(A.nos[0], A.nos[1] - 6, M0[2], M0[3]);
+    if (M0) { marcaNoChao(A.op[0] + 6, A.op[1], M0[0], M0[1]); marcaNoChao(A.nos[0], A.nos[1] - 6, M0[2], M0[3]); }
     var fr = desafio.frente === 'molde' ? moldeEsq() : IMG['d-oito-' + desafio.frente], lider = corpo(GYM.fogo.etapas[4], false), cs = IMG['d-costas-' + desafio.costas];
     // teste do Meshy: o mesmo cavalo 3D renderizado de frente (3/4, virado para o nosso lado) e de costas (3/4)
-    if (desafio.cavalos === 'meshy' && IMG['d-meshy-1'] && IMG['d-meshy-5']) { fr = IMG['d-meshy-1']; cs = IMG['d-meshy-5']; }
+    if (desafio.cavalos !== 'molde' && IMG['d-meshy-1'] && IMG['d-meshy-5']) { fr = IMG['d-meshy-1']; cs = IMG['d-meshy-5']; }
+    // 2º teste do Meshy: o Ipê (porte robusto, crina de folhas) de costas, contra a Brasa de frente
+    var ipe = desafio.cavalos === 'ipe' && IMG['d-ipe-5']; if (ipe) cs = IMG['d-ipe-5'];
     // de trás para a frente: a líder e o cavalo dela no fundo, o nosso na frente
     if (lider) { var li = lider.c; li.__pe = lider.pe; li.__cx = 16; deitaSombra(li, A.lider[0], A.lider[1]); dg.drawImage(li, A.lider[0] - 16, A.lider[1] - lider.pe + resp2); }
     if (fr) pisa(fr, A.op[0], A.op[1], resp);
     if (cs) pisa(cs, A.nos[0], A.nos[1], resp2);
     if (!desafio._semPlacas) placa(8, 8, 128, 'Brasa da Labareda', 'Nv 20', 0.82, 'comum');
-    if (!desafio._semPlacas) placa(140, 116, 108, 'Brasa', 'Nv 12', 0.64, desafio.rar);
+    if (!desafio._semPlacas) placa(140, 116, 108, ipe ? 'Ipê' : 'Brasa', 'Nv 12', 0.64, desafio.rar);
     dCtx.imageSmoothingEnabled = false;
     dCtx.drawImage(dArte, 0, 0, DW, DH, 0, 0, DW * dS, DH * dS);
   }
   function montaComparacao() {
     var el = document.getElementById('comparacao'); if (!el || !M.desafio.bake) return;
     el.innerHTML = M.desafio.bake.map(function (c) { return '<figure class="cand"><img src="' + c.uri + '" style="width:256px" alt=""><figcaption><b>' + c.nome + '</b> · ' + c.nota + '</figcaption></figure>'; }).join('');
+    var fo = document.getElementById('meshyFolhas'); if (fo && M.desafio.meshyFolhas) fo.innerHTML = M.desafio.meshyFolhas.map(function (c) { return '<figure class="cand"><img src="' + c.uri + '" style="width:576px;max-width:100%" alt=""><figcaption>' + c.nome + '</figcaption></figure>'; }).join('');
   }
   function iniciaDesafio() {
     montaComparacao();
@@ -1531,9 +1546,10 @@
       ctl.appendChild(botao('◀ De costas', function () { desafio.costas = mod(desafio.costas - 1, 16); monta(); }));
       var sp = document.createElement('span'); sp.textContent = 'candidato ' + (desafio.costas + 1) + ' de 16'; ctl.appendChild(sp);
       ctl.appendChild(botao('De costas ▶', function () { desafio.costas = mod(desafio.costas + 1, 16); monta(); }));
-      ctl.appendChild(botao('Cavalos: ' + (desafio.cavalos === 'meshy' ? 'Meshy 3D' : 'molde do jogo'), function () { desafio.cavalos = desafio.cavalos === 'meshy' ? 'molde' : 'meshy'; monta(); }));
+      var CAV = { meshy: 'Meshy 3D (Brasa)', ipe: 'Meshy 3D (Ipê de costas)', molde: 'molde do jogo' }, CL = Object.keys(CAV);
+      ctl.appendChild(botao('Cavalos: ' + CAV[desafio.cavalos], function () { desafio.cavalos = CL[(CL.indexOf(desafio.cavalos) + 1) % CL.length]; monta(); }));
       ctl.appendChild(botao('Raridade: ' + NOME_RAR[desafio.rar], function () { var L = Object.keys(NOME_RAR); desafio.rar = L[(L.indexOf(desafio.rar) + 1) % L.length]; monta(); }));
-      [['a0', 'Arena 0 (escolhida)'], ['a1', 'Arena 1']].forEach(function (a) { ctl.appendChild(botao(a[1], function () { desafio.arena = a[0]; preparaDesafio(); monta(); }, { pressed: desafio.arena === a[0] })); });
+      [['a0', 'Arena 0 (escolhida)'], ['a1', 'Arena 1'], ['c0', 'Canva 1'], ['c1', 'Canva 2']].filter(function (a) { return IMG[ARENAS[a[0]].img]; }).forEach(function (a) { ctl.appendChild(botao(a[1], function () { desafio.arena = a[0]; preparaDesafio(); monta(); }, { pressed: desafio.arena === a[0] })); });
       ctl.appendChild(botao('Oponente: ' + ({ molde: 'molde (mesmo traço)', 7: '8 direções, frente-esq.', 0: '8 direções, frente' })[desafio.frente], function () { desafio.frente = desafio.frente === 'molde' ? 7 : desafio.frente === 7 ? 0 : 'molde'; monta(); }));
     };
     monta();
@@ -1559,7 +1575,7 @@
     ajusta(); window.addEventListener('resize', ajusta);
     montaUI();
     requestAnimationFrame(quadro);
-    window.__mapa = { _t: { cenaPng: function (semPlacas, cavalos) { var g0 = desafio._semPlacas, c0 = desafio.cavalos; desafio._semPlacas = !!semPlacas; if (cavalos) desafio.cavalos = cavalos; quadroDesafio(5); desafio._semPlacas = g0; desafio.cavalos = c0; return dArte.toDataURL('image/png'); }, fundoPng: function () { return desafio.base.c.toDataURL('image/png'); }, cavaloPng: function (lado, idle) { var c = tela(lado, lado), q = c.getContext('2d'); q.imageSmoothingEnabled = false; var cx = lado / 2, base = lado - 4; SP.drawHorse(q, cx - 20, base - 36, { palette: CAVALO.palette, element: CAVALO.element, scale: 1, jockey: true, silks: '#f9c22b', idle: idle !== false, t: 0.5, frame: 3, quadro: { topo: -1e6, base: base, grade: 1, centro: cx } }); return c.toDataURL('image/png'); }, exportar: function () { var m2 = gerarMundo(); decorarMundo(m2, true); m2.b.poe(); m2.arvores.forEach(function (a) { m2.b.g.drawImage(a.c.c, a.x - a.r, a.y - a.r); }); return m2.b.c.toDataURL('image/png'); }, camadas: camadas, ciclo: function (t) { cicloT = -9; cicloMundo(t); }, nevoa: function (t) { nevT = -9; atualizaNevoa(t); atualizaNevoa(t); }, mundo: quadroMundo, trilha: quadroTrilha, copia: function () { ctx.drawImage(arte, 0, 0, W, H, 0, 0, W * s, H * s); } }, entra: entra, sai: sai, vence: vence, preset: function (n) { usaPreset(n); montaUI(); }, est: function () { return est; }, reduz: function (v) { reduzido = v; montaUI(); }, tela: function () { return telaAtual; } };
+    window.__mapa = { _t: { cavaloPng2: function (idx, porte) { var h = GD.STARTERS[idx], c = tela(64, 64), q = c.getContext('2d'); q.imageSmoothingEnabled = false; SP.drawHorse(q, 12, 24, { palette: h.palette, element: h.element, scale: 1, jockey: true, silks: '#f9c22b', idle: true, t: 0.5, porte: porte, quadro: { topo: -1e6, base: 60, grade: 1, centro: 32 } }); return c.toDataURL('image/png'); }, cenaPng: function (semPlacas, cavalos, arena) { var g0 = desafio._semPlacas, c0 = desafio.cavalos, a0 = desafio.arena; desafio._semPlacas = !!semPlacas; if (cavalos) desafio.cavalos = cavalos; if (arena) { desafio.arena = arena; preparaDesafio(); } quadroDesafio(5); var u = dArte.toDataURL('image/png'); desafio._semPlacas = g0; desafio.cavalos = c0; if (arena) { desafio.arena = a0; preparaDesafio(); } return u; }, fundoPng: function () { return desafio.base.c.toDataURL('image/png'); }, cavaloPng: function (lado, idle) { var c = tela(lado, lado), q = c.getContext('2d'); q.imageSmoothingEnabled = false; var cx = lado / 2, base = lado - 4; SP.drawHorse(q, cx - 20, base - 36, { palette: CAVALO.palette, element: CAVALO.element, scale: 1, jockey: true, silks: '#f9c22b', idle: idle !== false, t: 0.5, frame: 3, quadro: { topo: -1e6, base: base, grade: 1, centro: cx } }); return c.toDataURL('image/png'); }, exportar: function () { var m2 = gerarMundo(); decorarMundo(m2, true); m2.b.poe(); m2.arvores.forEach(function (a) { m2.b.g.drawImage(a.c.c, a.x - a.r, a.y - a.r); }); return m2.b.c.toDataURL('image/png'); }, camadas: camadas, ciclo: function (t) { cicloT = -9; cicloMundo(t); }, nevoa: function (t) { nevT = -9; atualizaNevoa(t); atualizaNevoa(t); }, mundo: quadroMundo, trilha: quadroTrilha, copia: function () { ctx.drawImage(arte, 0, 0, W, H, 0, 0, W * s, H * s); } }, entra: entra, sai: sai, vence: vence, preset: function (n) { usaPreset(n); montaUI(); }, est: function () { return est; }, reduz: function (v) { reduzido = v; montaUI(); }, tela: function () { return telaAtual; } };
     window.__mapaPronto = true;
   }
 })();
