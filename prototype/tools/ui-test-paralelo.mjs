@@ -30,7 +30,8 @@ const EM_SERIE = {
   'crescimento-jogo': 'abrir a sala custa < 15 ms em média (performance.now())',
   'fluxo-desempenho': 'desenho por quadro a 1280 com chuva e ventania: "Completas" − "Reduzidas" <= 6 ms',
   ambiente: 'o custo das cenas animadas (ms por quadro a 60 q/s, performance.now()) contra 1,5 × o teto da spec',
-  'ginasio-corrida': 'três duelos assistidos sem tocar: o duelo em x2 mais curto que em x1 (segundos reais, performance.now()) e a faixa do lugar no fim de cada um'
+  'ginasio-corrida': 'três duelos assistidos sem tocar: o duelo em x2 mais curto que em x1 (segundos reais, performance.now()) e a faixa do lugar no fim de cada um',
+  'fluxo-capturas-ginasio': 'o custo de desenho da cena do desafio e do mapa-múndi (ms por quadro, performance.now()) contra a régua de 1,2 ms; com o idle dos cavalos na cena, a fila paralela já passava da régua (1,3–1,7 ms) com o bloco sozinho em 0,7'
 }
 
 // Duração de cada bloco da fase 1 em segundos (o processo inteiro, com o Chromium), medida com UI_JOBS=4 numa máquina de 4
