@@ -1155,12 +1155,48 @@
     return out;
   }
 
-  // Cores por papel (índice 0–9) para as opções do drawHorse.
+  // Cores por papel (índice 0–9) para as opções do drawHorse. As sombras da pelagem e da crina são 1 degrau abaixo na
+  // rampa (Luz.degrau; guia de integração, Regra 4), para caírem nas mesmas famílias frias da sombra do chão; sem o
+  // luz.js, as de antes.
   function coresMolde(o) {
-    var pal = o.palette || PALETTES.neutro;
+    var pal = o.palette || PALETTES.neutro, Lz = luzApi();
     var coat = pal.coat || '#a0704a', mane = corCrina(o);
-    return [null, MOLDE_CORES_FIXAS.contorno, coat, pal.coatShade || shade(coat, 0.35), mane, shade(mane, 0.35),
+    var coatS = Lz ? Lz.degrau(naMestra(coat.toLowerCase()), -1) : pal.coatShade || shade(coat, 0.35);
+    var maneS = Lz ? Lz.degrau(naMestra(mane.toLowerCase()), -1) : shade(mane, 0.35);
+    return [null, MOLDE_CORES_FIXAS.contorno, coat, coatS, mane, maneS,
       pal.accent || '#f2ead8', o.silks || '#d8353b', MOLDE_CORES_FIXAS.pele, MOLDE_CORES_FIXAS.sela];
+  }
+  // Pelagem e crina em 4 tons (guia de integração, Regra 4; plano da animação ambiente, etapa 0.3). Os moldes trazem 2
+  // tons (papéis 2/3 e 4/5); os outros 2 saem de um sombreado por código, com a luz de cima e da esquerda:
+  //   luz (16 pelo, 18 crina): o tom claro (2, 4) na borda de cima da silhueta (sem corpo acima) ou no canto de cima e da
+  //     esquerda (sem corpo à esquerda nem na diagonal);
+  //   sombra profunda (17 pelo, 19 crina): o tom escuro (3, 5) na borda de baixo ou da direita (sem corpo abaixo ou à
+  //     direita);
+  //   em massas: o pixel só muda se tiver um vizinho 4-conexo do mesmo papel com a mesma marca (nada de pixel solto).
+  // "Corpo" é todo papel > 1 (o contorno e o vazio não contam). Puro: devolve um novo Uint8Array de índices.
+  var TOM_LUZ = { 2: 16, 4: 18 }, TOM_FUNDO = { 3: 17, 5: 19 };
+  function sombreiaPelagem(idx, w, h) {
+    var n = w * h, out = new Uint8Array(n), marca = new Uint8Array(n), x, y, i, p;
+    function corpo(xx, yy) { return xx >= 0 && yy >= 0 && xx < w && yy < h && idx[yy * w + xx] > 1; }
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+      i = y * w + x; p = idx[i]; out[i] = p;
+      if (TOM_LUZ[p]) { if (!corpo(x, y - 1) || (!corpo(x - 1, y) && !corpo(x - 1, y - 1))) marca[i] = 1; }
+      else if (TOM_FUNDO[p]) { if (!corpo(x, y + 1) || !corpo(x + 1, y)) marca[i] = 2; }
+    }
+    function igual(i0, xx, yy) { if (xx < 0 || yy < 0 || xx >= w || yy >= h) return false; var j = yy * w + xx; return marca[j] === marca[i0] && idx[j] === idx[i0]; }
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+      i = y * w + x;
+      if (!marca[i] || !(igual(i, x - 1, y) || igual(i, x + 1, y) || igual(i, x, y - 1) || igual(i, x, y + 1))) continue;
+      out[i] = marca[i] === 1 ? TOM_LUZ[idx[i]] : TOM_FUNDO[idx[i]];
+    }
+    return out;
+  }
+  // as cores dos índices 16–19 (luz e sombra profunda da pelagem e da crina), das cores por papel já na mestra: 1 degrau
+  // acima e 2 abaixo na rampa (sem o luz.js, clareada e escurecida)
+  function coresTons(cores) {
+    var Lz = luzApi();
+    function t(c, n) { return Lz ? Lz.degrau(c, n) : (n > 0 ? light(c, 0.25) : shade(c, 0.55)); }
+    return [t(cores[2], 1), t(cores[2], -2), t(cores[4], 1), t(cores[4], -2)];
   }
   // a cor da crina (papel 4) do molde nas opções do drawHorse; o brilho da raridade escolhe a cor por ela
   function corCrina(o) {
@@ -1211,11 +1247,13 @@
   // Índices 10–15 por cima dos papéis: 10–12 = camada das marcas (1 branco, 2 branco-sombra, 3 escuro),
   // 13–15 = camada do jóquei (1 tom 2 da seda, 2 capacete, 3 manta). As camadas não se cruzam (marcas só na
   // pelagem, jóquei só na roupa e na sela).
-  function indicesComCamadas(idx, w, h, ancora, v) {
+  // (base: os índices já sombreados, que ficam fora das camadas; as camadas saem dos papéis originais)
+  function indicesComCamadas(idx, w, h, ancora, v, base) {
     var cm = v.marcas ? v.MK.camadaMarcas(idx, w, h, ancora, v.marcas, v.semente) : null;
     var cj = v.padrao ? v.MK.camadaJoquei(idx, w, h, ancora, v.padrao) : null;
     var out = new Uint8Array(w * h);
-    for (var i = 0; i < w * h; i++) out[i] = cm && cm[i] ? 9 + cm[i] : (cj && cj[i] ? 12 + cj[i] : idx[i]);
+    base = base || idx;
+    for (var i = 0; i < w * h; i++) out[i] = cm && cm[i] ? 9 + cm[i] : (cj && cj[i] ? 12 + cj[i] : base[i]);
     return out;
   }
   function coresComCamadas(cores, v) {
@@ -1237,9 +1275,9 @@
     var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
     var c = moldCache.get(key);
     if (!c) {
-      var M = moldes[nome], idx = indicesMolde(M, estado, quadro);
-      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v), M.w, M.h, coresNaMestra(coresComCamadas(cores, v)))
-        : pintaIndices(idx, M.w, M.h, cores);
+      var M = moldes[nome], idx = indicesMolde(M, estado, quadro), sb = sombreiaPelagem(idx, M.w, M.h), tons = coresTons(cores);
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v, sb), M.w, M.h, coresNaMestra(coresComCamadas(cores, v)).concat(tons))
+        : pintaIndices(sb, M.w, M.h, cores.concat([null, null, null, null, null, null], tons));
       moldCache.set(key, c);
     }
     return c;
@@ -3011,7 +3049,7 @@
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y, MOLDE_CORES_FIXAS: MOLDE_CORES_FIXAS,
-    pixelsSombra: pixelsSombra, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes,
+    pixelsSombra: pixelsSombra, sombreiaPelagem: sombreiaPelagem, coresTons: coresTons, chaoDaImagem: chaoDaImagem, corDoPiso: corDoPiso, corDoChaoEm: corDoChaoEm, drawSombraPes: drawSombraPes,
     // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
     // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
     ANCHORS: ANCHORS,

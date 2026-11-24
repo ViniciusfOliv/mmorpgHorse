@@ -2175,8 +2175,9 @@ test('com moldes (sintéticos): sem as opções novas, o mesmo desenho de hoje (
     var sig = casos.map(function (o) { return assinatura(desenhaCav(o, 50, 40)); }).join('\n');
     // assinatura do desenho sem as opções novas, com este mesmo molde sintético: era b16463ea (sprites.js em 91c48ab, antes da
     // parte 2a); desde a etapa 1b da direção de arte (2026-11-21) as cores saem da paleta-mestra (30adc27e); desde a etapa 0
-    // da animação ambiente (2026-11-24) a sombra translúcida saiu (a opaca é outra imagem, em c.sombras), o resto igual
-    assert.strictEqual(fnvTexto(sig), '801eda5');
+    // da animação ambiente (2026-11-24) a sombra translúcida saiu (a opaca é outra imagem, em c.sombras: 801eda5); desde a
+    // etapa 0.3 a pelagem e a crina têm 4 tons (sombreiaPelagem, moldes-test), o resto igual
+    assert.strictEqual(fnvTexto(sig), 'c5f16e2e');
   });
 });
 

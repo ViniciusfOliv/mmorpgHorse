@@ -2984,5 +2984,66 @@ console.log('\n## Sombra do cavalo: opaca, na rampa do chão, 2 px para a direit
   }
 }
 
+console.log('\n## Pelagem e crina em 4 tons (sombreado por código) e marcas sem xadrez');
+{
+  const req = createRequire(import.meta.url), SP = req('../src/sprites.js'), LUZ = req('../src/luz.js'), MK = req('../src/marcas.js');
+  const CH = [...new Set(fs.readdirSync(DIR).filter((f) => /^molde-.*\.json$/.test(f)).map((f) => f.slice(6, -5)))];
+  const EST = ['retrato', 'parado', ...Array.from({ length: 9 }, (_, i) => 'galope-' + i)];
+  const ler = (c, est) => {
+    const f = path.join(DIR, `molde-${c}-${est}.png`); if (!fs.existsSync(f)) return null;
+    const d = decodePng(fs.readFileSync(f)), idx = new Uint8Array(4096);
+    for (let i = 0; i < 4096; i++) idx[i] = d.rgba[i * 4 + 3] < 128 ? 0 : Math.round(d.rgba[i * 4] / 25);
+    return idx;
+  };
+  const DE = { 16: 2, 17: 3, 18: 4, 19: 5 };
+  test('os 12 moldes', () => assert.strictEqual(CH.length, 12));
+  for (const c of CH) test(`${c}: 4 tons de pelo e 4 de crina no molde; por quadro, ≥ 3 de pelo e ≥ 2 de crina; só papéis 2–5 mudam, em massas`, () => {
+    const pelo = new Set(), crina = new Set();
+    for (const est of EST) {
+      const idx = ler(c, est); if (!idx) continue;
+      const o = SP.sombreiaPelagem(idx, 64, 64), n = {};
+      for (let i = 0; i < 4096; i++) {
+        n[o[i]] = (n[o[i]] || 0) + 1;
+        if (o[i] === idx[i]) continue;
+        assert.strictEqual(DE[o[i]], idx[i], `${est}: pixel ${i} foi de ${idx[i]} para ${o[i]}`);
+        const x = i & 63, y = i >> 6, viz = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => x + a >= 0 && x + a < 64 && y + b >= 0 && y + b < 64 && o[(y + b) * 64 + x + a] === o[i]);
+        assert.ok(viz.length, `${est}: pixel solto de tom ${o[i]} em (${x}, ${y})`);
+      }
+      const tp = [2, 3, 16, 17].filter((k) => n[k]), tc = [4, 5, 18, 19].filter((k) => n[k]);
+      tp.forEach((k) => pelo.add(k)); tc.forEach((k) => crina.add(k));
+      assert.ok(tp.length >= 3, `${est}: ${tp.length} tons de pelo`); assert.ok(tc.length >= 2, `${est}: ${tc.length} tons de crina`);
+    }
+    assert.strictEqual(pelo.size, 4, 'tons de pelo no molde'); assert.strictEqual(crina.size, 4, 'tons de crina no molde');
+  });
+  test('cores dos 4 tons: da Resurrect 64, da mesma rampa, do claro ao escuro (4 distintos; 2 nas cores da ponta escura da rampa, como a crina preta)', () => {
+    const R64 = new Set([].concat(...Object.values(LUZ.RAMPAS)));
+    for (const [nome, pal] of Object.entries(SP.PALETTES)) for (const [base] of [[pal.coat], [pal.mane]]) {
+      const b = SP.naMestra(base).toLowerCase(), tons = [LUZ.degrau(b, 1), b, LUZ.degrau(b, -1), LUZ.degrau(b, -2)];
+      const t2 = SP.coresTons([null, null, b, null, b]);
+      assert.deepStrictEqual([t2[0], t2[1]], [tons[0], tons[3]], `${nome}: coresTons segue os degraus`);
+      tons.forEach((t) => assert.ok(R64.has(t), `${nome}: ${t} fora da paleta`));
+      for (let i = 1; i < 4; i++) assert.ok(LUZ.valor(tons[i]) <= LUZ.valor(tons[i - 1]), `${nome}: ${tons} fora de ordem`);
+      const dist = new Set(tons).size, escura = LUZ.RAMPAS[LUZ.rampaDe(b)].indexOf(b) < 2;
+      assert.ok(dist >= (escura ? 2 : 4), `${nome} ${b}: só ${dist} tons distintos (${tons})`);
+    }
+  });
+  test('marcas do corpo (malhado, pintado, ruão) sem xadrez 1×1 regular maior que 4×4, nos 12 moldes e 20 sementes', () => {
+    for (const c of CH) {
+      const idx = ler(c, 'parado'), anc = JSON.parse(fs.readFileSync(path.join(DIR, `molde-${c}.json`), 'utf8')).ancoras.parado;
+      for (const corpo of ['malhado', 'pintado', 'ruao']) for (let sem = 1; sem <= 20; sem++) {
+        const m = MK.camadaMarcas(idx, 64, 64, anc, { cara: 'nenhuma', patas: 0, corpo }, sem);
+        for (let y = 0; y + 5 <= 64; y++) for (let x = 0; x + 5 <= 64; x++) {
+          let par = 0, impar = 0, todos = true;
+          for (let b = 0; b < 5 && todos; b++) for (let a = 0; a < 5; a++) {
+            const i = (y + b) * 64 + x + a; if (idx[i] !== 2 && idx[i] !== 3) { todos = false; break; }
+            const marc = m[i] ? 1 : 0; if (((a + b) & 1) === marc) par++; else impar++;
+          }
+          assert.ok(!todos || (par !== 25 && impar !== 25), `${c} ${corpo} semente ${sem}: xadrez 1×1 em (${x}, ${y})`);
+        }
+      }
+    }
+  });
+}
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
