@@ -16483,7 +16483,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var estrela = ic('ui-estrela'), insignia = ic('ins-' + g.element);
     if (falta) return null;
     var amb = null;
-    try { amb = window.Ambiente && typeof window.Ambiente.cena === 'function' ? window.Ambiente.cena('mapa:' + g.element) : null; } catch (e) { amb = null; }
+    try { amb = window.Ambiente && typeof window.Ambiente.cena === 'function' ? window.Ambiente.cena('mapa:' + g.element, { imagem: mapa, caminho: MP.mascaraCaminho() }) : null; } catch (e) { amb = null; }
     var op = { el: g.element, sprites: SP, cavalo: null, ambiente: amb };
     tr = MP.trilha({ mapa: mapa, corpos: corpos, estrela: estrela, insignia: insignia }, op);
     if (tr) { tr.op = op; tr.p = null; mapaArte.trilhas[id] = tr; }
