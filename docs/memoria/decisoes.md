@@ -16,6 +16,11 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   automática não separa o olho das linhas da cara do robusto-folhas).
 - **Na Fornalha, o pico da esquerda vira vulcão por código** (cratera, fios de lava, fumaça, bombas) — a arena gerada
   não tem vulcão; dá para desligar e comparar, e o `/v2/vfx` fica de reserva se o Vinicius não gostar.
+- **Integração do personagem antes de animar mais coisa** (pedido da coordenação, guia `docs/arte/integracao.md`,
+  2026-11-24) — o plano ganhou a etapa 0 com os P1 só de código; as etapas de animação vêm depois.
+- **Pelagem em 4 tons por sombreado de código, não pelos crus** (2026-11-24) — medido: os crus dos moldes têm quase só
+  2 tons de pelagem (vermelho claro e escuro) e os quadros do idle vêm planos; o sombreado pela silhueta e pela luz de
+  cima e da esquerda é o mesmo em todos os quadros, e eles batem entre si.
 - **Cata-vento do Planalto: fundo pelo PixelLab, rotor por código** (2026-11-24) — as pás pintadas eram assimétricas
   (6 braços) e não ficariam bonitas girando; o `/inpaint` (1 geração; o Pro custaria 10–20) refez o fundo depois que a
   entrada veio sem as pás (com elas, o modelo as repintava), e o rotor de treliça é rasterizado na grade em 24 ângulos.

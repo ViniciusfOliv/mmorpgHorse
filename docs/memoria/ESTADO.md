@@ -39,7 +39,11 @@ de integração a caminho). **Opcionais rodados**: cavar com jóquei nos 12 mold
 Planalto sem as pás (3 gerações de `/inpaint` + preenchimento por código; rotor de 4 pás por código, cena nova
 "Planalto · cata-vento" na amostra). Sombra de contato sob os cavalos já na amostra (versão 5). **Plano escrito**:
 `docs/superpowers/plans/2026-11-24-animacao-ambiente.md` (6 etapas; divisão com o chat do mapa: esta frente faz o
-ambiente dentro dos mapas das trilhas). **Próximo:** aprovação do plano pelo Vinicius (via coordenação); nada no jogo
+ambiente dentro dos mapas das trilhas). O **guia de integração visual** (`docs/arte/integracao.md`, na `main` desde 93d4741) entrou no
+plano como **etapa 0, antes de animar mais coisa**: os P1 só de código (sombra opaca na rampa do chão, LUT de luz e
+clima por rampa no atlas, pelagem dos moldes em 4 tons por sombreado de código — os crus têm quase só 2 tons —,
+constantes na paleta, contato e casco sem patinar com base de quadros comum de 12 q/s, leitura por valor); D1–D6 com o
+Vinicius, nada da etapa 0 depende delas. **Próximo:** aprovação do plano pelo Vinicius (via coordenação); nada no jogo
 antes. Total gasto na frente: 53 gerações (saldo 848; caiu 14 a mais no período, provavelmente outro chat na mesma conta). O olho de cada molde deve virar âncora no JSON (a busca automática
 falha no robusto-folhas; na amostra está à mão).
 
