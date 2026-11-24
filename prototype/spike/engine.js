@@ -11,7 +11,7 @@
 (function () {
   'use strict';
   var SP = window.Sprites, FX = window.RaceFx, GD = window.GameData;
-  var VERSAO = 'spike-engine v3 (2026-11-19)';
+  var VERSAO = 'spike-engine v4 (2026-11-24)';
   function el(id) { return document.getElementById(id); }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function hsh(i, s) { var x = Math.sin(i * 127.1 + (s || 0) * 311.7) * 43758.5453; return x - Math.floor(x); }
@@ -27,9 +27,14 @@
   // ===================================================================
   // Configuração (o que os botões mudam)
   // ===================================================================
-  var CAMADAS = ['cenario', 'parallax', 'clima', 'poeira', 'skills', 'camera', 'hud'];
-  var CFG = { n: 12, escala: 'jogo', clima: 'ciclo', limite: 'livre', camadas: {} };   // limite '60': desenha no máximo a 60 FPS
-  CAMADAS.forEach(function (c) { CFG.camadas[c] = true; });
+  // v4 (2026-11-24, animação ambiente, etapa 6): o cenário é o das regiões do jogo (CFG.regiao), com a camada 'ambiente'
+  // (a região viva do ambiente.js) e o que a etapa 0 pôs na corrida (sombra opaca, contato, sombra da cerca, poeira de
+  // pouso, luz do clima nos cavalos). O parallax extra da v3 (ambição de 2026-11-19) fica desligado por padrão: as
+  // camadas da região já são o parallax do jogo.
+  var CAMADAS = ['cenario', 'ambiente', 'parallax', 'clima', 'poeira', 'skills', 'camera', 'hud'];
+  var CFG = { n: 12, escala: 'jogo', clima: 'ciclo', limite: 'livre', regiao: 'litoral', camadas: {} };   // limite '60': desenha no máximo a 60 FPS
+  CAMADAS.forEach(function (c) { CFG.camadas[c] = c !== 'parallax'; });
+  var CLIMAS = ['sol', 'chuva', 'nevoa', 'nublado'];
   var CANVAS_MAX_PX = 1500000;   // o mesmo teto do game.js
 
   // ===================================================================
@@ -82,7 +87,7 @@
     c.fillRect = function (a, b, w, h) { CHAM.n++; return fr.call(this, a, b, w, h); };
     c.drawImage = function () { CHAM.n++; return di.apply(this, arguments); };
   });
-  var L = null, PARA = null;
+  var L = null, PARA = null, POUSOS = [];
 
   function reducaoEscala(S, artPx) {
     var melhor = 1;
@@ -121,7 +126,12 @@
     ctxTela.imageSmoothingEnabled = false; ctxMundo.imageSmoothingEnabled = false;
     // cada cavalo montado já na largada, como o game.js (Sprites.prepararCavalo: parado e galope recoloridos)
     SP.limparCacheMoldes();
-    for (var j = 0; j < n; j++) SP.prepararCavalo(opcoesCavalo(j, 0, false, 0));
+    for (var j = 0; j < n; j++) CLIMAS.forEach(function (cl) { var o = opcoesCavalo(j, 0, false, 0); o.clima = cl; SP.prepararCavalo(o); });
+    POUSOS = []; for (j = 0; j < n; j++) POUSOS.push({ q: -1, lista: [] });
+    if (SP.regiaoPronta(CFG.regiao)) {
+      SP.prepararRegiao(CFG.regiao, ['nublado', 'chuva', 'nevoa']);
+      if (CFG.camadas.ambiente && SP.prepararRegiaoViva) SP.prepararRegiaoViva(CFG.regiao, CFG.clima === 'ciclo' ? CLIMAS : [CFG.clima]);
+    }
     PARA = gerarParallax();
     ORD.html = '';
   }
@@ -293,6 +303,7 @@
     var p = pos[me], cam = Math.max(-0.3 * visM, p - 0.48 * visM), camArt = cam * L.ppmArt;
     var camTela = { c: cam + visM / 2, meia: visM / 2 };
     var laneH = L.lane * S, laneTop = L.top * S, clima = climaEm(T);
+    var chao = SP.corDoPiso(PISO, clima, CFG.regiao);   // a sombra opaca, o contato e a poeira de pouso nesse piso e clima
     function arcoArt(m) { return Math.round(-FX.curveOffsetTela(CURVAS, m, camTela) * L.arcoK) || 0; }
     if (C.skills) geraOndas(T);
     var ctx = C.camera ? ctxMundo : ctxTela;
@@ -301,9 +312,10 @@
 
     // ---- cenário (Sprites.drawTrack: céu, serras, arquibancada, cerca, raias, placas)
     if (C.cenario) {
-      SP.drawTrack(ctx, { width: W, height: H, cameraX: cam, pxPerMeter: ppm, lanes: n, laneTop: laneTop, laneH: laneH,
+      SP.drawTrack(ctx, { width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: cam * ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: PISO, finishM: D, hills: MORROS, curves: CURVAS, distanceMarkersEvery: 200, t: T, weather: clima, pixel: S,
-        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK });
+        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao, vivo: !!C.ambiente });
+      SP.drawSombraCerca(ctx, W, laneTop, cam * ppm, S, chao);
     } else {
       ctx.fillStyle = '#6fa8d8'; ctx.fillRect(0, 0, W, laneTop);
       ctx.fillStyle = '#8a6440'; ctx.fillRect(0, laneTop, W, H - laneTop);
@@ -327,7 +339,9 @@
       var lift = SP.hillLiftAt(hoofM, MORROS, L.maxLift) * S, arcoJ = arcoArt(hoofM);
       var feetY = laneTop + (j + 1) * laneH - 3 * S - lift - arcoJ * S, y = feetY - (SP.FOOT_Y + 1) * S;
       var x = Math.round(((pos[j] - cam) * ppm - an.nose[0] * S) / S) * S;
-      var o = opcoesCavalo(j, R.gal[j], false, T), caixa = SP.horseBox(x, y, o);
+      var o = opcoesCavalo(j, R.gal[j], false, T);
+      o.chao = chao; o.clima = clima;
+      var caixa = SP.horseBox(x, y, o);
       if (caixa.x > W || caixa.x + caixa.w < 0) continue;
       var meus = [];
       if (C.skills) for (var ii = 0; ii < ITENS.length; ii++) if (ITENS[ii].racer === j && T >= ITENS[ii].t0 && T < ITENS[ii].t1) meus.push(ITENS[ii]);
@@ -347,13 +361,21 @@
       }
       if (rastro) SP.drawTrail(ctx, x + an.rear[0] * S, y + an.rear[1] * S, c.el, T + j * 0.31, 1, S);
       if (C.poeira) {
-        FX.drawHoofDust(ctx, x + an.rear[0] * S, feetY, S, T + j * 0.37, PISO, false);
+        // poeira de pouso (etapa 0): nasce no quadro em que o casco pousa, presa ao chão, em 2 tons do chão
+        var cascos = SP.cascosNaTela(x, y, o), pj = POUSOS[j];
+        if (cascos && pj) {
+          if (cascos.quadro !== pj.q) { if (pj.q >= 0) cascos.pousos.forEach(function (px) { pj.lista.push({ t0: T, xa: (px + cam * ppm) / S }); }); pj.q = cascos.quadro; }
+          pj.lista = pj.lista.filter(function (pz) { return T - pz.t0 < FX.POUSO_S; });
+          var corP = window.Luz.degrau(chao, 1), bordaP = window.Luz.degrau(chao, 2);
+          pj.lista.forEach(function (pz) { FX.drawPoeiraPouso(ctx, pz.xa * S - cam * ppm, feetY, S, T - pz.t0, corP, bordaP); });
+        } else FX.drawHoofDust(ctx, x + an.rear[0] * S, feetY, S, T + j * 0.37, PISO, false);
         // torrões de terra (partículas da página), presos ao chão do mundo
         var xr = (x + an.rear[0] * S) / S + camArt, yr = feetY / S;
         for (var tq = 0; tq < 2; tq++) if (prng() < dt * 6) emite(xr - prng() * 3, yr - 1, -10 - prng() * 25, -25 - prng() * 35, 0.35 + prng() * 0.25, 160, 1, prng() < 0.5 ? 9 : 10);
       }
       if (gl) SP.drawHorseSilhouette(ctx, x, y, o, gl.cor, gl.alpha);
       SP.drawHorse(ctx, x, y, o);
+      if (C.cenario) SP.drawContatoRaia(ctx, caixa.x - 4 * S, caixa.x + caixa.w + 4 * S, feetY, cam * ppm, S, chao);
       for (m = 0; m < meus.length; m++) {
         FX.drawSkillAura(ctx, { x: caixa.x, y: caixa.y, w: caixa.w, h: caixa.h, S: S }, meus[m], T, false);
         if (meus[m].kind === 'skill' && !meus[m].explodiu) { meus[m].explodiu = true; explosao((caixa.x + caixa.w / 2) / S + camArt, (caixa.y + caixa.h / 2) / S, meus[m].element); }
@@ -372,6 +394,7 @@
         if (FX.drawBalloon(ctx, bx * S, by * S, S, it, T, b, null)) b++;
       }
     });
+    if (C.cenario) SP.drawTrackFront(ctx);   // o primeiro plano da região (capim; vivo com o ambiente)
     if (C.parallax) desenhaFaixa(ctx, PARA.frente, 1.35, cam * ppm, H, 1);
     if (C.clima) { natO.camada = 'frente'; FX.drawNature(ctx, natO); FX.drawFogFront(ctx, natO); }
     var youV = vis.filter(function (v) { return v.j === me; })[0];
@@ -551,15 +574,18 @@
   // ===================================================================
   // Bateria e rodada livre
   // ===================================================================
-  var TUDO = {}; CAMADAS.forEach(function (c) { TUDO[c] = true; });
-  function sem(lista) { var o = {}; CAMADAS.forEach(function (c) { o[c] = lista.indexOf(c) < 0; }); return o; }
+  var TUDO = {}; CAMADAS.forEach(function (c) { TUDO[c] = c !== 'parallax'; });
+  function sem(lista) { var o = {}; CAMADAS.forEach(function (c) { o[c] = lista.indexOf(c) < 0 && c !== 'parallax'; }); return o; }
+  // a rodada da etapa 6 da animação ambiente (docs/teste-engine.md §7): 60 s travada em 60 FPS no pior caso do jogo
+  var ETAPA6 = { nome: 'ETAPA 6: 12 cavalos, Litoral vivo, chuva + ventania, travado em 60 FPS, 60 s', n: 12, escala: 'jogo',
+    camadas: TUDO, clima: 'chuva', regiao: 'litoral', limite: '60', s: 60 };
   var FASES = [
     { nome: 'PIOR CASO: 12 cavalos, escala jogo, tudo ligado', n: 12, escala: 'jogo', camadas: TUDO, limite: 'livre', s: 12 },
     { nome: 'PIOR CASO travado em 60 FPS', n: 12, escala: 'jogo', camadas: TUDO, limite: '60', s: 10 },
     { nome: '12, escala nativo, tudo', n: 12, escala: 'nativo', camadas: TUDO, limite: 'livre', s: 6 },
     { nome: '12, jogo, sem clima/poeira/skills', n: 12, escala: 'jogo', camadas: sem(['clima', 'poeira', 'skills']), limite: 'livre', s: 6 },
     { nome: '12, jogo, sem câmera (sem zoom)', n: 12, escala: 'jogo', camadas: sem(['camera']), limite: 'livre', s: 6 },
-    { nome: '12, jogo, sem parallax extra', n: 12, escala: 'jogo', camadas: sem(['parallax']), limite: 'livre', s: 6 },
+    { nome: '12, jogo, sem o ambiente vivo (camadas paradas)', n: 12, escala: 'jogo', camadas: sem(['parallax', 'ambiente']), limite: 'livre', s: 6 },
     { nome: '12, jogo, sem cenário (drawTrack)', n: 12, escala: 'jogo', camadas: sem(['cenario']), limite: 'livre', s: 6 },
     { nome: '12, escala 3x, tudo', n: 12, escala: '3x', camadas: TUDO, limite: 'livre', s: 6 },
     { nome: '12, escala 2x, tudo', n: 12, escala: '2x', camadas: TUDO, limite: 'livre', s: 6 },
@@ -573,6 +599,7 @@
     if (c.escala) CFG.escala = c.escala;
     if (c.clima) CFG.clima = c.clima;
     if (c.limite) CFG.limite = c.limite;
+    if (c.regiao) CFG.regiao = c.regiao;
     if (c.camadas) CAMADAS.forEach(function (k) { if (k in c.camadas) CFG.camadas[k] = !!c.camadas[k]; });
     montar(); reinicia(); marcaBotoes();
   }
@@ -587,7 +614,7 @@
           i++;
           if (i >= fases.length) { GRAV = null; RODADA = null; return ok(res); }
           var f = fases[i];
-          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite });
+          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite, regiao: f.regiao || CFG.regiao });
           GRAV = novaGravacao(f.nome); GRAV.res = L.W + '×' + L.H + ' (S' + L.S + ')';
           var restante = f.s * 1000 * fator + 500;
           el('estado').textContent = titulo + ': fase ' + (i + 1) + ' de ' + fases.length + ' — ' + f.nome;
@@ -629,8 +656,16 @@
       linhas.push((i + 1) + '. ' + f.nome + (f.oculto ? ' (ABA ESCONDIDA: descartar)' : '') + ' | ' + f.res + ' | ' + f1(s.fps) + ' | ' + f1(s.low1) + ' | ' + f1(s.msMed) +
         ' | ' + f1(s.msP99) + ' | ' + s.lentos + '/' + s.quadros + ' | ' + f1(s.jsMed) + '/' + f1(s.jsP95) + ' | ' + s.part + ' | ' + s.cham);
     });
+    r.fases.forEach(function (f) {
+      if (f.nome !== ETAPA6.nome || !f.st) return;
+      var pct = 100 * f.st.lentos / f.st.quadros, ok1 = pct <= 1, ok2 = f.st.low1 >= 55;
+      linhas.push('');
+      linhas.push('Critério da etapa 6: quadros acima de 20 ms ≤ 1% → ' + f1(pct) + '% (' + (ok1 ? 'ok' : 'NÃO') + ') · 1% low ≥ 55 → ' + f1(f.st.low1) + ' (' + (ok2 ? 'ok' : 'NÃO') + ')');
+      linhas.push('RESULTADO: ' + (ok1 && ok2 ? 'APROVADO' : 'REPROVADO') + (f.oculto ? ' (a aba ficou escondida: rodar de novo)' : ''));
+      if (f.st.sec) linhas.push('JS por parte (méd/p95/máx ms): ' + f.st.sec.map(function (q) { return { cen: 'cenário', cav: 'cavalos', efe: 'efeitos', cam: 'câmera', hud: 'HUD' }[q.k] + ' ' + f1(q.med) + '/' + f1(q.p95) + '/' + f1(q.max); }).join(' · '));
+    });
     var p = r.fases[0] && r.fases[0].st;
-    if (p) {
+    if (p && r.fases[0].nome !== ETAPA6.nome) {
       linhas.push('');
       linhas.push('Por clima na fase 1: ' + Object.keys(p.porClima).map(function (k) { return k + ' ' + f1(p.porClima[k].fps) + ' (1% ' + f1(p.porClima[k].low) + ')'; }).join(' · '));
       var NOMES_SEC = { cen: 'cenário', cav: 'cavalos', efe: 'efeitos', cam: 'câmera', hud: 'HUD' };
@@ -658,7 +693,7 @@
   var travado = false;
   function travar(v) {
     travado = v;
-    document.querySelectorAll('.controles button, #b-bateria, #b-livre').forEach(function (b) { b.disabled = v; });
+    document.querySelectorAll('.controles button, #b-bateria, #b-livre, #b-etapa6').forEach(function (b) { b.disabled = v; });
   }
   function marcaBotoes() {
     document.querySelectorAll('.seg').forEach(function (g) {
@@ -681,6 +716,7 @@
     aplicar(c);
   });
   el('b-bateria').addEventListener('click', function () { rodar(FASES, 1, 'Bateria'); });
+  el('b-etapa6').addEventListener('click', function () { rodar([ETAPA6], 1, 'Etapa 6'); });
   el('b-livre').addEventListener('click', function () {
     rodar([{ nome: 'Rodada livre: ' + CFG.n + ' cavalos, escala ' + CFG.escala + ', limite ' + CFG.limite + ', camadas ' + CAMADAS.filter(function (c) { return CFG.camadas[c]; }).join('+'), s: 60 }], 1, 'Rodada livre');
   });
@@ -703,6 +739,21 @@
     img.onload = function () { prontas[nome] = img; FX.setIconImages(prontas); };
     img.src = M[nome];
   });
+  // as camadas das regiões (window.__REGIOES) e o motor do ambiente (Ambiente.regiao), como o game.js
+  var REG = window.__REGIOES || {}, regProntas = {};
+  Object.keys(REG).forEach(function (r) {
+    var cam = REG[r].camadas || {}, reg = { posicao: REG[r].posicao || {}, camadas: {}, nevoa: REG[r].nevoa || null }, ks = Object.keys(cam), falta = ks.length;
+    ks.forEach(function (k) {
+      var img = new Image();
+      img.onload = function () { reg.camadas[k] = img; if (--falta === 0) { regProntas[r] = reg; SP.setRegioes(regProntas); if (comecou && r === CFG.regiao && !travado) montar(); } };
+      img.src = cam[k];
+    });
+  });
+  if (window.Ambiente && SP.setAmbiente) SP.setAmbiente(function (id, imgs, lut, opts) {
+    if (!window.Ambiente.REGIOES_VIVAS[id]) return null;
+    window.Ambiente.dados({ manifesto: window.__ANIM_MANIFESTO });
+    return window.Ambiente.regiao(id, imgs, lut, opts);
+  });
   var comecou = false;
   function comeca() {
     if (comecou) return; comecou = true;
@@ -711,7 +762,7 @@
     api.pronto = true;
   }
   var api = {
-    pronto: false, cfg: CFG, aplicar: aplicar, fases: FASES,
+    pronto: false, cfg: CFG, aplicar: aplicar, fases: FASES, etapa6: ETAPA6,
     bateria: function (o) { o = o || {}; return rodar(o.fases || FASES, o.fator || 1, o.titulo || 'Bateria'); },
     ultimo: function () { return ULTIMO; }, texto: function () { return ULTIMO ? textoResumo(ULTIMO) : ''; },
     moldes: function () { return SP.moldsReady; }

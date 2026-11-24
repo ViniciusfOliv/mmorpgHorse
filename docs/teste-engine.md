@@ -269,6 +269,25 @@ Os motivos:
 **Quando reabrir o Godot:** só se um aparelho-alvo ficar abaixo de 45 FPS no 1% low **até em escala 1×**, onde quase
 não há pixel para preencher. Isso mostraria que o limite é a WebView em si.
 
+### 7.1 Rodada da etapa 6 da animação ambiente (spike v4, 2026-11-24)
+
+O spike v4 desenha o cenário das regiões do jogo, com a região viva do `ambiente.js` (camada "Ambiente vivo"). Também
+desenha o que a etapa 0 pôs na corrida: sombra opaca, contato da raia, sombra da cerca, poeira de pouso e a luz do
+clima nos cavalos. O parallax extra da v3 ficou desligado, porque as camadas da região já fazem esse papel. O botão
+**"Etapa 6: rodada de 60 s"** roda o pior caso de hoje: 12 cavalos, Litoral vivo, chuva e ventania, travado em 60 FPS.
+O resumo traz o veredito:
+
+- **Critério:** no máximo 1% dos quadros acima de 20 ms e 1% low de pelo menos 55.
+- **Artefato:** https://claude.ai/artifact/4CGJheLECVrZRwuynZi3jH
+- **Contêiner, desktop 1280, CPU 1×** (40 a 60 s cada, quatro rodadas alternadas):
+  - com o ambiente vivo: 0 e 1 quadro acima de 20 ms, 1% low de 59,5 e 57,2;
+  - com as camadas paradas: 7 e 0 quadros, 1% low de 37,8 e 59,5.
+  - Os poucos picos são ruído da máquina e aparecem com e sem o ambiente.
+  - O ambiente soma cerca de 0,4 ms de JS no cenário.
+- **CPU 4×:** reprova, porque o canvas é rasterizado na CPU (a cópia da câmera do spike leva 29 ms). Como na seção 2,
+  esse número só compara camadas. **O que decide é o celular.**
+- **Como medir no contêiner:** `node prototype/spike/medir-engine.mjs --etapa6 [--so desktop]`.
+
 ## 8. Além de web e Godot: outras opções, com jogos de referência
 
 _Pergunta do Vinicius (2026-11-19, depois de decidir que o jogo também vai para a Steam)._ Todas as alternativas

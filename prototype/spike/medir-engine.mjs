@@ -1,6 +1,6 @@
 // Spike do teste de engine — roda a bateria do engine.html no Chromium do contêiner (Playwright já instalado).
 //   node prototype/spike/medir-engine.mjs [--fator 1] [--so desktop,celular,celular-4x,celular-6x] [--captura arquivo.png]
-//                                         [--sem-vsync] [--json arquivo.json]
+//                                         [--sem-vsync] [--json arquivo.json] [--etapa6]
 // --sem-vsync: o Chromium não espera a tela (rAF sem limite de 60 Hz): o FPS vira o teto, a folga que sobra.
 // Cada cenário abre a página (embrulhada num documento, como o artefato faz), espera os moldes, roda a bateria e
 // imprime o resumo. Atenção: no contêiner o Chromium desenha o canvas na CPU (sem GPU), então os números servem para
@@ -51,7 +51,8 @@ for (const nome of so) {
   await page.waitForTimeout(1500)
   if (captura && nome === so[0]) await page.screenshot({ path: captura, fullPage: true })
   const t0 = Date.now()
-  const r = await page.evaluate((f) => window.__spikeEngine.bateria({ fator: f }), fator)
+  // --etapa6: só a rodada da etapa 6 da animação ambiente (60 s travada em 60 FPS no pior caso de hoje)
+  const r = await page.evaluate(([f, e6]) => e6 ? window.__spikeEngine.bateria({ fases: [window.__spikeEngine.etapa6], fator: f, titulo: 'Etapa 6' }) : window.__spikeEngine.bateria({ fator: f }), [fator, args.includes('--etapa6')])
   const texto = await page.evaluate(() => window.__spikeEngine.texto())
   console.log(`\n===== ${nome}${semVsync ? ' SEM VSYNC' : ''} (CPU ${c.cpu}×, moldes ${moldes ? 'sim' : 'NÃO'}, ${((Date.now() - t0) / 1000).toFixed(0)} s) =====`)
   console.log(texto)
