@@ -8719,16 +8719,38 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         });
         if (!Object.keys(gestos).length) gestos = null;
       }
-      r = { anim: new IdleMolde(M, estado, sem * 2654435761 + estado.length, gestos), chave: '', canvas: null };
+      // pintados: os quadros do idle já pintados (a respiração e as orelhas voltam aos mesmos estados; repintar custava
+      // ~1 ms a cada troca na cena do desafio)
+      r = { anim: new IdleMolde(M, estado, sem * 2654435761 + estado.length, gestos), chave: '', canvas: null, pintados: new Map() };
       if (idleRegistro.size > 48) idleRegistro.clear();
       idleRegistro.set(k, r);
     }
     var t = Number(o.t) || 0;
-    r.anim.agenda(t);
-    var chave = r.anim.monta(t) + '#' + chaveCores(o);
     // sem marcas nas vistas de frente e de costas (decisão do Vinicius para a v1 da cena de desafio nova)
     var oP = IDLE_GESTOS_ESTADO[estado] ? Object.assign({}, o, { marcas: null }) : o;
-    if (chave !== r.chave || !r.canvas) { r.chave = chave; r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP, estado === 'frente' || estado === 'costas'); }
+    var cc = '#' + chaveCores(o), vista = estado === 'frente' || estado === 'costas';
+    if (o.anima === 'cena' && !r.aquecido) {
+      // as cenas (poucos cavalos): os estados dos próximos segundos pintados já na montagem, por um animador à parte com a
+      // mesma semente (os eventos saem da RNG cosmética e do t: os mesmos do animador de verdade) — sem isso, o 1º ciclo
+      // pintava um estado novo a cada troca (~0,5 ms cada)
+      r.aquecido = true;
+      var aq = new IdleMolde(M, estado, sem * 2654435761 + estado.length, null), fim = t + aq.respira + 0.5;
+      for (var ta = t; ta < fim && r.pintados.size < 40; ta += 1 / 14) {
+        aq.agenda(ta);
+        var ka = aq.monta(ta) + cc;
+        if (!r.pintados.has(ka)) r.pintados.set(ka, pintaMolde(M, aq.mapa, M.ancoras[estado], oP, vista));
+      }
+    }
+    r.anim.agenda(t);
+    var chave = r.anim.monta(t) + cc;
+    if (chave !== r.chave || !r.canvas) {
+      r.chave = chave; r.canvas = r.pintados.get(chave);
+      if (!r.canvas) {
+        r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP, vista);
+        if (r.pintados.size >= 48) r.pintados.clear();
+        r.pintados.set(chave, r.canvas);
+      }
+    }
     return r.canvas;
   }
 
@@ -8747,6 +8769,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // parado vivo (o.anima): o mapa montado pelo idle; fora isso (e no movimento reduzido), o quadro do molde
     var vivo = o.anima && !o.reduzido && (estado === 'parado' || estado === 'retrato' || estado === 'frente' || estado === 'costas');
     ctx.drawImage(vivo ? moldeIdle(nome, estado, o) : moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
+  }
+
+  // o quadro do idle vivo que o drawHorse desenharia agora (o canvas guardado; o mesmo objeto enquanto o idle não muda),
+  // ou null se o cavalo não estiver vivo: quem guarda o cavalo desenhado (a cena do desafio) só redesenha quando ele troca
+  function quadroIdle(opts) {
+    opts = opts || {};
+    var estado = moldsOk ? estadoMolde(opts) : null;
+    if (!estado || !opts.anima || opts.reduzido || !(estado === 'parado' || estado === 'retrato' || estado === 'frente' || estado === 'costas')) return null;
+    return moldeIdle(chaveMolde(opts.element, opts.porte), estado, opts);
   }
 
   function drawHorse(ctx, x, y, opts) {
@@ -10630,6 +10661,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     randomPalette: randomPalette,
     ELEMENTS: ['fogo', 'agua', 'grama'],   // os três tipos do v3 (a paleta e o estilo 'neutro' ficam como queda)
     drawHorse: drawHorse,
+    quadroIdle: quadroIdle,
     alturaFonte: alturaFonte,   // a altura da maiúscula da fonte do canvas ('g7', 'g9', 'g11'; sem fonte: a 3×5)
     naMestra: naMestra,   // a cor da paleta-mestra mais perto de um hex (etapa 1b; os testes conferem as cores por ela)
     drawHorseCodigo: drawHorseCodigo,
@@ -14061,6 +14093,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       o.scale = 1; o.idle = true; o.t = vivo ? t : 0.5; o.shadow = false; o.vista = vista; o.quadro = { topo: -1e6, base: 60, grade: 1, centro: 32 };
       if (vivo) o.anima = 'cena';
       c.__vivo = vivo;
+      if (vivo && SP && SP.quadroIdle) {   // o idle não mudou: o cavalo já desenhado serve
+        var qi = SP.quadroIdle(o);
+        if (qi && qi === c.__quadro) return c;
+        c.__quadro = qi;
+      }
       var lado = !(SP && SP.moldesVistas);
       q2.setTransform(1, 0, 0, 1, 0, 0); q2.clearRect(0, 0, 64, 64);
       if (lado && vista === 'frente') { q2.translate(64, 0); q2.scale(-1, 1); }   // sem as vistas: o molde de lado, virado para nós
@@ -19990,8 +20027,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         item.t = t;
         if (!m) return;
         if (!item.drawn) m.estado(mapaProgresso());
-        var r = reduced(), dt = tAnt ? Math.max(0, t - tAnt) : 0;
-        tAnt = t;
+        // com ?quadro= (capturas) o t fica parado no instante pedido, mas o que anda por dt (a pista que se pinta, o trote,
+        // a viagem) anda no relógio
+        var tr0 = QUADRO_FIXO != null ? performance.now() / 1000 : t;
+        var r = reduced(), dt = tAnt ? Math.max(0, tr0 - tAnt) : 0;
+        tAnt = tr0;
         if (item.drawn && r) return;
         item.drawn = true;
         var t0 = window.performance ? performance.now() : 0;
@@ -20058,8 +20098,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         var tr = trilhaObj(id);
         item.t = t;
         if (!tr) return;
-        var r = reduced(), dt = tAnt ? Math.max(0, t - tAnt) : 0;
-        tAnt = t;
+        // com ?quadro= (capturas) o t fica parado no instante pedido, mas o que anda por dt (a pista que se pinta, o trote,
+        // a viagem) anda no relógio
+        var tr0 = QUADRO_FIXO != null ? performance.now() / 1000 : t;
+        var r = reduced(), dt = tAnt ? Math.max(0, tr0 - tAnt) : 0;
+        tAnt = tr0;
         if (!item.drawn) {   // o estado do save (uma vez por tela): as etapas, o cavalo e, se a etapa da vez andou, a pintura
           var p = Math.min(ginProgresso(id), ginEtapasTotal(id) - 1);
           tr.estados(g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); }));

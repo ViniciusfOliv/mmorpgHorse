@@ -1774,16 +1774,38 @@
         });
         if (!Object.keys(gestos).length) gestos = null;
       }
-      r = { anim: new IdleMolde(M, estado, sem * 2654435761 + estado.length, gestos), chave: '', canvas: null };
+      // pintados: os quadros do idle já pintados (a respiração e as orelhas voltam aos mesmos estados; repintar custava
+      // ~1 ms a cada troca na cena do desafio)
+      r = { anim: new IdleMolde(M, estado, sem * 2654435761 + estado.length, gestos), chave: '', canvas: null, pintados: new Map() };
       if (idleRegistro.size > 48) idleRegistro.clear();
       idleRegistro.set(k, r);
     }
     var t = Number(o.t) || 0;
-    r.anim.agenda(t);
-    var chave = r.anim.monta(t) + '#' + chaveCores(o);
     // sem marcas nas vistas de frente e de costas (decisão do Vinicius para a v1 da cena de desafio nova)
     var oP = IDLE_GESTOS_ESTADO[estado] ? Object.assign({}, o, { marcas: null }) : o;
-    if (chave !== r.chave || !r.canvas) { r.chave = chave; r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP, estado === 'frente' || estado === 'costas'); }
+    var cc = '#' + chaveCores(o), vista = estado === 'frente' || estado === 'costas';
+    if (o.anima === 'cena' && !r.aquecido) {
+      // as cenas (poucos cavalos): os estados dos próximos segundos pintados já na montagem, por um animador à parte com a
+      // mesma semente (os eventos saem da RNG cosmética e do t: os mesmos do animador de verdade) — sem isso, o 1º ciclo
+      // pintava um estado novo a cada troca (~0,5 ms cada)
+      r.aquecido = true;
+      var aq = new IdleMolde(M, estado, sem * 2654435761 + estado.length, null), fim = t + aq.respira + 0.5;
+      for (var ta = t; ta < fim && r.pintados.size < 40; ta += 1 / 14) {
+        aq.agenda(ta);
+        var ka = aq.monta(ta) + cc;
+        if (!r.pintados.has(ka)) r.pintados.set(ka, pintaMolde(M, aq.mapa, M.ancoras[estado], oP, vista));
+      }
+    }
+    r.anim.agenda(t);
+    var chave = r.anim.monta(t) + cc;
+    if (chave !== r.chave || !r.canvas) {
+      r.chave = chave; r.canvas = r.pintados.get(chave);
+      if (!r.canvas) {
+        r.canvas = pintaMolde(M, r.anim.mapa, M.ancoras[estado], oP, vista);
+        if (r.pintados.size >= 48) r.pintados.clear();
+        r.pintados.set(chave, r.canvas);
+      }
+    }
     return r.canvas;
   }
 
@@ -1802,6 +1824,15 @@
     // parado vivo (o.anima): o mapa montado pelo idle; fora isso (e no movimento reduzido), o quadro do molde
     var vivo = o.anima && !o.reduzido && (estado === 'parado' || estado === 'retrato' || estado === 'frente' || estado === 'costas');
     ctx.drawImage(vivo ? moldeIdle(nome, estado, o) : moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
+  }
+
+  // o quadro do idle vivo que o drawHorse desenharia agora (o canvas guardado; o mesmo objeto enquanto o idle não muda),
+  // ou null se o cavalo não estiver vivo: quem guarda o cavalo desenhado (a cena do desafio) só redesenha quando ele troca
+  function quadroIdle(opts) {
+    opts = opts || {};
+    var estado = moldsOk ? estadoMolde(opts) : null;
+    if (!estado || !opts.anima || opts.reduzido || !(estado === 'parado' || estado === 'retrato' || estado === 'frente' || estado === 'costas')) return null;
+    return moldeIdle(chaveMolde(opts.element, opts.porte), estado, opts);
   }
 
   function drawHorse(ctx, x, y, opts) {
@@ -3685,6 +3716,7 @@
     randomPalette: randomPalette,
     ELEMENTS: ['fogo', 'agua', 'grama'],   // os três tipos do v3 (a paleta e o estilo 'neutro' ficam como queda)
     drawHorse: drawHorse,
+    quadroIdle: quadroIdle,
     alturaFonte: alturaFonte,   // a altura da maiúscula da fonte do canvas ('g7', 'g9', 'g11'; sem fonte: a 3×5)
     naMestra: naMestra,   // a cor da paleta-mestra mais perto de um hex (etapa 1b; os testes conferem as cores por ela)
     drawHorseCodigo: drawHorseCodigo,

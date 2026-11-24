@@ -3705,8 +3705,11 @@
         item.t = t;
         if (!m) return;
         if (!item.drawn) m.estado(mapaProgresso());
-        var r = reduced(), dt = tAnt ? Math.max(0, t - tAnt) : 0;
-        tAnt = t;
+        // com ?quadro= (capturas) o t fica parado no instante pedido, mas o que anda por dt (a pista que se pinta, o trote,
+        // a viagem) anda no relógio
+        var tr0 = QUADRO_FIXO != null ? performance.now() / 1000 : t;
+        var r = reduced(), dt = tAnt ? Math.max(0, tr0 - tAnt) : 0;
+        tAnt = tr0;
         if (item.drawn && r) return;
         item.drawn = true;
         var t0 = window.performance ? performance.now() : 0;
@@ -3773,8 +3776,11 @@
         var tr = trilhaObj(id);
         item.t = t;
         if (!tr) return;
-        var r = reduced(), dt = tAnt ? Math.max(0, t - tAnt) : 0;
-        tAnt = t;
+        // com ?quadro= (capturas) o t fica parado no instante pedido, mas o que anda por dt (a pista que se pinta, o trote,
+        // a viagem) anda no relógio
+        var tr0 = QUADRO_FIXO != null ? performance.now() / 1000 : t;
+        var r = reduced(), dt = tAnt ? Math.max(0, tr0 - tAnt) : 0;
+        tAnt = tr0;
         if (!item.drawn) {   // o estado do save (uma vez por tela): as etapas, o cavalo e, se a etapa da vez andou, a pintura
           var p = Math.min(ginProgresso(id), ginEtapasTotal(id) - 1);
           tr.estados(g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); }));

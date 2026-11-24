@@ -839,6 +839,11 @@
       o.scale = 1; o.idle = true; o.t = vivo ? t : 0.5; o.shadow = false; o.vista = vista; o.quadro = { topo: -1e6, base: 60, grade: 1, centro: 32 };
       if (vivo) o.anima = 'cena';
       c.__vivo = vivo;
+      if (vivo && SP && SP.quadroIdle) {   // o idle não mudou: o cavalo já desenhado serve
+        var qi = SP.quadroIdle(o);
+        if (qi && qi === c.__quadro) return c;
+        c.__quadro = qi;
+      }
       var lado = !(SP && SP.moldesVistas);
       q2.setTransform(1, 0, 0, 1, 0, 0); q2.clearRect(0, 0, 64, 64);
       if (lado && vista === 'frente') { q2.translate(64, 0); q2.scale(-1, 1); }   // sem as vistas: o molde de lado, virado para nós
