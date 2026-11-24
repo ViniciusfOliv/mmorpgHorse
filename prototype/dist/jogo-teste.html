@@ -15212,14 +15212,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // variáveis ficam como abaixo e devHooks continua null. Fora dos blocos, nada chama código de dentro deles
   // a não ser por devHooks.
   var DV = null, DEV_MODE = false, DEV_BUILD = false, devHooks = null;
+  // ?quadro=<segundos>: o relógio da animação ambiente parado nesse instante (cenas das abas, arena do desafio, cavalos
+  // parados), para as capturas oficiais saírem iguais a cada vez; a corrida não muda. Só apresentação (vale também no jogo de produção: a captura do jogo.html).
+  var QUADRO_FIXO = (function () { var m = /[?&]quadro=([0-9]+(?:\.[0-9]+)?)(&|$)/.exec(window.location.search); return m ? Number(m[1]) : null; }());
   /*@dev:inicio*/
   // ?dev=1 ou o build de teste (prototype/dist/jogo-dev.html, que traz window.__GALOPE_DEV = true: o artefato do
   // claude.ai não repassa a query). Nele o jogo só lê e grava o save de teste.
   DV = window.Dev;
   DEV_MODE = /[?&]dev=1(&|$)/.test(window.location.search) || window.__GALOPE_DEV === true;
-  // ?quadro=<segundos>: o relógio da animação ambiente parado nesse instante (cenas das abas, arena do desafio, cavalos
-  // parados), para as capturas oficiais saírem iguais a cada vez; a corrida não muda. Só apresentação.
-  var QUADRO_FIXO = (function () { var m = /[?&]quadro=([0-9]+(?:\.[0-9]+)?)(&|$)/.exec(window.location.search); return m ? Number(m[1]) : null; }());
   DEV_BUILD = window.__GALOPE_DEV === true;   // jogo-dev.html: não há "jogo real" para onde voltar
   if (DEV_MODE && !DV) {
     telaEl.textContent = 'Não foi possível carregar o jogo (falta dev.js).';
