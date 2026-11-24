@@ -3,6 +3,11 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Animação ambiente e mapa dos ginásios na `main`
+- Avanço direto para 77ba27e4 depois do `check.sh` completo da coordenação; o bloco de custo da cena de desafio
+  (`fluxo-capturas-ginasio`) roda na fase em série do teste de interface, com a régua de 1,2 ms mantida (medir tempo com
+  4 processos em paralelo é ruído).
+
 ## 2026-11-23 — Animação ambiente, amostra (entrega 1)
 - **Animação ambiente por código primeiro, PixelLab só onde o código não fica natural** — ciclo de cor (mar, rio, lava,
   brilhos), deformação por pixel inteiro (capim, folhas, placas, torcida) e partículas na paleta custam zero de arte e

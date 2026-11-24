@@ -1,5 +1,10 @@
 # Estado do projeto
 
+**Integração de 2026-11-24 (aprovada pelo Vinicius):** animação ambiente (etapas 0 a 6) + mapa dos ginásios (blocos A e
+B: mapa-múndi vivo, viagem, trilha que se pinta, cena de desafio com as vistas Meshy e idle) na `main` por avanço direto
+(77ba27e4), com o `check.sh` completo OK (83 blocos, 132 metas; desenho por quadro 2,17 ms). Republicados: jogo v18, DEV
+v16, wiki v15, testadores v4. Próximas frentes visuais: tela inicial (3) e inventário (4).
+
 **Integração de 2026-11-23 (aprovada pelo Vinicius: "pode integrar tudo na main e republicar"):** AFK (blocos A e B), forja,
 bestiário, equipamento de PVE, reforja, Selo do campeão, as correções da revisão, o build dos testadores e o lote 1 de
 ajustes (câmera, skills resumidas, sexo, selvagens escondidos) entraram na `main` por avanço direto (100e438), com o
