@@ -47,7 +47,9 @@ if (fs.existsSync(DIR_IDLE)) for (const f of fs.readdirSync(DIR_IDLE).sort()) {
 const dados = { imagens, moldes, piloto, regioes: { litoral: { posicao: manifesto.litoral.posicao || {} } } };
 
 let html = fs.readFileSync(path.join(RAIZ, 'prototype', 'arte', 'animacao.html'), 'utf8');
-const js = fs.readFileSync(path.join(RAIZ, 'prototype', 'arte', 'animacao.js'), 'utf8');
+// o motor (prototype/src/ambiente.js, desde a etapa 1) e a interface da amostra, no mesmo <script>
+const js = fs.readFileSync(path.join(RAIZ, 'prototype', 'src', 'ambiente.js'), 'utf8') + '\n' +
+  fs.readFileSync(path.join(RAIZ, 'prototype', 'arte', 'animacao.js'), 'utf8');
 const troca = (marca, valor) => { if (!html.includes(marca)) throw new Error('falta ' + marca); html = html.split(marca).join(valor); };
 troca('/*__N600__*/', uri(path.join(FONTES, 'nunito-latin-600-normal.woff2'), 'font/woff2'));
 troca('/*__N800__*/', uri(path.join(FONTES, 'nunito-latin-800-normal.woff2'), 'font/woff2'));
