@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Cena de desafio: arena 0 e todas as ferramentas (Vinicius)
+- **Arena 0** (a aberta) para a cena de desafio; **nome com a cor da raridade** nas placas.
+- **"Qualidade: a cena tem de fazer sentido e ficar boa; use todos os meios"** — Meshy AI (pago), Canva Pro (pago),
+  Gemini e PixelLab liberados para um teste em cada (bake-off no chat do mapa), cada gasto com o "sim" dele; chaves só
+  pelo fluxo de credencial; tudo passa pelo guia de integração e entra em `assets.md` (declaração de IA da Steam).
+- A vista de frente pelo PixelLab falhou (os 16 candidatos saíram de lado); o oponente fica de lado (molde
+  espelhado, sem custo) até o bake-off achar coisa melhor — Meshy (3D renderizado nas vistas) é a aposta.
+
 ## 2026-11-24 — Mapa, referências e cena de desafio (decisões do Vinicius)
 - **Ilha B** é o mapa-múndi; o mapa **pintado** continua o principal; um exemplo de mapa **montado** (Map Workshop/tiles)
   só se sair barato (até ~15 gerações sem perguntar de novo).
