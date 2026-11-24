@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Meshy para as vistas da cena de desafio; etapa 0 da animação aprovada (Vinicius: "Prossiga")
+- **Bake-off da cena de desafio:** Meshy (3D renderizado em pixel art) venceu — única ferramenta que dá frente e costas
+  com o mesmo traço; PixelLab inpaint fraco, Gemini com ganho pequeno (~US$ 0,16), Canva bom só para variar o fundo.
+- **Lote Meshy, um modelo por molde (12)**, começando por refazer a crina de folhas do Ipê; teto de 360 créditos;
+  imagens de entrada com cores puras por papel para a recoloração continuar valendo.
+- **Animação ambiente:** etapa 0 (integração visual P1) aprovada; casco **meio-termo (~1,4×)** como padrão, com a
+  caixa do DEV para comparar; segue a etapa 1.
+
 ## 2026-11-24 — Cena de desafio: arena 0 e todas as ferramentas (Vinicius)
 - **Arena 0** (a aberta) para a cena de desafio; **nome com a cor da raridade** nas placas.
 - **"Qualidade: a cena tem de fazer sentido e ficar boa; use todos os meios"** — Meshy AI (pago), Canva Pro (pago),
