@@ -56,7 +56,8 @@ cores dos papéis não se misturam (na Brasa crina e jóquei dividem tons), ent�
 nascidos de imagem com cores puras por papel, e o formato da crina exige outro modelo. Canva: os 2 fundos exportados em
 1920 × 1080, reduzidos à grade e usados como arenas "Canva 1/2" na cena (créditos do plano). Gemini: a chave nova está
 salva, mas no cabeçalho Authorization; a geração de imagem é só na API nativa, que lê `x-goog-api-key` (401, nada
-cobrado). Falta o Vinicius mudar o cabeçalho do segredo nas configurações do ambiente. Lote dos 12 cavalos segue não aprovado.
+cobrado); o Vinicius mudou o cabeçalho e o teste rodou (4 variações, ~US$ 0,155): a cena volta quase igual, com
+sombras de contato um pouco mais marcadas; ganho pequeno. Lote dos 12 cavalos segue não aprovado.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

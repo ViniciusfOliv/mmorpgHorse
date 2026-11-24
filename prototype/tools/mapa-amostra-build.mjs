@@ -54,8 +54,8 @@ const dados = {
         ['cena-meshy', 'Meshy 3D', 'o mesmo cavalo 3D de frente e de costas, renderizado já em pixel; 30 créditos'],
         ['cena-canva-0', 'Canva, fundo 1', 'exportado em 1920 × 1080 e reduzido à grade (moda por bloco, Resurrect 64); os cavalos do Meshy pisando nele'],
         ['cena-canva-1', 'Canva, fundo 2', 'idem; o fundo já traz os dois anéis no chão, e os cavalos pisam neles'],
-        ['gemini-0', 'Gemini (pedido 1)', 'a cena do código recomposta; ~US$ 0,04'], ['gemini-1', 'Gemini (pedido 2)', 'repintada inteira; ~US$ 0,04'],
-        ['gemini-2', 'Gemini (pedido 1, 2ª)', '~US$ 0,04'], ['gemini-3', 'Gemini (pedido 2, 2ª)', '~US$ 0,04']]
+        ['gemini-0', 'Gemini (pedido 1)', 'compor a cena do código com sombras de contato e luz; ~US$ 0,04'], ['gemini-1', 'Gemini (pedido 2)', 'repintar a cena inteira; ~US$ 0,04'],
+        ['gemini-2', 'Gemini (pedido 1, 2ª)', '~US$ 0,04'], ['gemini-3', 'Gemini (pedido 2, 2ª)', 'pontos verdes no céu vêm da redução à paleta; ~US$ 0,04']]
         .filter(([f]) => fs.existsSync(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')))
         .map(([f, nome, nota]) => ({ nome, nota, uri: uri(path.join(PROTO, 'assets', 'arte', 'desafio', 'bakeoff', f + '.png')) })) };
   })(),
