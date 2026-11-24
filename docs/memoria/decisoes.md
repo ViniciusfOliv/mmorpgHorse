@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Mapa dos ginásios, piloto pago (frente 2)
+- **Ilha pintada pelo Pixen (1 geração) e não pelo Pro (15 por imagem em 256 × 384)** — o Pixen já fez os mapas das
+  trilhas; com 1 geração por tentativa, 4 seeds cabem no teto. O Pixflux partindo do mapa por código quase não mudou a
+  imagem e fica descartado.
+- **Ginásios como objetos 64 × 64 assentados por código** (sombra de contato pela troca de paleta do chão, luz da
+  esquerda) — atende ao pedido do Vinicius de nada parecer "PNG por cima do fundo". O da Capoeira veio com a mata em
+  volta e foi recortado em oval; se for o escolhido, vale refazer.
+
 ## 2026-11-24 — Mapa dos ginásios, amostra v1 (frente 2)
 - **Amostra por código primeiro, com a arte já paga nas trilhas** — o mapa-múndi não existia; desenhado por código ele
   mostra as interações (névoa, transições, trilha) sem gastar, e as máscaras de água e lava saem exatas para o ciclo de

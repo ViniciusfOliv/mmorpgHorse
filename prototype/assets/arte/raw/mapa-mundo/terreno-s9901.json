@@ -1,0 +1,16 @@
+{
+  "assinatura": "159b9982e49f",
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "<601 chars>",
+    "image_size": {
+      "width": 256,
+      "height": 384
+    },
+    "view": "high top-down",
+    "outline": "lineless",
+    "detail": "highly detailed",
+    "seed": 9901
+  },
+  "arquivo": "terreno-s9901.png"
+}

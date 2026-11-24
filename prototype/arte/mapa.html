@@ -62,6 +62,11 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
 .notas b { color: var(--ouro); font-weight: 800; }
 .tag { display: inline-block; font-size: 11px; font-weight: 800; padding: 0 6px; border: 1px solid var(--tinta); vertical-align: 1px; color: var(--tinta); }
 .tag.cod { background: var(--ganho); } .tag.jogo { background: var(--linha); } .tag.pago { background: var(--ouro-2); }
+.cands { display: flex; flex-wrap: wrap; gap: 10px; }
+.cand { margin: 0; display: grid; gap: 4px; }
+.cand img { image-rendering: pixelated; background: var(--tinta); border: 2px solid var(--tinta); height: auto; max-width: 100%; }
+.cand.usado img { border-color: var(--ouro); }
+.cand figcaption { font-size: 12px; color: var(--texto-3); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 820px) { .palco, .baixo { grid-template-columns: minmax(0, 1fr); } h1 { font-size: 22px; } }
 </style>
@@ -94,6 +99,13 @@ canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edge
           Capoeira sem nenhum (névoa densa). Os botões trocam o estado para ver as outras situações.</p>
       </div>
     </div>
+  </section>
+  <section class="caixa">
+    <h3>Piloto pago: todos os candidatos</h3>
+    <p class="nota-med">PixelLab, 2026-11-24, 14 gerações pedidas (o saldo caiu de 879 para 858). Em cima, as 4 ilhas pintadas do zero
+      (Pixen) e as 4 que partiram do mapa por código (Pixflux, quase iguais a ele); embaixo, 2 versões de cada ginásio (Pixen, 64 × 64,
+      mostradas em 2×). Os marcados estão na amostra.</p>
+    <div class="cands" id="candidatos"></div>
   </section>
   <section class="baixo">
     <div class="caixa">

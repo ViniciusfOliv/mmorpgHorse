@@ -431,6 +431,8 @@
   ['fogo', 'agua', 'grama'].forEach(function (g) { carrega('mapa-' + g, M.mapas[g]); });
   Object.keys(M.treinadores).forEach(function (t) { carrega('t-' + t, M.treinadores[t]); });
   Object.keys(M.icones).forEach(function (t) { if (M.icones[t]) carrega('i-' + t, M.icones[t]); });
+  Object.keys(M.piloto.usados).forEach(function (t) { carrega('p-' + t, M.piloto.usados[t]); });
+  ['fogo', 'agua', 'grama'].forEach(function (el) { carrega('g-' + el, M.piloto.usados['ginasio-' + el]); });
   document.getElementById('hojeMundo').src = M.hoje.mundo;
   document.getElementById('hojeTrilha').src = M.hoje.trilha;
 
@@ -520,16 +522,19 @@
   // pontilhado na borda, com o terreno lavado no meio-termo. Densidade pelo progresso: 0/5 densa, 4/5 rala, insígnia: some.
   var REG_ID = { fogo: 1, agua: 2, grama: 3 };
   var pesoReg = { 1: new Float32Array(W * H), 2: new Float32Array(W * H), 3: new Float32Array(W * H) };
-  (function () {   // o peso de cada região, borrado (caixa de 9 px, duas passadas): a névoa não para na fronteira seca
+  function calculaPesos(regiaoDe) {   // o peso de cada região, borrado (caixa de 9 px, duas passadas): a névoa não para na fronteira seca
+    var out = { 1: new Float32Array(W * H), 2: new Float32Array(W * H), 3: new Float32Array(W * H) };
     [1, 2, 3].forEach(function (r) {
-      var a = pesoReg[r], tmp = new Float32Array(W * H), R2 = 9, x, y, s;
-      for (var p = 0; p < W * H; p++) a[p] = mundo.regiao[p] === r && mundo.terra[p] > -0.25 ? 1 : 0;
+      var a = out[r], tmp = new Float32Array(W * H), R2 = 9, x, y, s;
+      for (var p = 0; p < W * H; p++) a[p] = regiaoDe(p) === r ? 1 : 0;
       for (var pass = 0; pass < 2; pass++) {
         for (y = 0; y < H; y++) { s = 0; for (x = -R2; x < W + R2; x++) { if (x + R2 < W) s += a[y * W + x + R2]; if (x - R2 - 1 >= 0) s -= a[y * W + x - R2 - 1]; if (x >= 0 && x < W) tmp[y * W + x] = s / (2 * R2 + 1); } }
         for (x = 0; x < W; x++) { s = 0; for (y = -R2; y < H + R2; y++) { if (y + R2 < H) s += tmp[(y + R2) * W + x]; if (y - R2 - 1 >= 0) s -= tmp[(y - R2 - 1) * W + x]; if (y >= 0 && y < H) a[y * W + x] = s / (2 * R2 + 1); } }
       }
     });
-  })();
+    return out;
+  }
+  pesoReg = calculaPesos(function (p) { return mundo.terra[p] > -0.25 ? mundo.regiao[p] : 0; });
   var NEV_W = 256, nevCampo = new Float32Array(NEV_W * H);
   for (var ny0 = 0; ny0 < H; ny0++) for (var nx0 = 0; nx0 < NEV_W; nx0++) {   // emendado nas pontas (anda sem salto)
     var f1 = fbm(nx0 / 34, ny0 / 26, 91, 4), f2 = fbm((nx0 - NEV_W) / 34, ny0 / 26, 91, 4);
@@ -633,11 +638,12 @@
     }
   }
   // ---- fumaça e bombas do vulcão (partículas em vetores fixos; nada de objeto novo por quadro)
+  var CRATERA = mundo.cratera;
   var NP = 60, pX = new Float32Array(NP), pY = new Float32Array(NP), pVX = new Float32Array(NP), pVY = new Float32Array(NP), pV = new Float32Array(NP), pT = new Uint8Array(NP), pVida = new Float32Array(NP);
   var rngP = rngCosmetica(55), proxErupcao = 3, proxFumaca = 0, tAnt = 0;
   function solta(tp, x, y, vx, vy, vida) { for (var i = 0; i < NP; i++) if (pV[i] <= 0) { pT[i] = tp; pX[i] = x; pY[i] = y; pVX[i] = vx; pVY[i] = vy; pV[i] = vida; pVida[i] = vida; return; } }
   function particulas(t, dt) {
-    var C0 = mundo.cratera;
+    var C0 = CRATERA;
     if (t > proxFumaca) { proxFumaca = t + 0.22; solta(0, C0[0] + (rngP() - 0.5) * 8, C0[1] - 1, 0, -6 - rngP() * 4, 3.2 + rngP()); }
     if (t > proxErupcao) {
       proxErupcao = t + 3 + rngP() * 3;
@@ -679,7 +685,7 @@
     }
     return (cabecas[el] = m.poe().c);
   }
-  var POS_G = GEO.ginasios;
+  var POS_G = GEO.ginasios, MARCA = { topo: -26, haste: 8, placa: 13 };
   function bandeira(x, y, cor, t, fase) {
     R(x, y - 9, 1, 10, '#4c3e24');
     for (var i = 0; i < 5; i++) {
@@ -706,9 +712,9 @@
   var sel = { mundo: 0, trilha: 0 };
   var ORDEM = ['fogo', 'agua', 'grama'];
   function marcadorGinasio(el, t, i) {
-    var p = POS_G[el], x = p[0], y = p[1] - 26, conq = est.prog[el] >= 5, quica = Math.round(Math.max(0, fsin(t * 2.2 + i)) * 1.4);
+    var p = POS_G[el], x = p[0], y = p[1] + MARCA.topo, conq = est.prog[el] >= 5, quica = Math.round(Math.max(0, fsin(t * 2.2 + i)) * 1.4);
     // haste do alfinete até o ginásio
-    R(x, y + 8, 1, 8, '#2e222f');
+    R(x, y + 8, 1, MARCA.haste, '#2e222f');
     var cab = cabeca(el); if (cab) D(cab, x - 8, y - 8 - quica);
     if (conq) {
       var ins = IMG['i-ins-' + el];
@@ -717,14 +723,14 @@
     var rv = est.revanche[el];
     if (conq && rv === 'livre') balao(x - 12, y - 3, t, '#f79617');
     // placa: nome e as 5 etapas (cheia = vencida)
-    var nome = NOMES[el], lw = larguraTexto(nome), pw = Math.max(lw + 6, 33), px = x - Math.round(pw / 2), py = p[1] + 13 + (el === 'agua' ? 0 : 1);
+    var nome = NOMES[el], lw = larguraTexto(nome), pw = Math.max(lw + 6, 33), px = x - Math.round(pw / 2), py = p[1] + MARCA.placa + (el === 'agua' ? 0 : 1);
     R(px - 1, py - 1, pw + 2, 15, '#2e222f'); R(px, py, pw, 13, '#3e3546'); R(px, py, pw, 1, '#484a77');
     texto(nome, x, py + 2, conq ? '#f9c22b' : '#ffffff', 'center');
     var pr = est.prog[el];
     for (var e = 0; e < 5; e++) R(x - 12 + e * 5, py + 10, 3, 2, e < pr ? '#f9c22b' : '#625565');
   }
   function cursorMundo(t) {
-    var el = ORDEM[sel.mundo], p = POS_G[el], y = p[1] - 46 - Math.round(Math.abs(fsin(t * 3)) * 3);
+    var el = ORDEM[sel.mundo], p = POS_G[el], y = p[1] + MARCA.topo - 20 - Math.round(Math.abs(fsin(t * 3)) * 3);
     var cor = '#f9c22b';
     R(p[0] - 3, y, 7, 1, '#2e222f'); R(p[0] - 3, y + 1, 7, 1, cor); R(p[0] - 2, y + 2, 5, 1, cor); R(p[0] - 1, y + 3, 3, 1, cor); R(p[0], y + 4, 1, 1, cor);
     R(p[0] - 4, y + 1, 1, 1, '#2e222f'); R(p[0] + 4, y + 1, 1, 1, '#2e222f'); R(p[0] - 3, y + 2, 1, 1, '#2e222f'); R(p[0] + 3, y + 2, 1, 1, '#2e222f');
@@ -732,6 +738,7 @@
   }
   var camadas = { ciclo: true, copas: true, nevoa: true, nuvens: true, vida: true };
   function quadroMundo(t, dt) {
+    if (VAR.id !== 'v1') return quadroMundoPintado(t, dt);
     if (camadas.ciclo && !reduzido) cicloMundo(t); else if (cicloT !== -2) { vivo.d.set(mundo.b.d); vivo.poe(); cicloT = -2; }
     D(vivo.c, 0, 0);
     if (camadas.nuvens) desenhaNuvens(reduzido ? 0 : t, 'sombra');
@@ -744,6 +751,108 @@
     if (camadas.nevoa) { atualizaNevoa(reduzido ? 0 : t); D(nevoa.c, 0, 0); }
     if (camadas.nuvens) desenhaNuvens(reduzido ? 0 : t);
     ORDEM.forEach(function (el, i) { marcadorGinasio(el, reduzido ? 0 : t, i); });   // por cima das nuvens: sempre legível
+    if (camadas.vida && !reduzido) desenhaPassaros(t);
+    if (!trans) cursorMundo(reduzido ? 0 : t);
+  }
+  // ================================================================ variantes do mapa-múndi: v1 (por código) e as ilhas do
+  // piloto pago (PixelLab /create-image-pixen, 2026-11-24), com os ginásios do piloto assentados no chão por código:
+  // sombra de contato (o chão escurecido por troca de paleta, deslocada para a direita e para baixo, luz da esquerda),
+  // cores já na Resurrect 64. Sobre a arte pintada, o código anima a água e a lava (ciclo de cor pelas cores da imagem), a
+  // fumaça do vulcão, as nuvens, os pássaros e a névoa.
+  var PINT = {
+    a: { img: 'terreno-s9902', nome: 'Ilha A (s9902)', cratera: [131, 40], pos: { fogo: [98, 130], agua: [138, 190], grama: [166, 282] },
+      reg: [150, 240], lavaAte: 175 },
+    b: { img: 'terreno-s9901', nome: 'Ilha B (s9901)', cratera: [87, 41], pos: { fogo: [180, 112], agua: [118, 184], grama: [130, 284] },
+      reg: [146, 214], lavaAte: 160 }
+  };
+  var GIN_IMG = { fogo: 'ginasio-fogo-s9921', agua: 'ginasio-agua-s9932', grama: 'ginasio-grama-s9941' };
+  var VAR = { id: 'v1' }, varCache = {}, MARCA_V1 = MARCA;
+  var AGUA_NAVY = ['323353', '484a77', '4d65b4'].map(k), AGUA_TEAL = ['0b5e65', '0b8a8f', '0eaf9b', '8fd3ff'].map(k);
+  var LAVA_R = ['b33831', 'ea4f36', 'fb6b1d', 'f79617', 'f9c22b', 'fbff86'].map(k);
+  function objetoGinasio(el) {   // o objeto 64 × 64 com alfa binário; o da Capoeira veio com a mata em volta: recorte oval
+    var b = Buf.de(IMG['g-' + el]);
+    if (el === 'grama') for (var y = 0; y < 64; y++) for (var x = 0; x < 64; x++) if (Math.pow((x - 32) / 29, 2) + Math.pow((y - 35) / 25, 2) > 1) b.d[y * 64 + x] = 0;
+    var x0 = 64, x1 = 0, y0 = 64, y1 = 0;
+    for (var p = 0; p < b.d.length; p++) if (b.d[p]) { var xx = p % 64, yy = (p / 64) | 0; x0 = Math.min(x0, xx); x1 = Math.max(x1, xx); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy); }
+    return { c: b.poe().c, b: b, x0: x0, x1: x1, y0: y0, y1: y1 };
+  }
+  function preparaVariante(id) {
+    if (varCache[id]) return varCache[id];
+    var P = PINT[id], terr = Buf.de(IMG['p-' + P.img]), N = W * H, base = new Buf(W, H), agua = [], lava = [], obj = {}, cobre = new Uint8Array(N);
+    base.d.set(terr.d);
+    var esc = function (c) { return escurecer((c | 0xff000000) >>> 0); };
+    // sombra de contato e objeto de cada ginásio, assados no chão (a água e a lava debaixo deles não ciclam)
+    ORDEM.forEach(function (el) {
+      var o = objetoGinasio(el), pp = P.pos[el], ox = pp[0] - 32, oy = pp[1] - 32, w = (o.x1 - o.x0) / 2 + 2, h = Math.max(6, (o.y1 - o.y0) * 0.28);
+      var cx = ox + (o.x0 + o.x1) / 2 + 4, cy = oy + o.y1 - h * 0.55 + 2;
+      for (var y = Math.floor(cy - h); y <= cy + h; y++) for (var x = Math.floor(cx - w); x <= cx + w; x++) {
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        var e = Math.pow((x + 0.5 - cx) / w, 2) + Math.pow((y + 0.5 - cy) / h, 2);
+        if (e > 1 || (e > 0.7 && bayer(x, y) < (e - 0.7) / 0.3)) continue;   // borda em pontilhado
+        base.d[y * W + x] = esc(terr.d[y * W + x]); cobre[y * W + x] = 1;
+      }
+      for (y = 0; y < 64; y++) for (x = 0; x < 64; x++) { var c = o.b.d[y * 64 + x], X = ox + x, Y = oy + y; if (c && X >= 0 && Y >= 0 && X < W && Y < H) { base.d[Y * W + X] = c; cobre[Y * W + X] = 1; } }
+      obj[el] = o;
+    });
+    for (var p = 0; p < N; p++) {
+      if (cobre[p]) continue;
+      var c = terr.d[p], y2 = (p / W) | 0, i;
+      if ((i = AGUA_NAVY.indexOf(c)) >= 0) agua.push(p, 0, i);
+      else if ((i = AGUA_TEAL.indexOf(c)) >= 0) agua.push(p, 1, i);
+      else if (y2 < P.lavaAte && (i = LAVA_R.indexOf(c)) >= 0) lava.push(p, i);
+    }
+    var regDe = function (pp) {
+      var c = terr.d[pp]; if (AGUA_NAVY.indexOf(c) >= 0 || AGUA_TEAL.indexOf(c) >= 0 && ((pp / W) | 0) < 60) return 0;
+      var x = pp % W, y = (pp / W) | 0, ry = y + (fbm(x / 30, y / 30, 7, 3) - 0.5) * 30;
+      return ry < P.reg[0] ? 1 : ry < P.reg[1] ? 2 : 3;
+    };
+    var lav = new Uint32Array(N), es = new Buf(W, H);
+    for (p = 0; p < N; p++) { lav[p] = lavar((base.d[p] | 0xff000000) >>> 0); es.d[p] = esc(terr.d[p]); }
+    es.poe(); base.poe();
+    return (varCache[id] = { id: id, P: P, base: base, agua: agua, lava: lava, pesos: calculaPesos(regDe), lavado: lav, escuro: es, cicloT: -1 });
+  }
+  function usaVariante(id) {
+    if (id === 'v1') {
+      VAR = { id: 'v1' }; POS_G = GEO.ginasios; MARCA = MARCA_V1; CRATERA = mundo.cratera;
+      pesoReg = varCache.v1.pesos; lavado = varCache.v1.lavado; escuro = varCache.v1.escuro;
+      vivo.d.set(mundo.b.d); vivo.poe(); cicloT = -1;
+    } else {
+      VAR = preparaVariante(id); POS_G = VAR.P.pos; MARCA = { topo: -40, haste: 12, placa: 24 }; CRATERA = VAR.P.cratera;
+      pesoReg = VAR.pesos; lavado = VAR.lavado; escuro = VAR.escuro;
+      vivo.d.set(VAR.base.d); vivo.poe(); VAR.cicloT = -1;
+    }
+    nevChave = ''; nuvens.forEach(function (n) { n.sx = null; });
+    for (var i = 0; i < NP; i++) pV[i] = 0;
+  }
+  function cicloPintado(t) {
+    var q = Math.floor(t * CICLO_FPS); if (q === VAR.cicloT) return; VAR.cicloT = q; t = q / CICLO_FPS;
+    var d = vivo.d, A = VAR.agua, L = VAR.lava, i, p, x, y;
+    // água: brilhos que andam em duas ondas cruzadas (sobe um tom onde as duas se somam) e o 8fd3ff piscando
+    for (i = 0; i < A.length; i += 3) {
+      p = A[i]; x = p % W; y = (p / W) | 0;
+      var ramp = A[i + 1] ? AGUA_TEAL : AGUA_NAVY, j = A[i + 2];
+      var o = fsin(x * 0.21 + y * 0.13 - t * 1.6) + fsin(x * 0.07 - y * 0.19 + t * 1.1);
+      // brilho esparso: só alguns pixels de cada faixa clara acendem (traços curtos na horizontal, não manchas)
+      if (o > 1.2 && hash(x >> 1, y) < (A[i + 1] ? 0.35 : 0.14) && j < ramp.length - 1) j++;
+      else if (j === ramp.length - 1 && fsin(t * 2.3 + x * 1.7 + y) < -0.6) j--;
+      d[p] = ramp[j];
+    }
+    // lava: escorre para baixo (faixa quente andando pelo y), no tom de cada pixel ±2
+    for (i = 0; i < L.length; i += 2) {
+      p = L[i]; x = p % W; y = (p / W) | 0;
+      var f = mod(y * 0.55 - x * 0.12 - t * 6 + hash(x >> 2, y >> 2) * 3, 9);
+      d[p] = LAVA_R[lim(L[i + 1] + (f < 1.5 ? 2 : f < 3.5 ? 1 : f > 7 ? -1 : 0), 0, 5)];
+    }
+    vivo.poe();
+  }
+  function quadroMundoPintado(t, dt) {
+    if (camadas.ciclo && !reduzido) cicloPintado(t); else if (VAR.cicloT !== -2) { vivo.d.set(VAR.base.d); vivo.poe(); VAR.cicloT = -2; }
+    D(vivo.c, 0, 0);
+    if (camadas.nuvens) desenhaNuvens(reduzido ? 0 : t, 'sombra');
+    if (camadas.vida && !reduzido) { particulas(t, dt); desenhaParticulas(); }
+    if (camadas.nevoa) { atualizaNevoa(reduzido ? 0 : t); D(nevoa.c, 0, 0); }
+    if (camadas.nuvens) desenhaNuvens(reduzido ? 0 : t);
+    ORDEM.forEach(function (el, i) { marcadorGinasio(el, reduzido ? 0 : t, i); });
     if (camadas.vida && !reduzido) desenhaPassaros(t);
     if (!trans) cursorMundo(reduzido ? 0 : t);
   }
@@ -1058,7 +1167,7 @@
     if (trans) return;
     var a = artePara(ev);
     if (telaAtual === 'mundo') {
-      ORDEM.forEach(function (el, i) { var p = POS_G[el]; if (Math.abs(a[0] - p[0]) < 22 && a[1] > p[1] - 40 && a[1] < p[1] + 28) { sel.mundo = i; entra(el); } });
+      ORDEM.forEach(function (el, i) { var p = POS_G[el]; if (Math.abs(a[0] - p[0]) < 26 && a[1] > p[1] + MARCA.topo - 14 && a[1] < p[1] + MARCA.placa + 15) { sel.mundo = i; entra(el); } });
     } else {
       if (a[0] < 120 && a[1] < 26) { sai(); return; }
       PARADAS.forEach(function (pp, i) { if (Math.abs(a[0] - pp[0]) < 20 && a[1] > pp[1] - 48 && a[1] < pp[1] + 8) { sel.trilha = i; montaUI(); anuncia(txtEtapa(atual, i) + (estadoEtapa(atual, i) === 'proxima' ? '. No jogo, abre o desafio: a entrada é paga antes do sorteio.' : '')); } });
@@ -1112,6 +1221,9 @@
         li.appendChild(b); lista.appendChild(li);
       });
     }
+    if (telaAtual === 'mundo') [['a', 'Piloto: ilha A'], ['b', 'Piloto: ilha B'], ['v1', 'v1: por código']].forEach(function (v) {
+      ctl.appendChild(botao(v[1], function () { usaVariante(v[0]); montaUI(); anuncia('Mapa: ' + v[1]); }, { pressed: VAR.id === v[0] }));
+    });
     ctl.appendChild(botao('Animações reduzidas', function () { reduzido = !reduzido; montaUI(); }, { pressed: reduzido }));
     var e = document.getElementById('estados'); e.innerHTML = '';
     [['exemplo', 'Exemplo'], ['comeco', 'Começo'], ['tudo', 'Tudo conquistado']].forEach(function (pp) {
@@ -1121,7 +1233,8 @@
   }
   function montaNotas() {
     var N = telaAtual === 'mundo' ? [
-      '<span class="tag cod">código</span> <b>Terreno da ilha</b> gerado por código nesta amostra (relevo com luz da esquerda, praia, rio, lago, serras, vulcão, mata). É o lugar da arte final, que pode vir de um piloto pago (ver abaixo).',
+      VAR.id === 'v1' ? '<span class="tag cod">código</span> <b>Terreno da ilha</b> gerado por código (v1): relevo com luz da esquerda, praia, rio, lago, serras, vulcão, mata.'
+        : '<span class="tag pago">piloto pago</span> <b>Ilha pintada</b> pelo PixelLab (Pixen, 256 × 384, 1 geração cada) e <b>ginásios</b> como objetos 64 × 64 (arena de pedra, plataforma de tábuas, picadeiro com cerca), assentados por código: sombra de contato com a luz da esquerda e cores na Resurrect 64. Sobre a pintura, o código anima a água, a lava, a fumaça, as nuvens e a névoa.',
       '<span class="tag cod">código</span> <b>Mundo vivo</b>: mar com arrebentação e brilho, correnteza no rio, ondinhas no lago e lava descendo do vulcão (ciclo de cor, 12 q/s); copas no vento em faixas; fumaça e bombas do vulcão; nuvens com a sombra correndo no chão; pássaros.',
       '<span class="tag cod">código</span> <b>Névoa</b> sobre o que não foi conquistado: densa com 0 de 5, mais rala a cada etapa vencida, some com a insígnia. Só visual: as três trilhas continuam abertas desde o começo, como hoje.',
       '<span class="tag jogo">arte do jogo</span> <b>Líder</b> no medalhão de cada ginásio (a cabeça do corpo de 32 × 48 já pago, recortada 1:1), insígnia brilhando no conquistado e o "!" da revanche do dia.',
@@ -1133,8 +1246,15 @@
       '<b>Estados</b>: fechada (oponente apagado e cadeado), próxima (tablado pulsando e "!"), vencida (tablado dourado e estrela), líder conquistado (insígnia) e revanche do dia ("!") ou feita.',
       '<b>Acessível</b>: a trilha continua numa lista de botões abaixo do mapa (leitor de tela e teclado: setas, Enter, Esc volta).'
     ];
-    N.push('<span class="tag pago">pago, opcional</span> <b>Piloto da arte do mapa-múndi</b> no PixelLab (terreno pintado e os 3 ginásios como objetos): só com a sua confirmação.');
+    if (telaAtual === 'mundo' && VAR.id !== 'v1') N.push('<b>Ainda por código na versão final</b>: as árvores da ilha pintada não balançam nesta amostra (a técnica de deformação da frente da animação faz isso na implementação).');
     document.getElementById('notas').innerHTML = N.map(function (n) { return '<li>' + n + '</li>'; }).join('');
+  }
+  function montaCandidatos() {
+    var el = document.getElementById('candidatos'); if (!el) return;
+    el.innerHTML = M.piloto.todos.map(function (c) {
+      var g = /ginasio/.test(c.nome), usado = M.piloto.escolhidos.indexOf(c.nome) >= 0;
+      return '<figure class="cand' + (usado ? ' usado' : '') + '"><img src="' + c.uri + '" alt="' + c.nome + '" style="width:' + (g ? 128 : 128) + 'px"><figcaption>' + c.nome + (usado ? ' · na amostra' : '') + '</figcaption></figure>';
+    }).join('');
   }
   function pronto() {
     // o chão escurecido (sombra das nuvens) e o lavado (névoa), por troca de paleta do mundo parado
@@ -1142,6 +1262,9 @@
     var im = snap.g.getImageData(0, 0, W, H), dd = new Uint32Array(im.data.buffer);
     for (var p = 0; p < W * H; p++) { lavado[p] = lavar(dd[p] | 0xff000000); escuro.d[p] = escurecer((mundo.b.d[p] | 0xff000000) >>> 0); }
     escuro.poe();
+    varCache.v1 = { pesos: pesoReg, lavado: lavado, escuro: escuro };
+    usaVariante('a');
+    montaCandidatos();
     ajusta(); window.addEventListener('resize', ajusta);
     montaUI();
     requestAnimationFrame(quadro);

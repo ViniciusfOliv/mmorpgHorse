@@ -24,7 +24,11 @@ tocar num ginásio → aproximação 1×→2×→3× e íris na cor do elemento 
 de terra que se pinta tile a tile ao vencer (ponte de tábuas sobre a água no Remanso), os estados das paradas e o cavalo
 ativo (molde do jogo) trotando até o próximo oponente; e a volta. Lista de botões, teclado e leitor de tela; medidor de
 custo (desenho do quadro ~0,2–0,4 ms no mundo e ~0,25–0,6 na trilha no contêiner). Ao lado, as capturas de hoje. Custo
-zero. **Próximo:** retorno do Vinicius; perguntado se quer um piloto pago (PixelLab) para a arte final do mapa-múndi.
+zero. **v1 aprovada como direção (2026-11-24); piloto pago feito** (confirmado pelo Vinicius aqui; teto 15): 14
+gerações (saldo 879 → 858), script `prototype/tools/arte-mapa-mundo.mjs`, folha `prototype/arte/folha-mapa-mundo.html`. A
+amostra v2 (mesmo artefato) abre na ilha pintada A (s9902), com a B (s9901) e a v1 no seletor, os ginásios do piloto
+assentados com sombra de contato e todos os candidatos embaixo. **Próximo:** escolha do Vinicius (ilha e ginásios),
+retoques e a spec.
 Depois: spec em `docs/superpowers/specs/` e plano. A spec da animação (frente 1) já lista os mapas das trilhas no §3.4;
 o ambiente das trilhas fica com ela, e o mapa-múndi e a trilha de terra com esta frente.
 

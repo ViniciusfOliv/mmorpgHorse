@@ -1,5 +1,5 @@
 {
-  "pl": 614,
+  "pl": 628,
   "usd": 9.760000000000007,
   "chamadas": [
     {
@@ -766,6 +766,76 @@
       "base": "marca/icone-s9912",
       "geracoes": 10,
       "data": "2026-11-20T18:42:36.282Z"
+    },
+    {
+      "base": "mapa-mundo/terreno-s9901",
+      "geracoes": 1,
+      "data": "2026-11-24T01:07:37.226Z"
+    },
+    {
+      "base": "mapa-mundo/terreno-s9902",
+      "geracoes": 1,
+      "data": "2026-11-24T01:08:14.294Z"
+    },
+    {
+      "base": "mapa-mundo/terreno-s9903",
+      "geracoes": 1,
+      "data": "2026-11-24T01:08:43.339Z"
+    },
+    {
+      "base": "mapa-mundo/terreno-s9904",
+      "geracoes": 1,
+      "data": "2026-11-24T01:09:20.774Z"
+    },
+    {
+      "base": "mapa-mundo/base-f250-s9911",
+      "geracoes": 1,
+      "data": "2026-11-24T01:09:51.280Z"
+    },
+    {
+      "base": "mapa-mundo/base-f250-s9912",
+      "geracoes": 1,
+      "data": "2026-11-24T01:10:16.044Z"
+    },
+    {
+      "base": "mapa-mundo/base-f450-s9911",
+      "geracoes": 1,
+      "data": "2026-11-24T01:10:31.171Z"
+    },
+    {
+      "base": "mapa-mundo/base-f450-s9912",
+      "geracoes": 1,
+      "data": "2026-11-24T01:10:53.292Z"
+    },
+    {
+      "base": "mapa-mundo/ginasio-fogo-s9921",
+      "geracoes": 1,
+      "data": "2026-11-24T01:11:16.807Z"
+    },
+    {
+      "base": "mapa-mundo/ginasio-fogo-s9922",
+      "geracoes": 1,
+      "data": "2026-11-24T01:11:40.872Z"
+    },
+    {
+      "base": "mapa-mundo/ginasio-agua-s9931",
+      "geracoes": 1,
+      "data": "2026-11-24T01:12:07.928Z"
+    },
+    {
+      "base": "mapa-mundo/ginasio-agua-s9932",
+      "geracoes": 1,
+      "data": "2026-11-24T01:12:34.213Z"
+    },
+    {
+      "base": "mapa-mundo/ginasio-grama-s9941",
+      "geracoes": 1,
+      "data": "2026-11-24T01:12:56.434Z"
+    },
+    {
+      "base": "mapa-mundo/ginasio-grama-s9942",
+      "geracoes": 1,
+      "data": "2026-11-24T01:13:17.288Z"
     }
   ]
 }

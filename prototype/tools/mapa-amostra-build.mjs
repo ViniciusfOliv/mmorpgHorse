@@ -25,6 +25,15 @@ const dados = {
   mapas: MAPAS,
   treinadores: Object.fromEntries(Object.entries(await lerTreinadores(PROTO)).map(([k, v]) => [k, v.corpo])),
   icones: ICONES,
+  piloto: (() => {
+    const D = path.join(PROTO, 'assets', 'arte', 'mapa-mundo');
+    const usados = { 'terreno-s9902': 'terreno/terreno-s9902', 'terreno-s9901': 'terreno/terreno-s9901', 'ginasio-fogo': 'ginasios/ginasio-fogo-s9921',
+      'ginasio-agua': 'ginasios/ginasio-agua-s9932', 'ginasio-grama': 'ginasios/ginasio-grama-s9941' };
+    const todos = [];
+    for (const l of ['terreno', 'base', 'ginasios']) for (const f of fs.readdirSync(path.join(D, l)).filter(f => f.endsWith('.png')).sort()) todos.push({ nome: f.replace('.png', ''), uri: uri(path.join(D, l, f)) });
+    return { usados: Object.fromEntries(Object.entries(usados).map(([k, v]) => [k, uri(path.join(D, v + '.png'))])),
+      escolhidos: ['terreno-s9902', 'terreno-s9901', 'ginasio-fogo-s9921', 'ginasio-agua-s9932', 'ginasio-grama-s9941'], todos };
+  })(),
   hoje: {
     mundo: uri(path.join(PROTO, 'screens', 'final-24-expedicao-ginasios.png')),
     trilha: uri(path.join(PROTO, 'screens', 'final-25-trilha.png'))
