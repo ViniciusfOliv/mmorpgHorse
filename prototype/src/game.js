@@ -19,11 +19,11 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
-  if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !telaEl) {
-    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, itens.js, ginasio.js, sprites.js ou fx.js).';
+  if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !AF || !telaEl) {
+    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, itens.js, ginasio.js, afk.js, sprites.js ou fx.js).';
     return;
   }
   // Modo DEV: decidido uma vez, na carga. O código DEV fica entre marcadores de bloco "@dev" (e o gancho de
@@ -50,21 +50,37 @@
   /*@dev:inicio*/
   if (DEV_MODE) SAVE_KEY = DV.SAVE_KEY;   // modo DEV: só o save de teste; o real ('galope-elemental:v1') não é lido nem gravado
   /*@dev:fim*/
+  // Build dos testadores (dist/jogo-teste.html, que liga o modo rápido; pedido do Vinicius, 2026-11-23): para
+  // testes rápidos de outras pessoas, sem o modo DEV. Evolução ×10 (XP da corrida, do ginásio e do AFK), iniciais Raros
+  // com genética nota A em todos os status e rivais da sala Mágicos com um só Raro, um pouco abaixo do Poder do jogador.
+  // Save próprio. O build tira este bloco do jogo de produção; as regras dos módulos não mudam.
+  var RAPIDO = null;
+  /*@dev:inicio*/
+  if (!DEV_MODE && window.__GALOPE_RAPIDO === true) {
+    RAPIDO = { xp: 10, genetica: 22, alvo: [0.90, 0.96] };
+    SAVE_KEY = 'galope-elemental:teste-rapido';
+    GD.ECONOMY.xpPerPlace = GD.ECONOMY.xpPerPlace.map(function (x) { return x * RAPIDO.xp; });
+    GD.GYM.xp = { vence: GD.GYM.xp.vence * RAPIDO.xp, perde: GD.GYM.xp.perde * RAPIDO.xp };
+    GD.AFK.xpBase = GD.AFK.xpBase * RAPIDO.xp;
+    GD.STARTERS.forEach(function (h) {
+      h.rarity = 'raro';
+      Object.keys(h.potential).forEach(function (k) { h.potential[k] = RAPIDO.genetica; });
+    });
+  }
+  /*@dev:fim*/
   var E = GD.ECONOMY;
   var GE = E.gear;
-  // Equipamento suspenso (bloco 1b, spec 2026-11-12-crescimento-livre §8). A corrida, o Poder e os status já ignoram
-  // as peças (sim.js). Com GEAR_ON = false:
-  // - a aba Loja e a sub-aba Equipamento somem, e o resumo das peças sai do Estábulo, do Correr, da ficha e da largada;
-  // - o saldo de Pedras Negras sai do cabeçalho e do Perfil;
-  // - a Pedra Negra do pódio não cai (GR.podiumStone não é chamado) e os bots correm sem peças;
-  // - as ações de peça (equipar, tirar, melhorar, vender, comprar) não fazem nada, nem com o botão forçado.
-  // Peças, melhorias, o que está equipado e as Pedras ficam no save sem mudança: nada é vendido nem convertido.
-  // O código do equipamento fica, desligado por esta constante, para voltar depois. Ligar a constante não basta: o gear
-  // precisa entrar de novo na corrida (`entry`), no `powerRating` e na trava do páreo (`canEquip` hoje passaria sempre).
-  var GEAR_ON = false;
+  // Equipamento só no PVE (spec 2026-11-23-afk-drops §5.7; antes, suspenso desde o bloco 1b). A corrida valendo, a sala,
+  // o Poder e os duelos de ginásio ignoram as peças (sim.js): elas só valem no treino AFK (afk.js).
+  // GEAR_ON = true liga as telas do equipamento: a sub-aba Equipamento da Montaria (com o selo "só AFK"), a loja de peças
+  //   e de Pedras Negras, o saldo de Pedras e as ações de peça (equipar, tirar, melhorar, vender, comprar, reforjar).
+  // GEAR_PVP = false, e fica: nada de peça na aba Correr, na largada, nos rivais nem no resultado; os bots sem peças; a
+  //   Pedra Negra do pódio não cai (o pódio dá o Pergaminho de técnica; a Pedra vem da loja, do treino e da forja).
+  var GEAR_ON = true, GEAR_PVP = false;
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
   var MIN_ENTRY = Math.min.apply(null, E.entryTiers);
+  // os selvagens de exemplo: o jogo só mostra o bloco recolhido "em breve" (ajustes 1); a lista fica para o wiki (wiki.mjs)
   var WILD_SHOWCASE = ['w-faisca', 'w-mandacaru', 'w-ventania', 'w-fogareu', 'w-iara', 'w-boitata'];
   var TRACK_NAMES = [
     'Prado do Cerrado', 'Hipódromo da Lagoa', 'Raia do Engenho', 'Prado Beira-Rio',
@@ -78,9 +94,9 @@
   var TELA_S_MIN = 30, TELA_S_MAX = 51;
   // câmera da corrida e cadência do galope (guia §8a, etapa 2.4 da direção de arte): 12 px de arte por metro (o chão a
   // 16 m/s passa a ~190 px/s) e 14 quadros por segundo no ciclo de 6 do código = 21 no ciclo de 9 do molde, a 17 m/s
-  // câmera da corrida: de PPM_MIN a PPM_ARTE pixels de arte por metro (refino de 2026-11-23: a câmera enquadra o jogador e
-  // os rivais a até CAM_GRUPO_M dele; o 12 fixo deixava a disputa fora da tela)
-  var PPM_ARTE = 12, PPM_MIN = 4, CAM_GRUPO_M = 45, GALOPE_QPS = 14;
+  // câmera da corrida: PPM_ARTE pixels de arte por metro de perto; afasta para caber os rivais (RaceFx.CAMERA: centrada no
+  // jogador, até RaceFx.CAMERA.limite metros; ajustes 1, 2026-11-23)
+  var PPM_ARTE = 12, GALOPE_QPS = 14;
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala dos retratos (portraitHtml sem opts.tamanho)
@@ -436,6 +452,14 @@
   function sexoHtml(sexo) {
     return sexo === 'f' ? iconeHtml('ui-femea', '♀', 16) + ' Fêmea' : iconeHtml('ui-macho', '♂', 16) + ' Macho';
   }
+  // o símbolo do sexo ao lado do nome (Estábulo e cabeça da ficha; ajustes 1, 2026-11-23): o ícone 16×16 decorativo num
+  // <span role="img"> com "macho"/"fêmea" (sem o arquivo, o ♂/♀ de reserva, também com o texto acessível)
+  function sexoNomeTxt(sexo) { return sexo === 'f' ? 'fêmea' : 'macho'; }
+  function sexoIconeHtml(sexo) {
+    var f = sexo === 'f';
+    return '<span class="sexo-icone sexo-icone--' + (f ? 'f' : 'm') + '" role="img" aria-label="' + sexoNomeTxt(sexo) + '" title="' + (f ? 'Fêmea' : 'Macho') + '">' +
+      (f ? iconeHtml('ui-femea', '♀', 16) : iconeHtml('ui-macho', '♂', 16)) + '</span>';
+  }
   function corcelHtml() { return iconeHtml('ui-corcel', '⚑', 16) + ' Corcel'; }
   // skill de vaga (sk-<id>) ou de tipo (sk-tipo-<elemento>); reserva: o selo do elemento da skill
   function skillIcone(id, tam) {
@@ -618,10 +642,20 @@
   //   vaga. Save de antes da v9 (sem o campo): toda skill fica no rank 1, sem aviso. Em qualquer versão o campo passa
   //   pelo Itens.sanearRanks: rank ausente ou inválido (0, 7, "3", NaN) vale 1 e rank de skill que o cavalo não tem some.
   //   A mochila ganha o Pergaminho de técnica (ausente: 0).
-  var SAVE_VERSION = 9;
+  // v9 -> v10 (corrida AFK, 2026-11-23; spec afk-drops §6), em sanitize e gravado logo ao abrir: nada do save antigo muda.
+  //   state.afk = a forma de Afk.sanear: { vagas: [{ uid, faseId, inicioMin, contador, medida }] (1 a 5; a 1ª já vem
+  //     liberada, vazia), bau, vitorias: { faseId: n }, bestiario, aveiaMin, xpCounter }. Vaga com cavalo que não existe,
+  //     fase ou dificuldade não liberada fica vazia (o contador da vaga fica); números fora da faixa voltam ao padrão.
+  //   A mochila ganha os itens do AFK (GameData.ITEMS com `grupo`), cada um de 0 ao teto dele (cap).
+  //   Cada peça ganha linhas: [{ tipo, valor }] e rerolls (inteiro ≥ 0). Peça de antes (sem linhas) ou com linhas
+  //     inválidas recebe as linhas pela seed do save e pelo uid (Gear.linhasDaPeca: sempre as mesmas) e rerolls 0.
+  var SAVE_VERSION = 10;
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
-  var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual, pergaminho
+  var MOCHILA_IDS = GD.ITENS_USO.filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual, pergaminho
+  // os itens do AFK (materiais, incomuns, comidas, Pergaminho de reforja, troféus): na mochila, cada um com o teto dele
+  var AFK_IDS = Object.keys(GD.ITEMS).filter(function (id) { return !!GD.ITEMS[id].grupo; });
+  var REROLLS_MAX = 1e6;
   // os itens à venda, na ordem fixa da loja (GameData.SHOP_ORDER, spec de itens §6: Torrão, Manual, Cupom, Estrela)
   var LOJA_ITENS = GD.SHOP_ORDER.filter(function (id) { return hasOwn(GD.ITEMS, id) && GD.ITEMS[id].price != null; });
   // os que têm limite por dia (perDay), tirados do catálogo (o itens.js lê os mesmos campos): torrao, manual, cupom
@@ -679,8 +713,12 @@
   }
 
   // cria uma peça +0 no save st (uid 'i' + nextItemUid) e devolve a instância
-  function addItem(st, id) {
-    var it = { uid: 'i' + st.nextItemUid, id: id, plus: 0 };
+  // linhas: as que já vieram sorteadas (peça que caiu no AFK ou saiu da forja); sem elas, pela seed do save e pelo uid
+  // origem: 'afk' (caiu no treino) ou 'forja'; ausente = comprada na loja ou de antes (só essa tem preço de venda)
+  function addItem(st, id, linhas, origem) {
+    var it = { uid: 'i' + st.nextItemUid, id: id, plus: 0, rerolls: 0 };
+    if (origem) it.origem = origem;
+    it.linhas = GR.linhasDaPeca({ uid: it.uid, id: id, linhas: linhas }, st.seedBase);
     st.items.push(it);
     st.nextItemUid += 1;
     return it;
@@ -706,6 +744,7 @@
       nextItemUid: 1,
       pedras: 0,
       enhanceCounter: 0,
+      forjaCounter: 0,
       redeas: 0,          // Rédeas novas (bloco 1b §9): vêm no 7º dia da recompensa diária (e da gaveta DEV)
       avisoV6: false,     // aviso da migração v5 -> v6 ainda por mostrar (só em save migrado)
       mochila: mochilaVazia(),
@@ -714,11 +753,12 @@
       itemCounter: 0,
       ginasios: GN.sanear(null, 0),   // os três ginásios sem nenhuma etapa vencida (revDia null: nunca tentou a revanche)
       gymCounter: 0,
+      afk: null,          // posto logo abaixo (Afk.sanear: a 1ª vaga liberada e vazia, baú e bestiário vazios)
       settings: { motion: 'sistema' },
       joquei: joqueiInicial()
     };
     /*@dev:inicio*/
-    if (DEV_MODE) st.devDias = 0;   // deslocamento de dias da gaveta DEV: só no save de teste
+    if (DEV_MODE) { st.devDias = 0; st.devMin = 0; }   // deslocamento de dias (e de minutos do AFK) da gaveta DEV: só no save de teste
     /*@dev:fim*/
     // equipamento inicial (+0) já equipado no inicial
     GE.startGear.forEach(function (id) {
@@ -726,12 +766,14 @@
       var it = addItem(st, id);
       st.mounts[0].equip[GD.GEAR[id].slot] = it.uid;
     });
+    st.afk = AF.sanear(null, { uids: ['m1'], progresso: st.ginasios, agoraMin: agoraMin(st) });
     return st;
   }
 
   function mochilaVazia() {
     var mo = {};
     MOCHILA_IDS.forEach(function (id) { mo[id] = 0; });
+    AFK_IDS.forEach(function (id) { mo[id] = 0; });
     return mo;
   }
   function lojaItensVazia() {
@@ -859,7 +901,7 @@
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
     var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
-    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= 6, v7 = Number(s.v) >= 7, v8 = Number(s.v) >= 8;
+    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= 6, v7 = Number(s.v) >= 7, v8 = Number(s.v) >= 8, v10 = Number(s.v) >= 10;
     var seedBase = num(s.seedBase, null, 0, 4294967295);
     if (seedBase == null) seedBase = freshSeedBase(0);
     var rawEquip = {};   // uid da montaria -> equip cru do save (validado depois das peças)
@@ -925,7 +967,7 @@
     base.avisoV6 = v6 ? s.avisoV6 === true : true;
     // Itens, loja e diária (v7): save de antes da v7 fica com o padrão do newState (tudo zerado, o dia 1 para resgatar)
     /*@dev:inicio*/
-    if (DEV_MODE) base.devDias = inteiroOu(s.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX);
+    if (DEV_MODE) { base.devDias = inteiroOu(s.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX); base.devMin = inteiroOu(s.devMin, 0, 0, DEV_MIN_MAX); }
     /*@dev:fim*/
     // Num save v7, dado de dia ou de limite corrompido não libera nada (Rulings 7 e 8): dia (ultimo, dia, estrelaDia)
     // que não é null nem inteiro de 0 a DIA_MAX vale hoje; compra do dia corrompida vale o limite; diária ou loja que
@@ -935,6 +977,7 @@
       var diaOu = function (x) { return x === null ? null : inteiroOu(x, hoje, 0, DIA_MAX); };
       var mch = objetoOu(s.mochila) || {}, di = objetoOu(s.diaria), lj = objetoOu(s.lojaItens), cp = lj && objetoOu(lj.comprados) || {};
       MOCHILA_IDS.forEach(function (id) { base.mochila[id] = inteiroOu(mch[id], 0, 0, GD.BAG_MAX); });
+      if (v10) AFK_IDS.forEach(function (id) { base.mochila[id] = inteiroOu(mch[id], 0, 0, GD.ITEMS[id].cap); });
       base.diaria = {
         prox: inteiroOu(di && di.prox, 0, 0, GD.DAILY.dias.length - 1),
         ciclos: inteiroOu(di && di.ciclos, 0, 0, 1e9),
@@ -951,6 +994,9 @@
       base.ginasios = GN.sanear(s.ginasios, hojeDia(base));
       base.gymCounter = inteiroOu(s.gymCounter, 0, 0, 1e9);
     }
+    // Corrida AFK (v10): save de antes fica com o AFK vazio e a 1ª vaga liberada. Num save v10, o Afk.sanear (vaga de
+    // cavalo que não existe ou de fase não liberada fica vazia; o resto, na faixa)
+    base.afk = AF.sanear(v10 ? s.afk : null, { uids: base.mounts.map(function (m) { return m.uid; }), progresso: base.ginasios, agoraMin: agoraMin(base) });
     // Poder da sala (R16) = o maior entre o Poder do retrato dos pontos de quando a sala abriu (pending.alloc, tirado
     // em openLobby) e o Poder com que a ativa corre agora. Nem mais (liberaria pontos acima do que a sala viu) nem
     // menos (os rivais sairiam mais fracos). O equipamento não entra (spec 1b §8): o retrato dele (pending.gear) fica
@@ -1011,7 +1057,9 @@
         if (typeof it.id !== 'string' || !hasOwn(GD.GEAR, it.id)) return;
         var p = it.plus;
         if (!(typeof p === 'number' && p === Math.floor(p) && p >= 0 && p <= GE.plusMax)) return;
-        var out = { uid: it.uid, id: it.id, plus: p };
+        var out = { uid: it.uid, id: it.id, plus: p, rerolls: inteiroOu(it.rerolls, 0, 0, REROLLS_MAX) };
+        if (it.origem === 'afk' || it.origem === 'forja') out.origem = it.origem;   // veio do treino ou da forja: sem preço de venda
+        out.linhas = GR.linhasDaPeca(it, base.seedBase);   // v10; peça de antes (ou com lixo): pela seed do save e pelo uid
         items.push(out);
         byUid[out.uid] = out;
         maxItemUid = Math.max(maxItemUid, Number(out.uid.slice(1)));
@@ -1025,7 +1073,8 @@
         if (newId === null) { pedras += OLD_RAPADURA_PEDRAS; return; }
         if (!hasOwn(GD.GEAR, newId)) return;
         n += 1;
-        var out = { uid: 'i' + n, id: newId, plus: 0 };
+        var out = { uid: 'i' + n, id: newId, plus: 0, rerolls: 0 };
+        out.linhas = GR.linhasDaPeca(out, base.seedBase);
         items.push(out);
         byUid[out.uid] = out;
         if (oldId === s.equipped && !legacyEquip) legacyEquip = out;
@@ -1055,6 +1104,7 @@
     base.nextItemUid = v4 ? Math.max(num(s.nextItemUid, 0, 0, 1e9), maxItemUid + 1) : maxItemUid + 1;
     base.pedras = pedras;
     base.enhanceCounter = v4 ? num(s.enhanceCounter, 0, 0, 1e9) : 0;
+    base.forjaCounter = v4 ? num(s.forjaCounter, 0, 0, 1e9) : 0;   // peças forjadas (a seed das linhas; nunca volta)
   }
 
   // Skills salvas de uma montaria: só ids que ela pode ter (mesmas regras do RaceSim.learnSkill:
@@ -1188,6 +1238,17 @@
     /*@dev:fim*/
     return dia;
   }
+  // O "agora" do AFK, em minutos desde 1970, com fração (o relógio do aparelho, como o dia da diária): o ÚNICO lugar que lê
+  // o relógio para as regras do AFK (o afk.js recebe o número). No modo DEV soma o deslocamento de dias da gaveta e o de
+  // minutos do AFK (só no save de teste). st: o save do deslocamento (padrão: o state).
+  function agoraMin(st) {
+    var min = Date.now() / 60000;
+    /*@dev:inicio*/
+    st = st || state;
+    if (DEV_MODE && st) min += inteiroOu(st.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX) * 1440 + inteiroOu(st.devMin, 0, 0, DEV_MIN_MAX);
+    /*@dev:fim*/
+    return min;
+  }
   // O dia virou com o jogo aberto (decisão 19 do controlador): sem temporizador, o dia só é conferido quando a aba volta a
   // ficar visível (visibilitychange, no start) e no começo de um toque (o clique delegado da tela). Se hojeDia() mudou desde
   // o último desenho, a tela é desenhada de novo (redesenhaDia) e esse toque não vale (o alvo era da tela de ontem). Nunca
@@ -1239,6 +1300,7 @@
       return;
     }
     state = s;
+    if (ui.afk) { ui.afk.vivo = {}; ui.afk.ult = {}; ui.afk.coleta = null; ui.afk.confirmaPerda = false; }   // o treino AFK segue o save adotado
     // o resultado já mostrado continua válido (também os duelos de um desafio já gravado, a tela de desafio e o cartão entre eles)
     if (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'entreduelos' || ui.screen === 'desafio') return;
     ui.notice = 'O jogo foi atualizado em outra aba; este é o progresso mais recente.';
@@ -1478,9 +1540,45 @@
   function skillHtml(id, tam, quando, rank, extra) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
-    return '<div class="habilidade' + (rank >= GD.SKILL_RANKS.max ? ' habilidade--max' : '') + '"><b>' + skillIcone(id, tam) + esc(sk.name) + (rank ? rankMarcasHtml(rank) : '') + '</b>' +
-      '<span class="habilidade-efeito">' + esc(rank ? RS.skillDesc(id, rank) : sk.desc) + '</span>' +
-      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + (extra || '') + '</div>';
+    return '<div class="habilidade' + (rank >= GD.SKILL_RANKS.max ? ' habilidade--max' : '') + '">' +
+      skillDicaHtml(id, { tam: tam, rank: rank, quando: quando, extra: extra }) + '</div>';
+  }
+  // ---- Skill em resumo, texto completo sob demanda (ajustes 1, 2026-11-23): na tela ficam o ícone, o nome, o rank e o
+  // resumo curto (GameData.SKILLS[id].resumo, sem números); o texto completo (o efeito com os números do rank, quando ativa e
+  // o próximo rank) fica num balão ligado ao gatilho por aria-describedby. Com o mouse (só em aparelho com hover) ou com o
+  // foco do teclado ele aparece por cima, sem empurrar a tela; no toque (ou clique) o gatilho alterna aria-expanded e o
+  // texto abre embaixo do resumo, como as explicações "ⓘ" (alternaDica). O balão está sempre no DOM: o leitor de tela lê a
+  // descrição sem abrir nada.
+  // o: { tam (16/32), rank, quando, extra (HTML a mais no balão), cabeca (HTML do topo quando o nome não pode ser o
+  // gatilho, como na escolha do Cupom, onde o nome é o botão da ação: aí o gatilho é um "ⓘ" ao lado) }
+  var dicaSeq = 0;
+  function skillDicaHtml(id, o) {
+    var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
+    if (!sk) return '';
+    o = o || {};
+    var rank = o.rank;
+    return dicaAreaHtml({
+      nome: sk.name, cabeca: o.cabeca,
+      gatilho: '<b>' + skillIcone(id, o.tam || 16) + esc(sk.name) + (rank ? rankMarcasHtml(rank) : '') + '</b>',
+      resumo: esc(sk.resumo || ''),
+      balao: '<span class="habilidade-efeito">' + esc(rank ? RS.skillDesc(id, rank) : sk.desc) + '</span>' +
+        (o.quando ? '<span class="habilidade-quando">' + esc(o.quando) + '</span>' : '') + (o.extra || '')
+    });
+  }
+  // o bloco genérico (skill de vaga, skill de tipo, Garra): o.gatilho (HTML do botão) ou o.cabeca (HTML do topo, com o "ⓘ"
+  // ao lado), o.nome (para o "Detalhes de …"), o.resumo e o.balao (HTML), o.resumoCls (classe a mais no resumo)
+  function dicaAreaHtml(o) {
+    var did = 'dica-' + (++dicaSeq);
+    var attrs = ' data-dica aria-expanded="false" aria-describedby="' + did + '"';
+    var topo = o.cabeca != null
+      ? '<span class="skill-dica-topo">' + o.cabeca + '<button type="button" class="ajuda skill-dica-btn skill-dica-btn--i"' + attrs + ' aria-label="' + esc('Detalhes de ' + o.nome) + '" title="' + esc(o.nome) + '"></button></span>'
+      : '<button type="button" class="ajuda skill-dica-btn"' + attrs + '>' + o.gatilho + '</button>';
+    return '<span class="skill-dica-area">' + topo + '<span class="habilidade-resumo' + (o.resumoCls ? ' ' + o.resumoCls : '') + '">' + o.resumo + '</span>' +
+      '<span class="skill-dica" id="' + did + '" role="tooltip">' + o.balao + '</span></span>';
+  }
+  // o toque (ou clique, ou Enter/Espaço) no gatilho: abre ou fecha o texto completo embaixo do resumo, sem re-renderizar
+  function alternaDica(btn) {
+    btn.setAttribute('aria-expanded', btn.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
   }
   // as 5 marcas do rank (cheias até o rank) e o algarismo romano; o leitor de tela lê "Rank III de V"
   var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];   // o rank das skills na tela (1 a 5)
@@ -1544,8 +1642,12 @@
       linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ': ' + vz(gb.boost) + ' em média.');
     }
     linhas.push('Mais Garra: começa antes e empurra mais.');
-    return '<div class="habilidade habilidade--garra"><b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>' +
-      linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>';
+    // ajustes 1: o resumo à vista (onde a arrancada começa) e as linhas completas no balão
+    return '<div class="habilidade habilidade--garra">' + dicaAreaHtml({
+      nome: 'Garra', gatilho: '<b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>',
+      resumo: esc('Arrancada final aos ' + pctTxt(g.from) + ' da pista'),
+      balao: linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('')
+    }) + '</div>';
   }
   // Skill de tipo: vaga própria, sempre ativa, num terço da pista; o efeito já multiplicado pela força P
   // (RaceSim.typeSkill), os mesmos números que a simulação usa.
@@ -1586,11 +1688,14 @@
     if (!ts) return '';
     var el = elementOf(horse.element), def = GD.TYPE_SKILLS[horse.element];
     var pontos = efeitoTipoPontosTxt(horse, ts);
+    // ajustes 1: o nome e o efeito em pontos (o resumo) à vista; a descrição e a intensidade no balão
+    var forca = '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',')) + '</span>';
     return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa' + ajudaBtn('skillTipo', 'a skill de tipo') + '</span>' +
-      '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>' +
-      (pontos ? '<span class="vaga-tipo-pontos">' + esc(pontos) + '</span>' + '<span>' + esc(def.desc) + '</span>'
-        : '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>') +
-      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',')) + '</span></div>';
+      dicaAreaHtml({
+        nome: ts.name, gatilho: '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>',
+        resumo: esc(pontos || ('Age no ' + tercoTxt(ts) + ' da pista')), resumoCls: pontos ? 'vaga-tipo-pontos' : '',
+        balao: (pontos ? '<span>' + esc(def.desc) + '</span>' : '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>') + forca
+      }) + '</div>';
   }
   function silkClass(r) { return r.isPlayer ? 'seda-voce' : 'seda-' + r.silkIdx; }
   function laneChip(r, i, extra) {
@@ -1620,7 +1725,7 @@
   // ===========================================================================
   // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
   // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
-  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', largada: 'full', corrida: 'full', desafio: 'full', entreduelos: 'full', resultado: 'full' };
+  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', afk: 'sub', bestiario: 'sub', forja: 'sub', largada: 'full', corrida: 'full', desafio: 'full', entreduelos: 'full', resultado: 'full' };
   // as 5 abas da barra (o handler 'aba' só abre as desta lista; o wiki lê esta linha). A Loja (itens e mochila, spec de
   // itens §6) fica sempre: o que é do equipamento dentro dela (peças e Pedras Negras) continua atrás do GEAR_ON
   var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
@@ -1660,6 +1765,11 @@
     if (screen === 'corrida' && !corridaAtual().L) screen = state ? 'correr' : 'inicial';
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     ui.item = null; ui.itemMsg = null;   // o uso de item aberto e o aviso dele não passam para outra tela
+    ui.comida = null; ui.comidaMsg = null;   // nem a comida esperando o cavalo
+    // treino AFK: a corrida assistida só vive na tela de corrida; a escolha do treino e os avisos, só na tela dele
+    if (ui.afk && screen !== 'corrida') { window.clearTimeout(afkEsperaTimer); ui.afk.ver = null; }
+    if (ui.afk && screen !== 'afk') { ui.afk.escolha = null; ui.afk.msg = null; ui.afk.coleta = null; ui.afk.confirmaPerda = false; }
+    if (state && !saveBloqueado && screen !== 'corrida') afkConfere();   // cavalo que saiu do estábulo, fase que fechou: a vaga esvazia
     if (screen !== ui.screen) {
       ui.confirmReset = false; ui.confirmLiberar = null; ui.diariaVer = false;
       SP.limparCacheMoldes();   // os moldes recoloridos da tela anterior não voltam a ser usados
@@ -1671,6 +1781,8 @@
     // a trilha (e o detalhe da etapa) só vive na subtela do ginásio; os duelos de um desafio pago (ui.gym.ver) passam na
     // tela de desafio, na tela de corrida e no cartão entre eles, e saem ao ir a qualquer outra tela
     var assiste = !!(ui.gym && ui.gym.ver) && (screen === 'corrida' || screen === 'entreduelos' || screen === 'desafio');
+    if (screen !== 'bestiario') ui.bestiario = null;
+    if (screen !== 'forja') ui.forja = null;
     if (screen !== 'ginasio' && !assiste) ui.gym = null;
     else if (!assiste && ui.gym) ui.gym.ver = null;
     // a Loja guarda o estado enquanto uma sub-tela aberta a partir dela está por cima
@@ -1706,6 +1818,14 @@
       if (gym.etapa !== null) { var ie = gym.etapa; gym.etapa = null; go('ginasio'); focoNaLinha('ginasio-etapa', String(ie)); return; }
       go(ui.tab);
       if (ui.screen === 'expedicao') focoNaLinha('ginasio-abrir', gym.id);
+      return;
+    }
+    // treino AFK: da escolha do treino volta às vagas; das vagas e do bestiário, à Expedição
+    if (ui.screen === 'afk' && ui.afk && ui.afk.escolha) { ui.afk.escolha = null; go('afk'); return; }
+    if (ui.screen === 'afk' || ui.screen === 'bestiario' || ui.screen === 'forja') {
+      var volta = ui.screen === 'bestiario' ? 'bestiario-abrir' : ui.screen === 'forja' ? 'forja-abrir' : 'afk-abrir';
+      go('expedicao');
+      focoNaLinha(volta, null);
       return;
     }
     var uid = ui.screen === 'montaria' && ui.montaria ? ui.montaria.uid : null;
@@ -1757,6 +1877,7 @@
   // As funções puras (cavalo, peça, condições, vento, seed, Ouro) estão em dev.js.
   // ===========================================================================
   var DEV_SKILL_VAGAS = 5;   // selects de skill na gaveta (o máximo de vagas, Mítico)
+  var DEV_MIN_MAX = 600000;   // "AFK: avançar o relógio": deslocamento de 0 a 600.000 minutos (state.devMin, só no save de teste)
   var DEV_DIAS_MAX = 400;   // "Avançar/Voltar 1 dia": deslocamento de −400 a 400 dias (state.devDias, só no save de teste)
   var devEl = null;
   if (DEV_MODE) {
@@ -2033,6 +2154,15 @@
       '<div class="dev-acoes">' + devBotao('dev-gin-etapas', 'Definir etapas') + devBotao('dev-gin-revanche', 'Liberar revanche') +
         devBotao('dev-gin-zerar', 'Zerar ginásios', 'btn--perigo') + '</div>');
 
+    // Treino AFK (spec do AFK): o relógio do treino (só anda para a frente, em minutos, no save de teste), as vitórias que
+    // liberam as dificuldades e os itens que caem
+    var dMin = inteiroOu(state.devMin, 0, 0, DEV_MIN_MAX);
+    var afkDev = devGrupo('afk', 'Treino AFK',
+      '<p class="nota" id="dev-afk-relogio">Relógio do treino: ' + (dMin ? '+' + afkTempoTxt(dMin) + ' do aparelho' : 'o do aparelho') + ' (só no save de teste).</p>' +
+      '<div class="dev-acoes">' + devBotao('dev-afk-2min', 'Avançar 2 min') + devBotao('dev-afk-2h', 'Avançar 2 h') + devBotao('dev-afk-9h', 'Avançar 9 h') + '</div>' +
+      '<div class="dev-acoes">' + devBotao('dev-afk-vitorias', '+50 vitórias nas fases liberadas') + devBotao('dev-afk-itens', '+20 de cada item do treino') +
+        devBotao('dev-afk-zerar', 'Zerar treino AFK', 'btn--perigo') + '</div>');
+
     var cavalo = devGrupo('cavalo', 'Cavalo',
       '<p class="nota">Cria um cavalo novo (entra no estábulo sem limite de vagas e vira a ativa) ou substitui a ativa (status, skills, cores, marcas e porte; mantém equipamento e cruzas).</p>' +
       '<div class="dev-campos dev-campos--1">' + devEntrada('nome', 'Nome', 'type="text" maxlength="16" autocomplete="off"', f.nome) + '</div>' +
@@ -2068,7 +2198,7 @@
 
     var itens = devGrupo('itens', 'Itens',
       '<p class="nota">Qualquer peça do catálogo, inclusive Lendária (só no perfil DEV). Comum e Mágico são peças soltas; Raro e Lendário usam o conjunto.' +
-        (GEAR_ON ? '' : ' Com o equipamento suspenso, as peças só ficam guardadas no save: não entram na corrida nem no Poder.') + '</p>' +
+        ' As peças só valem no treino AFK: não entram na corrida valendo nem no Poder.' + '</p>' +
       '<div class="dev-campos">' +
         devSelect('slot', 'Slot', GR.SLOTS.map(function (sl) { return [sl, GD.GEAR_SLOT_INFO[sl].name]; }), f.slot) +
         devSelect('conjunto', 'Conjunto', devListaDe(GD.GEAR_SETS, nomeDe), f.conjunto) +
@@ -2114,7 +2244,7 @@
     return '<div class="dev-gaveta" id="dev-gaveta" role="region" aria-labelledby="dev-titulo">' +
       '<div class="dev-cabeca"><h2 class="titulo" id="dev-titulo" tabindex="-1">Modo DEV</h2>' + devBotao('dev-fechar', 'Fechar') + '</div>' +
       '<p class="' + (ui.dev.msg ? 'aviso' : 'sr') + '" role="status" id="dev-msg">' + esc(ui.dev.msg) + '</p>' +
-      moedas + itensDia + ginasios + cavalo + itens + corrida + perfil +
+      moedas + itensDia + ginasios + afkDev + cavalo + itens + corrida + perfil +
     '</div>';
   }
 
@@ -2200,6 +2330,27 @@
         GD.GYM_ORDER.forEach(function (id) { state.ginasios[id].etapa = ge2[id]; });
         devGrava('Ginásios: ' + GD.GYM_ORDER.map(function (id) { return GD.ELEMENTS[GD.GYMS[id].element].name + ' ' + ge2[id] + '/5'; }).join(', ') + '.'); break;
       }
+      case 'dev-afk-2min':
+      case 'dev-afk-2h':
+      case 'dev-afk-9h': {
+        var mais = acao === 'dev-afk-2min' ? 2 : acao === 'dev-afk-2h' ? 120 : 540;
+        state.devMin = clamp(inteiroOu(state.devMin, 0, 0, DEV_MIN_MAX) + mais, 0, DEV_MIN_MAX);
+        devGrava('Relógio do treino AFK: +' + afkTempoTxt(mais) + '.');
+        if (state && afkNaTela()) afkTick();   // a tela do treino acerta o tempo na hora
+        break;
+      }
+      case 'dev-afk-vitorias': {
+        var libs = AF.liberadas(state.ginasios, state.afk.vitorias);
+        libs.forEach(function (fid) { state.afk.vitorias[fid] = (state.afk.vitorias[fid] || 0) + 50; });
+        devGrava(libs.length ? '+50 vitórias em ' + libs.length + (libs.length === 1 ? ' fase' : ' fases') + ' do treino AFK.' : 'Nenhuma fase liberada: vença uma etapa de ginásio (grupo Ginásios).'); break;
+      }
+      case 'dev-afk-itens':
+        AFK_IDS.forEach(function (id) { state.mochila[id] = Math.min(GD.ITEMS[id].cap, itemQtd(id) + 20); });
+        devGrava('+20 de cada item do treino AFK na mochila.'); break;
+      case 'dev-afk-zerar':
+        state.afk = AF.sanear({ vagas: state.afk.vagas.map(function (v) { return { contador: v.contador }; }) }, afkCtx());
+        if (ui.afk) { ui.afk.vivo = {}; ui.afk.ult = {}; ui.afk.resumo = null; ui.afk.coleta = null; }
+        devGrava('Treino AFK zerado: vagas vazias, baú, vitórias e bestiário limpos (os contadores das vagas ficam).'); break;
       case 'dev-gin-revanche':
         GD.GYM_ORDER.forEach(function (id) { state.ginasios[id].revDia = null; f['gin-' + id] = null; });
         devGrava('Revanche liberada hoje nos três ginásios.'); break;
@@ -2414,6 +2565,9 @@
       case 'expedicao': html = renderExpedicao(); break;
       case 'perfil': html = renderPerfil(); break;
       case 'ginasio': html = renderGinasio(); break;
+      case 'afk': html = renderAfk(); break;
+      case 'bestiario': html = renderBestiario(); break;
+      case 'forja': html = renderForja(); break;
       default: html = renderInicial();
     }
     var comCasca = kindOf(ui.screen) !== 'full';
@@ -2433,6 +2587,7 @@
       raceView = createRaceView(cor.L, telaEl, cor.fim, cor.cab.pularFim);
     }
     if (devHooks) devHooks.render();
+    afkLaco();   // o laço do treino AFK (só nas telas dele) e a medição da chance
     acordaLaco();
   }
 
@@ -2616,7 +2771,7 @@
       (saveCorrompido ? '<p class="aviso" role="status">Não foi possível ler o seu progresso salvo (o arquivo está corrompido). O jogo recomeçou; ' +
         (saveCorrompido === 'guardado' ? 'uma cópia do arquivo antigo foi guardada.' : 'não foi possível guardar uma cópia do arquivo antigo.') + '</p>' : '') +
       '<p class="sub">Escolha seu primeiro cavalo. Ele corre sozinho nas corridas valendo Ouro: você decide ' +
-        (GEAR_ON ? 'o item' : 'onde vão os pontos') + ' e a aposta antes da largada.</p></header>' +
+        (GEAR_PVP ? 'o item' : 'onde vão os pontos') + ' e a aposta antes da largada.</p></header>' +
       '<div class="iniciais-nav" role="group" aria-label="Comparar os 3 iniciais">' + nav + '<span class="nota">Deslize para comparar</span></div>' +
       '<div class="iniciais">' + cards + '</div>' +
       '<p class="nota">Elementos não batem de frente: Fogo, Água e Grama ganham ou perdem conforme o clima de cada corrida, que pode virar no Dado da Sorte.</p>' +
@@ -2673,7 +2828,7 @@
         '<span>' + sexoHtml(m.sex) + '</span>' +
         '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
-      '</div>' + xpHtml(m.level, m.xp, true) + (GEAR_ON ? gearSummaryHtml(m) : '') +
+      '</div>' + xpHtml(m.level, m.xp, true) + (GEAR_PVP ? gearSummaryHtml(m) : '') +
     '</article>';
   }
 
@@ -2688,12 +2843,12 @@
   function mountRowHtml(m, isActive, o) {
     var n = uidNum(m.uid);
     var pq = pontosQueCabem(m);
-    var rotulo = m.name + ' #' + n + ', nível ' + m.level + (isActive ? ', ativa' : '') +
+    var rotulo = m.name + ' #' + n + ', ' + sexoNomeTxt(m.sex) + ', nível ' + m.level + (isActive ? ', ativa' : '') +
       (pq > 0 ? ', ' + pq + (pq === 1 ? ' ponto' : ' pontos') + ' para distribuir' : '') + '. ' + (o ? o.fim : 'Abrir ficha.');
     return '<button type="button" class="montaria-linha' + (isActive ? ' montaria--ativa' : '') + '" data-acao="' + (o ? o.acao : 'montaria') + '" data-id="' + esc(m.uid) +
         '" aria-label="' + esc(rotulo) + '"' + (o ? indisponivel(o.motivo) : '') + (o && o.pressed != null ? ' aria-pressed="' + !!o.pressed + '"' : '') + '>' +
       '<span class="montaria-linha-retrato" aria-hidden="true">' + portraitHtml(m, { tamanho: 'pequeno', selo: true, pontos: pq }) + '</span>' +
-      '<span class="montaria-linha-nome">' + esc(m.name) + '<small>#' + esc(n) + '</small></span>' +
+      '<span class="montaria-linha-nome">' + esc(m.name) + sexoIconeHtml(m.sex) + '<small>#' + esc(n) + '</small></span>' +
       '<span class="montaria-linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') + '</span>' +
       '<span class="montaria-linha-meta">' + elementHtml(m.element) +
@@ -2822,7 +2977,7 @@
           xpHtml(h.level, h.xp, true) +
           '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         '</div></div>' +
-        (GEAR_ON ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
+        (GEAR_PVP ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div></div>' : '') +
       '</article>' +
       '<section class="caixa" aria-labelledby="r-entrada">' +
@@ -2905,24 +3060,21 @@
       pixelSvg(SETA_ROWS, 'montaria-linha-seta ginasio-cartao-seta') +
     '</button></li>';
   }
+  // Os cavalos selvagens (ajustes 1, 2026-11-23, pedido do Vinicius): só o título, num bloco recolhido e desativado com o
+  // selo "em breve" (o botão disabled não abre, não pega foco nem reage ao toque). A vitrine de retratos saiu até a captura
+  // existir; nada da regra muda.
+  function selvagensBlocoHtml() {
+    return '<section class="caixa selvagens-bloco" aria-labelledby="t-selvagens">' +
+      '<h2 class="titulo selvagens-titulo" id="t-selvagens"><button type="button" class="selvagens-abrir" disabled aria-expanded="false">' +
+        '<span>Cavalos selvagens</span> <span class="selo-breve">em breve</span></button></h2></section>';
+  }
   function renderExpedicao() {
-    var wild = WILD_SHOWCASE.map(horseById).filter(Boolean).map(function (w) {
-      return '<div class="selvagem selvagem--' + esc(w.rarity) + '">' + portraitHtml(w) +
-        '<b>' + esc(w.name) + '</b>' +
-        '<span class="linha-meta">' + rarityHtml(w.rarity) + '<span class="nivel">Nv ' + w.level + '</span></span>' +
-        elementHtml(w.element) +
-        '<span class="nota">' + esc(w.habitat || '') + '</span></div>';
-    }).join('');
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
-      '</section>' +
-      '<section class="caixa" aria-labelledby="t-selvagens"><h2 class="titulo" id="t-selvagens">Cavalos selvagens</h2>' +
-        '<p class="nota">Exemplos de achados em expedições. A captura ainda não está neste protótipo.</p>' +
-        '<div class="selvagens">' + wild + '</div>' +
-      '</section>' +
+      '</section>' + afkCartaoHtml() + selvagensBlocoHtml() +
       '</section>';
   }
 
@@ -2967,7 +3119,10 @@
       ? '<div class="etapa-btn">' + corpo + '</div>'
       : '<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="' + i + '"' +
           (estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' : indisponivel(MOTIVO)) + '>' + corpo + '</button>';
-    return '<li class="etapa etapa--' + estado + (e.lider ? ' etapa--lider' : '') + '" data-etapa="' + i + '" data-estado="' + estado + '">' + caixa + '</li>';
+    // oponente já vencido no ginásio: o treino AFK contra ele (spec do AFK §5.1)
+    var treinar = i < ginProgresso(id)
+      ? '<div class="etapa-treinar"><button type="button" class="btn btn--pequeno" data-acao="afk-treinar" data-id="' + esc(id + ':' + i) + '">Treinar (AFK)<span class="sr"> contra ' + esc(e.nome) + '</span></button></div>' : '';
+    return '<li class="etapa etapa--' + estado + (e.lider ? ' etapa--lider' : '') + '" data-etapa="' + i + '" data-estado="' + estado + '">' + caixa + treinar + '</li>';
   }
   // A trilha: de baixo para cima (a 1ª etapa embaixo; o DOM vai da 1ª à 5ª, o CSS vira a coluna)
   function trilhaHtml(id) {
@@ -3572,6 +3727,789 @@
     motivoVivo(gym.res.venceu ? 'Vitória!' : 'Derrota');
   }
 
+  // ===========================================================================
+  // Corrida AFK (spec 2026-11-23-afk-drops §5): vagas, baú, offline e bestiário. As regras são do afk.js; aqui só se
+  // grava e se desenha.
+  // ===========================================================================
+  // RELÓGIO DE CADA VAGA: vaga.inicioMin é "até onde o treino desta vaga já foi contado". Ao vivo (tela do AFK aberta), a
+  //   corrida seguinte larga quando agora ≥ inicioMin: o resultado sai da seed (Afk.correr), o contador e o ganho são
+  //   gravados juntos ANTES de qualquer coisa aparecer, e inicioMin passa a ser o fim dessa corrida (agora + duração); a
+  //   tela mostra a barra andando e só revela o resultado quando esse tempo passa. Fora da tela (outra aba do jogo, jogo
+  //   fechado, aba escondida) nada corre: na volta, o tempo desde inicioMin é acertado pelo Afk.offline (a chance medida),
+  //   até o limite, e inicioMin vem para agora. Assim nenhum minuto é contado duas vezes e relógio para trás não rende.
+  // ASSISTIR: a tela de corrida anima a corrida em curso da vaga (a cfg guardada, simulada de novo com os quadros: o mesmo
+  //   resultado) no tempo real do duelo; quando acaba, larga a seguinte. "Voltar ao treino" sai da tela; x2 só adianta a
+  //   animação (a corrida seguinte espera o relógio da vaga).
+  // CAVALO ATIVO COM SALA ABERTA: a vaga fica guardada e parada ("na sala"); o tempo com a sala aberta não conta.
+  // ui.afk (não persistido) = { ver: a corrida assistida ({ idx, L, cab }), resumo: o último acerto de uma parada longa,
+  //   escolha: a escolha do treino aberta, vivo: { vaga: a corrida em curso }, ult: { vaga: o último resultado mostrado },
+  //   msg: aviso, coleta: o resumo da última coleta, confirmaPerda: a coleta com perdas espera o 2º toque }.
+  var AFK_SEED_TAG = 30000000;   // seedTag do applyXp para o XP do AFK (acima do dos ginásios); + state.afk.xpCounter
+  var AFK_FATIA = 10, AFK_FATIA_MS = 40, AFK_GRAVA_A_CADA = 400;   // a medição da chance: duelos por fatia, pausa, gravação
+  var AFK_RESUMO_MIN = 10;       // parada de 10 min ou mais: o resumo "Enquanto você estava fora"
+  var AFK_PARADA_MIN = 1.5;      // com a tela aberta, um atraso maior que este é parada (aba escondida): acerto offline
+  var afkTimer = 0, afkMedeTimer = 0, afkEsperaTimer = 0, afkMedeDesde = 0;
+  function afkUi() {
+    if (!ui.afk) ui.afk = { ver: null, resumo: null, escolha: null, vivo: {}, ult: {}, msg: null, coleta: null, confirmaPerda: false };
+    return ui.afk;
+  }
+  function afkCtx() { return { uids: state.mounts.map(function (m) { return m.uid; }), progresso: state.ginasios, agoraMin: agoraMin() }; }
+  // o save do AFK coerente com o resto (cavalo que saiu do estábulo, fase que deixou de estar liberada): a vaga esvazia
+  function afkConfere() { if (state) state.afk = AF.sanear(state.afk, afkCtx()); }
+  function afkNaTela() { return ui.screen === 'afk' || (ui.screen === 'corrida' && !!(ui.afk && ui.afk.ver)); }
+  function afkPresa(v) { return !!state.pending && !!v.uid && v.uid === state.activeId; }
+  // os bônus de uma vaga: o bestiário (da conta) e, no bloco B, as peças do cavalo
+  function afkBonus(uid) {
+    var b = AF.bestiarioBonus(state.afk.bestiario), m = mountByUid(uid), f = m ? gearOf(m).farm : { material: 0, xp: 0, raro: 0, trofeu: 0, ouro: 0 };
+    return { material: f.material, xp: b.xp + f.xp, raro: b.raro + f.raro, trofeu: b.trofeu + f.trofeu, ouro: f.ouro };
+  }
+  // o cavalo como o afk.js o recebe: com as peças resolvidas (pve), que só valem aqui
+  function afkCavalo(m) { var c = clone(m); c.pve = gearOf(m); return c; }
+  function afkLimite() { return AF.limiteOffline(state.afk.aveiaMin, AF.bestiarioBonus(state.afk.bestiario).offlineMin); }
+  function afkGinNome(gymId) { return GD.GYMS[gymId].name.replace(/^Ginásio d[aeo] /, ''); }
+  function afkDif(id) { return GD.AFK.difs.filter(function (d) { return d.id === id; })[0]; }
+  function afkOponente(f) { return GD.GYMS[f.gymId].etapas[f.etapa]; }
+  function afkFaseTxt(f) { return afkOponente(f).nome + ' · ' + afkGinNome(f.gymId) + ' · ' + afkDif(f.dif).name; }
+  // "7 h 12 min", "45 min", "menos de 1 min"
+  function afkTempoTxt(min) {
+    var m = Math.floor(min), h = Math.floor(m / 60);
+    if (m < 1) return 'menos de 1 min';
+    return (h ? h + ' h' : '') + (h && m % 60 ? ' ' : '') + (m % 60 || !h ? (m % 60) + ' min' : '');
+  }
+  // "2 Carvões, 1 Brasa viva e 1 Pedra Negra" (itens na ordem do catálogo; as peças e as Pedras no fim)
+  function afkGanhoTxt(g) {
+    var partes = AFK_IDS.filter(function (id) { return g.itens && g.itens[id] > 0; }).map(function (id) { return itemQtdTxt(id, g.itens[id]); });
+    if (g.pedras) partes.push(fmt(g.pedras) + (g.pedras === 1 ? ' Pedra Negra' : ' Pedras Negras'));
+    var np = typeof g.pecas === 'number' ? g.pecas : (g.pecas || []).length;
+    if (np) partes.push(fmt(np) + (np === 1 ? ' peça' : ' peças'));
+    return ginJunta(partes);
+  }
+  // o que o cartão da vaga mostra de uma corrida
+  function afkResumoCorrida(r) {
+    return { venceu: r.venceu, metros: r.metros, xp: r.xp, ouro: r.ouro, itens: r.itens, pedras: r.pedras, pecas: r.pecas.length };
+  }
+  function afkUltimaTxt(u) {
+    var ganho = afkGanhoTxt(u), partes = ['+' + fmt(u.xp) + ' XP'];
+    if (u.ouro) partes.push('+' + fmt(u.ouro) + ' de Ouro');
+    if (ganho) partes.push(ganho);
+    return (u.venceu ? 'Venceu por ' : 'Perdeu por ') + ginMetrosTxt(u.metros) + ': ' + partes.join(', ') + '.';
+  }
+
+  // ---- o relógio: acerto do tempo parado, largada ao vivo e o laço da tela ----
+  // Acerta o tempo parado de todas as vagas (menos a assistida e as que têm corrida ao vivo em curso: inicioMin no
+  // futuro). Uma gravação só. -> o resumo { minutos (a maior parada, já no limite), corridas, vitorias, xp, ouro, itens,
+  // pedras, pecas, vagas, semMedida, noLimite } | null (nada a acertar, ou não gravou)
+  function afkAcerto() {
+    if (!state || saveBloqueado) return null;
+    var U = afkUi(), agora = agoraMin(), ver = U.ver ? U.ver.idx : -1;
+    var parada = function (v, i) { return !!v.uid && i !== ver && agora > v.inicioMin; };
+    if (!state.afk.vagas.some(parada)) return null;
+    var s0 = state;
+    persist();
+    if (state !== s0 || !state) return null;
+    var antes = clone(state), limite = afkLimite(), semAveia = limite - state.afk.aveiaMin, usouAveia = false;
+    var R = { minutos: 0, corridas: 0, vitorias: 0, xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: 0, vagas: 0, semMedida: 0, noLimite: false };
+    for (var i = 0; i < state.afk.vagas.length; i++) {
+      var v = state.afk.vagas[i], relogio = agora;
+      if (!parada(v, i)) continue;
+      if (!afkPresa(v)) {
+        var gap = agora - v.inicioMin;
+        var mv = mountByUid(v.uid), ch = mv ? AF.chanceOffline(v, afkCavalo(mv)) : null;   // a chance da configuração de agora
+        if (ch) {
+          var off = AF.offline(v, agora, ch, state.seedBase, afkBonus(v.uid), limite, i);
+          // o relógio anda só o tempo das corridas contadas (o resto vale para a próxima); passou do limite: vem para agora
+          relogio = AF.relogioAposOffline(v.inicioMin, agora, off.corridas, ch.duracaoS, limite);
+          if (off.corridas > 0) {
+            state.afk = AF.creditar(state.afk, i, off);
+            R.vagas += 1; R.corridas += off.corridas; R.vitorias += off.vitorias; R.xp += off.xp; R.ouro += off.ouro; R.pedras += off.pedras; R.pecas += off.pecas.length;
+            Object.keys(off.itens).forEach(function (id) { R.itens[id] = (R.itens[id] || 0) + off.itens[id]; });
+            if (state.afk.aveiaMin > 0 && gap > semAveia) usouAveia = true;
+          }
+        } else if (gap >= AFK_RESUMO_MIN) R.semMedida += 1;
+        if (gap > limite) R.noLimite = true;
+        R.minutos = Math.max(R.minutos, Math.min(gap, limite));
+      }
+      state.afk.vagas[i].inicioMin = relogio;
+      delete U.vivo[i];
+    }
+    if (usouAveia) state.afk = AF.aposOffline(state.afk);
+    return gravaGasto(s0, antes) === 'ok' ? R : null;
+  }
+  // Larga a corrida ao vivo da vaga i com o cavalo como está agora. Só larga com o relógio da vaga em dia (agora ≥
+  // inicioMin). O contador novo e o ganho vão na mesma gravação. -> true se largou
+  function afkLarga(i) {
+    var s0 = state, v = state.afk.vagas[i], m = v && v.uid ? mountByUid(v.uid) : null, agora = agoraMin();
+    if (!m || afkPresa(v) || !(agora >= v.inicioMin)) return false;
+    var antes = clone(state);
+    var r = AF.correr(afkCavalo(m), v.faseId, state.seedBase, v.contador, afkBonus(v.uid), { vaga: i });
+    var novo = r ? AF.creditar(state.afk, i, r) : null;
+    if (!novo) return false;
+    novo.vagas[i].inicioMin = agora + r.duracaoS / 60;
+    state.afk = novo;
+    if (gravaGasto(s0, antes) !== 'ok') return false;
+    afkUi().vivo[i] = { cfg: r.cfg, ini: agora, fim: novo.vagas[i].inicioMin, duracaoS: r.duracaoS, n: v.contador + 1, res: afkResumoCorrida(r) };
+    return true;
+  }
+  // Um passo do laço (a cada segundo, só com a tela do AFK aberta e visível): acerta paradas, revela as corridas que
+  // terminaram e larga as seguintes. A vaga assistida larga pela tela de corrida (afkFimDaCorrida).
+  function afkTick() {
+    if (!state || saveBloqueado || !afkNaTela() || document.visibilityState === 'hidden') return;
+    var U = afkUi(), agora = agoraMin(), ver = U.ver ? U.ver.idx : -1, mudou = false;
+    if (state.afk.vagas.some(function (v, i) { return !!v.uid && i !== ver && !afkPresa(v) && agora - v.inicioMin >= AFK_PARADA_MIN; })) {
+      var R = afkAcerto();
+      if (R && R.corridas && R.minutos >= AFK_RESUMO_MIN) U.resumo = R;
+      if (!state) return;
+      mudou = true; agora = agoraMin();
+    }
+    for (var i = 0; i < state.afk.vagas.length; i++) {
+      var v = state.afk.vagas[i], viv = U.vivo[i];
+      if (!v.uid) { if (viv) { delete U.vivo[i]; mudou = true; } continue; }
+      if (i === ver) continue;
+      if (viv && agora >= viv.fim) { U.ult[i] = viv.res; delete U.vivo[i]; mudou = true; }
+      if (!afkPresa(v) && agora >= v.inicioMin && afkLarga(i)) mudou = true;
+      if (!state) return;
+    }
+    if (ui.screen !== 'afk') return;
+    if (mudou && !U.escolha) rerenderKeepScroll(); else afkPinta();
+  }
+  // liga o laço nas telas do AFK e o desliga nas outras (chamado pelo render)
+  function afkLaco() {
+    var quer = !!state && !saveBloqueado && afkNaTela();
+    if (quer && !afkTimer) afkTimer = window.setInterval(afkTick, 1000);
+    else if (!quer && afkTimer) { window.clearInterval(afkTimer); afkTimer = 0; }
+    afkMedeAcorda();
+  }
+  // as barras e os textos que andam sem redesenhar a tela: o progresso da corrida em curso e a medição da chance
+  function afkPinta() {
+    var U = afkUi(), agora = agoraMin();
+    var els = telaEl.querySelectorAll('.afk-vaga[data-vaga]');
+    for (var k = 0; k < els.length; k++) {
+      var i = Number(els[k].getAttribute('data-vaga')), v = state.afk.vagas[i], viv = U.vivo[i];
+      var bar = els[k].querySelector('.afk-prog > i'), txt = els[k].querySelector('.afk-prog-txt'), ch = els[k].querySelector('.afk-chance');
+      if (bar && viv) bar.style.width = Math.round(100 * clamp((agora - viv.ini) / Math.max(1e-6, viv.fim - viv.ini), 0, 1)) + '%';
+      if (txt && viv) txt.textContent = afkCorrendoTxt(viv, agora);
+      if (ch && v && v.uid) ch.textContent = afkChanceTxt(v);
+    }
+  }
+  function afkCorrendoTxt(viv, agora) {
+    var s = Math.max(0, Math.ceil((viv.fim - agora) * 60));
+    return 'Corrida ' + fmt(viv.n) + ' em curso: faltam ' + fmtClock(s);
+  }
+  // a chance da vaga: a medida completa da configuração de agora; ou a medição em andamento (com a última completa, se há)
+  function afkChanceTxt(v) {
+    var m = mountByUid(v.uid), ch = m ? AF.chaveConfig(afkCavalo(m), v.faseId) : null, pronta = !!m && AF.medidaPronta(v.medida) && v.medida.chave === ch;
+    if (pronta) return 'Chance de vitória: ' + Math.round(v.ultima.p * 100) + '%';
+    var feitos = m && v.medida && v.medida.chave === ch ? v.medida.feitos : 0;
+    return 'Medindo a chance: ' + Math.floor(100 * feitos / GD.AFK.amostra) + '%' + (v.ultima ? ' (antes: ' + Math.round(v.ultima.p * 100) + '%)' : '');
+  }
+
+  // ---- a medição da chance, aos poucos (fatias de AFK_FATIA duelos; pausa nas corridas, para não pesar na animação) ----
+  function afkPrecisaMedir() {
+    if (!state || saveBloqueado) return -1;
+    for (var i = 0; i < state.afk.vagas.length; i++) {
+      var v = state.afk.vagas[i], m = v.uid ? mountByUid(v.uid) : null;
+      if (m && !(AF.medidaPronta(v.medida) && v.medida.chave === AF.chaveConfig(afkCavalo(m), v.faseId))) return i;
+    }
+    return -1;
+  }
+  function afkMedeAcorda() {
+    if (afkMedeTimer || afkPrecisaMedir() < 0) return;
+    afkMedeTimer = window.setTimeout(afkMede, AFK_FATIA_MS);
+  }
+  function afkMede() {
+    afkMedeTimer = 0;
+    var i = afkPrecisaMedir();
+    if (i < 0) return;
+    var parado = document.visibilityState === 'hidden' || ui.screen === 'corrida' || ui.screen === 'largada';
+    if (parado) { afkMedeTimer = window.setTimeout(afkMede, 1000); return; }
+    var v = state.afk.vagas[i];
+    state.afk.vagas[i] = AF.medirVaga(v, afkCavalo(mountByUid(v.uid)), AFK_FATIA);
+    afkMedeDesde += AFK_FATIA;
+    if (AF.medidaPronta(state.afk.vagas[i].medida) || afkMedeDesde >= AFK_GRAVA_A_CADA) { afkMedeDesde = 0; persist(); }
+    if (state && ui.screen === 'afk') afkPinta();
+    afkMedeAcorda();
+  }
+
+  // ---- assistir ----
+  // A corrida em curso da vaga i para a tela de corrida (o L que ela lê e o cabeçalho), no tempo real do duelo.
+  function afkVer(i) {
+    var viv = afkUi().vivo[i], v = state.afk.vagas[i], f = AF.fase(v.faseId), g = GD.GYMS[f.gymId], dono = afkOponente(f).nome;
+    var cfg = clone(viv.cfg);
+    cfg.recordFrames = true;
+    cfg.racers[1].name = dono;
+    var sim = RS.simulate(cfg);
+    if ((sim.finishOrder[0] === 0) !== viv.res.venceu || GN.metros(sim) !== viv.res.metros) return null;   // nunca uma chegada diferente da gravada
+    var a = cfg.racers[0].horse, b = cfg.racers[1].horse, seda = hasOwn(GIN_SEDA, f.gymId) ? GIN_SEDA[f.gymId] : 0;
+    var ea = elementOf(a.element).name, eb = elementOf(b.element).name, vt = GN.vantagem(a.element, b.element);
+    var vant = vt === 1 ? 'Vantagem: ' + a.name + ' (' + ea + ' vence ' + eb + ')' : vt === -1 ? 'Vantagem: adversário (' + eb + ' vence ' + ea + ')' : 'Sem vantagem de elemento';
+    var outras = state.afk.vagas.some(function (o, k) { return k !== i && !!o.uid && !afkPresa(o); });
+    return { idx: i,
+      L: {
+        counter: 0, seed: sim.seed, training: false, fee: 0, n: 2, cond: withRanges(sim.conditions), trackName: g.name,
+        regiao: hasOwn(GIN_REGIAO, f.gymId) ? GIN_REGIAO[f.gymId] : null,
+        telaS: Math.max(20, viv.duracaoS - 7),   // a corrida na tela dura o tempo do duelo (menos a largada e a chegada)
+        racers: [
+          { isPlayer: true, name: PLAYER_NAME, horse: a, gear: null, silks: PLAYER_SILKS, silkIdx: -1 },
+          { isPlayer: false, name: dono, horse: b, gear: null, silks: SP.SILKS[seda], silkIdx: seda, rotulo: a.name === b.name ? b.name + ' (' + dono + ')' : null }
+        ],
+        playerIdx: 0, sim: sim, dev: null
+      },
+      cab: {
+        titulo: 'Treino: ' + dono, aria: 'Treino AFK da vaga ' + (i + 1) + ': ' + a.name + ' contra ' + b.name + ' (' + dono + ')',
+        linha: afkDif(f.dif).name + ' · corrida ' + fmt(viv.n) + ' · ' + vant, pular: 'Voltar ao treino', pularFim: 'Voltar ao treino',
+        placa: '<span class="rotulo">' + esc('Vaga ' + (i + 1)) + '</span>',
+        extra: outras ? '<button type="button" class="btn btn--pequeno" data-acao="afk-outra">Outra vaga</button>' : ''
+      } };
+  }
+  function afkAssiste(i) {
+    var U = afkUi(), v = state.afk.vagas[i];
+    if (!v || !v.uid) return;
+    if (afkPresa(v)) { U.msg = 'Esse cavalo está na sala aberta. ' + GIN_CORRA_TXT; rerenderKeepScroll(); return; }
+    var agora = agoraMin();
+    if (U.vivo[i] && agora >= U.vivo[i].fim) { U.ult[i] = U.vivo[i].res; delete U.vivo[i]; }
+    if (!U.vivo[i]) afkLarga(i);
+    if (!state) return;
+    if (!U.vivo[i]) { U.msg = 'A corrida desta vaga ainda não pode ser assistida. Espere a próxima largar.'; rerenderKeepScroll(); return; }
+    U.ver = afkVer(i);
+    if (U.ver) go('corrida'); else { U.msg = 'Não foi possível mostrar esta corrida.'; rerenderKeepScroll(); }
+  }
+  // a corrida assistida terminou na tela: mostra o resultado no cartão e larga a seguinte quando o relógio da vaga deixar
+  function afkFimDaCorrida() {
+    var U = afkUi(), ver = U.ver;
+    if (!ver) return;
+    var i = ver.idx;
+    window.clearTimeout(afkEsperaTimer);
+    var proxima = function () {
+      if (!state || !U.ver || U.ver.idx !== i || ui.screen !== 'corrida') return;
+      var v = state.afk.vagas[i];
+      if (U.vivo[i]) { U.ult[i] = U.vivo[i].res; delete U.vivo[i]; }
+      if (!v || !v.uid || afkPresa(v) || !afkLarga(i) || !state) { afkSai(); return; }
+      U.ver = afkVer(i);
+      if (U.ver) go('corrida'); else afkSai();
+    };
+    var espera = (state.afk.vagas[i].inicioMin - agoraMin()) * 60000;
+    if (espera > 30) afkEsperaTimer = window.setTimeout(proxima, Math.min(espera, 180000)); else proxima();
+  }
+  // sai da tela de corrida de volta ao treino (o "Voltar ao treino", o voltar do aparelho)
+  function afkSai() {
+    window.clearTimeout(afkEsperaTimer);
+    if (ui.afk) ui.afk.ver = null;
+    if (state) go('afk');
+  }
+  // "Outra vaga": a próxima vaga ocupada que pode ser assistida
+  function afkOutra() {
+    var U = afkUi(), n = state.afk.vagas.length, de = U.ver ? U.ver.idx : -1;
+    for (var k = 1; k <= n; k++) {
+      var i = (de + k) % n, v = state.afk.vagas[i];
+      if (i !== de && v.uid && !afkPresa(v)) { window.clearTimeout(afkEsperaTimer); U.ver = null; afkAssiste(i); return; }
+    }
+  }
+  // A aba voltou a ficar visível com uma vaga sendo assistida: se o relógio dela ficou para trás (a aba escondida, o
+  // celular dormindo), sai da corrida assistida para o acerto offline (afkTick → afkAcerto) contar também essa vaga.
+  function afkVoltou() {
+    var U = ui.afk, ver = U && U.ver;
+    if (!state || saveBloqueado || !ver || ui.screen !== 'corrida') return;
+    var v = state.afk.vagas[ver.idx];
+    if (v && v.uid && !afkPresa(v) && agoraMin() - v.inicioMin >= AFK_PARADA_MIN) afkSai();
+  }
+  // Abre a tela do treino (da Expedição, da trilha, do começo do jogo): confere o save, acerta o tempo parado e guarda o
+  // resumo de uma parada longa.
+  function afkAbre() {
+    afkConfere();
+    var R = afkAcerto();
+    if (!state) return;
+    if (R && (R.corridas || R.semMedida) && R.minutos >= AFK_RESUMO_MIN) afkUi().resumo = R;
+    ui.tab = 'expedicao';
+    go('afk');
+  }
+
+  // ---- o baú ----
+  function afkPresos() { return state.pending ? [state.activeId] : []; }
+  function afkPrevia() { return AF.bauColetar(state.afk.bau, state.mochila, state.mounts.map(function (m) { return m.uid; }), afkPresos()); }
+  // Coleta o baú inteiro numa gravação: itens até o teto (o resto se perde), Ouro, Pedras, peças e o XP de cada cavalo (o
+  // do cavalo preso na sala aberta fica no baú). -> 'ok' | 'outra-aba' | 'falhou'
+  function afkColeta() {
+    var s0 = state;
+    persist();
+    if (state !== s0) return 'outra-aba';
+    var antes = clone(state), c = afkPrevia(), U = afkUi();
+    AFK_IDS.forEach(function (id) { state.mochila[id] = inteiroOu(c.mochila[id], 0, 0, GD.ITEMS[id].cap); });
+    state.gold = Math.min(1e9, state.gold + c.ouro);
+    state.pedras = Math.min(1e6, state.pedras + c.pedras);
+    var pecas = c.pecas.map(function (p) { return addItem(state, p.id, p.linhas, 'afk'); });
+    var subiu = [];
+    Object.keys(c.xpPorCavalo).forEach(function (uid) {
+      var m = mountByUid(uid), g = applyXp(m, c.xpPorCavalo[uid], AFK_SEED_TAG + state.afk.xpCounter);
+      state.afk.xpCounter += 1;
+      if (g.levels) subiu.push({ nome: m.name, nivel: m.level, learned: g.learned });
+    });
+    state.afk.bau = c.bau;
+    state.afk.bestiario = AF.bestiarioObter(state.afk.bestiario, c.entrou, c.pecas);
+    var gv = gravaGasto(s0, antes);
+    if (gv !== 'ok') return gv;
+    U.coleta = { ouro: c.ouro, pedras: c.pedras, pecas: pecas.length, itens: c.entrou, perdidos: c.perdidos, xp: c.xpPorCavalo, xpDescartado: c.xpDescartado, xpRetido: c.xpRetido, subiu: subiu };
+    U.confirmaPerda = false;
+    return 'ok';
+  }
+  function afkBauHtml() {
+    var U = afkUi(), b = state.afk.bau, vazio = AF.bauVazioE(b), c = afkPrevia(), linhas = [];
+    var perde = Object.keys(c.perdidos).length > 0 || c.xpDescartado > 0;
+    if (b.ouro) linhas.push('<li class="afk-bau-linha"><span>Ouro</span><b>' + ouroHtml(b.ouro) + '</b></li>');
+    Object.keys(b.xp).forEach(function (uid) {
+      var m = mountByUid(uid);
+      linhas.push('<li class="afk-bau-linha"><span>' + esc('XP de ' + (m ? m.name : 'um cavalo que saiu do estábulo')) + '</span><b>+' + fmt(b.xp[uid]) + '</b></li>');
+    });
+    AFK_IDS.forEach(function (id) {
+      if (b.itens[id]) linhas.push('<li class="afk-bau-linha">' + itemIconeHtml(id) + '<span>' + esc(GD.ITEMS[id].name) + '</span><b>×' + fmt(b.itens[id]) + '</b></li>');
+    });
+    if (b.pedras) linhas.push('<li class="afk-bau-linha">' + iconeHtml('pedra-negra', '🪨', 16) + '<span>Pedra Negra</span><b>×' + fmt(b.pedras) + '</b></li>');
+    b.pecas.forEach(function (p) {
+      linhas.push('<li class="afk-bau-linha"><span>' + esc(GD.GEAR[p.id].name) + '</span>' + rarityHtml(GD.GEAR[p.id].rarity) + '</li>');
+    });
+    var avisos = '';
+    if (Object.keys(c.perdidos).length) {
+      avisos += '<p class="aviso aviso--perda afk-perda">' + esc('A mochila não tem espaço: ao coletar, ' + afkGanhoTxt({ itens: c.perdidos }) + ' ' +
+        (Object.keys(c.perdidos).length === 1 && c.perdidos[Object.keys(c.perdidos)[0]] === 1 ? 'se perde' : 'se perdem') + '. Use ou gaste antes.') + '</p>';
+    }
+    if (c.xpDescartado) avisos += '<p class="aviso aviso--perda afk-perda">' + esc(fmt(c.xpDescartado) + ' de XP eram de um cavalo que saiu do estábulo: esse XP se perde ao coletar.') + '</p>';
+    if (Object.keys(c.xpRetido).length) avisos += '<p class="nota">' + esc('O XP de ' + mountByUid(state.activeId).name + ' fica no baú enquanto a sala estiver aberta. ' + GIN_CORRA_TXT) + '</p>';
+    var botoes = U.confirmaPerda && perde
+      ? '<div class="acoes acoes--linha"><button type="button" class="btn btn--perigo" data-acao="afk-coletar-sim">Coletar e perder</button>' +
+        '<button type="button" class="btn" data-acao="afk-coletar-nao">Cancelar</button></div>'
+      : '<div class="acoes"><button type="button" class="btn btn--ouro" data-acao="afk-coletar"' + indisponivel(vazio ? 'O baú está vazio.' : '') + '>Coletar tudo</button></div>';
+    return '<section class="caixa afk-bau" aria-labelledby="t-afk-bau"><h2 class="titulo" id="t-afk-bau"><span class="item-icone item-icone--bau" aria-hidden="true"></span>Baú</h2>' +
+      (U.coleta ? afkColetaHtml(U.coleta) : '') +
+      (vazio ? '<p class="nota afk-bau-vazio">O baú está vazio. Tudo o que as vagas rendem cai aqui.</p>' : '<ul class="afk-bau-lista">' + linhas.join('') + '</ul>') +
+      avisos + botoes + '</section>';
+  }
+  function afkColetaHtml(c) {
+    var partes = [];
+    if (c.ouro) partes.push('+' + fmt(c.ouro) + ' de Ouro');
+    var ganho = afkGanhoTxt({ itens: c.itens, pedras: c.pedras, pecas: c.pecas });
+    if (ganho) partes.push(ganho);
+    Object.keys(c.xp).forEach(function (uid) { var m = mountByUid(uid); if (m) partes.push('+' + fmt(c.xp[uid]) + ' XP para ' + m.name); });
+    var txt = partes.length ? 'Coletado: ' + partes.join('; ') + '.' : 'Nada para coletar.';
+    c.subiu.forEach(function (s) { txt += ' ' + s.nome + ' subiu para o nível ' + s.nivel + (s.learned.length ? ' e aprendeu ' + ginJunta(s.learned.map(skillNome)) : '') + '.'; });
+    if (Object.keys(c.perdidos).length) txt += ' Não coube na mochila: ' + afkGanhoTxt({ itens: c.perdidos }) + '.';
+    if (c.xpDescartado) txt += ' ' + fmt(c.xpDescartado) + ' de XP de um cavalo que saiu do estábulo se perderam.';
+    return '<p class="aviso afk-coletado" role="status">' + esc(txt) + '</p>';
+  }
+
+  // ---- as vagas ----
+  function afkVagaHtml(v, i) {
+    var U = afkUi(), agora = agoraMin();
+    if (!v.uid) {
+      var temFase = AF.liberadas(state.ginasios, state.afk.vitorias).length > 0;
+      return '<li class="afk-vaga afk-vaga--livre" data-vaga="' + i + '"><div class="afk-vaga-cab"><span class="afk-vaga-num">' + esc('Vaga ' + (i + 1)) + '</span><span class="afk-vaga-estado">Livre</span></div>' +
+        '<p class="nota">Escolha um oponente que você já venceu num ginásio.</p>' +
+        '<div class="acoes"><button type="button" class="btn" data-acao="afk-escolher" data-id="' + i + '"' +
+          indisponivel(temFase ? '' : 'Vença um oponente num ginásio primeiro.') + '>Escolher treino</button></div></li>';
+    }
+    var m = mountByUid(v.uid), f = AF.fase(v.faseId), viv = U.vivo[i], ult = U.ult[i], presa = afkPresa(v);
+    var vit = state.afk.vitorias[v.faseId] || 0, di = GD.AFK.difs.map(function (d) { return d.id; }).indexOf(f.dif), prox = GD.AFK.difs[di + 1];
+    var falta = prox ? GD.AFK.liberaApos - vit : 0;
+    var estado;
+    if (presa) estado = '<p class="afk-estado afk-estado--sala">Na sala aberta: volta ao treino quando a corrida valendo terminar.</p>';
+    else if (viv && agora < viv.fim) {
+      estado = '<div class="afk-correndo"><span class="afk-prog-txt">' + esc(afkCorrendoTxt(viv, agora)) + '</span>' +
+        '<div class="barra afk-prog" aria-hidden="true"><i style="width:' + Math.round(100 * clamp((agora - viv.ini) / Math.max(1e-6, viv.fim - viv.ini), 0, 1)) + '%"></i></div></div>';
+    } else if (v.inicioMin - agora > 5) estado = '<p class="afk-estado">Parado até o relógio do aparelho passar da última corrida contada.</p>';
+    else estado = '<p class="afk-estado">Pronto para a próxima corrida.</p>';
+    return '<li class="afk-vaga' + (presa ? ' afk-vaga--sala' : '') + '" data-vaga="' + i + '">' +
+      '<div class="afk-vaga-cab"><span class="afk-vaga-num">' + esc('Vaga ' + (i + 1)) + '</span>' +
+        '<span class="afk-vaga-estado">' + (presa ? 'Na sala' : 'Treinando') + '</span></div>' +
+      '<div class="afk-vaga-corpo"><span class="afk-vaga-retrato" aria-hidden="true">' + portraitHtml(m, { tamanho: 'pequeno' }) + '</span>' +
+        '<div class="afk-vaga-info"><b class="cavalo-nome">' + esc(m.name) + '</b>' +
+          '<span class="linha-meta"><span>Nível ' + esc(m.level) + '</span>' + elementHtml(m.element) + '</span>' +
+          '<span class="afk-fase">' + esc('Contra ' + afkFaseTxt(f)) + '</span>' +
+          '<span class="afk-chance">' + esc(afkChanceTxt(v)) + '</span></div></div>' +
+      estado +
+      (ult ? '<p class="afk-ultima afk-ultima--' + (ult.venceu ? 'vitoria' : 'derrota') + '">' + esc('Última corrida. ' + afkUltimaTxt(ult)) + '</p>' : '') +
+      '<p class="nota afk-vitorias">' + esc('Vitórias nesta dificuldade: ' + fmt(vit) + (falta > 0 ? ' (faltam ' + fmt(falta) + ' para liberar a ' + prox.name + ')' : '') + '.') + '</p>' +
+      '<div class="afk-vaga-acoes"><button type="button" class="btn btn--pequeno" data-acao="afk-assistir" data-id="' + i + '"' + indisponivel(presa ? GIN_SALA_TXT : '') + '>Assistir</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="afk-escolher" data-id="' + i + '">Trocar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="afk-tirar" data-id="' + i + '">Tirar</button></div></li>';
+  }
+  function afkComprarHtml() {
+    var n = state.afk.vagas.length;
+    if (n >= GD.AFK.vagaPreco.length) return '';
+    var p = AF.podeComprarVaga(n, ouroLivre());
+    var motivo = p.ok ? '' : (state.gold >= p.preco && ouroReservado() ? reservaTxt() + '.' : p.motivo + '.');
+    return '<li class="afk-vaga afk-vaga--comprar"><div class="afk-vaga-cab"><span class="afk-vaga-num">' + esc('Vaga ' + (n + 1)) + '</span><span class="afk-vaga-estado">Fechada</span></div>' +
+      '<div class="acoes"><button type="button" class="btn" data-acao="afk-comprar"' + indisponivel(motivo) + '>' + esc('Abrir vaga (' + fmt(p.preco) + ' de Ouro)') + '</button></div></li>';
+  }
+  function afkResumoHtml(R) {
+    var partes = [];
+    if (R.xp) partes.push('+' + fmt(R.xp) + ' XP');
+    if (R.ouro) partes.push('+' + fmt(R.ouro) + ' de Ouro');
+    var ganho = afkGanhoTxt(R);
+    if (ganho) partes.push(ganho);
+    var txt = R.corridas
+      ? 'Em ' + afkTempoTxt(R.minutos) + ', ' + (R.vagas === 1 ? '1 vaga correu ' : R.vagas + ' vagas correram ') + fmt(R.corridas) + (R.corridas === 1 ? ' corrida' : ' corridas') +
+        ' e venceu ' + fmt(R.vitorias) + '.'
+      : 'O treino ficou parado por ' + afkTempoTxt(R.minutos) + '.';
+    return '<section class="caixa afk-resumo" aria-labelledby="t-afk-fora"><h2 class="titulo" id="t-afk-fora">Enquanto você estava fora</h2>' +
+      '<p class="afk-resumo-txt">' + esc(txt) + '</p>' +
+      (partes.length ? '<p class="afk-resumo-ganho">' + esc('No baú: ' + partes.join('; ') + '.') + '</p>' : '') +
+      (R.noLimite ? '<p class="nota">' + esc('O treino parado conta até ' + afkTempoTxt(afkLimite()) + '.') + '</p>' : '') +
+      (R.semMedida ? '<p class="nota">' + esc((R.semMedida === 1 ? 'Uma vaga ainda não tinha' : R.semMedida + ' vagas ainda não tinham') +
+        ' a chance medida e não rendeu fora da tela: a medição termina em poucos segundos com o jogo aberto.') + '</p>' : '') +
+      '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="afk-resumo-ok">Entendi</button></div></section>';
+  }
+  function renderAfk() {
+    var U = afkUi();
+    if (U.escolha) return afkEscolhaHtml();
+    var ocupadas = state.afk.vagas.filter(function (v) { return !!v.uid; }).length;
+    return '<section class="tela tela--afk" aria-labelledby="t-afk">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="afk-voltar">Voltar</button>' +
+      '<h1 class="titulo titulo--tela" id="t-afk" tabindex="-1" data-foco>Treino AFK</h1>' + noticeHtml() +
+      (U.msg ? '<p class="aviso" role="status">' + esc(U.msg) + '</p>' : '') +
+      '<p class="nota">' + esc('Seus cavalos treinam sozinhos contra oponentes que você já venceu. Com esta tela aberta as corridas são ao vivo; fora dela o treino continua (até ' +
+        afkTempoTxt(afkLimite()) + ') e tudo cai no baú.') + '</p>' +
+      (U.resumo ? afkResumoHtml(U.resumo) : '') +
+      '<section class="caixa" aria-labelledby="t-afk-vagas"><h2 class="titulo" id="t-afk-vagas">Vagas <span class="nota">' + esc(ocupadas + ' de ' + state.afk.vagas.length + ' em treino') + '</span></h2>' +
+        '<ul class="afk-vagas">' + state.afk.vagas.map(afkVagaHtml).join('') + afkComprarHtml() + '</ul></section>' +
+      afkBauHtml() +
+      '<div class="acoes"><button type="button" class="btn" data-acao="bestiario-abrir">Bestiário</button></div>' +
+      '</section>';
+  }
+
+  // ---- a escolha do treino: oponente (os vencidos), dificuldade, vaga e cavalo ----
+  // ui.afk.escolha = { gymId, etapa, dif, vaga, uid, msg }
+  function afkVencidos() {
+    var out = [];
+    GD.GYM_ORDER.forEach(function (g) { for (var e = 0; e < Math.min(5, state.ginasios[g].etapa); e++) out.push({ gymId: g, etapa: e }); });
+    return out;
+  }
+  function afkEscolhe(gymId, etapa, vaga) {
+    afkConfere();
+    var U = afkUi(), venc = afkVencidos();
+    if (!venc.length) { U.msg = 'Vença um oponente num ginásio primeiro.'; return false; }
+    var alvo = venc.filter(function (x) { return x.gymId === gymId && x.etapa === etapa; })[0];
+    var atual = vaga != null && state.afk.vagas[vaga] && state.afk.vagas[vaga].uid ? state.afk.vagas[vaga] : null, fa = atual ? AF.fase(atual.faseId) : null;
+    if (!alvo && fa) alvo = { gymId: fa.gymId, etapa: fa.etapa };
+    if (!alvo) alvo = venc[venc.length - 1];
+    var livre = -1;
+    state.afk.vagas.forEach(function (v, i) { if (livre < 0 && !v.uid) livre = i; });
+    var vg = vaga != null && state.afk.vagas[vaga] ? vaga : (livre >= 0 ? livre : 0);
+    var ocupante = state.afk.vagas[vg].uid;
+    var emVaga = {};
+    state.afk.vagas.forEach(function (v) { if (v.uid) emVaga[v.uid] = true; });
+    var solto = state.mounts.filter(function (m) { return !emVaga[m.uid]; })[0];
+    U.escolha = { gymId: alvo.gymId, etapa: alvo.etapa, dif: fa && fa.gymId === alvo.gymId && fa.etapa === alvo.etapa ? fa.dif : 'normal', vaga: vg,
+      uid: ocupante || (solto ? solto.uid : state.mounts[0].uid), msg: null };
+    afkEscolhaAjusta();
+    return true;
+  }
+  // a dificuldade escolhida tem de estar liberada para o oponente escolhido: senão desce
+  function afkEscolhaAjusta() {
+    var E = afkUi().escolha, lib = AF.liberadas(state.ginasios, state.afk.vitorias);
+    while (lib.indexOf(AF.faseId(E.gymId, E.etapa, E.dif)) < 0 && E.dif !== 'normal') {
+      E.dif = GD.AFK.difs[GD.AFK.difs.map(function (d) { return d.id; }).indexOf(E.dif) - 1].id;
+    }
+  }
+  function afkOpcao(acao, id, marcada, nome, desc, motivo) {
+    return '<button type="button" class="opcao afk-opcao" data-acao="' + acao + '" data-id="' + esc(id) + '" aria-pressed="' + !!marcada + '"' + indisponivel(motivo || '') + '>' +
+      '<span class="opcao-nome">' + esc(nome) + '</span>' + (desc ? '<span class="opcao-desc">' + esc(desc) + '</span>' : '') + '</button>';
+  }
+  function afkEscolhaHtml() {
+    var E = afkUi().escolha, lib = AF.liberadas(state.ginasios, state.afk.vitorias), venc = afkVencidos();
+    var oponentes = GD.GYM_ORDER.map(function (g) {
+      var meus = venc.filter(function (x) { return x.gymId === g; });
+      if (!meus.length) return '';
+      return '<h3 class="afk-grupo">' + esc(GD.GYMS[g].name) + '</h3><div class="afk-opcoes">' + meus.map(function (x) {
+        var et = GD.GYMS[g].etapas[x.etapa];
+        return afkOpcao('afk-esc-fase', g + ':' + x.etapa, E.gymId === g && E.etapa === x.etapa, et.nome, ginEtapaRotulo(et, x.etapa) + ' · ' + ginNivelTxt(et));
+      }).join('') + '</div>';
+    }).join('');
+    var difs = GD.AFK.difs.map(function (d, k) {
+      var id = AF.faseId(E.gymId, E.etapa, d.id), f = AF.fase(id), livre = lib.indexOf(id) >= 0, motivo = '';
+      if (!livre) {
+        var ant = GD.AFK.difs[k - 1], tem = state.afk.vitorias[AF.faseId(E.gymId, E.etapa, ant.id)] || 0;
+        motivo = lib.indexOf(AF.faseId(E.gymId, E.etapa, ant.id)) >= 0
+          ? 'Faltam ' + fmt(GD.AFK.liberaApos - tem) + ' vitórias na ' + ant.name + ' deste oponente.' : 'Libere a ' + ant.name + ' primeiro.';
+      }
+      return afkOpcao('afk-esc-dif', d.id, E.dif === d.id, d.name, 'Oponente nível ' + f.nivel + ' · prêmio ×' + d.mult + (livre ? '' : ' · ' + motivo), motivo);
+    }).join('');
+    var vagas = state.afk.vagas.map(function (v, i) {
+      var m = v.uid ? mountByUid(v.uid) : null;
+      return afkOpcao('afk-esc-vaga', String(i), E.vaga === i, 'Vaga ' + (i + 1), m ? 'Hoje: ' + m.name + ' contra ' + afkOponente(AF.fase(v.faseId)).nome : 'Livre');
+    }).join('');
+    var gEl = GD.GYMS[E.gymId].element;
+    var cavalos = state.mounts.map(function (m) {
+      var onde = -1;
+      state.afk.vagas.forEach(function (v, i) { if (v.uid === m.uid) onde = i; });
+      var vt = ginVantTxt(m, E.gymId), preso = ginPreso(m);
+      var fim = (vt ? vt + ' contra ' + elementOf(gEl).name + '. ' : '') + (onde >= 0 && onde !== E.vaga ? 'Hoje na vaga ' + (onde + 1) + ': sai de lá. ' : '') +
+        (preso ? 'Na sala aberta: só treina depois da corrida valendo. ' : '') + (E.uid === m.uid ? 'Escolhido.' : 'Toque para escolher.');
+      return '<li>' + mountRowHtml(m, m.uid === state.activeId, { acao: 'afk-esc-cavalo', fim: fim, motivo: '', pressed: E.uid === m.uid,
+        meta: (vt ? '<span class="gin-vant gin-vant--' + (vt === 'Vantagem' ? 'mais' : 'menos') + '">' + esc(vt) + '</span>' : '') +
+          (onde >= 0 && onde !== E.vaga ? '<span class="gin-vant">' + esc('Vaga ' + (onde + 1)) + '</span>' : ''),
+        lado: '<span class="gin-pos" aria-hidden="true">' + (E.uid === m.uid ? '✓' : '') + '</span>' }) + '</li>';
+    }).join('');
+    var f = AF.fase(AF.faseId(E.gymId, E.etapa, E.dif)), et = afkOponente(f);
+    return '<section class="tela tela--afk" aria-labelledby="t-afk-escolha">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="afk-esc-voltar">Voltar</button>' +
+      '<header class="tela-cabeca placa"><span class="rotulo">Treino AFK</span>' +
+        '<h1 class="titulo titulo--tela" id="t-afk-escolha" tabindex="-1" data-foco>Escolher treino</h1></header>' +
+      '<section class="caixa" aria-labelledby="t-esc-op"><h2 class="titulo" id="t-esc-op">Oponente</h2>' +
+        '<p class="nota">Só os que você já venceu no ginásio. Cada corrida é um duelo na pista da casa, sem cansaço.</p>' + oponentes + '</section>' +
+      '<section class="caixa" aria-labelledby="t-esc-dif"><h2 class="titulo" id="t-esc-dif">Dificuldade</h2><div class="afk-opcoes">' + difs + '</div></section>' +
+      '<section class="caixa" aria-labelledby="t-esc-vaga"><h2 class="titulo" id="t-esc-vaga">Vaga</h2><div class="afk-opcoes">' + vagas + '</div></section>' +
+      '<section class="caixa" aria-labelledby="t-esc-cav"><h2 class="titulo" id="t-esc-cav">Cavalo</h2>' +
+        '<p class="ginasio-fraco">' + esc(ginFracoTxt(E.gymId)) + '</p><ul class="montarias item-escolha gin-time">' + cavalos + '</ul></section>' +
+      '<section class="caixa afk-comecar" aria-label="Começar">' + (E.msg ? '<p class="aviso" role="status">' + esc(E.msg) + '</p>' : '') +
+        '<p class="afk-escolhido">' + esc(mountByUid(E.uid).name + ' contra ' + et.nome + ' (' + afkDif(E.dif).name + ', nível ' + f.nivel + '), na vaga ' + (E.vaga + 1) + '.') + '</p>' +
+        '<div class="acoes"><button type="button" class="btn btn--ouro btn--grande" data-acao="afk-esc-comecar">Começar treino</button></div></section>' +
+      '</section>';
+  }
+  // grava a escolha: o cavalo na vaga, na fase; o relógio da vaga começa agora
+  function afkComeca() {
+    var U = afkUi(), E = U.escolha, s0 = state;
+    persist();
+    if (state !== s0) return;
+    afkConfere();
+    if (!mountByUid(E.uid) || !state.afk.vagas[E.vaga]) { U.escolha = null; go('afk'); return; }
+    var antes = clone(state), r = AF.ocupar(state.afk, E.vaga, E.uid, AF.faseId(E.gymId, E.etapa, E.dif), afkCtx());
+    if (!r.ok) { E.msg = r.motivo; rerenderKeepScroll(); return; }
+    state.afk = r.afk;
+    var gv = gravaGasto(s0, antes);
+    if (gv === 'outra-aba') return;
+    if (gv !== 'ok') { E.msg = FALHA_SALVAR; rerenderKeepScroll(); return; }
+    var vaga = E.vaga;
+    U.vivo = {}; U.ult[vaga] = null; U.escolha = null; U.msg = null;
+    go('afk');
+    focoNaLinha('afk-assistir', String(vaga));
+  }
+
+  // ---- bestiário (ui.bestiario = { gym }) ----
+  function afkBonusTxt() {
+    var b = AF.bestiarioBonus(state.afk.bestiario), partes = [];
+    if (b.raro) partes.push('+' + Math.round(b.raro * 100) + '% de drop raro');
+    if (b.xp) partes.push('+' + Math.round(b.xp * 100) + '% de XP');
+    if (b.trofeu) partes.push('+' + Math.round(b.trofeu * 100) + '% de chance de troféu');
+    if (b.offlineMin) partes.push('+' + afkTempoTxt(b.offlineMin) + ' de treino fora da tela');
+    return partes.length ? ginJunta(partes) : 'nenhum ainda';
+  }
+  function renderBestiario() {
+    var B = GD.AFK.bestiario, gid = ui.bestiario && hasOwn(GD.GYMS, ui.bestiario.gym) ? ui.bestiario.gym : GD.GYM_ORDER[0];
+    var pg = AF.bestiarioPagina(state.afk.bestiario, gid);
+    var abas = GD.GYM_ORDER.map(function (g) {
+      return '<button type="button" class="btn btn--pequeno afk-best-aba" data-acao="bestiario-gym" data-id="' + esc(g) + '" aria-pressed="' + (g === gid) + '">' + esc(afkGinNome(g)) + '</button>';
+    }).join('');
+    var ops = pg.oponentes.map(function (o) {
+      var marcos = B.marcos.map(function (mk, k) {
+        return '<span class="afk-marco' + (o.marcos[k] ? ' afk-marco--feito' : '') + '">' + esc(fmt(mk)) + '<span class="sr">' + (o.marcos[k] ? ' vitórias: marco alcançado' : ' vitórias: falta') + '</span></span>';
+      }).join('');
+      return '<li class="afk-best-op">' + treinadorBustoHtml(o.nome) + '<div class="afk-best-op-info"><b>' + esc(o.nome) + '</b>' +
+        '<span class="nota">' + esc(fmt(o.vitorias) + (o.vitorias === 1 ? ' vitória no treino' : ' vitórias no treino')) + '</span>' +
+        '<span class="afk-marcos" aria-label="Marcos de vitórias">' + marcos + '</span></div></li>';
+    }).join('');
+    var itens = pg.itens.map(function (x) {
+      var nome = x.tipo === 'peca' ? GD.GEAR[x.id].name + ' (' + GD.RARITIES[GD.GEAR[x.id].rarity].name + ')' : GD.ITEMS[x.id].name;
+      var estado = x.obtido ? 'Obtido' : x.visto ? 'Visto' : 'Não visto';
+      return '<li class="afk-best-item afk-best-item--' + (x.obtido ? 'obtido' : x.visto ? 'visto' : 'oculto') + '">' +
+        (x.tipo === 'item' ? itemIconeHtml(x.id) : '<span class="afk-best-peca" aria-hidden="true">' + iconeHtml('slot-' + GD.GEAR[x.id].slot, '◆', 16) + '</span>') +
+        '<span class="afk-best-nome">' + esc(x.visto ? nome : '???') + '</span><span class="afk-best-estado">' + estado + '</span></li>';
+    }).join('');
+    var feitos = pg.itens.filter(function (x) { return x.obtido; }).length;
+    return '<section class="tela tela--afk" aria-labelledby="t-bestiario">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="bestiario-voltar">Voltar</button>' +
+      '<h1 class="titulo titulo--tela" id="t-bestiario" tabindex="-1" data-foco>Bestiário</h1>' +
+      '<div class="caixa afk-best-bonus"><p><b>Bônus da conta (só no treino AFK):</b> ' + esc(afkBonusTxt()) + '.</p>' +
+        '<p class="nota">' + esc('Cada oponente com ' + fmt(B.raro.vitorias) + ' vitórias: +' + Math.round(B.raro.por * 100) + '% de drop raro. Com ' + fmt(B.xp.vitorias) + ': +' + Math.round(B.xp.por * 100) +
+          '% de XP. Cada troféu: +' + Math.round(B.trofeu.por * 100) + '% de chance de troféu. Página completa: +' + afkTempoTxt(B.pagina.min) + ' de treino fora da tela.') + '</p></div>' +
+      '<div class="afk-best-abas" role="group" aria-label="Ginásio">' + abas + '</div>' +
+      '<section class="caixa" aria-labelledby="t-best-ops"><h2 class="titulo" id="t-best-ops">' + esc('Oponentes: ' + GD.GYMS[gid].name) + '</h2><ul class="afk-best-ops">' + ops + '</ul></section>' +
+      '<section class="caixa" aria-labelledby="t-best-itens"><h2 class="titulo" id="t-best-itens">Coleção <span class="nota">' + esc(feitos + ' de ' + pg.itens.length) + '</span></h2>' +
+        '<ul class="afk-best-itens">' + itens + '</ul>' +
+        '<p class="nota">' + esc(pg.completa ? 'Página completa.' : 'Página completa: tudo obtido e ' + fmt(B.marcos[B.marcos.length - 1]) + ' vitórias em cada oponente.') + '</p></section>' +
+      '</section>';
+  }
+
+  // ---- forja (ui.forja = { gym, slot, confirma: receita | null, msg: texto | null }) ----
+  // Receitas fixas (Forja.pode / Forja.forjar): o jogador escolhe o ginásio (os materiais e o conjunto) e o tipo da peça.
+  // Só as linhas de farm são sorteadas, pela seed do save e pelo contador de forjas, depois de confirmar.
+  var FORJA_ROT = { comum: 'Peça Comum', magico: 'Peça Mágica', raro: 'Peça Rara de conjunto', lendario: 'Peça Lendária de conjunto', pedra: 'Pedra Negra', reforja: 'Pergaminho de reforja' };
+  function forjaUi() {
+    if (!ui.forja) ui.forja = { gym: GD.GYM_ORDER[0], slot: GD.GEAR_SLOTS[0], confirma: null, msg: null };
+    return ui.forja;
+  }
+  function forjaTrofeus(g) {
+    var n = 0;
+    GD.AFK.trofeus[g].forEach(function (_, e) { n += itemQtd('trofeu-' + g + '-' + e); });
+    return n;
+  }
+  function forjaCustoTxt(rec, g) {
+    var R = GD.FORJA[rec], M = GD.AFK.materiais[g], p = [];
+    if (R.qualquerGinasio) {
+      p.push(R.mat + ' materiais de qualquer ginásio');
+      if (R.inc) p.push(R.inc + (R.inc === 1 ? ' material incomum' : ' materiais incomuns') + ' de qualquer ginásio');
+    } else {
+      p.push(R.mat + ' materiais (' + GD.ITEMS[M.comuns[0]].name + ' + ' + GD.ITEMS[M.comuns[1]].name + ')');
+      if (R.inc) p.push(itemQtdTxt(M.incomum, R.inc));
+    }
+    if (R.trofeu) p.push(R.trofeu + (R.trofeu === 1 ? ' troféu' : ' troféus') + ' ' + GD.GYMS[g].name.replace(/^Ginásio /, ''));
+    if (R.selo) p.push(itemQtdTxt('selo', R.selo));
+    p.push(fmt(R.ouro) + ' de Ouro');
+    return ginJunta(p);
+  }
+  function forjaSaiTxt(rec, U) {
+    if (rec === 'pedra') return 'Pedra Negra';
+    if (rec === 'reforja') return 'Pergaminho de reforja';
+    var id = FJ.pecaId(rec, U.slot, U.gym), d = GD.GEAR[id];
+    return d.name + ' (' + GD.RARITIES[d.rarity].name + ')';
+  }
+  function forjaPode(rec, U) { return FJ.pode(rec, U.slot, U.gym, state.mochila, ouroLivre()); }
+  // -> true se forjou (uma gravação: o gasto e o que saiu)
+  function forjaFaz(rec) {
+    var U = forjaUi(), s0 = state;
+    persist();
+    if (state !== s0) return false;
+    U.confirma = null;
+    var p = forjaPode(rec, U);
+    if (!p.ok) { U.msg = p.motivo; return false; }
+    var antes = clone(state), c = state.forjaCounter;
+    var r = FJ.forjar(rec, U.slot, U.gym, state.mochila, state.seedBase, c), txt;
+    if (!r) { U.msg = 'Não foi possível forjar.'; return false; }
+    AFK_IDS.forEach(function (id) { state.mochila[id] = inteiroOu(r.mochila[id], 0, 0, GD.ITEMS[id].cap); });
+    state.gold -= r.ouro;
+    if (r.peca) {
+      state.forjaCounter = c + 1;   // o contador novo vai na mesma gravação da peça
+      var it = addItem(state, r.peca.id, r.peca.linhas, 'forja');
+      state.afk.bestiario = AF.bestiarioObter(state.afk.bestiario, {}, [r.peca]);
+      txt = 'Forjou ' + forjaSaiTxt(rec, U) + (it.linhas.length ? ': ' + it.linhas.map(linhaTxt).join(', ') : '') + '. Está no inventário (aba Peças da montaria).';
+    } else if (r.pedra) {
+      state.pedras = Math.min(1e6, state.pedras + r.pedra);
+      txt = 'Forjou 1 Pedra Negra. Você tem ' + pedrasTxt(state.pedras) + '.';
+    } else {
+      txt = 'Forjou 1 Pergaminho de reforja. Você tem ' + fmt(itemQtd('pergaminho-reforja')) + '.';
+    }
+    var gv = gravaGasto(s0, antes);
+    if (gv === 'outra-aba') return false;
+    U.msg = gv === 'ok' ? txt : FALHA_SALVAR;
+    return gv === 'ok';
+  }
+  function renderForja() {
+    var U = forjaUi(), g = U.gym, M = GD.AFK.materiais[g], conj = GD.GEAR_SETS[M.conjunto];
+    var abas = GD.GYM_ORDER.map(function (x) {
+      return '<button type="button" class="btn btn--pequeno afk-best-aba" data-acao="forja-gym" data-id="' + esc(x) + '" aria-pressed="' + (x === g) + '">' + esc(afkGinNome(x)) + '</button>';
+    }).join('');
+    var slots = GD.GEAR_SLOTS.map(function (sl) {
+      return '<button type="button" class="btn btn--pequeno forja-slot" data-acao="forja-slot" data-id="' + esc(sl) + '" aria-pressed="' + (sl === U.slot) + '">' +
+        iconeHtml('slot-' + sl, '◆', 16) + ' ' + esc(GD.GEAR_SLOT_INFO[sl].name) + '</button>';
+    }).join('');
+    function tem(id) { return '<li>' + itemIconeHtml(id) + '<span>' + esc(itemQtdTxt(id, itemQtd(id))) + '</span></li>'; }
+    var estoque = '<ul class="forja-estoque" aria-label="O que você tem">' + tem(M.comuns[0]) + tem(M.comuns[1]) + tem(M.incomum) +
+      '<li><span class="item-icone item-icone--trofeu-' + esc(g) + '" aria-hidden="true"></span><span>' + esc(forjaTrofeus(g) + (forjaTrofeus(g) === 1 ? ' troféu' : ' troféus')) + '</span></li>' +
+      tem('selo') + '</ul>';
+    var linhas = FJ.RECEITAS.map(function (rec) {
+      var p = forjaPode(rec, U), peca = FJ.ehPeca(rec), sai = forjaSaiTxt(rec, U), nl = peca ? GD.ECONOMY.gear.linhas[rec] : 0, corpo;
+      if (U.confirma === rec) {
+        corpo = '<div class="acoes forja-confirma"><p class="nota">' + esc('Forjar ' + sai + '? Gasta ' + forjaCustoTxt(rec, g) + '.' +
+            (nl ? ' ' + (nl === 1 ? 'A linha de farm é sorteada' : 'As ' + nl + ' linhas de farm são sorteadas') + ' ao confirmar.' : '')) + '</p>' +
+          '<button type="button" class="btn btn--ouro" data-acao="forja-confirmar" data-id="' + esc(rec) + '"' + indisponivel(p.ok ? '' : p.motivo) + '>Confirmar</button>' +
+          '<button type="button" class="btn" data-acao="forja-cancelar" data-id="' + esc(rec) + '">Cancelar</button></div>';
+      } else {
+        corpo = '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="forja-fazer" data-id="' + esc(rec) + '"' + indisponivel(p.ok ? '' : p.motivo) +
+          '>Forjar<span class="sr"> ' + esc(sai) + '</span></button></div>';
+      }
+      return '<li class="forja-receita" data-receita="' + esc(rec) + '"><h3 class="forja-nome">' + esc(FORJA_ROT[rec]) + '</h3>' +
+        '<p class="forja-sai">' + esc(peca ? 'Sai: ' + sai + (nl ? ', com ' + nl + (nl === 1 ? ' linha de farm sorteada' : ' linhas de farm sorteadas') : ', sem linha de farm') : rec === 'pedra' ? 'Melhora peças na aba Peças da montaria.' : 'Sorteia de novo uma linha de uma peça.') + '</p>' +
+        '<p class="nota forja-custo">' + esc('Custa ' + forjaCustoTxt(rec, g) + '.') + '</p>' + corpo + '</li>';
+    }).join('');
+    return '<section class="tela tela--afk" aria-labelledby="t-forja">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="forja-voltar">Voltar</button>' +
+      '<h1 class="titulo titulo--tela" id="t-forja" tabindex="-1" data-foco>Forja</h1>' +
+      '<p class="nota">Receitas fixas, sem chance de falhar. Os materiais caem no treino AFK de cada ginásio; as peças só valem no treino AFK.</p>' +
+      '<div class="afk-best-abas" role="group" aria-label="Materiais de qual ginásio">' + abas + '</div>' +
+      '<section class="caixa" aria-labelledby="t-forja-tem"><h2 class="titulo" id="t-forja-tem">' + esc('Você tem (' + afkGinNome(g) + ')') + '</h2>' + estoque +
+        '<p class="nota">' + esc(pedrasTxt(state.pedras) + ' · ' + fmt(ouroLivre()) + ' de Ouro para gastar' + (ouroReservado() ? ' (' + reservaTxt() + ')' : '') + '.') + '</p></section>' +
+      '<section class="caixa" aria-labelledby="t-forja-slot"><h2 class="titulo" id="t-forja-slot">Tipo da peça</h2>' +
+        '<div class="forja-slots" role="group" aria-label="Tipo da peça">' + slots + '</div>' +
+        '<p class="nota">' + esc('Rara e Lendária saem do conjunto ' + conj.name + ', o ' + GD.GYMS[g].name.replace(/^Ginásio /, '') + '.') + '</p></section>' +
+      (U.msg ? '<p class="aviso forja-msg" role="status">' + esc(U.msg) + '</p>' : '') +
+      '<section class="caixa" aria-labelledby="t-forja-rec"><h2 class="titulo" id="t-forja-rec">Receitas</h2><ul class="forja-receitas">' + linhas + '</ul></section>' +
+      '</section>';
+  }
+
+  // ---- comidas (Mochila): Feno, Cenoura e Maçã dão XP a um cavalo; a Aveia dourada estica o próximo período fora ----
+  // ui.comida = { id } (a comida esperando a escolha do cavalo) | null; ui.comidaMsg = { id, txt } (o aviso do último uso)
+  function comidaMotivo(id, m) {
+    if (m && ginPreso(m)) return GIN_SALA_TXT;
+    var r = AF.usarComida(id, m, state.afk, AF.bestiarioBonus(state.afk.bestiario).offlineMin);
+    return r.ok ? '' : r.motivo;
+  }
+  // -> true se usou (uma gravação: o item gasto e o efeito)
+  function comidaUsa(id, uid) {
+    var s0 = state;
+    persist();
+    if (state !== s0) return false;
+    var m = uid ? mountByUid(uid) : null, it = GD.ITEMS[id];
+    if (itemQtd(id) < 1) { ui.comidaMsg = { id: id, txt: 'Você não tem ' + it.name + '.' }; return false; }
+    var motivo = comidaMotivo(id, m);
+    if (motivo) { ui.comidaMsg = { id: id, txt: motivo }; return false; }
+    var antes = clone(state), r = AF.usarComida(id, m, state.afk, AF.bestiarioBonus(state.afk.bestiario).offlineMin), txt;
+    state.mochila[id] -= 1;
+    if (r.aveiaMin != null) {
+      state.afk.aveiaMin = r.aveiaMin;
+      txt = 'O próximo período fora rende até ' + afkTempoTxt(afkLimite()) + '.';
+    } else {
+      var g = applyXp(m, r.xp, AFK_SEED_TAG + state.afk.xpCounter);
+      state.afk.xpCounter += 1;
+      txt = m.name + ' ganhou ' + fmt(r.xp) + ' de XP' + (g.levels ? ' e subiu para o nível ' + m.level + (g.learned.length ? ', aprendendo ' + ginJunta(g.learned.map(skillNome)) : '') : '') + '.';
+    }
+    var gv = gravaGasto(s0, antes);
+    if (gv === 'outra-aba') return false;
+    ui.comidaMsg = { id: id, txt: gv === 'ok' ? txt : FALHA_SALVAR };
+    ui.comida = null;
+    return gv === 'ok';
+  }
+  // as linhas dos itens do AFK na Mochila, por grupo (as comidas com o Usar; troféus só os que você tem)
+  var AFK_GRUPOS = [['comida', 'Comidas'], ['material', 'Materiais de forja'], ['incomum', 'Materiais incomuns'], ['reforja', 'Reforja'], ['selo', 'Selo do campeão'], ['trofeu', 'Troféus']];
+  function mochilaAfkHtml() {
+    return AFK_GRUPOS.map(function (gr) {
+      var ids = AFK_IDS.filter(function (id) { return GD.ITEMS[id].grupo === gr[0] && (gr[0] !== 'trofeu' || itemQtd(id) > 0); });
+      var corpo = ids.map(function (id) {
+        var n = itemQtd(id), comida = gr[0] === 'comida', extra = '';
+        if (comida && n > 0) {
+          if (ui.comida && ui.comida.id === id) {
+            extra = '<div class="item-compra comida-cavalos"><p class="nota">Para qual cavalo?</p>' + state.mounts.map(function (m) {
+              return '<button type="button" class="btn btn--pequeno" data-acao="comida-dar" data-id="' + esc(m.uid) + '"' + indisponivel(comidaMotivo(id, m)) + '>' +
+                esc(m.name + ' (Nv ' + m.level + ')') + '</button>';
+            }).join('') + '<button type="button" class="btn btn--pequeno" data-acao="comida-cancelar" data-id="' + esc(id) + '">Cancelar</button></div>';
+          } else {
+            extra = '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="comida-usar" data-id="' + esc(id) + '"' +
+              indisponivel(GD.ITEMS[id].aveiaMin ? comidaMotivo(id, null) : '') + '>Usar<span class="sr"> ' + esc(GD.ITEMS[id].name) + '</span></button></div>';
+          }
+        }
+        return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: extra,
+          aviso: ui.comidaMsg && ui.comidaMsg.id === id ? ui.comidaMsg.txt : null });
+      }).join('');
+      if (gr[0] === 'trofeu' && !ids.length) corpo = '<p class="nota">Nenhum troféu ainda. Cada oponente vencido no treino AFK pode deixar o dele, raramente.</p>';
+      return '<section class="caixa item-lista item-lista--afk" aria-label="' + esc(gr[1]) + '"><h2 class="titulo">' + esc(gr[1]) + '</h2>' + corpo + '</section>';
+    }).join('');
+  }
+
+  // o cartão do treino na aba Expedição
+  function afkCartaoHtml() {
+    var ocupadas = state.afk.vagas.filter(function (v) { return !!v.uid; }).length, vazio = AF.bauVazioE(state.afk.bau);
+    return '<section class="caixa" aria-labelledby="t-afk-cartao"><h2 class="titulo" id="t-afk-cartao">Treino AFK</h2>' +
+      '<p class="nota">Seus cavalos correm sozinhos contra oponentes já vencidos e rendem XP, materiais e peças.</p>' +
+      '<ul class="afk-cartoes"><li><button type="button" class="afk-cartao" data-acao="afk-abrir">' +
+        '<span class="ginasio-cartao-nome">' + esc(ocupadas ? ocupadas + ' de ' + state.afk.vagas.length + ' vagas em treino' : 'Nenhum cavalo em treino') + '</span>' +
+        '<span class="ginasio-cartao-meta"><span class="item-icone item-icone--bau afk-cartao-bau" aria-hidden="true"></span><span>' + (vazio ? 'Baú vazio' : 'Baú com prêmios para coletar') + '</span></span>' +
+        pixelSvg(SETA_ROWS, 'ginasio-cartao-seta') + '</button></li>' +
+      '<li><button type="button" class="afk-cartao" data-acao="bestiario-abrir">' +
+        '<span class="ginasio-cartao-nome">Bestiário</span>' +
+        '<span class="ginasio-cartao-meta"><span>' + esc('Bônus: ' + afkBonusTxt()) + '</span></span>' +
+        pixelSvg(SETA_ROWS, 'ginasio-cartao-seta') + '</button></li>' +
+      '<li><button type="button" class="afk-cartao" data-acao="forja-abrir">' +
+        '<span class="ginasio-cartao-nome">Forja</span>' +
+        '<span class="ginasio-cartao-meta"><span>Peças, Pedras Negras e Pergaminhos com os materiais do treino</span></span>' +
+        pixelSvg(SETA_ROWS, 'ginasio-cartao-seta') + '</button></li></ul></section>';
+  }
+
   // "Recomeçar com outro inicial" com confirmação (vai para o Perfil): apaga o save e volta à escolha do inicial. No modo
   // DEV faz o mesmo com o perfil de teste (desde 2026-11-18; antes voltava direto à Brasa, que segue no "Zerar" da gaveta).
   function resetHtml() {
@@ -3828,20 +4766,8 @@
     e[slot] = uid;
     return e;
   }
-  function ratingWith(mount, equip) {
-    return RS.powerRating(mount, GR.resolve({ equip: equip }, itemsByUid()));
-  }
-  // trava parcial (spec §9): com páreo aberto, a ativa só aceita um equip que não passe do rating da sala
-  function canEquip(mount, equipNovo) {
-    var P = state.pending;
-    if (!P || mount.uid !== state.activeId) return { ok: true, limit: null };
-    return { ok: ratingWith(mount, equipNovo) <= P.pr, limit: P.pr };
-  }
-  // peça equipada na ativa com páreo aberto não pode ser melhorada
-  function enhanceLocked(uid) {
-    var where = isEquipped(uid);
-    return !!(state.pending && where && where.mount.uid === state.activeId);
-  }
+  // O equipamento só vale no treino AFK: não mexe no Poder nem na sala aberta, então equipar, tirar e melhorar não têm
+  // trava de páreo (as travas de quando a peça entrava no Poder saíram com o equipamento de PVE).
   function rarityRank(id) {
     var def = GR.piece(id);
     return def && GD.RARITIES[def.rarity] ? GD.RARITIES[def.rarity].order : -1;
@@ -3865,12 +4791,17 @@
     var r = Math.round(v * 10) / 10;
     return r === Math.floor(r) ? String(r) : String(r).replace('.', ',');
   }
+  var FARM_ROT = { material: 'material', xp: 'XP', raro: 'drop raro', trofeu: 'troféu', ouro: 'Ouro do treino' };
+  function linhaTxt(l) { return '+' + l.valor + '% ' + FARM_ROT[l.tipo]; }
+  // "+2,65 EST" e as linhas de farm da peça ("+7% XP, +15% troféu")
   function pieceModsText(item) {
     var def = GR.piece(item.id), info = GD.GEAR_SLOT_INFO[def.slot], mods = pieceMods(item.id, item.plus);
-    var t = '+' + statNum(mods[info.main]) + ' ' + GD.STATS[info.main].short;
-    if (def.sub) t += ', +' + statNum(mods[info.sub]) + ' ' + GD.STATS[info.sub].short;
+    var t = '+' + statNum2(mods[info.main]) + ' ' + GD.STATS[info.main].short;
+    (item.linhas || []).forEach(function (l) { t += ', ' + linhaTxt(l); });
     return t;
   }
+  // valor do principal com até duas casas e vírgula ("1,25", "2,65", "3")
+  function statNum2(v) { return String(Math.round(v * 100) / 100).replace('.', ','); }
   function pieceLabel(item) {
     var def = GR.piece(item.id);
     return def.name + ' · ' + GD.RARITIES[def.rarity].name + ' · +' + item.plus + ' · ' + pieceModsText(item);
@@ -3879,27 +4810,31 @@
     var st = gear.set, sb = GE.setBonus;
     if (!st || !st.id || !st.count || !hasOwn(GD.GEAR_SETS, st.id)) return '<p class="set-linha nota">sem conjunto</p>';
     var bon = [];
-    if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillEffect * 100) + '% no efeito das skills');
-    if (st.count >= sb.pieces[1]) bon.push('bônus do clima reforçado (×1,07)');
+    if (st.count >= sb.pieces[0]) bon.push('linhas de farm +' + Math.round(sb.farm * 100) + '%');
+    if (st.count >= sb.pieces[1]) bon.push('bônus do clima reforçado (×' + String(sb.clima).replace('.', ',') + ')');
     if (st.count >= sb.pieces[2]) bon.push('sem penalidade de clima');
     return '<p class="set-linha"><span class="set-badge">' + esc(GD.GEAR_SETS[st.id].name + ' ×' + st.count) + '</span> ' +
       '<span class="nota">' + esc(bon.length ? bon.join(' · ') : 'bônus a partir de ' + sb.pieces[0] + ' peças') + '</span></p>';
   }
+  // o que as peças equipadas somam no treino AFK: "+3 VEL, +2 EST · farm: +7% XP, +15% troféu"
+  function gearTotalTxt(gear) {
+    var st = GD.STAT_KEYS.filter(function (k) { return gear.mods[k] > 0; }).map(function (k) { return '+' + statNum2(gear.mods[k]) + ' ' + GD.STATS[k].short; });
+    var fm = Object.keys(FARM_ROT).filter(function (t) { return gear.farm[t] > 0; }).map(function (t) { return '+' + statNum2(gear.farm[t] * 100) + '% ' + FARM_ROT[t]; });
+    if (!st.length && !fm.length) return 'Nenhuma peça equipada.';
+    return 'No treino AFK: ' + (st.length ? st.join(', ') : 'sem status') + (fm.length ? ' · farm: ' + fm.join(', ') : '') + '.';
+  }
+  // o que a peça vale na venda: só a comprada na loja devolve Ouro; a que caiu no treino ou saiu da forja não tem preço
+  // (senão o treino AFK viraria Ouro por fora do teto da meta E1)
+  function precoVenda(item) { return item.origem ? 0 : GR.sellPrice(item.id); }
   function pedrasTxt(n) { return n + (n === 1 ? ' pedra' : ' pedras'); }
 
-  // uma peça da lista aberta: equipada (Tirar/Melhorar) ou do inventário (Equipar/Melhorar/Vender)
-  function equipRowHtml(m, item, equipped, ratingNow) {
+  // uma peça da lista aberta: equipada (Tirar/Melhorar) ou do inventário (Equipar/Melhorar/Vender), com as linhas de farm
+  function equipRowHtml(m, item, equipped) {
     var def = GR.piece(item.id);
-    var novo = equipWith(m, def.slot, equipped ? null : item.uid);
-    var depois = ratingWith(m, novo);
-    var lock = canEquip(m, novo);
     var odds = GR.enhanceOdds(item.plus);
-    var travada = enhanceLocked(item.uid);
     var uid = esc(item.uid);
-    var d = depois - ratingNow;
-    var poder = '<span class="peca-poder">Poder ' + ratingNow + ' → <b class="' + (d > 0 ? 'mais' : d < 0 ? 'menos-t' : '') + '">' + depois + '</b></span>';
     var acoes;
-    if (ui.montaria.equip.confirm === item.uid && odds && !travada) {
+    if (ui.montaria.equip.confirm === item.uid && odds) {
       var falha = odds.dropTo < item.plus ? 'cai para +' + odds.dropTo : 'continua +' + item.plus;
       var semPedras = state.pedras < odds.cost;
       acoes = '<div class="confirma" role="group" aria-label="Confirmar melhoria"><span>' +
@@ -3909,35 +4844,88 @@
           (semPedras ? 'Sem pedras' : 'Tentar') + '</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="melhorar-nao" data-id="' + uid + '">Cancelar</button></div>';
     } else {
-      var limite = lock.ok ? '' : ' disabled title="' + esc('Páreo aberto: passaria do Poder ' + lock.limit) + '"';
       var mel = '<button type="button" class="btn btn--pequeno" data-acao="melhorar" data-id="' + uid + '"' +
-        (!odds ? ' disabled title="Já está no máximo"' : travada ? ' disabled title="Páreo aberto"' : '') + '>Melhorar</button>';
+        (!odds ? ' disabled title="Já está no máximo"' : '') + '>Melhorar</button>';
+      var pv = precoVenda(item);
       acoes = '<div class="acoes-peca">' + (equipped
-        ? '<button type="button" class="btn btn--pequeno" data-acao="tirar" data-id="' + esc(def.slot) + '"' + limite + '>Tirar</button>' + mel
-        : '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="equipar" data-id="' + uid + '"' + limite + '>Equipar</button>' + mel +
-          '<button type="button" class="btn btn--pequeno" data-acao="vender" data-id="' + uid + '">Vender (' + fmt(GR.sellPrice(item.id)) + ')</button>') +
-        '</div>';
+        ? '<button type="button" class="btn btn--pequeno" data-acao="tirar" data-id="' + esc(def.slot) + '">Tirar</button>' + mel
+        : '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="equipar" data-id="' + uid + '">Equipar</button>' + mel +
+          '<button type="button" class="btn btn--pequeno" data-acao="vender" data-id="' + uid + '">' + (pv ? 'Vender (' + fmt(pv) + ')' : 'Descartar') + '</button>') +
+        reforjarBtnHtml(item) + '</div>';
     }
-    return '<div class="peca' + (equipped ? ' peca--equipada' : '') + '">' +
+    var info = GD.GEAR_SLOT_INFO[def.slot], mods = pieceMods(item.id, item.plus);
+    var linhas = (item.linhas || []).length
+      ? '<ul class="peca-linhas" aria-label="Linhas de farm">' + item.linhas.map(function (l) { return '<li>' + esc(linhaTxt(l)) + '</li>'; }).join('') + '</ul>'
+      : '<span class="nota peca-sem-linhas">sem linha de farm</span>';
+    return '<div class="peca' + (equipped ? ' peca--equipada' : '') + '" data-peca="' + uid + '">' +
       '<div class="peca-info"><b>' + esc(def.name + ' +' + item.plus) + '</b>' +
         '<span class="linha-meta">' + rarityHtml(def.rarity) + (equipped ? '<span class="badge-ativa">Equipada</span>' : '') +
-          '<span>' + esc(pieceModsText(item)) + '</span></span>' + poder + '</div>' +
-      acoes + '</div>';
+          '<span>' + esc('+' + statNum2(mods[info.main]) + ' ' + GD.STATS[info.main].short) + '</span></span>' + linhas + '</div>' +
+      acoes + reforjaPainelHtml(item) + '</div>';
+  }
+  // Reforja (spec AFK §5.9): sorteia de novo uma linha escolhida da peça, com 1 Pergaminho de reforja e Ouro (que cresce
+  // a cada reforja na mesma peça). ui.montaria.equip.reforja = { uid, linha: índice | null, selo: bool } | null.
+  function reforjaMochila() { return { 'pergaminho-reforja': itemQtd('pergaminho-reforja'), selo: itemQtd('selo') }; }
+  function reforjarBtnHtml(item) {
+    if (!(item.linhas || []).length) return '';
+    return '<button type="button" class="btn btn--pequeno" data-acao="reforjar" data-id="' + esc(item.uid) + '">Reforjar</button>';
+  }
+  function reforjaPainelHtml(item) {
+    var Rf = ui.montaria.equip.reforja;
+    if (!Rf || Rf.uid !== item.uid || !(item.linhas || []).length) return '';
+    var uid = esc(item.uid), custo = GR.custoReforja(item), def = GR.piece(item.id);
+    var linhas = item.linhas.map(function (l, i) {
+      return '<button type="button" class="btn btn--pequeno reforja-linha" data-acao="reforja-linha" data-id="' + uid + ':' + i + '" aria-pressed="' + (Rf.linha === i) + '">' + esc(linhaTxt(l)) + '</button>';
+    }).join('');
+    var p = Rf.linha == null ? { ok: false, motivo: 'Escolha uma linha da peça' } : GR.podeReforjar(item, Rf.linha, Rf.selo, reforjaMochila(), ouroLivre());
+    var fx = Rf.linha != null ? GE.faixas[item.linhas[Rf.linha].tipo][def.rarity] : null;
+    var oque = Rf.linha == null ? 'Escolha a linha que será sorteada de novo.'
+      : Rf.selo ? 'Com o Selo: a linha continua de ' + FARM_ROT[item.linhas[Rf.linha].tipo] + ' e o valor sai de ' + Math.ceil((fx[0] + fx[1]) / 2) + '% a ' + fx[1] + '%.'
+        : 'Sorteia o tipo (sem repetir o das outras linhas) e o valor. Pode sair pior.';
+    return '<div class="reforja" role="group" aria-label="' + esc('Reforjar ' + def.name) + '">' +
+      '<p class="reforja-titulo"><b>Reforjar qual linha?</b></p><div class="reforja-linhas">' + linhas + '</div>' +
+      '<button type="button" class="btn btn--pequeno reforja-selo" data-acao="reforja-selo" data-id="' + uid + '" aria-pressed="' + !!Rf.selo + '">' +
+        itemIconeHtml('selo') + '<span>' + esc('Usar 1 Selo do campeão (tem ' + fmt(itemQtd('selo')) + ')') + '</span></button>' +
+      '<p class="nota reforja-oque">' + esc(oque) + '</p>' +
+      '<p class="reforja-custo">' + esc('Custa 1 Pergaminho de reforja (tem ' + fmt(itemQtd('pergaminho-reforja')) + ')' + (Rf.selo ? ', 1 Selo do campeão' : '') + ' e ') + ouroHtml(custo) +
+        '<span class="nota">' + esc(' · reforjas nesta peça: ' + fmt(item.rerolls || 0) + ' (o Ouro sobe a cada uma)') + '</span></p>' +
+      '<div class="acoes-peca"><button type="button" class="btn btn--pequeno btn--ouro" data-acao="reforja-sim" data-id="' + uid + '"' + indisponivel(p.ok ? '' : p.motivo) + '>Reforjar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="reforja-nao" data-id="' + uid + '">Fechar</button></div></div>';
+  }
+  // -> true se reforjou (uma gravação: o Pergaminho, o Ouro, o Selo, a linha nova e o rerolls)
+  function reforjaFaz(uid) {
+    var Q = ui.montaria.equip, Rf = Q.reforja, s0 = state;
+    persist();
+    if (state !== s0) return false;
+    var item = itemByUid(uid);
+    if (!item || !Rf || Rf.uid !== uid || Rf.linha == null) return false;
+    var p = GR.podeReforjar(item, Rf.linha, Rf.selo, reforjaMochila(), ouroLivre());
+    if (!p.ok) { Q.msg = p.motivo + '.'; return false; }
+    // paga antes de ver: o sorteio sai da seed do save, do uid e do nº de reforjas da peça (recarregar não muda)
+    var antes = clone(state), era = item.linhas[Rf.linha], r = GR.reforjar(item, Rf.linha, Rf.selo, state.seedBase);
+    if (!r) { Q.msg = 'Não foi possível reforjar.'; return false; }
+    state.gold -= p.custo;
+    state.mochila['pergaminho-reforja'] = itemQtd('pergaminho-reforja') - 1;
+    if (Rf.selo) state.mochila.selo = itemQtd('selo') - 1;
+    item.linhas = r.linhas; item.rerolls = r.rerolls;
+    var g = gravaGasto(s0, antes);
+    if (g === 'outra-aba') return false;
+    if (g === 'falhou') { Q.msg = FALHA_SALVAR; return false; }
+    Q.msg = GR.piece(item.id).name + ': ' + linhaTxt(era) + ' virou ' + linhaTxt(r.linhas[Rf.linha]) + '.';
+    if (Rf.selo && itemQtd('selo') < 1) Rf.selo = false;
+    return true;
   }
 
   // conteúdo da sub-aba Equipamento da Montaria (estado em ui.montaria.equip)
   function montariaEquipHtml(m) {
-    var Q = ui.montaria.equip, P = state.pending;
+    var Q = ui.montaria.equip;
     var gear = gearOf(m);
-    var rating = RS.powerRating(clone(m), gear);
     var avisos = '';
     if (Q.msg) avisos += '<p class="aviso" role="status">' + esc(Q.msg) + '</p>';
     if (Q.undo) {
       avisos += '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="vender-desfazer">' +
-        esc('Desfazer venda de ' + (GR.piece(Q.undo.item.id) || { name: '?' }).name + ' (−' + fmt(Q.undo.price) + ' de Ouro)') + '</button></div>';
+        esc('Desfazer ' + (Q.undo.price ? 'venda' : 'descarte') + ' de ' + (GR.piece(Q.undo.item.id) || { name: '?' }).name + (Q.undo.price ? ' (−' + fmt(Q.undo.price) + ' de Ouro)' : '')) + '</button></div>';
     }
-    if (P && m.uid === state.activeId) avisos += '<p class="aviso">' + esc('Páreo aberto: o Poder não pode passar de ' + P.pr) + '</p>';
-
     var bySlot = {};
     gear.pieces.forEach(function (p) { bySlot[p.slot] = p; });
     var linhas = GR.SLOTS.map(function (slot) {
@@ -3945,8 +4933,8 @@
       var cur = bySlot[slot] ? itemByUid(bySlot[slot].uid) : null;
       var lista = '';
       if (aberto) {
-        var rows = (cur ? [equipRowHtml(m, cur, true, rating)] : []).concat(freePieces(slot).map(function (it) {
-          return equipRowHtml(m, it, false, rating);
+        var rows = (cur ? [equipRowHtml(m, cur, true)] : []).concat(freePieces(slot).map(function (it) {
+          return equipRowHtml(m, it, false);
         }));
         lista = '<div class="pecas" id="pecas-' + esc(slot) + '">' + (rows.length ? rows.join('')
           : '<p class="nota">' + esc('Nenhuma peça de ' + info.name + ' no inventário.') + '</p>') + '</div>';
@@ -3958,9 +4946,11 @@
     }).join('');
 
     return avisos +
-      '<section class="caixa" aria-labelledby="t-pecas"><h2 class="titulo" id="t-pecas">Peças</h2>' +
+      '<section class="caixa" aria-labelledby="t-pecas"><h2 class="titulo" id="t-pecas">Peças <span class="selo-afk">só AFK</span></h2>' +
+        '<p class="nota equip-so-afk">As peças só valem no treino AFK. Na corrida valendo, na sala e no Poder, todo cavalo corre sem elas.</p>' +
+        '<p class="equip-total">' + esc(gearTotalTxt(gear)) + '</p>' +
         setLineHtml(gear) +
-        '<p class="nota">Toque num slot para ver as peças do inventário. Melhorar gasta Pedras Negras; vender devolve 25% do preço.</p>' +
+        '<p class="nota">Toque num slot para ver as peças do inventário. Melhorar gasta Pedras Negras; só peça comprada na loja tem preço de venda (25%).</p>' +
         '<div class="slot-linhas">' + linhas + '</div></section>';
   }
 
@@ -3968,7 +4958,7 @@
   // Tela da Montaria (sub-tela): cabeça com o retrato grande e sub-abas Status / Skills / (Equipamento) / Ficha
   // ===========================================================================
   // a sub-aba Equipamento some com o equipamento suspenso (GEAR_ON); o handler 'montaria-aba' só abre as desta lista
-  var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Equipamento' },
+  var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Peças' },
     { id: 'ficha', rotulo: 'Ficha' }]
     .filter(function (a) { return GEAR_ON || a.id !== 'equip'; });
   function montariaAbaValida(id) { return MONTARIA_ABAS.some(function (a) { return a.id === id; }); }
@@ -4277,12 +5267,12 @@
     var cabeca = '<article class="caixa montaria-cabeca" aria-label="Montaria">' +
       '<div class="retrato-palco">' + portraitHtml(m, { tamanho: 'grande', selo: true, pontos: pontosQueCabem(m) }) + '</div>' +
       '<div class="cavalo-info">' +
-        '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco><span class="montaria-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></span>' +
+        '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco><span class="montaria-nome">' + esc(m.name) + sexoIconeHtml(m.sex) + ' <small>#' + esc(uidNum(m.uid)) + '</small></span>' +
           (isActive ? ' <span class="badge-ativa">Ativa</span>' : '') + '</h1>' +   // o espaço: o leitor de tela lê "Brasa #1 Ativa"
         '<div class="linha-meta">' + rarityHtml(m.rarity, true) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) + '</div>' +
         '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         xpHtml(m.level, m.xp, true) +
-        (GEAR_ON ? gearSummaryHtml(m) : '') +
+        (GEAR_PVP ? gearSummaryHtml(m) : '') +   // só de PVE: as peças ficam na sub-aba Peças (a cabeça é a do cavalo no PVP)
       '</div></article>';
 
     var subabas = '<div class="subabas" role="group" aria-label="Seções da montaria">' + MONTARIA_ABAS.map(function (a) {
@@ -4336,7 +5326,9 @@
   function itemQtdTxt(id, n) { return fmt(n) + ' ' + (n === 1 ? GD.ITEMS[id].name : GD.ITEMS[id].plural); }
   // o ícone do item (peça de pixel item-<id> do interface-arte.mjs, em background): decorativo, o nome vem ao lado
   function itemIconeHtml(id) {
-    return hasOwn(GD.ITEMS, id) ? '<span class="item-icone item-icone--' + esc(id) + '" aria-hidden="true"></span>' : '';
+    if (!hasOwn(GD.ITEMS, id)) return '';
+    var it = GD.ITEMS[id], nome = it.grupo === 'trofeu' ? 'trofeu-' + it.gymId : id;   // os 15 troféus usam a taça do ginásio deles
+    return '<span class="item-icone item-icone--' + esc(nome) + '" aria-hidden="true"></span>';
   }
   // A linha de um item: ícone, nome, a quantidade e a linha de para que serve. Usada na loja, na mochila e na escolha
   // do uso. opções: { qtd: número (sem ele, não mostra a quantidade), forma: 'x' (×3, padrão) | 'tem' (tem 3), texto: a
@@ -4397,13 +5389,13 @@
   // pela Mochila fica na linha do item
   function lojaMochilaHtml() {
     var msg = ui.itemMsg && ui.itemMsg.origem === 'mochila' ? ui.itemMsg : null;
-    return '<section class="caixa item-lista" aria-label="Mochila">' + Object.keys(GD.ITEMS).map(function (id) {
+    return '<section class="caixa item-lista" aria-label="Mochila">' + GD.ITENS_USO.map(function (id) {
       var n = itemQtd(id), semUso = id === 'pergaminho';   // o Pergaminho é gasto ao subir rank, na aba Skills
       var usar = n > 0 && !semUso ? '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '">Usar' +
         '<span class="sr"> ' + esc(GD.ITEMS[id].name) + '</span></button></div>' : '';
       return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: usar + (n > 0 && semUso ? '<p class="nota item-nota-uso">Use em Subir rank, na aba Skills do cavalo.</p>' : ''),
         aviso: msg && msg.id === id ? msg.txt : null });
-    }).join('') + '</section>';
+    }).join('') + '</section>' + mochilaAfkHtml();
   }
   function renderLoja() {
     if (!LOJA_PARTES.some(function (a) { return a.id === ui.lojaParte; })) ui.lojaParte = 'comprar';
@@ -4461,12 +5453,14 @@
   // o contexto do Itens.podeSubirRank: o Ouro fora do reservado para a entrada da sala aberta, o saldo todo, os
   // Pergaminhos da mochila e se o cavalo é o ativo com páreo aberto (o Poder dele não pode passar do que a sala viu)
   function rankCtx(m) {
-    return { ouroLivre: ouroLivre(), ouro: state.gold, pergaminhos: itemQtd('pergaminho'), salaAbertaAtivo: m.uid === state.activeId && !!state.pending };
+    return { ouroLivre: ouroLivre(), ouro: state.gold, pergaminhos: itemQtd('pergaminho'), selos: itemQtd('selo'), salaAbertaAtivo: m.uid === state.activeId && !!state.pending };
   }
   function rankCustoHtml(custo) {
     return '<span class="rank-custo">' + ouroHtml(custo.ouro) + '<span class="rank-mais" aria-hidden="true">+</span>' +
       '<span class="rank-perg">' + itemIconeHtml('pergaminho') + '<span class="sr"> e </span><b>' + custo.perg + '</b><span class="sr"> ' +
-      esc(custo.perg === 1 ? GD.ITEMS.pergaminho.name : GD.ITEMS.pergaminho.plural) + '</span></span></span>';
+      esc(custo.perg === 1 ? GD.ITEMS.pergaminho.name : GD.ITEMS.pergaminho.plural) + '</span></span>' +
+      (custo.selo ? '<span class="rank-mais" aria-hidden="true">+</span><span class="rank-perg rank-selo">' + itemIconeHtml('selo') + '<span class="sr"> e </span><b>' + custo.selo + '</b><span class="sr"> ' +
+        esc(custo.selo === 1 ? GD.ITEMS.selo.name : GD.ITEMS.selo.plural) + '</span></span>' : '') + '</span>';
   }
   // a linha do próximo rank dentro do bloco da skill: o efeito que vem (no IV → V, também o marco); no V, o marco ativo
   function rankProxHtml(id, rank) {
@@ -4533,6 +5527,7 @@
     m.skillRanks = r.skillRanks;
     state.gold -= r.ouro;
     state.mochila.pergaminho = itemQtd('pergaminho') - r.perg;
+    if (r.selo) state.mochila.selo = itemQtd('selo') - r.selo;
     var g = gravaGasto(s0, antes);
     if (g === 'outra-aba') return 'outra-aba';
     if (g === 'falhou') return FALHA_SALVAR;
@@ -4571,7 +5566,10 @@
       if (m) {
         corpo = '<p>' + esc('Qual skill sai das vagas de ' + m.name + '? Entra outra, sorteada entre as que ele pode aprender.') + '</p>' +
           '<div class="opcoes item-skills">' + m.skills.filter(function (s) { return hasOwn(GD.SKILLS, s); }).map(function (s) {
-            return '<button type="button" class="btn item-skill" data-acao="item-skill" data-id="' + esc(s) + '"' + indisponivel(motS) + '>' + skillIcone(s, 16) + esc(skillNome(s)) + '</button>';
+            // ajustes 1: o nome e o rank no botão da escolha; o resumo embaixo e o texto completo no "ⓘ" ao lado
+            var rk = RS.rankOf(m, s);
+            return '<div class="item-skill-opcao">' + skillDicaHtml(s, { rank: rk, cabeca: '<button type="button" class="btn item-skill" data-acao="item-skill" data-id="' + esc(s) + '"' + indisponivel(motS) + '>' +
+              skillIcone(s, 16) + '<span class="item-skill-nome">' + esc(skillNome(s)) + '</span>' + rankMarcasHtml(rk) + '</button>' }) + '</div>';
           }).join('') + '</div>';
       }
       if (motS) corpo += '<p class="nota">' + esc(motS) + '</p>';
@@ -4664,9 +5662,8 @@
 
   function lojaStatsTxt(def) {
     var info = GD.GEAR_SLOT_INFO[def.slot];
-    var t = '+' + def.main + ' ' + GD.STATS[info.main].short;
-    if (def.sub) t += ' · +' + def.sub + ' ' + GD.STATS[info.sub].short;
-    return t;
+    var nl = GE.linhas[def.rarity] || 0;
+    return '+' + statNum2(def.main) + ' ' + GD.STATS[info.main].short + ' · ' + (nl ? nl + (nl === 1 ? ' linha de farm' : ' linhas de farm') + ' (sorteio ao comprar)' : 'sem linha de farm') + ' · só no treino AFK';
   }
   // diferença do principal para a peça que a montaria ativa usa no slot (com o +N dela)
   function lojaDiffTxt(def) {
@@ -4676,7 +5673,7 @@
     var info = GD.GEAR_SLOT_INFO[def.slot];
     var d = pieceMods(def.id, 0)[info.main] - pieceMods(cur.id, cur.plus)[info.main];
     if (!d) return 'igual à equipada';
-    return (d > 0 ? '+' : '−') + statNum(Math.abs(d)) + ' ' + GD.STATS[info.main].short + ' em relação à equipada';
+    return (d > 0 ? '+' : '−') + statNum2(Math.abs(d)) + ' ' + GD.STATS[info.main].short + ' em relação à equipada';
   }
   function lojaBotaoHtml(acao, id, price) {
     var pode = podeGastar(price);
@@ -4697,7 +5694,7 @@
   function pedraProdutoHtml(n) {
     return '<article class="produto">' +
       '<h3 class="produto-nome">Pedra Negra ×' + n + '</h3>' +
-      '<p class="produto-diff">' + esc('Melhora peças na aba Equipamento da montaria. Você tem ' + pedrasTxt(state.pedras) + '.') + '</p>' +
+      '<p class="produto-diff">' + esc('Melhora peças na aba Peças da montaria. Você tem ' + pedrasTxt(state.pedras) + '.') + '</p>' +
       '<div class="produto-preco">' + lojaBotaoHtml('comprar-pedra', String(n), n * GE.stonePrice) + '</div>' +
     '</article>';
   }
@@ -4718,7 +5715,7 @@
         return GD.GEAR[k].shop && GD.GEAR[k].slot === Q.tab;
       }).map(function (k) { return produtoHtml(GD.GEAR[k]); }).join('');
     }
-    var nota = Q.tab === 'pedras' ? 'Pedras Negras melhoram peças (+1 a +10) na aba Equipamento da montaria.'
+    var nota = Q.tab === 'pedras' ? 'Pedras Negras melhoram peças (+1 a +10) na aba Peças da montaria.'
       : 'A diferença compara com a peça que ' + activeMount().name + ' (ativa) usa neste slot. Comprar não equipa.';
     return msg + '<section class="caixa" aria-label="Equipamento">' + abas + '<p class="nota">' + esc(nota) + '</p>' +
         '<div class="loja-grade">' + produtos + '</div></section>';
@@ -4780,6 +5777,8 @@
       if (gR !== 'ok') return null;
     }
     if (!P) {
+      afkAcerto();   // o treino AFK do cavalo ativo conta até aqui; com a sala aberta a vaga dele fica parada
+      if (!state) return null;
       var s0 = state, antes = clone(state);
       var fee = training ? 0 : effectiveTier();
       if (fee == null) { training = true; fee = 0; } // sem Ouro para nenhuma entrada (ex.: save editado): vira treino
@@ -4834,12 +5833,20 @@
       // alvo em torno do rating do jogador (−8,5%..+11,5%); o rating já pesa cada habilidade pela chance
       // do gatilho. O leve viés para cima mantém a margem da casa (~10%) também contra bots.
       var target = pr * (0.915 + 0.2 * rng());
+      var poolB = pool;
+      if (RAPIDO) {
+        // testadores: o 1º rival é Raro e os outros Mágicos, todos um pouco abaixo do Poder do jogador
+        target = pr * (RAPIDO.alvo[0] + (RAPIDO.alvo[1] - RAPIDO.alvo[0]) * rng());
+        var rarB = b === 0 ? 'raro' : 'magico';
+        poolB = pool.filter(function (tpl) { return tpl.rarity === rarB; });
+        if (!poolB.length) poolB = pool;
+      }
       // equipamento do bot pela liga do alvo e pelo elemento do template; com o equipamento suspenso (GEAR_ON) o bot
       // corre sem peças, mas o sorteio continua consumido (a ordem da RNG da sala não muda com a constante)
       var gpick = rng();
       var leagueIdx = leagueIndex(target);
-      var botGear = function (tpl) { return GEAR_ON ? GR.botGear(leagueIdx, tpl.element, gpick) : null; };
-      var inBand = pool.map(function (tpl) {
+      var botGear = function () { return null; };   // o equipamento só vale no PVE: os bots da sala nunca têm peças
+      var inBand = poolB.map(function (tpl) {
         var bd = levelBand(tpl);
         return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1], rankBots) };
       })
@@ -4848,7 +5855,7 @@
       var cands = fresh.length ? fresh : inBand;
       if (!cands.length) {
         // ninguém plausível na faixa: o mais próximo do alvo em qualquer nível
-        var all = pool.map(function (tpl) {
+        var all = poolB.map(function (tpl) {
           return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, null, null, rankBots) };
         });
         all.sort(function (x, y) { return x.fit.diff - y.fit.diff; });
@@ -4859,6 +5866,16 @@
       var horse = RS.withRanks(choice.tpl, rankBots);   // genética do catálogo; os pontos livres pela build fixa
       horse.level = choice.fit.level;
       horse.alloc = RS.botAlloc(horse);
+      if (RAPIDO && RS.powerRating(horse) > target) {
+        // testadores: o rival (sobretudo o Raro) perde pontos livres até ficar no alvo, abaixo do jogador
+        var cheio = horse.alloc, lo = 0, hi = 1;
+        var comFator = function (f) { var o = {}; Object.keys(cheio).forEach(function (k) { o[k] = Math.floor(cheio[k] * f); }); return o; };
+        for (var it = 0; it < 12; it++) { var mid = (lo + hi) / 2; horse.alloc = comFator(mid); if (RS.powerRating(horse) > target) hi = mid; else lo = mid; }
+        horse.alloc = comFator(lo);
+        // ainda acima sem pontos livres (Raro de genética alta): a genética desce um degrau por vez até o alvo
+        var pot = horse.potential = JSON.parse(JSON.stringify(horse.potential));
+        for (var desce = 0; desce < 32 && RS.powerRating(horse) > target; desce++) Object.keys(pot).forEach(function (k) { pot[k] = Math.max(0, pot[k] - 1); });
+      }
       horse.id = choice.tpl.id + '-b' + b;
       var silkIdx = SP.SILKS.indexOf(BOT_SILKS[silkOrder[b % silkOrder.length]]);
       bots.push({
@@ -4895,7 +5912,7 @@
     r.horse = playerHorse(); r.gear = corredorGear();
   }
   // equipamento do jogador na sala e na corrida: com o equipamento suspenso (GEAR_ON), nenhum (a corrida já o ignora)
-  function corredorGear() { return GEAR_ON ? playerGear() : null; }
+  function corredorGear() { return GEAR_PVP ? playerGear() : null; }
 
   // ===========================================================================
   // Tela 3 — Sala de largada
@@ -4920,7 +5937,7 @@
     var tips = [];
     var sh = sharePct(L.cond);
     if (sh.curva >= 40) tips.push('Muitas curvas: Manobra segura a velocidade na curva e na saída dela.');
-    if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo' + (GEAR_ON ? ' (a Armadura dá Força).' : '.'));
+    if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo' + (GEAR_PVP ? ' (a Armadura dá Força).' : '.'));
     if (L.cond.distance >= 1800) tips.push('Pista longa: Estamina segura o ritmo até o fim.');   // longa a partir de 1.800 m, como no balance.js (distGroup)
     // clima contra o elemento: a penalidade vale sempre (o conjunto de 5 peças não a anula mais, porque o
     // equipamento não entra na corrida), e só o Dado da Sorte pode virar o clima
@@ -4955,7 +5972,7 @@
         '<span class="nome">' + esc(r.isPlayer ? h.name : r.name) + '</span></b>' +
         '<small>' + (r.isPlayer ? '' : '<span>' + esc(h.name) + '</span>') + elementHtml(h.element) + rarityHtml(h.rarity) +
         '<span>Nv ' + h.level + '</span>' +
-        (GEAR_ON ? setBadgeHtml(r.gear) : '') + '</small></div>' +
+        (GEAR_PVP ? setBadgeHtml(r.gear) : '') + '</small></div>' +
       '<div class="poder"><b>' + rating + '</b><small>Poder</small></div></li>';
   }
 
@@ -5000,7 +6017,7 @@
           '<div class="cavalo-info"><b class="cavalo-nome">' + esc(eu.horse.name) + '</b>' +
           '<div class="linha-meta">' + rarityHtml(eu.horse.rarity) + elementHtml(eu.horse.element) +
             '<span>Poder <b>' + RS.powerRating(eu.horse) + '</b></span></div></div></div>' +
-        (GEAR_ON ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
+        (GEAR_PVP ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div>' +
           (state.pending ? '<p class="nota">' + esc('Com o páreo aberto, só trocas que não passem do Poder da sala (' + state.pending.pr + ').') + '</p>' : '') +
         '</div>' : '') + '</section>' +
@@ -5052,10 +6069,7 @@
       seed: L.seed,
       conditions: L.cond,
       racers: L.racers.map(function (r) {
-        // bônus de 3 peças do conjunto (suspenso com o equipamento): o efeito das skills × (1 + skillEffectBonus)
-        var e = { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
-        if (r.gear && r.gear.special && r.gear.special.skillEffectBonus) e.skillScale = 1 + r.gear.special.skillEffectBonus;
-        return e;
+        return { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };   // sem peças: o equipamento só vale no treino AFK
       })
     };
     L.sim = RS.simulate(cfg);
@@ -5079,13 +6093,17 @@
     state.gold = state.gold - L.fee + prize;
     // Pedra Negra do pódio: só em corrida valendo, pela seed da sala, na mesma gravação do Ouro. Com o equipamento
     // suspenso (GEAR_ON) não cai: o podiumStone (RNG própria, da seed da sala) nem é chamado; o resto não muda
-    var stone = L.training || !GEAR_ON ? 0 : GR.podiumStone(L.seed, place, L.fee);
+    var stone = L.training || !GEAR_PVP ? 0 : GR.podiumStone(L.seed, place, L.fee);
     state.pedras += stone;
     // Pergaminho de técnica do pódio: só em corrida valendo (o treino nem chama o sorteio), pela seed da sala (RNG
     // própria: não desloca nada), na mesma gravação do Ouro. Com a mochila no teto, não entra (pergCheia avisa).
     var perg = L.training ? 0 : IT.pergaminhoPodio(L.seed, place), pergCheia = false;
     if (perg && itemQtd('pergaminho') + perg > GD.BAG_MAX) { perg = 0; pergCheia = true; }
     state.mochila.pergaminho = itemQtd('pergaminho') + perg;
+    // Selo do campeão: só o 1º lugar de corrida valendo, pela seed da sala (sal próprio), na mesma gravação do Ouro
+    var selo = L.training ? 0 : IT.seloPodio(L.seed, place), seloCheio = false;
+    if (selo && itemQtd('selo') + selo > GD.ITEMS.selo.cap) { selo = 0; seloCheio = true; }
+    state.mochila.selo = itemQtd('selo') + selo;
     var gained = applyXp(activeMount(), xpGain, state.raceCounter);
     var levels = gained.levels, learned = gained.learned;
     state.races += 1;
@@ -5093,12 +6111,14 @@
     if (place <= 3) state.podiums += 1;
     if (!L.training) state.goldWon += prize;
     state.pending = null;
+    // a sala fechou: a vaga do cavalo ativo no treino AFK volta a contar daqui (o tempo com a sala aberta não conta)
+    state.afk.vagas.forEach(function (v) { if (v.uid === state.activeId) v.inicioMin = Math.max(v.inicioMin, agoraMin()); });
     // quem chama grava (gravaGasto) e, se gravou, limpa ui.devNext (os valores armados no painel DEV valem
     // só para esta corrida)
 
     var hAfter = playerHorse();
     return {
-      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone, pergaminho: perg, pergCheia: pergCheia,
+      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone, pergaminho: perg, pergCheia: pergCheia, selo: selo, seloCheio: seloCheio,
       xpGain: xpGain, levels: levels, learned: learned,
       before: before,
       after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter),
@@ -5122,6 +6142,8 @@
   function corridaAtual() {
     var v = ui.gym && ui.gym.ver;
     if (v && v.tela === 'duelo') return { L: v.L, cab: v.cab, fim: ginDueloAcabou, voltar: ginPulaTudo };
+    var av = ui.afk && ui.afk.ver;   // a corrida assistida do treino AFK
+    if (av) return { L: av.L, cab: av.cab, fim: afkFimDaCorrida, voltar: afkSai };
     var L = ui.lobby;
     return {
       L: L, fim: function () { go('resultado'); }, voltar: function () { if (raceView) raceView.skip(); else go('resultado'); },
@@ -5268,7 +6290,8 @@
     // Reprodução comprimida: a corrida dura 55–170 s no relógio da simulação (que o HUD mostra),
     // mas é assistida em TELA_S_MIN (1000 m) a TELA_S_MAX (2400 m) segundos em x1, mais as câmeras lentas.
     // Só a animação: o resultado da corrida não muda.
-    var realTarget = TELA_S_MIN + (TELA_S_MAX - TELA_S_MIN) * clamp((D - 1000) / 1400, 0, 1);
+    // L.telaS (o treino AFK): a duração na tela dada por quem chama (o tempo real do duelo)
+    var realTarget = L.telaS > 0 ? L.telaS : TELA_S_MIN + (TELA_S_MAX - TELA_S_MIN) * clamp((D - 1000) / 1400, 0, 1);
     var ts = sim.duration / realTarget;
     // Efeitos (fx.js): a linha do tempo é montada uma vez. Os Dados recebem a escala de reprodução
     // (segundos de simulação por segundo real em x1): câmera lenta ~2 s, giro ~1 s, brilho do vencedor
@@ -5658,32 +6681,21 @@
       FX.drawMiniMap(ctx, mapa, st.pos, silksCores, me, { x: mc.x, y: mc.y, w: mc.w, h: mc.h, P: self.S, piso: pisoCor });
     }
 
-    // câmera que enquadra a disputa (refino de 2026-11-23, escolha do Vinicius): o jogador e os rivais a até CAM_GRUPO_M
-    // metros dele cabem na tela, com a escala entre PPM_MIN e PPM_ARTE px de arte por metro (os cavalos continuam 1:1; só
-    // as distâncias encolhem). A escala e o deslocamento em relação ao jogador andam suaves (meia-vida ~0,3 s), para a
-    // câmera não pular quando alguém entra ou sai do grupo. Só apresentação: nada aqui volta para a simulação.
-    // Devolve a câmera (metro da borda esquerda) e grava self.ppmArt.
+    // câmera centrada no jogador (ajustes 1, 2026-11-23, pedido do Vinicius; era o meio do grupo): perto (12 px de arte
+    // por metro) e afastando para caber os rivais a até RaceFx.CAMERA.limite metros dele, à frente ou atrás; quem passa
+    // do limite fica pela seta da borda. A escala anda suave (RaceFx.camSuaviza: afasta em ~0,2 s, aproxima em ~0,6 s), e
+    // o deslocamento sai da escala (o jogador fica no meio), então nada pula. Os cavalos e o cenário continuam 1:1 na grade
+    // de arte (o buffer na escala inteira do guia §2): só os metros por pixel mudam. Só apresentação: nada aqui volta para a
+    // simulação. Devolve a câmera (metro da borda esquerda) e grava self.ppmArt.
     function enquadra(st, p, Wa) {
-      var lo = p, hi = p;
-      for (var j = 0; j < n; j++) {
-        if (j === me || Math.abs(st.pos[j] - p) > CAM_GRUPO_M) continue;
-        lo = Math.min(lo, st.pos[j]); hi = Math.max(hi, st.pos[j]);
-      }
-      // o grupo inteiro (focinhos de lo a hi, e o corpo e a cauda de ~50 px atrás de cada um) com folga dos lados
-      var alvo = clamp((Wa - 80) / Math.max(0.01, hi - lo), PPM_MIN, PPM_ARTE);
-      var agora = self.tReal, dtc = self.camT == null ? 1 : clamp(agora - self.camT, 0, 0.25);
+      var alvo = FX.camZoomAlvo(st.pos, me, Wa);
+      var agora = self.tReal, dtc = self.camT == null ? 0 : clamp(agora - self.camT, 0, 0.25);
       self.camT = agora;
-      var kS = 1 - Math.exp(-dtc * 2.3);
-      self.ppmArt = self.camT0 ? Math.exp(Math.log(self.ppmArt) + (Math.log(alvo) - Math.log(self.ppmArt)) * kS) : alvo;
-      var ppmA = self.ppmArt, visM = Wa / ppmA;
-      // o meio do grupo (o meio do corpo fica ~20 px atrás do focinho) no meio da tela; o jogador sempre inteiro na tela
-      // (focinho a 64 px ou mais da esquerda, com o corpo e a cauda, e a 16 px ou mais da direita, com a cabeça)
-      var off = (lo + hi) / 2 - p - (Wa / 2 + 20) / ppmA;
-      off = clamp(off, -(Wa - 16) / ppmA, -64 / ppmA);
-      self.camOff = self.camT0 ? self.camOff + (off - self.camOff) * kS : off;
+      self.ppmArt = self.camT0 ? FX.camSuaviza(self.ppmArt, alvo, dtc) : alvo;
       self.camT0 = true;
-      // na largada (todos juntos) a linha fica a 30 % da tela, como antes
-      return Math.max(-0.3 * visM, p + clamp(self.camOff, -(Wa - 16) / ppmA, -64 / ppmA));
+      var ppmA = self.ppmArt, visM = Wa / ppmA;
+      // na largada (todos juntos) a linha fica a 30 % da tela, como antes; depois o jogador no meio
+      return Math.max(-0.3 * visM, FX.camEsquerda(p, ppmA, Wa));
     }
 
     function draw(st, order) {
@@ -6287,7 +7299,9 @@
         par('Resultado', signed(net), net > 0 ? 'mais' : net < 0 ? 'menos-t' : '') +
         (R.stone ? par('Pedra Negra', iconeHtml('pedra-negra', '🪨') + ' +1', 'mais') : '') +
         (R.pergaminho ? par(GD.ITEMS.pergaminho.name, itemIconeHtml('pergaminho') + ' +' + R.pergaminho, 'mais') : '') +
-        (R.pergCheia ? par(GD.ITEMS.pergaminho.name, 'Mochila cheia (' + GD.BAG_MAX + '): não coube') : '')) + '</dl>';
+        (R.pergCheia ? par(GD.ITEMS.pergaminho.name, 'Mochila cheia (' + GD.BAG_MAX + '): não coube') : '') +
+        (R.selo ? par(GD.ITEMS.selo.name, itemIconeHtml('selo') + ' +' + R.selo, 'mais') : '') +
+        (R.seloCheio ? par(GD.ITEMS.selo.name, 'Mochila cheia (' + GD.ITEMS.selo.cap + '): não coube') : '')) + '</dl>';
 
     var lvl = '';
     if (R.levels > 0) {
@@ -6306,8 +7320,12 @@
         (corpoNivel ? '<div class="ganhos">' + corpoNivel + '</div>' : '') + '</div>';
     }
     if (R.learned && R.learned.length) {
+      // ajustes 1: o nome, o rank (I) e o resumo de cada skill nova; o texto completo no balão
       var skNames = R.learned.map(function (id) { return GD.SKILLS[id] ? GD.SKILLS[id].name : id; }).join(', ');
-      lvl += '<div class="levelup" role="status"><b>' + esc('Nova skill: ' + skNames + '!') + '</b></div>';
+      lvl += '<div class="levelup" role="status"><b>' + esc('Nova skill: ' + skNames + '!') + '</b>' +
+        R.learned.filter(function (id) { return hasOwn(GD.SKILLS, id); }).map(function (id) {
+          return '<div class="habilidade habilidade--nova">' + skillDicaHtml(id, { tam: 16, rank: 1 }) + '</div>';
+        }).join('') + '</div>';
     }
     // momentos da corrida (spec §10): skills, garra, cansaço, Dados da Sorte e viradas de clima,
     // de todos os corredores; sem ultrapassagens/chegadas/narração (a tabela já conta isso)
@@ -6400,6 +7418,8 @@
     }
     if (diaVirou()) { redesenhaDia(); return; }   // o dia virou desde o último desenho: a tela nova, e este toque não vale
     tiraMotivo(e.target);   // qualquer toque tira a linha do motivo (também o do ⓘ, que abre a ajuda); nunca há duas na tela
+    var dc = e.target.closest ? e.target.closest('[data-dica]') : null;
+    if (dc) { alternaDica(dc); return; }   // skill em resumo: abre/fecha o texto completo, sem acionar o cartão em volta
     var aj = e.target.closest ? e.target.closest('[data-ajuda]') : null;
     if (aj) { alternaAjuda(aj); return; }   // "ⓘ" (ou o nome do status): abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
     var b = e.target.closest ? e.target.closest('[data-acao]') : null;
@@ -6614,7 +7634,7 @@
         var gC = gravaGasto(sC, antesC);
         if (gC === 'outra-aba') break;
         if (gC === 'falhou') { ui.loja.msg = FALHA_SALVAR; rerenderKeepScroll(); break; }
-        ui.loja.msg = 'Comprou ' + pd.name + '. Equipe na aba Equipamento da montaria.';
+        ui.loja.msg = 'Comprou ' + pd.name + '. Equipe na aba Peças da montaria.';
         rerenderKeepScroll(); break;
       }
       case 'comprar-pedra': {
@@ -6833,7 +7853,7 @@
         if (!qm || !qd || isEquipped(id)) break;
         var qe = equipWith(qm, qd.slot, id);
         ui.montaria.equip.confirm = null; ui.montaria.equip.msg = null;
-        if (canEquip(qm, qe).ok) { qm.equip = qe; persist(); }
+        qm.equip = qe; persist();
         rerenderKeepScroll(); break;
       }
       case 'tirar': {
@@ -6841,15 +7861,44 @@
         if (!tm || GR.SLOTS.indexOf(id) < 0 || !tm.equip || !tm.equip[id]) break;
         var te = equipWith(tm, id, null);
         ui.montaria.equip.confirm = null; ui.montaria.equip.msg = null;
-        if (canEquip(tm, te).ok) { tm.equip = te; persist(); }
+        tm.equip = te; persist();
         rerenderKeepScroll(); break;
       }
       case 'melhorar': {
         var mi0 = itemByUid(id);
-        if (!ui.montaria || !mi0 || !GR.enhanceOdds(mi0.plus) || enhanceLocked(id)) break;
+        if (!ui.montaria || !mi0 || !GR.enhanceOdds(mi0.plus)) break;
         ui.montaria.equip.confirm = id; ui.montaria.equip.msg = null;
         rerenderKeepScroll(); focusAction('melhorar-nao', id); break;
       }
+      case 'reforjar': {
+        if (!ui.montaria || !itemByUid(id) || !(itemByUid(id).linhas || []).length) break;
+        var Qr = ui.montaria.equip, aberto = Qr.reforja && Qr.reforja.uid === id;
+        Qr.reforja = aberto ? null : { uid: id, linha: itemByUid(id).linhas.length === 1 ? 0 : null, selo: false };
+        Qr.confirm = null; Qr.msg = null;
+        rerenderKeepScroll(); focusAction(aberto ? 'reforjar' : 'reforja-nao', id); break;
+      }
+      case 'reforja-linha': {
+        var pl = String(id).split(':'), il = Number(pl[1]), itl = ui.montaria ? itemByUid(pl[0]) : null, Ql = ui.montaria && ui.montaria.equip.reforja;
+        if (!itl || !Ql || Ql.uid !== pl[0] || !(il >= 0 && il < (itl.linhas || []).length) || il !== Math.floor(il)) break;
+        Ql.linha = il;
+        rerenderKeepScroll(); focusAction('reforja-linha', id); break;
+      }
+      case 'reforja-selo': {
+        var Qs = ui.montaria && ui.montaria.equip.reforja;
+        if (!Qs || Qs.uid !== id) break;
+        Qs.selo = !Qs.selo;
+        rerenderKeepScroll(); focusAction('reforja-selo', id); break;
+      }
+      case 'reforja-sim':
+        if (!ui.montaria || !ui.montaria.equip.reforja) break;
+        ui.montaria.equip.msg = null;
+        reforjaFaz(id);
+        if (state && ui.montaria) { rerenderKeepScroll(); focusAction('reforja-sim', id); }
+        break;
+      case 'reforja-nao':
+        if (!ui.montaria) break;
+        ui.montaria.equip.reforja = null;
+        rerenderKeepScroll(); focusAction('reforjar', id); break;
       case 'melhorar-nao':
         if (ui.montaria) ui.montaria.equip.confirm = null;
         rerenderKeepScroll(); focusAction('melhorar', id); break;
@@ -6861,7 +7910,7 @@
         if (state !== sM) break;      // save mais novo adotado: adoptExternal já navegou
         var mi = itemByUid(id);
         var mo = mi ? GR.enhanceOdds(mi.plus) : null;
-        if (!mo || state.pedras < mo.cost || enhanceLocked(id)) { rerenderKeepScroll(); break; }
+        if (!mo || state.pedras < mo.cost) { rerenderKeepScroll(); break; }
         // paga antes de ver: debita as pedras e avança o contador, só então sorteia (um sorteio por tentativa)
         var antesM = clone(state);
         state.pedras -= mo.cost;
@@ -6885,7 +7934,7 @@
         if (state !== sV) break;
         var vi = itemByUid(id);
         if (!vi || isEquipped(id)) { rerenderKeepScroll(); break; }
-        var vp = GR.sellPrice(vi.id), antesV = clone(state);
+        var vp = precoVenda(vi), antesV = clone(state);
         state.gold += vp;
         state.items = state.items.filter(function (x) { return x.uid !== id; });
         var gV = gravaGasto(sV, antesV);
@@ -6893,7 +7942,7 @@
         if (gV === 'falhou') { ui.montaria.equip.msg = FALHA_SALVAR; rerenderKeepScroll(); break; }
         ui.montaria.equip.undo = { item: vi, price: vp };
         ui.montaria.equip.confirm = null;
-        ui.montaria.equip.msg = 'Vendida por ' + fmt(vp) + ' de Ouro';
+        ui.montaria.equip.msg = vp ? 'Vendida por ' + fmt(vp) + ' de Ouro' : 'Peça descartada.';
         rerenderKeepScroll(); focusAction('vender-desfazer'); break;
       }
       case 'vender-desfazer': {
@@ -6994,7 +8043,159 @@
           x.setAttribute('aria-pressed', String(x === b));
         });
         break;
+      // ---- treino AFK ----
+      case 'afk-abrir':
+        if (state) afkAbre();
+        break;
+      case 'afk-voltar':
+      case 'bestiario-voltar':
+      case 'forja-voltar':
+      case 'afk-esc-voltar':
+        if (ui.screen === 'afk' || ui.screen === 'bestiario' || ui.screen === 'forja') voltaDaSubtela();
+        break;
+      // ---- forja ----
+      case 'forja-abrir':
+        if (!state) break;
+        ui.tab = 'expedicao'; ui.forja = null; forjaUi();
+        go('forja'); break;
+      case 'forja-gym':
+        if (ui.screen !== 'forja' || !hasOwn(GD.GYMS, id)) break;
+        forjaUi().gym = id; ui.forja.confirma = null; ui.forja.msg = null;
+        rerenderKeepScroll(); focusAction('forja-gym', id); break;
+      case 'forja-slot':
+        if (ui.screen !== 'forja' || GD.GEAR_SLOTS.indexOf(id) < 0) break;
+        forjaUi().slot = id; ui.forja.confirma = null; ui.forja.msg = null;
+        rerenderKeepScroll(); focusAction('forja-slot', id); break;
+      case 'forja-fazer':
+        if (ui.screen !== 'forja' || FJ.RECEITAS.indexOf(id) < 0) break;
+        forjaUi().msg = null;
+        if (FJ.ehPeca(id)) { ui.forja.confirma = id; rerenderKeepScroll(); focusAction('forja-confirmar', id); break; }   // a peça sorteia as linhas: pede confirmação
+        forjaFaz(id);
+        if (state && ui.screen === 'forja') { rerenderKeepScroll(); focusAction('forja-fazer', id); }
+        break;
+      case 'forja-confirmar':
+        if (ui.screen !== 'forja' || !FJ.ehPeca(id) || forjaUi().confirma !== id) break;
+        forjaFaz(id);
+        if (state && ui.screen === 'forja') { rerenderKeepScroll(); focusAction('forja-fazer', id); }
+        break;
+      case 'forja-cancelar':
+        if (ui.screen !== 'forja') break;
+        forjaUi().confirma = null; rerenderKeepScroll(); focusAction('forja-fazer', id); break;
+      case 'afk-resumo-ok':
+        if (ui.screen !== 'afk') break;
+        afkUi().resumo = null; rerenderKeepScroll(); break;
+      case 'afk-treinar': {   // da trilha do ginásio: "<ginásio>:<etapa>"
+        var pt = String(id).split(':');
+        if (!state || !afkEscolhe(pt[0], Number(pt[1]), null)) { rerenderKeepScroll(); break; }
+        ui.tab = 'expedicao';
+        go('afk'); break;
+      }
+      case 'afk-escolher': {   // de uma vaga (livre: escolher; ocupada: trocar)
+        if (ui.screen !== 'afk') break;
+        var ve = Number(id);
+        if (!state.afk.vagas[ve] || !afkEscolhe(null, null, ve)) { rerenderKeepScroll(); break; }
+        go('afk'); break;
+      }
+      case 'afk-esc-fase':
+      case 'afk-esc-dif':
+      case 'afk-esc-vaga':
+      case 'afk-esc-cavalo': {
+        var Es = ui.afk && ui.afk.escolha;
+        if (ui.screen !== 'afk' || !Es) break;
+        if (acaoClicada === 'afk-esc-fase') { var pf = String(id).split(':'); if (AF.faseId(pf[0], Number(pf[1]), 'normal') && Number(pf[1]) < state.ginasios[pf[0]].etapa) { Es.gymId = pf[0]; Es.etapa = Number(pf[1]); } }
+        else if (acaoClicada === 'afk-esc-dif') { if (AF.liberada(AF.faseId(Es.gymId, Es.etapa, id), state.ginasios, state.afk.vitorias)) Es.dif = id; }
+        else if (acaoClicada === 'afk-esc-vaga') { if (state.afk.vagas[Number(id)]) Es.vaga = Number(id); }
+        else if (mountByUid(id)) Es.uid = id;
+        Es.msg = null;
+        afkEscolhaAjusta();
+        rerenderKeepScroll(); break;
+      }
+      case 'afk-esc-comecar':
+        if (ui.screen === 'afk' && ui.afk && ui.afk.escolha) afkComeca();
+        break;
+      case 'afk-assistir':
+        if (ui.screen === 'afk') { afkUi().msg = null; afkAssiste(Number(id)); }
+        break;
+      case 'afk-outra':
+        if (ui.screen === 'corrida' && ui.afk && ui.afk.ver) afkOutra();
+        break;
+      case 'afk-tirar': {
+        if (ui.screen !== 'afk') break;
+        var sTi = state;
+        persist();
+        if (state !== sTi) break;
+        var antesTi = clone(state), semV = AF.esvaziar(state.afk, Number(id));
+        if (!semV) break;
+        state.afk = semV;
+        var gTi = gravaGasto(sTi, antesTi);
+        if (gTi === 'outra-aba') break;
+        delete afkUi().vivo[Number(id)]; afkUi().ult[Number(id)] = null;
+        afkUi().msg = gTi === 'ok' ? null : FALHA_SALVAR;
+        rerenderKeepScroll();
+        if (gTi === 'ok') focusAction('afk-escolher', id);
+        break;
+      }
+      case 'afk-comprar': {
+        if (ui.screen !== 'afk') break;
+        var sCv = state;
+        persist();
+        if (state !== sCv) break;
+        var pcv = AF.podeComprarVaga(state.afk.vagas.length, ouroLivre());
+        if (!pcv.ok) { rerenderKeepScroll(); break; }
+        var antesCv = clone(state);
+        state.gold -= pcv.preco;
+        state.afk = AF.comprarVaga(state.afk);
+        var gCv = gravaGasto(sCv, antesCv);
+        if (gCv === 'outra-aba') break;
+        afkUi().msg = gCv === 'ok' ? null : FALHA_SALVAR;
+        rerenderKeepScroll();
+        if (gCv === 'ok') focusAction('afk-escolher', String(state.afk.vagas.length - 1));
+        break;
+      }
+      case 'afk-coletar':
+      case 'afk-coletar-sim': {
+        if (ui.screen !== 'afk') break;
+        var Uc = afkUi(), prev = afkPrevia();
+        if (AF.bauVazioE(state.afk.bau)) break;
+        // com perdas, o 1º toque só pede a confirmação
+        if (acaoClicada === 'afk-coletar' && (Object.keys(prev.perdidos).length || prev.xpDescartado)) { Uc.confirmaPerda = true; Uc.coleta = null; rerenderKeepScroll(); focusAction('afk-coletar-nao', null); break; }
+        var rc = afkColeta();
+        if (rc === 'outra-aba') break;
+        if (rc !== 'ok') Uc.msg = FALHA_SALVAR;
+        rerenderKeepScroll();
+        focusAction('afk-coletar', null);
+        break;
+      }
+      case 'afk-coletar-nao':
+        if (ui.screen !== 'afk') break;
+        afkUi().confirmaPerda = false; rerenderKeepScroll(); focusAction('afk-coletar', null); break;
+      case 'bestiario-abrir':
+        if (!state) break;
+        ui.tab = 'expedicao'; ui.bestiario = { gym: GD.GYM_ORDER[0] };
+        go('bestiario'); break;
+      case 'bestiario-gym':
+        if (ui.screen !== 'bestiario' || !hasOwn(GD.GYMS, id)) break;
+        ui.bestiario = { gym: id }; rerenderKeepScroll(); break;
+      // ---- comidas (Mochila) ----
+      case 'comida-usar': {
+        if (ui.screen !== 'loja' || !hasOwn(GD.ITEMS, id) || GD.ITEMS[id].grupo !== 'comida') break;
+        ui.comidaMsg = null;
+        if (GD.ITEMS[id].aveiaMin) { comidaUsa(id, null); if (state) { rerenderKeepScroll(); focusAction('comida-usar', id); } break; }   // a Aveia não pede cavalo
+        ui.comida = { id: id };
+        rerenderKeepScroll(); focusAction('comida-cancelar', id); break;
+      }
+      case 'comida-cancelar':
+        if (ui.screen !== 'loja') break;
+        ui.comida = null; rerenderKeepScroll(); focusAction('comida-usar', id); break;
+      case 'comida-dar': {
+        if (ui.screen !== 'loja' || !ui.comida) break;
+        var idC = ui.comida.id;
+        comidaUsa(idC, id);
+        if (!state) break;
+        rerenderKeepScroll(); focusAction(ui.comida ? 'comida-cancelar' : 'comida-usar', idC); break;
+      }
       case 'pular':
+        if (ui.afk && ui.afk.ver) { afkSai(); break; }   // treino AFK: "Voltar ao treino" (o tempo do treino é o do relógio, não se pula)
         if (e.detail >= 2 && Date.now() - corridaDesde < PULAR_GUARDA_MS) break;   // o 2º toque do "Largar!" (ver PULAR_GUARDA_MS)
         if (raceView) raceView.skip(); else corridaAtual().fim();
         break;
@@ -7027,6 +8228,7 @@
         ui.confirmLiberar = null;
         if (mountByUid(id) && !motivoLiberar(mountByUid(id))) {
           state.mounts = state.mounts.filter(function (m) { return m.uid !== id; });
+          afkConfere();   // a vaga do treino AFK dele esvazia; o que ele rendeu fica no baú
           persist();
         }
         if (ui.screen === 'montaria') go(ui.tab); else rerenderKeepScroll();
@@ -7101,6 +8303,7 @@
         state.mounts = state.mounts.filter(function (m) { return gone.indexOf(m.uid) < 0; });
         state.mounts.push(potroT);
         if (gone.indexOf(state.activeId) >= 0) state.activeId = potroT.uid;
+        afkConfere();   // as vagas do treino AFK dos dois esvaziam; o que renderam fica no baú
         var gT = gravaGasto(sT, antesT);
         if (gT === 'outra-aba') break;
         if (gT === 'falhou') { ui.notice = FALHA_SALVAR; rerenderKeepScroll(); break; }
@@ -7152,6 +8355,17 @@
     ui.montaria.renomear = null;
     rerenderKeepScroll(); focusAction('renomear', ui.montaria.uid);
   }
+  // Esc no gatilho de uma skill em resumo: fecha o texto aberto e esconde o balão do foco/mouse até o gatilho perder o foco
+  // ou o mouse (o balão some sem mover o foco, WCAG 1.4.13)
+  telaEl.addEventListener('keydown', function (e) {
+    if (!e.target || !e.target.hasAttribute || !e.target.hasAttribute('data-dica') || (e.key !== 'Escape' && e.key !== 'Esc')) return;
+    e.preventDefault(); e.stopPropagation();
+    e.target.setAttribute('aria-expanded', 'false');
+    e.target.classList.add('dica-esc');
+  });
+  function tiraDicaEsc(e) { if (e.target && e.target.classList && e.target.hasAttribute('data-dica')) e.target.classList.remove('dica-esc'); }
+  telaEl.addEventListener('focusout', tiraDicaEsc);
+  telaEl.addEventListener('mouseout', tiraDicaEsc);
   telaEl.addEventListener('keydown', function (e) {
     if (saveBloqueado || !e.target || e.target.id !== 'renomear-campo') return;
     if (e.key === 'Enter') { e.preventDefault(); renomearConfirma(); }
@@ -7279,6 +8493,14 @@
       if (!state && !saveBloqueado) { ui.motionKeep = leMotionKeep(); ui.joqueiKeep = leJoqueiKeep(); }   // "Recomeçar" e a aba fechou na escolha: as escolhas continuam
     }
     ui.screen = saveBloqueado ? 'bloqueio' : state ? 'estabulo' : 'inicial';
+    // treino AFK: o tempo com o jogo fechado é acertado ao abrir; se rendeu (ou ficou parado sem medida), o jogo abre na
+    // tela do treino com o resumo "Enquanto você estava fora"
+    var foraAfk = null;
+    if (state && !saveBloqueado) {
+      var Rf = afkAcerto();
+      if (state && Rf && (Rf.corridas || Rf.semMedida) && Rf.minutos >= AFK_RESUMO_MIN) { afkUi().resumo = Rf; ui.screen = 'afk'; ui.tab = 'expedicao'; foraAfk = true; }
+      if (!state) ui.screen = saveBloqueado ? 'bloqueio' : 'inicial';
+    }
     // moldes do PixelLab (embutidos pelo build): decodificam em segundo plano; até lá (ou sem eles, ou
     // com ?semmoldes=1) os cavalos saem do desenho por código. Ao chegarem, a tela é redesenhada — menos
     // a corrida, que redesenha sozinha a cada quadro (re-renderizar recriaria a corrida).
@@ -7292,6 +8514,7 @@
     } catch (e) { /* opcional */ }
     aplicaGrade();
     render();   // liga o laço de animação se a tela tiver o que animar
+    if (foraAfk) syncHistory('afk');   // subtela aberta direto: o voltar do aparelho leva à Expedição
     // só a largura (ou a densidade) muda o layout fora da corrida: a barra de endereço do celular
     // mudando a altura não reconstrói a tela no meio da rolagem
     var resizeTimer = null, lastW = window.innerWidth, lastDpr = dpr();
@@ -7324,6 +8547,7 @@
     // a aba voltou a ficar visível (o jogo ficou aberto de um dia para o outro): se o dia virou, a tela é desenhada de novo
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'visible' && diaVirou()) redesenhaDia();
+      if (document.visibilityState === 'visible') { afkVoltou(); afkTick(); }   // o treino AFK: o tempo com a aba escondida é acertado na volta
     });
     /*@teste:inicio*/
     // ganchos para testes automatizados (fora do jogo de produção)
@@ -7332,8 +8556,11 @@
       // monta a sala de um pending ({ counter, training, fee, pr }) sem gravar nada (medição do pareamento no ui-test)
       buildLobby: function (P) { return buildLobby(P); },
       hojeDia: function () { return hojeDia(); },
+      agoraMin: function () { return agoraMin(); },
+      afkTick: function () { afkTick(); },
+      afkVoltou: function () { afkVoltou(); },
       bonusConta: function () { return bonusConta(); },
-      GEAR_ON: GEAR_ON
+      GEAR_ON: GEAR_ON, GEAR_PVP: GEAR_PVP
     };
     // rascunho dos pontos livres da tela da Montaria (null sem rascunho), para o teste ler
     Object.defineProperty(ui, 'rascunho', { configurable: true, get: function () { return ui.montaria ? ui.montaria.rascunho : null; } });

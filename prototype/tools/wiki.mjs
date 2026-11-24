@@ -54,7 +54,9 @@ function lerFonte() {
   const game = 'src/game.js', sim = 'src/sim.js', breed = 'src/breed.js', fx = 'src/fx.js'
   const abas = extrair(game, /var ABAS = \[(.*)\];/, 'a lista ABAS')[1]
   // equipamento suspenso (bloco 1b): com GEAR_ON = false a Loja só vende itens (as peças e as Pedras ficam escondidas)
-  const gearOn = extrair(game, /var GEAR_ON = (true|false);/, 'a constante GEAR_ON')[1] === 'true'
+  // GEAR_ON liga as telas do equipamento (que só vale no treino AFK); GEAR_PVP, as peças na corrida valendo (desligado)
+  const gearConst = extrair(game, /var GEAR_ON = (true|false), GEAR_PVP = (true|false);/, 'as constantes GEAR_ON e GEAR_PVP')
+  const gearOn = gearConst[1] === 'true', gearPvp = gearConst[2] === 'true'
   const ventos = extrair(fx, /a < ([\d.]+) \? 'calmo' : a < ([\d.]+) \? 'brisa' : 'ventania'/, 'a distribuição do vento (RaceFx.wind)')
   const alvo = extrair(game, /var target = pr \* \(([\d.]+) \+ ([\d.]+) \* rng\(\)\)/, 'a faixa de Poder dos bots')
   return {
@@ -63,6 +65,7 @@ function lerFonte() {
     vitrine: listaJs(extrair(game, /var WILD_SHOWCASE = (\[[^\]]*\]);/, 'WILD_SHOWCASE')[1]),
     abas: [...abas.matchAll(/rotulo: '([^']+)'/g)].map((m) => m[1]),
     gearOn,
+    gearPvp,
     pistas: listaJs('[' + extrair(game, /var TRACK_NAMES = \[([\s\S]*?)\];/, 'TRACK_NAMES')[1] + ']'),
     retrato: extrair(game, /var PORTRAIT_W = (\d+), PORTRAIT_H = (\d+);/, 'o tamanho do retrato').slice(1, 3).map(Number),
     retratoEscala: numDe(game, /var PORTRAIT_SCALE = (\d+);/, 'PORTRAIT_SCALE'),
@@ -291,7 +294,6 @@ export function descreverEfeitoTipo(effect, P, el) {
 /** Bônus especial de equipamento (Gear.resolve().special) em português. Lança erro em chave desconhecida. */
 export function descreverEspecial(chave, valor) {
   switch (chave) {
-    case 'skillEffectBonus': return valor ? `efeito das skills de vaga ${sinalPct(valor, 0)} (o fator do rank × ${num(1 + valor)})` : ''
     case 'weatherDoubleClimate': return valor ? `no clima ${nomeClima(valor)}, reforçaria o bônus do elemento dono para ${multF(T.weatherMultDouble)} (não acumula com a skill de clima: vale o maior)` : ''
     case 'ignoreWeatherPenalty': return valor ? `anula a penalidade de clima (${multF(2 - T.weatherMult)} vira ×1)` : ''
     default: throw new Error(`wiki: bônus especial de equipamento desconhecido "${chave}" — descreva-o em descreverEspecial (prototype/tools/wiki.mjs)`)
@@ -350,12 +352,13 @@ export function descreverAba(rotulo, F) {
         `**Duelos:** cada duelo passa na tela de corrida, com 2 raias: a placa diz "Duelo N" (nunca quantos serão), e uma linha diz a vantagem de elemento e o fôlego de quem larga cansado; "Pular" termina o duelo (depois da chegada ele diz "Continuar") e "Pular tudo" vai direto ao resumo. Entre um duelo e outro, um cartão diz como foi o seu cavalo e por quantos metros, quem saiu e quem entra, a faixa do cansaço com o fôlego de quem ficou ("Vitória ${ap.name.toLowerCase()} (menos de 1 m): … larga com ${num(Math.round((1 - ap.perde) * 100))}% do fôlego") e a vantagem do próximo duelo, com "Próximo duelo" e "Pular tudo". Os metros são truncados para baixo (7,6 m aparece como 7 m); abaixo de 1 m, "menos de 1 m". ` +
         `**Resumo:** cada duelo com "Você venceu" ou "Você perdeu", os metros e o fôlego de quem seguiu; a entrada, o prêmio e os itens; o XP de cada cavalo (os níveis e as skills que aprendeu, ou "não correu"); a insígnia e a etapa liberada. Perdendo, "Tentar de novo" volta ao preparo com o mesmo time; sempre há "Voltar à trilha". ` +
         `**Revanche:** depois da insígnia, a etapa do líder vira a revanche, uma vez por dia: "Revanche hoje", com a entrada de ${num(G.GYM.revanche.entrada)} de Ouro e o prêmio de hoje do rodízio; tentada a de hoje, a etapa diz "Feita hoje" e "Revanche de hoje feita. Volte amanhã.", e a revanche perdida não tem "Tentar de novo". ` +
+        `**Treino AFK:** na trilha, cada oponente já vencido tem "Treinar (AFK)", que abre a escolha do treino (oponente, dificuldade, vaga e cavalo). O cartão "Treino AFK" da aba abre as vagas (o cavalo, o oponente, a chance de vitória medida, a corrida em curso e a última; Assistir, Trocar e Tirar; "Abrir vaga" com o preço) e o baú ("Coletar tudo"); o cartão "Bestiário" abre as páginas dos ginásios (ver Corrida AFK). ` +
         `Embaixo, a vitrine de ${F.vitrine.length} cavalos selvagens (a captura ainda não existe no protótipo).`
     }
     case 'Haras': return 'cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.'
     case 'Loja': {
       const venda = G.SHOP_ORDER   // a ordem fixa da loja (Ruling 11)
-      const itens = `em **Comprar**, os itens de uso (${lista(venda.map((id) => G.ITEMS[id].name))}) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os ${Object.keys(G.ITEMS).length} itens, quantos você tem de cada e o botão Usar (o ${G.ITEMS.pergaminho.name} não tem Usar: é gasto ao subir rank, na aba Skills do cavalo)`
+      const itens = `em **Comprar**, os itens de uso (${lista(venda.map((id) => G.ITEMS[id].name))}) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os ${G.ITENS_USO.length} itens, quantos você tem de cada e o botão Usar (o ${G.ITEMS.pergaminho.name} não tem Usar: é gasto ao subir rank, na aba Skills do cavalo) e, embaixo, os itens do treino AFK por grupo (comidas, com o Usar e a escolha do cavalo; materiais; Pergaminho de reforja; troféus)`
       return F.gearOn ? `${itens}; também peças de equipamento (menos as de raridade ${lista([...new Set(Object.keys(G.GEAR).filter((id) => !G.GEAR[id].shop).map((id) => nomeRar(G.GEAR[id].rarity)))])}) e Pedras Negras.` : itens + '.'
     }
     default: throw new Error(`wiki: aba desconhecida "${rotulo}" — descreva-a em descreverAba (prototype/tools/wiki.mjs)`)
@@ -568,14 +571,14 @@ function secoes(F, A) {
 
   // 1. Visão geral ---------------------------------------------------------------------------------------
   add('visao', 'Visão geral', 'Visão geral', [
-    { t: 'p', txt: `**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (${F.gearOn ? 'montaria, equipamento e entrada' : 'montaria e entrada'}) e assiste. Os cavalos têm tipo (${lista(Object.keys(G.ELEMENTS).map(nomeEl))}), raridade, estrelas, genética, level e skills; nada cresce sozinho: cada level dá pontos para o jogador comprar status.` },
+    { t: 'p', txt: `**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (${F.gearPvp ? 'montaria, equipamento e entrada' : 'montaria e entrada'}) e assiste. Os cavalos têm tipo (${lista(Object.keys(G.ELEMENTS).map(nomeEl))}), raridade, estrelas, genética, level e skills; nada cresce sozinho: cada level dá pontos para o jogador comprar status.` },
     { t: 'h3', txt: 'Ciclo de uma corrida' },
     { t: 'passos', itens: [
       `**Escolher a montaria.** No começo você escolhe uma das ${G.STARTERS.length} iniciais (${lista(G.STARTERS.map((h) => h.name))}) e recebe ${num(E.startingGold)} de Ouro${F.gearOn ? ` e o equipamento inicial (${lista(EG.startGear.map((id) => G.GEAR[id].name))}, já equipado)` : ''}.`,
       `**Procurar sala.** Na aba Correr você escolhe a entrada (${lista(E.entryTiers.map((t) => num(t)), 'ou')} de Ouro). A sala tem de ${E.minRacers} a ${E.maxRacers} corredores: você e bots com Poder perto do seu. Pista, clima e rivais saem da seed da sala e não mudam até você correr.`,
       '**Pagar a entrada.** Só depois de "Largar!" a corrida é simulada; o resultado nunca é calculado antes.',
       `**Corrida automática.** O jóquei dosa o ritmo pela estamina; skills disparam nos gatilhos; o Dado da Sorte rola em ${lista(T.diceAt.map(fracao))} da pista e pode virar o clima; a Garra decide a reta final.`,
-      `**Prêmio e XP.** A casa fica com ${pct(E.houseFee, 0)} do pote e o resto vai para os primeiros colocados. Todos ganham XP pela colocação${F.gearOn ? ', e o pódio pode dar uma Pedra Negra' : ''}. No pódio de corrida valendo pode cair um ${PG.name} (ver Skills, Rank das skills).`
+      `**Prêmio e XP.** A casa fica com ${pct(E.houseFee, 0)} do pote e o resto vai para os primeiros colocados. Todos ganham XP pela colocação${F.gearPvp ? ', e o pódio pode dar uma Pedra Negra' : ''}. No pódio de corrida valendo pode cair um ${PG.name} (ver Skills, Rank das skills).`
     ] },
     { t: 'h3', txt: 'Abas do jogo' },
     { t: 'dl', itens: [...F.abas.map((a) => [a, descreverAba(a, F)]), ['Perfil (o botão do cabeçalho)', descreverPerfil()]] },
@@ -603,7 +606,7 @@ custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / ${T.cost
       `**Torrões:** cada ${G.ITEMS.torrao.name} usado no cavalo é 1 ponto a mais, somado depois do piso; até ${num(G.ITEMS.torrao.cap)} por cavalo (ver Itens).`,
       `**Teto:** base + pontos ≤ ${lim.alto} em cada status. Ninguém chega lá: o pior caso (${nomeRar('mitico')} ${estrelas(T.starMult.length)} no Nv ${M}, genética 31, com os ${num(G.ITEMS.torrao.cap)} torrões e todos os pontos num status) fica em ${piorCaso}.`,
       `**${nomeStat('sorte')}:** só de nascimento, não recebe pontos: fica na base, de ${num(G.RARITIES.comum.baseLo)} (${nomeRar('comum')}, genética 0) a ${num(G.RARITIES.mitico.baseLo + T.gBand)} (${nomeRar('mitico')}, genética 31).`,
-      `**Equipamento:** suspenso; as peças não mexem nos status (ver Equipamento).`
+      `**Equipamento:** só vale no treino AFK; na corrida valendo e no Poder as peças não mexem nos status (ver Equipamento).`
     ] },
     { t: 'tabela', rotulo: 'Custo por faixa', titulo: 'Custo dos pontos num mesmo status', cab: ['Pontos no status', 'Custo de cada ponto da faixa', 'Custo total até o fim da faixa'], linhas: [0, 1, 2, 3, 4, 5, 6, 7].map((q) => [N(`${q * T.costStep + 1}º a ${(q + 1) * T.costStep}º`), N(String(S.pointCost(q * T.costStep))), N(num(S.costOf((q + 1) * T.costStep)))]) },
     { t: 'p', txt: `O clima também mexe nos status durante a corrida: soma (m − 1) × ${num(T.weatherAdd)} a n(x) de VEL, ACE, MAN, FOR e GAR, com o multiplicador m do clima (ver Elementos e clima), o mesmo efeito em qualquer nível. Não mexe em EST nem em SOR.` }
@@ -812,8 +815,7 @@ Força, Manobra e Garra efetivas = nc(x)` },
       `**${G.ITEMS.manual.name} e aprendizado por level:** a skill aprendida entra no rank I. As chances deles (${pct(G.ITEMS.manual.chance, 0)} e ${pct(T.learnChance, 0)}) são de **aprender**, não de ativar.`,
       `**Bots da sala:** todas as skills de vaga de todos os bots ficam no mesmo rank: a média, arredondada, dos ranks das skills de vaga do seu cavalo (rank I se ele não tem skill de vaga). Sem sorteio; o rank entra no Poder do bot. A sala mostra "skills rank N" nos rivais.`,
       `**Oponentes dos ginásios:** rank fixo por etapa, sem sorteio (coluna "Rank das skills" de cada trilha, em Ginásios da Expedição); a revanche usa o do líder. ${basesComSkill.length ? `Vale para as skills de vaga de ${lista(basesComSkill.map(nomeMontaria))}.` : `Hoje as montarias-base dos ginásios (${lista(basesGym.map(nomeMontaria))}) não têm skill de vaga, então esse rank ainda não muda nada na prática.`}`,
-      `**Na pista:** o balão da skill mostra o rank em algarismo romano a partir do II, no fim do nome ("${FX.nomeCurto(G.SKILLS[skIds[0]].name, G.SKILLS[skIds[0]].short)} III"); o rank I não aparece.`,
-      `**Conjunto de equipamento (suspenso):** o bônus de ${EG.setBonus.pieces[0]} peças seria ${sinalPct(EG.setBonus.skillEffect, 0)} no efeito das skills, multiplicando o fator do rank (ver Equipamento).`
+      `**Na pista:** o balão da skill mostra o rank em algarismo romano a partir do II, no fim do nome ("${FX.nomeCurto(G.SKILLS[skIds[0]].name, G.SKILLS[skIds[0]].short)} III"); o rank I não aparece.`
     ] },
     { t: 'tabela', rotulo: 'Skills por rank', titulo: `Skills por rank (o texto do jogo no rank I e no ${rMax}; o do ${rMax} já traz o marco)`, cab: ['Skill', 'Rank I', `Rank ${rMax}`, `Marco do rank ${rMax}`], linhas: skIds.map((id) => [comIcone('sk-' + id, nomeSkill(id)), descNoRank(id, 1), descNoRank(id, RK.max), marcoSkill(id)]) },
     { t: 'h3', txt: 'Skills de vaga' },
@@ -1009,47 +1011,50 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     ] }
   ])
 
-  // 11. Equipamento --------------------------------------------------------------------------------------
+  // 11. Equipamento (só PVE: treino AFK) ---------------------------------------------------------------
   const gearIds = Object.keys(G.GEAR)
   const gearRar = Object.keys(EG.price)
   const pedras = pedrasEsperadas()
   const setIds = Object.keys(G.GEAR_SETS)
+  const FARM_NOME = { material: 'Material do ginásio', xp: 'XP', raro: 'Drop raro (incomum, Pedra Negra, peça, comida)', trofeu: 'Chance de troféu', ouro: 'Ouro do treino' }
+  for (const t of Object.keys(EG.faixas)) if (!FARM_NOME[t]) throw new Error(`wiki: linha de farm desconhecida "${t}" — dê um nome em FARM_NOME (prototype/tools/wiki.mjs)`)
+  const rarComLinha = gearRar.filter((r) => EG.linhas[r] > 0)
   const bonusTxt = (n) => {
-    const r = conjunto(setIds[0], n)
-    const partes = []
-    if (n >= EG.setBonus.pieces[0]) partes.push(`+${EG.setBonus.sorte} ${nomeStat('sorte')}`)
-    for (const k of Object.keys(r.special)) {
-      const t = descreverEspecial(k, r.special[k])
-      if (t) partes.push(t.replace(`clima ${nomeClima(G.GEAR_SETS[setIds[0]].weather)}`, 'clima do conjunto'))
-    }
+    const partes = [`linhas de farm ${sinalPct(EG.setBonus.farm, 0)} (cada bônus × ${num(1 + EG.setBonus.farm)})`]
+    if (n >= EG.setBonus.pieces[1]) partes.push(`no clima do conjunto, o bônus do elemento dono sobe para ${multF(EG.setBonus.clima)} (não acumula com a skill de clima: vale o maior)`)
+    if (n >= EG.setBonus.pieces[2]) partes.push(`anula a penalidade de clima (${multF(2 - T.weatherMult)} vira ×1)`)
     return partes.join('; ')
   }
   const peca = (id) => G.GEAR[id]
+  const pecasOp = (d) => d.pecas ? `${G.GEAR_SLOTS.length} ${nomeRar(d.pecas.rar)}s +${d.pecas.plus}${d.pecas.doConjunto ? ' do conjunto do ginásio' : ''} (+${num(EG.main[d.pecas.rar] + d.pecas.plus * EG.plusStep, 2)} em cada status principal)` : 'sem peças'
   add('equipamento', 'Equipamento', 'Equipamento', [
-    { t: 'nota', txt: '**Suspenso:** as peças, a melhoria, o que está equipado e as Pedras Negras ficam guardados, mas a corrida, os status e o Poder ignoram o equipamento por enquanto. O catálogo abaixo é o que volta quando ele for revisto.' },
-    { t: 'p', txt: `Cada montaria tem ${G.GEAR_SLOTS.length} slots. Cada peça soma um status principal (o valor da raridade + a melhoria) e um secundário, definidos pelo slot. Peças ${lista(gearRar.filter((r) => !gearIds.some((id) => peca(id).rarity === r && peca(id).set)).map(nomeRar))} são soltas; ${lista(gearRar.filter((r) => gearIds.some((id) => peca(id).rarity === r && peca(id).set)).map(nomeRar))} pertencem a um conjunto (${lista(setIds.map(nomeConjunto))}).` },
-    { t: 'tabela', rotulo: 'Slots', cab: ['Slot', 'Status principal', 'Status secundário'], linhas: G.GEAR_SLOTS.map((s) => [slotCel(s), nomeStat(G.GEAR_SLOT_INFO[s].main), nomeStat(G.GEAR_SLOT_INFO[s].sub)]) },
-    { t: 'tabela', rotulo: 'Peças por raridade', cab: ['Raridade', 'Principal', 'Secundário', 'Preço', 'Venda', 'Na loja'], linhas: gearRar.map((r) => { const id = gearIds.find((x) => peca(x).rarity === r); return [rarCel(r), N('+' + EG.main[r]), N('+' + EG.sub[r]), ouroCel(EG.price[r]), ouroCel(GR.sellPrice(id)), peca(id).shop ? 'sim' : '**nunca à venda**'] }) },
+    { t: 'nota', txt: '**Só vale no treino AFK (PVE).** O equipamento nunca entra na corrida valendo, na sala, no Poder nem nos duelos de ginásio: lá todo cavalo corre sem peças.' },
+    { t: 'p', txt: `Cada montaria tem ${G.GEAR_SLOTS.length} slots. Cada peça soma um **status principal de corrida** (o valor da raridade + a melhoria), definido pelo slot, e tem **linhas de farm** sorteadas pela seed quando a peça nasce. Peças ${lista(gearRar.filter((r) => !gearIds.some((id) => peca(id).rarity === r && peca(id).set)).map(nomeRar))} são soltas; ${lista(gearRar.filter((r) => gearIds.some((id) => peca(id).rarity === r && peca(id).set)).map(nomeRar))} pertencem a um conjunto (${lista(setIds.map(nomeConjunto))}). O status da corrida é inteiro: a soma das peças de um slot é arredondada (${num(EG.main.raro + 5 * EG.plusStep, 2)} vira +${Math.round(EG.main.raro + 5 * EG.plusStep)}).` },
+    { t: 'tabela', rotulo: 'Slots', cab: ['Slot', 'Status principal'], linhas: G.GEAR_SLOTS.map((s) => [slotCel(s), nomeStat(G.GEAR_SLOT_INFO[s].main)]) },
+    { t: 'tabela', rotulo: 'Peças por raridade', cab: ['Raridade', 'Principal', 'Linhas de farm', 'Preço', 'Venda', 'Na loja'], linhas: gearRar.map((r) => { const id = gearIds.find((x) => peca(x).rarity === r); return [rarCel(r), N('+' + num(EG.main[r], 2)), N(String(EG.linhas[r])), ouroCel(EG.price[r]), ouroCel(GR.sellPrice(id)), peca(id).shop ? 'sim' : '**nunca à venda**'] }) },
     { t: 'p', txt: `Venda devolve ${pct(EG.sellRate, 0)} do preço. Peças ${lista(gearRar.filter((r) => gearIds.some((id) => peca(id).rarity === r && !peca(id).shop)).map(nomeRar))} nunca estão à venda. Equipamento inicial: ${lista(EG.startGear.map((id) => peca(id).name))}.` },
+    { t: 'h3', txt: 'Linhas de farm', id: 'linhas-de-farm' },
+    { t: 'p', txt: `Cada linha tem um tipo (sem repetir na mesma peça) e um valor inteiro em pontos percentuais, sorteado na faixa da raridade (sorteio uniforme). Os percentuais das peças equipadas somam entre si e multiplicam o ganho do treino AFK daquele cavalo (com o bestiário). A melhoria sobe só o principal.` },
+    { t: 'tabela', rotulo: 'Linhas de farm', cab: ['Tipo', ...rarComLinha.map(nomeRar)], linhas: Object.keys(EG.faixas).map((t) => [FARM_NOME[t], ...rarComLinha.map((r) => N(`${EG.faixas[t][r][0]}–${EG.faixas[t][r][1]}%`))]) },
     { t: 'h3', txt: 'Catálogo completo' },
-    { t: 'tabela', rotulo: 'Catálogo de peças', classe: 'catalogo', cab: ['Peça', 'Slot', 'Raridade', 'Conjunto', 'Principal', 'Secundário', 'Preço', 'Loja'], linhas: gearIds.map((id) => {
+    { t: 'tabela', rotulo: 'Catálogo de peças', classe: 'catalogo', cab: ['Peça', 'Slot', 'Raridade', 'Conjunto', 'Principal', 'Preço', 'Loja'], linhas: gearIds.map((id) => {
       const p = peca(id), info = G.GEAR_SLOT_INFO[p.slot]
-      return [{ md: `**${p.name}**`, html: `<strong>${esc(p.name)}</strong>` }, slotCel(p.slot), rarCel(p.rarity), p.set ? nomeConjunto(p.set) : '—', N(`+${p.main} ${siglaStat(info.main)}`), N(p.sub ? `+${p.sub} ${siglaStat(info.sub)}` : '—'), ouroCel(p.price), p.shop ? 'sim' : 'não']
+      return [{ md: `**${p.name}**`, html: `<strong>${esc(p.name)}</strong>` }, slotCel(p.slot), rarCel(p.rarity), p.set ? nomeConjunto(p.set) : '—', N(`+${num(p.main, 2)} ${siglaStat(info.main)}`), ouroCel(p.price), p.shop ? 'sim' : 'não']
     }), entradas: gearIds.map((id) => {
       const p = peca(id)
       return { id: 'peca-' + id, tipo: 'peca', busca: [p.name, nomeSlot(p.slot), nomeRar(p.rarity), p.set ? 'conjunto ' + nomeConjunto(p.set) : '', p.set && G.WEATHERS[G.GEAR_SETS[p.set].weather].element ? nomeEl(G.WEATHERS[G.GEAR_SETS[p.set].weather].element) : ''], rar: p.rarity, el: p.set ? G.WEATHERS[G.GEAR_SETS[p.set].weather].element : null }
     }), vazio: { tipo: 'peca', txt: 'Nenhuma peça casa com a busca e os filtros.' } },
     { t: 'h3', txt: 'Melhoria (+1 a +' + EG.plusMax + ')', id: 'melhoria' },
-    { t: 'p', txt: `Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela seed do save). A partir de +${EG.enhanceDropFrom}, a falha **derruba** a peça 1 nível. Cada + soma ${num(EG.plusStep)} no status principal (uma peça +${EG.plusMax} soma +${num(EG.plusStep * EG.plusMax)}). Pedra Negra: ${num(EG.stonePrice)} de Ouro na loja (pacote de ${EG.stoneBundle} = ${num(EG.stonePrice * EG.stoneBundle)}).` },
+    { t: 'p', txt: `Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela seed do save). A partir de +${EG.enhanceDropFrom}, a falha **derruba** a peça 1 nível. Cada + soma ${num(EG.plusStep, 2)} no status principal (uma peça +${EG.plusMax} soma +${num(EG.plusStep * EG.plusMax, 2)}). Pedra Negra: ${num(EG.stonePrice)} de Ouro na loja (pacote de ${EG.stoneBundle} = ${num(EG.stonePrice * EG.stoneBundle)}); também cai no treino AFK e sai da forja.` },
     { t: 'tabela', rotulo: 'Melhoria', cab: ['Passo', 'Chance', 'Custo (pedras)', 'Se falhar', 'Pedras esperadas no passo', 'Pedras esperadas desde +0'], linhas: pedras.map((p) => [`+${p.de} → +${p.de + 1}`, N(pct(p.chance, 0)), N(String(p.custo)), p.cai < p.de ? `cai para +${p.cai}` : `fica em +${p.de}`, N(num(p.esperado, 1)), N(num(p.acumulado, 1))]) },
-    { t: 'p', txt: `**Pedra Negra do pódio${F.gearOn ? '' : ' (não cai enquanto o equipamento estiver suspenso)'}:** só em corrida valendo (entrada paga), sorteada pela seed da sala: ${E.xpPerPlace.slice(0, EG.podiumStone.length).map((x, i) => `${ordinal(i + 1)} lugar ${pct(EG.podiumStone[i], 0)}`).join(', ')}.` },
+    { t: 'p', txt: `**Pedra Negra do pódio:** desligada (a corrida valendo dá o ${G.ITEMS.pergaminho.name}); a Pedra vem da loja, do treino AFK e da forja.` },
     { t: 'h3', txt: 'Conjuntos', id: 'conjuntos' },
     { t: 'tabela', rotulo: 'Conjuntos', cab: ['Conjunto', 'Clima', 'Elemento favorecido', 'Peças'], linhas: setIds.map((s) => { const w = G.GEAR_SETS[s].weather; return [nomeConjunto(s), nomeClima(w), G.WEATHERS[w].element ? elCel(G.WEATHERS[w].element) : '—', gearIds.filter((id) => peca(id).set === s).map((id) => `${peca(id).name} (${nomeRar(peca(id).rarity)})`).join(', ')] }) },
-    { t: 'tabela', rotulo: 'Bônus de conjunto', titulo: 'Bônus total por número de peças do mesmo conjunto (cada linha já é o total)', cab: ['Peças', 'Bônus'], linhas: EG.setBonus.pieces.map((n) => [N(String(n)), bonusTxt(n)]) },
-    { t: 'p', txt: `Cada linha é o total daquele patamar, não soma com as de cima: +${EG.setBonus.sorte} ${nomeStat('sorte')} e ${sinalPct(EG.setBonus.skillEffect, 0)} no efeito das skills valem uma vez a partir de ${EG.setBonus.pieces[0]} peças. Vale o conjunto com mais peças equipadas (empate: ${lista(setIds.map(nomeConjunto))}, nessa ordem). Enquanto o equipamento estiver suspenso, nenhum bônus de conjunto vale.` },
-    { t: 'h3', txt: 'Equipamento dos bots por liga' },
-    { t: 'tabela', rotulo: 'Equipamento dos bots', cab: ['Liga do alvo', 'Peças do bot'], linhas: G.LEAGUES.map((L, i) => { const r = GR.botGear(i, 'fogo', 0); return [L.name, r.pieces.length ? r.pieces.map((p) => `${peca(p.id).name} +${p.plus}`).join(', ') : 'nada'] }) },
-    { t: 'p', txt: `O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, ${nomeEl('fogo')}).${F.gearOn ? '' : ' Enquanto o equipamento estiver suspenso, os bots correm sem peças.'}` }
+    { t: 'tabela', rotulo: 'Bônus de conjunto', titulo: 'Bônus total por número de peças do mesmo conjunto (cada linha já é o total; só no treino AFK)', cab: ['Peças', 'Bônus'], linhas: EG.setBonus.pieces.map((n) => [N(String(n)), bonusTxt(n)]) },
+    { t: 'p', txt: `Cada linha é o total daquele patamar, não soma com as de cima. Vale o conjunto com mais peças equipadas (empate: ${lista(setIds.map(nomeConjunto))}, nessa ordem).` },
+    { t: 'h3', txt: 'Peças dos oponentes do treino AFK' },
+    { t: 'tabela', rotulo: 'Peças dos oponentes', cab: ['Dificuldade', 'Peças do oponente'], linhas: G.AFK.difs.map((d) => [d.name, pecasOp(d)]) },
+    { t: 'p', txt: 'Os bots da sala e os oponentes dos ginásios de verdade correm sempre sem peças.' }
   ])
 
   // 12. Economia -----------------------------------------------------------------------------------------
@@ -1081,7 +1086,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       + ${num(T.ratingLevel)} × (level − 1) / ${E.maxLevel - 1} + ${num(T.ratingRar)} × ordem da raridade / 4` },
     { t: 'tabela', rotulo: 'Peso do gatilho', titulo: 'Peso do gatilho no Poder', cab: ['Gatilho', 'Peso', 'Pontos por skill (rank I)'], linhas: Object.keys(pesos).map((t) => [t === 'weather:*' ? 'Clima (qualquer)' : descreverGatilho(t), N(num(pesos[t], 2)), N(num(pesos[t] * T.ratingSkillPts))]) },
     { t: 'tabela', rotulo: 'Ligas', cab: ['Liga', 'Poder', 'Cor'], linhas: G.LEAGUES.map((L) => { const f = S.leagueFor(L.min); return [{ md: icMd('liga-' + L.id) + L.name, html: `<span class="liga" style="--c:${L.color}">${icone('liga-' + L.id)}${esc(L.name)}</span>` }, N(f.max == null ? `${num(L.min)} ou mais` : `${num(L.min)}–${num(f.max)}`), { md: L.color, html: `<code>${L.color}</code>` }] }) },
-    { t: 'p', txt: `**Rivais da sala:** cada bot mira um Poder entre ${sinalPct(F.botAlvo[0] - 1, 1)} e ${sinalPct(F.botAlvo[0] + F.botAlvo[1] - 1, 1)} do seu (leve viés para cima)${F.gearOn ? ', com o equipamento da liga desse alvo' : ''}. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de ${F.botFaixaNivel[0]} levels abaixo a ${F.botFaixaNivel[1]} acima do level dele, entre 1 e ${E.maxLevel}. O modelo só entra se ficar a até ${pct(F.botFaixa, 0)} do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos ${F.botReserva} modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem. As skills de vaga dos bots ficam todas no rank médio (arredondado) das skills de vaga do seu cavalo, e esse rank entra no Poder do bot (ver Skills, Rank das skills).` },
+    { t: 'p', txt: `**Rivais da sala:** cada bot mira um Poder entre ${sinalPct(F.botAlvo[0] - 1, 1)} e ${sinalPct(F.botAlvo[0] + F.botAlvo[1] - 1, 1)} do seu (leve viés para cima)${F.gearPvp ? ', com o equipamento da liga desse alvo' : ''}. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de ${F.botFaixaNivel[0]} levels abaixo a ${F.botFaixaNivel[1]} acima do level dele, entre 1 e ${E.maxLevel}. O modelo só entra se ficar a até ${pct(F.botFaixa, 0)} do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos ${F.botReserva} modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem. As skills de vaga dos bots ficam todas no rank médio (arredondado) das skills de vaga do seu cavalo, e esse rank entra no Poder do bot (ver Skills, Rank das skills).` },
     { t: 'p', txt: `**Build dos bots** (sem sorteio; é também o botão "Distribuir sugerido", que continua do que o jogador já comprou): um ponto por vez no status de menor (pontos + 1) / peso, entre os que ainda aceitam (peso acima de 0, abaixo de ${T.statMax} e com o próximo ponto cabendo no que sobra); empate na ordem ${lista(G.STAT_KEYS.filter((k) => (T.noBuy || []).indexOf(k) < 0).map(siglaStat))}. A ${nomeStat('sorte')} não recebe pontos.` },
     { t: 'tabela', rotulo: 'Pesos da build dos bots', titulo: 'Pesos da build dos bots', cab: ['Tipo', ...G.STAT_KEYS.map(siglaStat)], linhas: elIds.map((e) => [elCel(e), ...G.STAT_KEYS.map((k) => N(T.botW[e] && T.botW[e][k] ? num(T.botW[e][k], 2) : '—'))]) },
     { t: 'tabela', rotulo: 'Poder das iniciais', titulo: 'Poder das iniciais (sem equipamento)', cab: ['Montaria', 'Nv 1', `Nv 25, build dos bots`, `Nv ${E.maxLevel} sem pontos`, `Nv ${E.maxLevel}, build dos bots`], linhas: G.STARTERS.map((h) => { const h25 = { ...h, level: 25 }, h50 = { ...h, level: E.maxLevel }; const c = (x) => { const pr = S.powerRating(x); return N(`${num(pr)} (${S.leagueFor(pr).name})`) }; return [h.name, c(h), c({ ...h25, alloc: S.botAlloc(h25) }), c(h50), c({ ...h50, alloc: S.botAlloc(h50) })] }) }
@@ -1089,7 +1094,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
 
   // 12b. Itens e recompensa diária -----------------------------------------------------------------------
   // tudo de GameData.ITEMS / DAILY / BAG_MAX; item novo sem as regras abaixo quebra o wiki
-  const IT = G.ITEMS, DY = G.DAILY, itIds = Object.keys(IT)
+  const IT = G.ITEMS, DY = G.DAILY, itIds = G.ITENS_USO
   const nomeItem = (id) => { if (!IT[id]) throw new Error(`wiki: item desconhecido "${id}"`); return IT[id].name }
   const salaTxt = 'não no cavalo ativo com a sala aberta'
   const limitesItem = {
@@ -1168,6 +1173,59 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `**Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida. ${gyIds.map((id) => `${G.GYMS[id].insignia.name}: ${bonusIns(id)}`).join('; ')}. O Perfil mostra as ${gyIds.length} ("Insígnias (N de ${gyIds.length})"): a conquistada com o bônus, a que falta apagada, com o líder a vencer.` }
   ])
 
+  // 12d. Corrida AFK (spec 2026-11-23-afk-drops §5) ------------------------------------------------------
+  // tudo de GameData.AFK e dos itens com `grupo` de GameData.ITEMS
+  const AK = G.AFK
+  if (!AK || !Array.isArray(AK.difs) || !AK.drops || !AK.materiais) throw new Error('wiki: GameData.AFK incompleto')
+  const afkIds = Object.keys(IT).filter((id) => IT[id].grupo)
+  const GRUPO_NOME = { material: 'Material do ginásio', incomum: 'Material incomum', comida: 'Comida', reforja: 'Reforja', selo: 'Selo', trofeu: 'Troféu' }
+  for (const id of afkIds) if (!GRUPO_NOME[IT[id].grupo]) throw new Error(`wiki: item "${id}" com grupo desconhecido "${IT[id].grupo}"`)
+  const difNome = (d) => d.name
+  const chanceDif = (base, teto) => AK.difs.map((d) => N(pct(Math.min(teto == null ? 1 : teto, base * d.mult))))
+  const pecaTxt = (d) => {
+    const P = AK.drops.peca[d.id], partes = []
+    if (P.solta) partes.push(`${pct(P.solta)} ${nomeRar('comum')} ou ${nomeRar('magico')} solta`)
+    if (P.raro) partes.push(`${pct(P.raro)} ${nomeRar('raro')} do conjunto`)
+    if (P.lendario) partes.push(`${pct(P.lendario)} ${nomeRar('lendario')} do conjunto`)
+    return partes.join(' · ') || '—'
+  }
+  const pesosComida = AK.drops.comida.pesos, somaPesos = Object.values(pesosComida).reduce((a, b) => a + b, 0)
+  add('afk', 'Corrida AFK', 'AFK', [
+    { t: 'p', txt: `Os cavalos treinam sozinhos nas fases dos ginásios: cada corrida AFK é um duelo nas regras do ginásio (vantagem de elemento, largada ${nomeClima('nublado')}, pista da casa, Dado da Sorte), sem cansaço, contra um cavalo da etapa em rodízio fixo. Uma fase só libera depois de a etapa ser vencida no ginásio de verdade. O treino nunca dá insígnia, ${nomeItem('redea')}, os itens da 1ª vitória nem o prêmio da revanche, e nunca dá ${lista(['torrao', 'estrela', 'manual', 'cupom', 'pergaminho'].map(nomeItem))}.` },
+    { t: 'tabela', rotulo: 'Dificuldades', cab: ['Dificuldade', 'Nível do oponente', 'Rank das skills do oponente', 'Multiplicador de prêmio', 'Libera com'], linhas: AK.difs.map((d, i) => [
+      { md: `**${difNome(d)}**`, html: `<strong>${esc(difNome(d))}</strong>` },
+      d.nivel ? `o da etapa + ${num(d.nivel)}${d.nivelMax ? ` (até ${num(d.nivelMax)})` : ''}` : 'o da etapa',
+      d.rank == null ? 'o da etapa' : N(romano(d.rank)), N('×' + num(d.mult)),
+      i === 0 ? 'a etapa vencida no ginásio' : `${num(AK.liberaApos)} vitórias AFK na ${difNome(AK.difs[i - 1])} da mesma fase`]) },
+    { t: 'p', txt: `**Vagas:** até ${num(AK.vagaPreco.length)}; cada cavalo ocupa no máximo uma. Preço em Ouro: ${AK.vagaPreco.map((p, i) => `${i + 1}ª ${p ? num(p) : 'grátis'}`).join(' · ')}. O Ouro reservado para a entrada da sala aberta nunca é gasto.` },
+    { t: 'p', txt: `**Ganho por vitória:** XP para o cavalo que correu, ${num(AK.xpBase)} × (1 + ${num(AK.xpPorEtapa, 2)} × etapa) × multiplicador (etapa 0 no Soldado 1, 4 no líder), e Ouro, ${AK.ouro.map((o) => num(o, 2)).join(' · ')} do Soldado 1 ao líder, × multiplicador (a fração vira Ouro inteiro pela seed: 0,3 é 1 de Ouro em 30% das vitórias). **Na derrota:** ${pct(AK.derrota.xp, 0)} do XP e ${pct(AK.derrota.material, 0)} do material do ginásio (arredondado para baixo), sem Ouro e sem os outros drops.` },
+    { t: 'tabela', rotulo: 'Drops por vitória', cab: ['Drop', ...AK.difs.map(difNome)], linhas: [
+      ['Material do ginásio (metade de cada tipo)', ...AK.difs.map((d) => N(`${num(AK.drops.material.min * d.mult)} a ${num(AK.drops.material.max * d.mult)}`))],
+      ['Material incomum do ginásio', ...chanceDif(AK.drops.incomum.chance, AK.drops.incomum.teto)],
+      ['Pedra Negra', ...chanceDif(AK.drops.pedra.chance)],
+      [`Comida (${Object.keys(pesosComida).map((id) => `${nomeItem(id)} ${pct(pesosComida[id] / somaPesos, 0)}`).join(', ')} do que cai)`, ...chanceDif(AK.drops.comida.chance)],
+      ['Peça de equipamento', ...AK.difs.map(pecaTxt)],
+      [nomeItem('pergaminho-reforja'), ...chanceDif(AK.drops.reforja.chance)],
+      ['Troféu do oponente', ...AK.difs.map((d) => N(pct(AK.drops.trofeu[d.id])))]
+    ] },
+    { t: 'p', txt: `Todo drop sai da seed da corrida. Os materiais e o incomum de cada ginásio só caem nele; a peça ${nomeRar('raro')} ou ${nomeRar('lendario')} que cai é do conjunto do ginásio (${gyIds.map((g) => `${G.GYMS[g].name}: ${G.GEAR_SETS[AK.materiais[g].conjunto].name}`).join('; ')}).` },
+    { t: 'h3', txt: 'Baú, ao vivo e offline', id: 'afk-bau' },
+    { t: 'p', txt: `Tudo o que as vagas rendem cai num **baú único**; "Coletar tudo" passa de uma vez (o XP vai para cada cavalo ao coletar; o do cavalo ativo fica no baú enquanto a sala estiver aberta). O que passa do teto da mochila se perde: a tela avisa antes e pede confirmação.` },
+    { t: 'p', txt: `**Ao vivo** (com a tela "Treino AFK" aberta): cada vaga corre de verdade, uma corrida atrás da outra, no tempo do duelo; o resultado sai da seed do save (vaga e contador) e é gravado antes de aparecer. "Assistir" mostra a corrida da vaga. **Offline** (outra tela ou jogo fechado): o jogo mede a chance de vitória do cavalo naquela fase com ${num(AK.amostra)} duelos simulados aos poucos, guardados até o cavalo ou a fase mudar; as corridas do tempo fora (minutos ÷ duração média medida) são decididas pela seed contra essa chance, e cada vitória rola os mesmos drops. Limite: ${num(AK.offlineMin / 60)} h, até ${num(AK.offlineTetoMin / 60)} h com a ${nomeItem('aveia-dourada')} e o bestiário. O relógio é o do aparelho; relógio para trás não rende. O cavalo ativo para de treinar enquanto a sala do PVP está aberta.` },
+    { t: 'h3', txt: 'Forja', id: 'afk-forja' },
+    { t: 'p', txt: `Na aba Expedição. Receitas fixas, **sem chance de falhar**: o jogador escolhe o ginásio (de onde saem os materiais e, na ${nomeRar('raro')} e na ${nomeRar('lendario')}, o conjunto) e o tipo da peça. "Materiais" é a soma dos dois materiais comuns do ginásio, gastos meio a meio; o troféu pode ser de qualquer oponente dele. O ${nomeItem('pergaminho-reforja')} é a exceção: aceita os materiais comuns **somados de qualquer ginásio** e o incomum de qualquer um (gasta primeiro do que há mais). Só as **linhas de farm** da peça são sorteadas, pela seed do save e pelo contador de forjas, depois de confirmar. Peça forjada não tem preço de venda. O Ouro reservado para a entrada da sala aberta nunca é gasto.` },
+    { t: 'tabela', rotulo: 'Receitas da forja', cab: ['Forjar', 'Materiais', 'Incomum', 'Troféus', nomeItem('selo'), 'Ouro'], linhas: Object.keys(G.FORJA).map((r) => {
+      const R = G.FORJA[r]
+      const nome = { comum: `Peça ${nomeRar('comum')} (solta)`, magico: `Peça ${nomeRar('magico')} (solta)`, raro: `Peça ${nomeRar('raro')} do conjunto do ginásio`, lendario: `Peça ${nomeRar('lendario')} do conjunto do ginásio`, pedra: 'Pedra Negra', reforja: nomeItem('pergaminho-reforja') }[r]
+      if (!nome) throw new Error(`wiki: receita de forja desconhecida "${r}"`)
+      return [{ md: `**${nome}**`, html: `<strong>${esc(nome)}</strong>` }, N(num(R.mat)), N(R.inc ? num(R.inc) : '—'), N(R.trofeu ? num(R.trofeu) : '—'), N(R.selo ? num(R.selo) : '—'), N(num(R.ouro))]
+    }) },
+    { t: 'h3', txt: 'Bestiário', id: 'afk-bestiario' },
+    { t: 'p', txt: `Uma página por ginásio: os oponentes (marcos de ${lista(AK.bestiario.marcos.map((m) => num(m)))} vitórias no treino), os materiais, as peças do conjunto e os troféus (vistos e obtidos). Bônus da conta, só no AFK: ${pct(AK.bestiario.raro.por, 0)} de drop raro por oponente com ${num(AK.bestiario.raro.vitorias)} vitórias (até ${pct(AK.bestiario.raro.teto, 0)}); ${pct(AK.bestiario.xp.por, 0)} de XP por oponente com ${num(AK.bestiario.xp.vitorias)} (até ${pct(AK.bestiario.xp.teto, 0)}); ${pct(AK.bestiario.trofeu.por, 0)} de chance de troféu por troféu (até ${pct(AK.bestiario.trofeu.teto, 0)}); ${num(AK.bestiario.pagina.min / 60)} h de limite offline por página completa (até ${num(AK.bestiario.pagina.tetoMin / 60)} h). "Drop raro" vale para material incomum, Pedra Negra, peça e comida.` },
+    { t: 'tabela', rotulo: 'Itens do AFK', cab: ['Item', 'Tipo', 'Para que serve', 'Teto na mochila', 'De onde vem'], linhas: afkIds.map((id) => [
+      { md: `**${IT[id].name}**`, html: `<strong>${esc(IT[id].name)}</strong>` }, GRUPO_NOME[IT[id].grupo], IT[id].desc, N(num(IT[id].cap)), IT[id].origem]) }
+  ])
+
   // 13. Ícones reservados --------------------------------------------------------------------------------
   // Os da spec (2.6) ainda sem tela: já existem como arquivo, mas só entram nas telas com recursos que ainda vão chegar
   // (as três insígnias saíram daqui com a aba Expedição dos ginásios).
@@ -1186,8 +1244,9 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `Para testar: abra \`prototype/dist/preview.html?dev=1\` ou o build de teste \`prototype/dist/jogo-dev.html\` (liga sozinho; é o que vai para o artefato, que não repassa \`?dev=1\`). O save é separado (\`${DV.SAVE_KEY}\`): o jogo real não é lido nem gravado.` },
     { t: 'dl', itens: [
       ['Moedas', `Ouro infinito (volta a ${num(DV.GOLD_INF)} depois de cada gasto) e Pedras Negras à vontade.`],
-      ['Itens e dia', `os itens de uso e o dia do jogo: Definir mochila (quantos de cada um: ${lista(Object.keys(G.ITEMS).filter((id) => id !== 'redea').map(nomeItem))}, de 0 a ${num(G.BAG_MAX)}); Avançar 1 dia e Voltar 1 dia (o dia do jogo vai de ${F.devDiasMax} dias antes a ${F.devDiasMax} dias depois do aparelho, só no save de teste); Zerar diária e limites (a recompensa volta ao dia 1 para resgatar e os limites da loja zeram).`],
+      ['Itens e dia', `os itens de uso e o dia do jogo: Definir mochila (quantos de cada um: ${lista(G.ITENS_USO.filter((id) => id !== 'redea').map(nomeItem))}, de 0 a ${num(G.BAG_MAX)}); Avançar 1 dia e Voltar 1 dia (o dia do jogo vai de ${F.devDiasMax} dias antes a ${F.devDiasMax} dias depois do aparelho, só no save de teste); Zerar diária e limites (a recompensa volta ao dia 1 para resgatar e os limites da loja zeram).`],
       ['Ginásios', `quantas etapas de cada trilha estão vencidas (de 0 a ${num(G.GYMS[G.GYM_ORDER[0]].etapas.length)}; com todas, a insígnia, e o bônus dela vale na hora): Definir etapas; Liberar revanche (a de hoje, nos ${G.GYM_ORDER.length} ginásios); Zerar ginásios (nenhuma etapa vencida; o contador de desafios continua, para as seeds dos desafios não se repetirem).`],
+      ['Treino AFK', `o relógio do treino (só anda para a frente, só no save de teste): Avançar 2 min, Avançar 2 h e Avançar 9 h; +50 vitórias nas fases liberadas (libera as dificuldades seguintes); +20 de cada item do treino na mochila; Zerar treino AFK (vagas vazias, baú, vitórias e bestiário limpos; os contadores das vagas ficam).`],
       ['Cavalo', `cria ou substitui um cavalo com qualquer tipo, raridade, sexo, estrelas, level (1–${E.maxLevel}), genética (máxima ou por status), pontos distribuídos e até ${F.devVagas} skills (inclusive de outro tipo), cada uma com o seu rank (seletor de I a ${rMax}); copia iniciais e aluguéis; +10 levels; +1 cruza; devolve os pontos da ativa.`],
       ['Itens', 'só peças de equipamento: qualquer peça do catálogo, inclusive Lendária, com qualquer melhoria; conjunto completo de uma vez.'],
       ['Próxima corrida', 'clima inicial, piso, distância, traçado (mais curvas, mais subidas ou lista de blocos), vento e seed. Não há mais a opção de forçar a ativação das skills: toda skill de vaga já ativa quando o gatilho acontece.'],

@@ -151,7 +151,8 @@ for (const id in G.SKILLS) confere(a.html.includes(`id="skill-${id}"`), `skill $
   confere(/A revanche não dá Pergaminhos de técnica/.test(secGin), 'Ginásios: a revanche sem "não dá Pergaminhos"')
   // cruzamento, itens, equipamento e DEV
   confere(/Rank: cada skill herdada nasce 1 rank abaixo do pai que a tem/.test(a.md.slice(a.md.indexOf('## Cruzamento'), a.md.indexOf('## Equipamento'))), 'Cruzamento: as skills do potro sem a regra do rank')
-  confere(a.md.includes(`+${Math.round(G.ECONOMY.gear.setBonus.skillEffect * 100)}% no efeito das skills`) && !/p\.p\. na chance de (?:todas as )?skills/.test(a.md), 'Equipamento: o bônus de 3 peças devia ser "+5% no efeito das skills" (setBonus.skillEffect)')
+  confere(/\*\*Só vale no treino AFK \(PVE\)\.\*\*/.test(a.md) && a.md.includes(`linhas de farm +${Math.round(G.ECONOMY.gear.setBonus.farm * 100)}%`) && !/no efeito das skills/.test(a.md.slice(a.md.indexOf('## Equipamento'), a.md.indexOf('## Economia'))), 'Equipamento: a seção devia dizer que só vale no treino AFK e que 3 peças dão +10% nas linhas de farm')
+  for (const t of Object.keys(G.ECONOMY.gear.faixas)) for (const r of ['magico', 'raro', 'lendario']) confere(a.md.includes(`${G.ECONOMY.gear.faixas[t][r][0]}–${G.ECONOMY.gear.faixas[t][r][1]}%`), `Equipamento: falta a faixa da linha ${t} ${r}`)
   const devCav = (a.md.match(/^- \*\*Cavalo:\*\* (.*)$/m) || [])[1] || ''
   confere(/cada uma com o seu rank \(seletor de I a V\)/.test(devCav), `o Modo DEV no wiki sem o seletor de rank por skill: ${devCav}`)
   confere(G.HELP.rank.includes(`+${Math.round(K.step * 100)}%`), `HELP.rank não diz "+${Math.round(K.step * 100)}%" por passo (SKILL_RANKS.step): ${G.HELP.rank}`)
@@ -312,12 +313,12 @@ for (const id of ['item-redea', 'moeda-gema']) {
 // itens e recompensa diária (spec de itens, loja e diária §4, §6, §7): os itens (os cinco de uso e o Pergaminho de técnica, dos ranks), com preço, limite e origem,
 // e a tabela dos 7 dias com a Estrela a cada 4 calendários
 confere(a.html.includes('id="itens"') && /## Itens e recompensa diária/.test(a.md), 'falta a seção "Itens e recompensa diária"')
-confere(Object.keys(G.ITEMS).join() === 'torrao,estrela,redea,cupom,manual,pergaminho', 'catálogo de itens fora da ordem da spec')
+confere(G.ITENS_USO.join() === 'torrao,estrela,redea,cupom,manual,pergaminho', 'catálogo de itens fora da ordem da spec')
 for (const [nome, preco, compra] of [['Torrão de açúcar', '120', '2 por dia'], ['Estrela de treino', '2\\.000', '1 a cada 7 dias'], ['Rédea nova', '\\*\\*não se vende\\*\\*', '—'], ['Cupom de troca de skill', '250', '1 por dia'], ['Manual de doma', '200', '1 por dia'], ['Pergaminho de técnica', '\\*\\*não se vende\\*\\*', '—']]) {
   confere(new RegExp(`\\| \\*\\*${nome}\\*\\* \\|[^\\n]*\\| ${preco} \\| ${compra} \\| [^|\\n]+ \\|`).test(a.md), `tabela de itens: ${nome} devia ter preço ${preco.replace(/\\/g, '')} e compra ${compra}`)
 }
-for (const id in G.ITEMS) confere(a.md.includes(G.ITEMS[id].desc) && a.md.includes(G.ITEMS[id].origem), `item ${id} sem a linha de para que serve ou de onde vem`)
-confere(a.md.includes(`São ${Object.keys(G.ITEMS).length} itens. ${Object.keys(G.ITEMS).length - 1} são de uso único`) && /em \*\*Mochila\*\*, os 6 itens[^\n]*o Pergaminho de técnica não tem Usar/.test(a.md), 'Itens: a contagem (6 itens, 5 de uso único) ou a Mochila sem o Pergaminho')
+for (const id of G.ITENS_USO) confere(a.md.includes(G.ITEMS[id].desc) && a.md.includes(G.ITEMS[id].origem), `item ${id} sem a linha de para que serve ou de onde vem`)
+confere(a.md.includes(`São ${G.ITENS_USO.length} itens. ${G.ITENS_USO.length - 1} são de uso único`) && /em \*\*Mochila\*\*, os 6 itens[^\n]*o Pergaminho de técnica não tem Usar/.test(a.md), 'Itens: a contagem (6 itens, 5 de uso único) ou a Mochila sem o Pergaminho')
 confere(/até 10 por cavalo/.test(a.md) && /35% de chance de aprender/.test(a.md), 'tabela de itens sem o teto do Torrão (10) ou a chance do Manual (35%)')
 for (const [dia, premio] of [['1º', '60 de Ouro'], ['2º', '1 Torrão de açúcar'], ['3º', '100 de Ouro'], ['4º', '1 Manual de doma'], ['5º', '150 de Ouro'], ['6º', '1 Cupom de troca de skill'], ['7º', '200 de Ouro e 1 Rédea nova; a cada 4 calendários completos, também 1 Estrela de treino']]) {
   confere(a.md.includes(`| ${dia} | ${premio} |`), `tabela da recompensa diária: ${dia} dia devia dar ${premio}`)
@@ -370,7 +371,7 @@ confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que 
   //    nova, que não se vende, diz isso também na frase "não está à venda"
   const secItens = a.md.slice(a.md.indexOf('## Itens e recompensa diária'), a.md.indexOf('## Ginásios da Expedição'))
   const dosGin = (secItens.match(/^\*\*Dos ginásios\*\*.*$/m) || [''])[0]
-  for (const id of Object.keys(G.ITEMS)) {
+  for (const id of G.ITENS_USO) {
     const daGin = G.GYM_ORDER.some((g) => G.GYMS[g].etapas.some((e) => e.premio.itens.includes(id) || (id === 'pergaminho' && e.premio.pergaminhos > 0))) || G.GYM.revanche.ciclo.some((c) => c.item === id)
     confere(daGin === dosGin.includes(G.ITEMS[id].name), `Itens: ${G.ITEMS[id].name} ${daGin ? 'vem dos ginásios e o wiki não diz' : 'aparece como prêmio de ginásio sem ser'}: ${dosGin}`)
     // a coluna "De onde vem" da tabela é o texto origem do catálogo (Ruling 28): cita os ginásios só quando eles dão o item

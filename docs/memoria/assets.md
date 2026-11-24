@@ -139,3 +139,14 @@ vê esses ícones: entram na declaração de IA como os outros do lote `icones2`
 - Em 2026-11-05 foram 6 gerações para sprites prontos dos 3 iniciais; o jogo passou a usar os moldes
   e esses arquivos saíram do repositório em 2026-11-10 (estão no histórico do git).
 - As tentativas rejeitadas que não fazem parte da cadeia de seeds também saíram em 2026-11-10.
+
+## 2026-11-23 — Ícones dos itens do treino AFK (código, sem créditos)
+- **Ferramenta:** nenhuma IA; 18 mapas 16×16 desenhados à mão em `prototype/tools/icones-afk.mjs` (contorno `--sombra`,
+  luz de cima e da esquerda, tokens do `game.css`, todos na Resurrect 64), embutidos pelo `interface-arte.mjs` como
+  `--arte-item-<nome>`.
+- **O que são:** Carvão, Ferro bruto, Junco, Concha, Fibra, Resina, Brasa viva, Pérola de rio, Seiva antiga, Feno,
+  Cenoura, Maçã, Aveia dourada, Pergaminho de reforja, a taça de troféu em três cores (uma por ginásio; os 15 troféus
+  usam a do ginásio deles) e o baú.
+- **Custo:** zero. **Uso:** mochila, baú, bestiário e cartão do treino na Expedição. Teste: `moldes-test.mjs` ("os
+  ícones dos itens do AFK").
+- **Bloco B (2026-11-23):** mais 1 mapa 16×16 em código, o **Selo do campeão** (`item-selo`: medalha de ouro com a estrela e duas fitas vermelhas), no mesmo arquivo. Sem IA, sem custo. Uso: mochila, forja, reforja, custo do rank V e resultado da corrida.

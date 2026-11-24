@@ -1,6 +1,37 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-23._
+**Integração de 2026-11-23 (aprovada pelo Vinicius: "pode integrar tudo na main e republicar"):** AFK (blocos A e B), forja,
+bestiário, equipamento de PVE, reforja, Selo do campeão, as correções da revisão, o build dos testadores e o lote 1 de
+ajustes (câmera, skills resumidas, sexo, selvagens escondidos) entraram na `main` por avanço direto (100e438), com o
+`check.sh` completo OK (213 + 69 testes de regra, 139 de efeitos, 176 de moldes, 1064 do wiki, 132 metas, 81 blocos de
+interface). Republicados: jogo (versão 16), DEV (14), wiki (13) e testadores (2, https://claude.ai/artifact/2McVg8D1wv5Qm8WWnSN8hL).
+Em andamento: animação ambiente (`claude/animacao-ambiente`, amostra v3 aprovada como "mais movimento"; lote pago de
+comer/cavar e spec a seguir); depois mapa dos ginásios, tela inicial e inventário.
+
+_Atualizado em 2026-11-23 (ajustes de interface, lote 1)._
+
+**Em andamento (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE**, no branch `claude/afk` (chat
+próprio de implementação). Spec `docs/superpowers/specs/2026-11-23-afk-drops-design.md` e plano
+`docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B), aprovados pelo Vinicius. **Blocos A e B prontos (seções próprias
+abaixo), esperando a revisão do chat de coordenação; nada foi integrado na `main` nem republicado nos oficiais.** O rancho
+ficou só como ideia.
+
+**Ajustes de interface, lote 1 (2026-11-23, ramo `claude/ajustes-1`, a partir de `claude/afk`; fora da `main`):** quatro
+pedidos do Vinicius, um commit cada, com teste. (1) **Câmera centrada no jogador**: 12 px/m de perto, afasta só o
+necessário para caber, inteiro, quem está a até 30 m (à frente ou atrás), suave e sem saltos; além de 30 m, a seta com os
+metros (`RaceFx.CAMERA`, `camZoomAlvo`, `camEsquerda`, `camSuaviza` no `fx.js`; 11 testes no `fx-test`; bloco
+`corrida-camera` no `ui-test`). Escala inteira mantida (o zoom é em metros por pixel de arte). (2) **Skills em resumo**:
+nome, rank e `resumo` (novo em `GameData.SKILLS`, teste no `sim-test`) na aba Skills (vagas, tipo e Garra), na escolha do
+Cupom e no resultado; o texto completo num balão (`skillDicaHtml`/`dicaAreaHtml`, `aria-describedby`; mouse e foco por
+cima, toque embaixo, Esc fecha); bloco `skills-resumo` no `ui-test`. O wiki não muda. (3) **Símbolo ♂/♀** (ícones
+`ui-macho`/`ui-femea`) ao lado do nome no Estábulo e na cabeça da ficha, com "macho"/"fêmea" acessível. (4) **Expedição**:
+os cavalos selvagens viraram um bloco recolhido e desativado com o selo "em breve" (some a vitrine animada que fazia a
+`final-10-expedicao.png` mudar a cada rodada). Decisões em `decisoes.md`. **Verificação:** `check.sh` completo OK (213 testes de
+simulação + 69 do AFK, 139 de efeitos, 176 de moldes, 25 camadas de arte, 1064 conferências do wiki, 132 metas do
+balanço rápido e 81 blocos de interface); custo por quadro sem piora (mesmas condições, antes → depois: chuva e ventania a
+1280 1,91 → 1,77–2,19 ms; 8 Míticos 1,96 → 1,91–2,13; portes 2,04 → 1,94–2,07; ruído da máquina). Capturas oficiais
+regeneradas (39 mudaram, nenhuma nova nem removida). **Artefato de teste novo** (jogo de produção do ramo):
+https://claude.ai/artifact/KnwuELhSrLKrMSEmNtAZ4N. Os oficiais não foram republicados; nada na `main`.
 
 **Em andamento (2026-11-23): animação ambiente, entrega 1 (amostra)**, no branch `claude/animacao-ambiente` (frente 1 de 4
 das visuais; depois vêm o mapa dos ginásios, a tela inicial e o inventário). Pedido do Vinicius: nenhuma imagem parada
@@ -240,7 +271,8 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
   - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência);
   - `final-10-expedicao.png` muda a cada rodada completa do teste de interface sem a interface ter mudado: só a área dos
     retratos dos cavalos selvagens (de (152, 748) a (704, 1394) na imagem), porque as faíscas da raridade e o "idle" dos
-    retratos andam no relógio real. O saldo e o XP já não mudam (seed fixa); não se congela a animação;
+    retratos andam no relógio real. O saldo e o XP já não mudam (seed fixa); não se congela a animação (resolvido no
+    ramo `claude/ajustes-1`, 2026-11-23: a vitrine saiu da tela);
   - ajustes pequenos que a revisão final leu e deixou ficar (casos raros ou sem efeito na tela): com um dono de nome
     muito largo, a tabela da chegada pode rolar de lado dentro da própria caixa; a faixa no pé da pista pode cobrir
     a etiqueta de um rival de baixo que esteja fora da tela; o destaque do motivo procura a frase só pelo texto (um texto
@@ -448,6 +480,55 @@ Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/sup
   arte do Pergaminho no PixelLab (hoje é um ícone feito por código).
 - **Build de teste desta branch:** https://claude.ai/artifact/77SCN1gGcMb9DjMcUXwfkQ (artefato novo, versão 2, com a
   Garra sem falhar; os três oficiais não foram tocados).
+
+## Treino AFK, bloco A (pronto em 2026-11-23 no `claude/afk`; fora da `main`)
+Spec e plano acima; regra no `docs/GDD.md` §8.3a; números no wiki (seção "Corrida AFK") e em `GameData.AFK`
+(`prototype/src/data.js`); regras em `prototype/src/afk.js`; medições em `docs/exemplos.md` §5b; decisões em
+`decisoes.md` (2026-11-23, "execução do bloco A").
+- **O que entrou:** o duelo do ginásio como função (`Ginasio.dueloCfg`); as 45 fases (15 etapas × Normal, Difícil,
+  Lendária), a liberação por 50 vitórias e as 5 vagas; a corrida AFK e a tabela de drops (29 itens novos: materiais,
+  incomuns, comidas, Pergaminho de reforja e 15 troféus; peças com linhas de farm sorteadas); a chance medida (2.400
+  duelos em fatias) e o offline; o baú, o bestiário e as comidas; **save v10** (`state.afk`, itens do AFK na mochila,
+  `linhas` e `rerolls` em cada peça); as telas: cartões "Treino AFK" e "Bestiário" na Expedição, "Treinar (AFK)" nos
+  oponentes vencidos da trilha, a escolha do treino, as vagas com o baú, assistir (a tela de corrida, no tempo real do
+  duelo), "Enquanto você estava fora" (também ao abrir o jogo), o bestiário por ginásio e os itens do treino na Mochila
+  (comidas com "Usar"); o grupo "Treino AFK" na gaveta DEV (relógio, vitórias, itens, zerar). 18 ícones 16×16 feitos em
+  código (`prototype/tools/icones-afk.mjs`), sem créditos.
+- **Como o relógio funciona:** `vaga.inicioMin` é até onde o treino da vaga já foi contado. Com a tela do treino
+  aberta, cada corrida larga quando agora ≥ inicioMin, é gravada (contador + ganho) antes de aparecer e leva inicioMin
+  ao fim dela; fora da tela, o tempo é acertado pelo `Afk.offline` (chance medida) na volta. O cavalo ativo com a sala
+  aberta não treina. Detalhe no comentário da seção "Corrida AFK" do `game.js`.
+- **Metas (balance.js completo):** E1, E3 e E5 passam; a E2 passa na primeira parte ("não é sempre a mais difícil") e a
+  segunda ("1 ou 2 degraus abaixo em metade dos casos") deu 44% e fica como informação até a B2 (as peças dos oponentes).
+  A E4 e a E6 são do bloco B. `node prototype/tools/balance.js --afk` roda só essa seção (~45 s).
+- **Números de partida que mudaram:** Ouro por vitória × 0,15 (E1) e amostra da chance de 400 para 2.400 (E3).
+- **Para o Vinicius decidir** (em `docs/exemplos.md` §5b): o XP do AFK por hora é de 2 a 15 vezes o do PVP; os
+  oponentes são fracos para um cavalo Raro; o prêmio quase não cresce com a etapa.
+
+## Treino AFK, bloco B (pronto em 2026-11-23 no `claude/afk`; fora da `main`)
+Regra no `docs/GDD.md` §7 (reescrito: equipamento só de PVE) e §8.3a; números no wiki (Equipamento e Corrida AFK, com a
+Forja); medições em `docs/exemplos.md` §5b; decisões em `decisoes.md` (2026-11-23, "execução do bloco B").
+- **O que entrou:** peças com principal de corrida e **linhas de farm**, valendo **só no treino AFK**
+  (`Gear.resolvePve`; `entry.statAdd` e `entry.pve` no duelo); oponentes da Difícil com 5 Mágicas +3 e da Lendária com 5
+  Raras +5 do conjunto; **forja** (`prototype/src/forja.js`, `GameData.FORJA`, tela na Expedição); sub-aba **Peças** da
+  Montaria (selo "só AFK", total do treino, linhas), loja de peças e Pedras de volta; **reforja** de uma linha
+  (`Gear.custoReforja/podeReforjar/reforjar`); **Selo do campeão** (`Itens.seloPodio`: 1º lugar valendo, 10%; exigido no
+  rank IV → V, na reforja garantida e na forja da Lendária). Save continua v10 (campo novo `forjaCounter`; `selo` na mochila).
+- **Chaves no `game.js`:** `GEAR_ON = true` (telas) e `GEAR_PVP = false` (o caminho antigo das peças no Poder, na sala e
+  nos bots, e a Pedra do pódio: desligado). O `ui-test.mjs` lê as duas do build.
+- **O PVP não muda:** Poder, pareamento, sala e corrida ignoram as peças; não há trava de peça com páreo aberto.
+- **Metas:** E1 a E6 no `balance.js` (a E4 e a E6 novas). Testes: `afk-test.js` (forja), `sim-test.js` (reforja, Selo),
+  blocos `equipamento`, `forja` e `reforja` no `ui-test.mjs`.
+- **Para o Vinicius decidir:** os mesmos pontos do bloco A (XP do AFK alto, oponentes fracos para um Raro, prêmio que
+  quase não cresce com a etapa) e a segunda parte da E2, que continua sem fechar (só informação).
+- **Revisão da coordenação e merge da `main` (2026-11-23):** a `main` (29f65fd: arte refinada, teste de engine,
+  créditos) foi trazida para o `claude/afk`; os quatro defeitos do relógio das vagas e a receita do Pergaminho foram
+  corrigidos (`decisoes.md`, "correções da revisão"). `check.sh` OK (79 blocos) e `balance.js` completo OK (380 metas)
+  depois disso. Artefatos de teste (não são os oficiais): produção https://claude.ai/artifact/BYNyJ3vZrmuJDiTWBryCxj e
+  DEV https://claude.ai/artifact/U17yYPgft3zCqQZzrTEgaP.
+- **Build dos testadores** (`prototype/dist/jogo-teste.html`: evolução ×10, iniciais Raros nota A, rivais um pouco
+  abaixo; save próprio; decisões de 2026-11-23). `check.sh` OK (79 blocos, 132 metas no rápido).
+- **Falta:** a aprovação do Vinicius para integrar na `main` e republicar os oficiais.
 
 ## Em andamento
 - **Teste de engine, web × Godot 4 (spike de 2026-11-19, branch `claude/teste-engine`, fora da `main`): resultado,

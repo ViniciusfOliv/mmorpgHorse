@@ -73,7 +73,7 @@ subida, estamina baixa, reta final, Dado, clima), a skill de vaga **ativa sempre
 nível e Sorte não mudam a ativação (a raridade dá as vagas; a Sorte só vale no Dado, seção 4). Cada skill
 tem um **rank, de I a V, por cavalo**: um fator único por rank multiplica só a parte de bônus do efeito
 (duração e distância não crescem) e, no rank V, cada skill ganha um **marco** próprio. O rank sobe na aba
-Skills com **Ouro + Pergaminhos de técnica** (8.2), sem sorteio, sem falha e sem volta; com páreo aberto,
+Skills com **Ouro + Pergaminhos de técnica** (8.2) e, do IV para o V, também **1 Selo do campeão** (seção 7), sem sorteio, sem falha e sem volta; com páreo aberto,
 o cavalo ativo não sobe rank. O rank entra no Poder; Cupom, Manual e aprendizado por nível entram no rank I
 (o Cupom perde o rank da skill que sai); os bots da sala usam a média arredondada dos ranks do cavalo do
 jogador, e os oponentes dos ginásios têm rank fixo por etapa. Spec:
@@ -178,38 +178,47 @@ A base é a menor raridade entre os pais. **Estrelas do potro:** se a raridade s
 
 **Portes (só aparência, 2026-11-13):** spec em `docs/superpowers/specs/2026-11-13-cavalos-portes-design.md`; números em `docs/wiki.md` (Portes). Cada cavalo tem um porte, o corpo do desenho: esguio (pernas longas e finas, pescoço comprido), padrão (equilibrado) ou robusto (mais baixo e largo, crina farta), iguais nos três elementos. O potro herda o porte de um dos pais (50% cada) com 10% de mutação para um dos três, pela RNG da seed (sequência própria, separada das marcas). Porte não entra em status, Poder, preço, skills, aluguel nem na corrida. Os iniciais são todos padrão. São 12 moldes (3 portes × 4 estilos de crina).
 
-## 7. Equipamentos
+## 7. Equipamentos (só PVE: treino AFK)
 
-> **Suspenso (bloco 1b, 2026-11-13).** Por enquanto o equipamento não tem efeito: a corrida, o Poder e os
-> status ignoram as peças, os bots não ganham peças, a sub-aba Equipamento e a parte de peças da Loja ficam escondidas
-> (uma constante desliga, `GEAR_ON` no `game.js`) e a Pedra Negra do pódio não cai. O save guarda peças,
-> melhorias, o que está equipado e as Pedras, sem mudança e sem venda. Volta a ser validado depois
-> (talvez como cosmético). **O texto abaixo descreve o desenho guardado, não o que vale hoje.**
+> **Voltou em 2026-11-23 como equipamento de PVE (bloco B do AFK).** As peças **só valem no treino AFK** (8.3a):
+> **nunca** entram no Poder, no pareamento, na sala nem na corrida do PVP ou dos ginásios, e os bots não têm peças.
+> Por isso não há trava com páreo aberto: equipar, tirar, melhorar e reforjar ficam liberados sempre. No `game.js`,
+> `GEAR_ON` liga as telas e `GEAR_PVP` (desligado) guarda o caminho antigo. Spec:
+> `docs/superpowers/specs/2026-11-23-afk-drops-design.md` (§5.6, §5.7 e §5.9); números no wiki (Equipamento, Corrida AFK).
 
-Cada montaria usa um **set de 5 peças** (modelo do equipamento de cavalo do Black Desert). As peças ficam num **inventário compartilhado**, são compradas na **Loja** com Ouro e melhoradas de +0 a +10 com **Pedras Negras**. Os **conjuntos** ligados aos climas criam a escolha pré-corrida: turbinar o dia bom ou se proteger do dia ruim. Sem durabilidade e sem limite de vagas (por enquanto).
+Cada montaria usa um **set de 5 peças**, de um **inventário compartilhado**. As peças vêm da **Loja** (Ouro), dos
+**drops do treino AFK** e da **Forja**; melhoram de +0 a +10 com **Pedras Negras**. Sem durabilidade e sem limite de
+vagas (por enquanto). Na Montaria, a sub-aba **Peças** traz o selo "só AFK", o total que as peças somam no treino e as
+linhas de cada peça.
 
-**Slots e status:**
+**Principal de corrida (só no duelo do AFK), pelo slot:** Ferraduras: Velocidade · Sela: Estamina · Estribos: Manobra ·
+Testeira: Aceleração · Armadura: Força. Vale o valor da raridade mais **0,2 por nível de melhoria**; a soma das peças é
+arredondada para o status inteiro. Calibrado pela meta E4 (`docs/exemplos.md` §5b).
 
-| Slot | Principal | Secundário |
-|---|---|---|
-| Ferraduras | Velocidade | Aceleração |
-| Sela | Estamina | Garra |
-| Estribos | Manobra | Sorte |
-| Testeira | Aceleração | Garra |
-| Armadura | Força | Estamina |
-
-**Raridade da peça** (Mítico não tem peça; vem do despertar, no futuro). O principal vale o valor da raridade **mais meio ponto por nível de melhoria** (uma peça +10 soma +5); o secundário é fixo. Comum não tem secundário. Os valores são pequenos porque a distância entre duas raridades é de 5 pontos por status. O preço de Lendário é só referência de venda: **não está à venda**.
-
-| Raridade | Principal | Secundário | Preço | Venda (25%) |
+| Raridade | Principal | Linhas de farm | Preço | Venda (25%) |
 |---|---|---|---|---|
-| Comum | +2 | — | 100 | 25 |
-| Mágico | +2 | +1 | 250 | 63 |
-| Raro | +3 | +2 | 600 | 150 |
-| Lendário | +4 | +3 | 1.500 | 375 |
+| Comum | +0,75 | 0 | 100 | 25 |
+| Mágico | +1 | 1 | 250 | 63 |
+| Raro | +1,25 | 2 | 600 | 150 |
+| Lendário | +1,75 | 3 | (não se vende) | — |
 
-Peças Comum e Mágica são soltas; Raro e Lendário vêm em **conjuntos** (Sol, Chuva, Névoa), com o mesmo nome nas duas raridades. São 40 peças no catálogo; 25 estão à venda. Os bônus entrariam na corrida somando ao status. Um conjunto Raro completo em +10 soma de +8 a +10 nos cinco status principais: pouco mais de um degrau de raridade.
+**Linhas de farm (no lugar do secundário antigo).** Cada linha sorteia, pela seed, o **tipo** (material, XP, drop
+raro, troféu, Ouro do treino; sem repetir na mesma peça) e o **valor** dentro da faixa da raridade (tabela no wiki). O
+farm do cavalo é a soma das linhas das peças equipadas e soma ao bônus do bestiário. Peças de antes das linhas ganharam
+as suas pela seed do save e pelo número da peça (sempre as mesmas).
 
-**Melhoria (+0 a +10).** Cada tentativa gasta Pedras Negras e tem chance de sucesso decrescente. A partir de +6, falhar faz a peça **cair um nível**. A pedra é paga e o resultado sorteado pela seed antes de ser mostrado, e o sorteio não se repete ao recarregar.
+Peças Comum e Mágica são soltas; Raro e Lendário vêm em **conjuntos** (Sol, Chuva, Névoa), um por ginásio (Fornalha:
+Sol · Remanso: Chuva · Capoeira: Névoa). Conta-se o maior número de peças equipadas do mesmo conjunto; os bônus acumulam:
+
+| Peças | Bônus (só no treino AFK) |
+|---|---|
+| 3 | +10% em todas as linhas de farm |
+| 4 | O bônus do clima do conjunto sobe de 1,03 para 1,07 quando a montaria é do elemento favorecido por ele |
+| 5 | A montaria ignora a penalidade de clima |
+
+**Melhoria (+0 a +10).** Cada tentativa gasta Pedras Negras e tem chance de sucesso decrescente. A partir de +6, falhar
+faz a peça **cair um nível**. A pedra é paga e o resultado sorteado pela seed antes de ser mostrado, e o sorteio não se
+repete ao recarregar.
 
 | De → para | +0→1 | +1→2 | +2→3 | +3→4 | +4→5 | +5→6 | +6→7 | +7→8 | +8→9 | +9→10 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -217,25 +226,40 @@ Peças Comum e Mágica são soltas; Raro e Lendário vêm em **conjuntos** (Sol,
 | Pedras por tentativa | 1 | 1 | 1 | 1 | 1 | 1 | 2 | 2 | 2 | 2 |
 | Se falhar | nada | nada | nada | nada | nada | nada | cai p/ +5 | cai p/ +6 | cai p/ +7 | cai p/ +8 |
 
-Custo esperado da cadeia completa, contando as quedas (pedra a 40 Ouro): **+5 ≈ 6 pedras (258 Ouro) · +7 ≈ 16 (658) · +8 ≈ 37 (1.481) · +10 ≈ 264 (10.548)**. O +10 é objetivo de longo prazo de propósito. Uma peça equipada na montaria ativa com páreo aberto não pode ser melhorada.
+**Loja e venda.** Uma aba por slot (1 Comum, 1 Mágica e 3 Raras, uma de cada conjunto) e uma aba de Pedras (×1 por 40
+de Ouro, ×5 por 200). Comprar não equipa. Só a peça **comprada na loja** vende de volta (25% do preço da raridade, com
+"Desfazer" até sair da tela); a que caiu no treino ou saiu da forja **não tem preço de venda** (só "Descartar"), para o
+treino não virar Ouro por fora do teto da meta E1. Lendário nunca é vendido.
 
-**Conjuntos.** Conta-se, por montaria, o maior número de peças equipadas do **mesmo** conjunto (raridades misturadas valem; empate entre conjuntos não ativa nada). Os bônus **acumulam**:
+**Pedra Negra.** Vem da Loja, dos drops do treino e da Forja. A Pedra do pódio do PVP **continua desligada**.
 
-| Peças | Bônus |
+**Forja (aba Expedição).** Receitas fixas, sem chance de falhar; o jogador escolhe o ginásio (os materiais e o
+conjunto) e o tipo da peça. Só as linhas de farm são sorteadas, pela seed, depois de confirmar.
+
+| Forjar | Custo |
 |---|---|
-| 3 | +5% no efeito das skills de vaga (multiplica o fator do rank) e +5 de Sorte |
-| 4 | O bônus do clima do conjunto sobe de 1,03 para 1,07 quando a montaria é do elemento favorecido por ele. Não acumula com a skill de clima: vale o maior |
-| 5 | A montaria ignora a penalidade de clima, em qualquer clima |
+| Peça Comum | 10 materiais do ginásio + 100 de Ouro |
+| Peça Mágica | 25 materiais + 3 incomuns + 300 de Ouro |
+| Peça Rara do conjunto do ginásio | 60 materiais + 10 incomuns + 1 troféu do ginásio + 800 de Ouro |
+| Peça Lendária do conjunto do ginásio | 120 materiais + 20 incomuns + 3 troféus + **2 Selos do campeão** + 3.000 de Ouro |
+| Pedra Negra | 8 materiais + 30 de Ouro |
+| Pergaminho de reforja | 15 materiais **de qualquer ginásio** (somados) + 1 incomum de qualquer um + 150 de Ouro |
 
-Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). No desenho guardado o conjunto também somava ao Rating de Poder; hoje o Poder não conta peças.
+"Materiais" é a soma dos dois materiais comuns do ginásio (gastos meio a meio); o troféu é de qualquer oponente dele.
+O Pergaminho gasta primeiro do material que o jogador tem mais.
 
-**Loja e venda.** Tela própria, com uma aba por slot (1 Comum, 1 Mágica e 3 Raras, uma de cada conjunto) e uma aba de Pedras (×1 por 40 Ouro, ×5 por 200). Comprar não equipa. Cada cartão mostra a diferença para a peça que a montaria ativa usa no slot. Peça **não equipada** vende de volta por 25% do preço da raridade (ignora a melhoria), com "Desfazer" até sair da tela.
+**Reforja.** Na peça, "Reforjar" sorteia de novo **uma linha escolhida** (tipo e valor; o tipo não repete o das outras
+linhas). Gasta 1 **Pergaminho de reforja** e Ouro, que cresce a cada reforja **na mesma peça** e nunca volta: 100 · 150 ·
+230 · 340 · 510… (100 × 1,5ⁿ, arredondado para 10). O sorteio sai da seed do save, do número da peça e do número de
+reforjas dela, só depois de confirmar (recarregar não muda). Com **1 Selo do campeão** junto, a linha **mantém o tipo** e
+o valor sai da **metade de cima** da faixa.
 
-**Pedra Negra no pódio.** Só em corrida **valendo** (nunca em treino): 1º lugar 60% de chance, 2º 40%, 3º 25%, sorteados pela seed na liquidação do prêmio. É a única fonte de pedra fora da Loja e nunca dá peça.
+**Selo do campeão (só PVP).** Cai **só para o 1º lugar de corrida valendo**, 10% pela seed da sala na liquidação. Nunca
+no treino, no AFK, na loja nem por Gemas. Usos: a subida do rank IV → V de uma skill (1 Selo, além do Ouro e dos
+Pergaminhos de técnica), a reforja garantida e a forja da Lendária (2 Selos). Até 99 na mochila.
 
-**Pareamento e bots (desenho guardado).** Quando o equipamento voltar, ele volta a entrar no Poder e a trava do páreo aberto passa a valer também para as peças. Os bots equipavam conforme a liga (Bronze nada, Prata 2 Comuns, Ouro 5 Comuns +2, Platina 5 Mágicas +3, Diamante 3 Raras +4 do conjunto e 2 Mágicas +3, Lenda 5 Raras +7 do conjunto); hoje não equipam nada.
-
-**Depois (fora do protótipo):** durabilidade e reparo · limite de vagas no inventário · Lendário na loja (hoje só pelo painel `?dev=1`, até as expedições) · peça Mítica · mercado entre jogadores · cosméticos por Gemas · desmanche · expedições e pacotes como fonte de peças · transferência de peças entre contas.
+**Depois (fora do protótipo):** durabilidade e reparo · limite de vagas no inventário · peça Mítica · mercado entre
+jogadores · cosméticos por Gemas · desmanche · transferência de peças entre contas.
 
 ## 8. Redesenho aprovado em 2026-11-10 (blocos 2 a 7: do bloco 4 já entraram os itens de treino e a loja por Ouro, e os ginásios da Expedição estão no jogo; o resto não está implementado)
 
@@ -306,13 +330,48 @@ Gemas também caem de graça, em pouca quantidade, por missões.
   crescente, ração (bônus de XP) e, no futuro, despertar,
   taxa do mercado e inscrição em copas.
 - **Cruza demora de 12 a 24 horas;** a égua fica ocupada.
-- **Circuito ocioso:** cavalos fora da ativa correm treinos sozinhos com o jogo fechado, até 8 horas
-  acumuladas. Rende pouco Ouro, XP e chance de item, mais para cavalos de Poder maior. Sem entrada nem
-  pote. O número de cavalos no circuito depende das vagas do estábulo.
+- **Treino AFK (no jogo desde 2026-11-23; substitui o "circuito ocioso"):** seção 8.3a.
 - **Aluguel:** o cavalo fica no haras da vila por 4, 8 ou 12 horas e volta com Ouro conforme a
   qualidade. Com servidor, o aluguel passa a ser entre jogadores.
-- **Um trabalho por vez:** cada cavalo corre valendo, corre no circuito, fica de aluguel ou cruza.
-- Gema nunca acelera o que paga Ouro (circuito e aluguel).
+- **Um trabalho por vez:** cada cavalo corre valendo, fica de aluguel ou cruza (o treino AFK é à parte: só o cavalo
+  ativo com a sala aberta para de treinar).
+- Gema nunca acelera o que paga Ouro (treino AFK e aluguel).
+
+### 8.3a Treino AFK (implementado em 2026-11-23: vagas, drops, baú, offline, bestiário, forja e equipamento de PVE)
+Spec: `docs/superpowers/specs/2026-11-23-afk-drops-design.md`; regras em `prototype/src/afk.js`; números em
+`GameData.AFK` (`prototype/src/data.js`) e no wiki (seção "Corrida AFK"); medições em `docs/exemplos.md` §5b.
+- **O que é:** os cavalos correm sozinhos, um duelo atrás do outro, contra oponentes de ginásio **já vencidos**, e
+  rendem XP, um pouco de Ouro e drops. O jogador assiste (as corridas são reais, ao vivo) ou coleta depois (offline).
+  O PVP valendo continua sendo o centro: o Ouro do AFK por hora fica abaixo de 25% do do PVP (meta E1).
+- **Caminho:** Expedição → ginásio → na trilha, cada oponente vencido tem "Treinar (AFK)" → oponente, dificuldade,
+  vaga e cavalo. A tela "Treino AFK" (vagas e baú) e o Bestiário também ficam na Expedição.
+- **Fases e dificuldades:** as 15 etapas dos ginásios × Normal, Difícil (oponente 12 níveis acima, prêmio ×2) e
+  Lendária (25 acima, até o nível 45, prêmio ×4). A Difícil libera com 50 vitórias AFK na Normal da mesma etapa; a
+  Lendária, com 50 na Difícil. A corrida é um duelo nas regras do ginásio (vantagem de elemento, largada Nublada, pista
+  da casa, Dado da Sorte), sem cansaço, contra um cavalo da etapa em rodízio fixo. O treino nunca dá insígnia, Rédea,
+  itens da 1ª vitória, prêmio de revanche, Torrão, Estrela, Manual, Cupom nem Pergaminho de técnica.
+- **Vagas:** até 5 (a 1ª grátis; 1.000 · 3.000 · 8.000 · 20.000 de Ouro); um cavalo ocupa no máximo uma. O cavalo
+  ativo para de treinar enquanto a sala do PVP está aberta (a vaga fica guardada) e volta quando ela fecha. Cavalo que
+  sai do estábulo deixa a vaga; o que ele rendeu fica no baú.
+- **Ganho:** na vitória, XP para o cavalo que correu (40 × (1 + 0,15 × etapa) × dificuldade), Ouro (0,3 a 1,2 por
+  vitória × dificuldade: a fração vira Ouro inteiro pela seed) e os drops: material do ginásio sempre, e às vezes
+  material incomum, Pedra Negra, comida (Feno, Cenoura, Maçã: XP para um cavalo; Aveia dourada: +1 h no próximo
+  período fora), peça de equipamento, Pergaminho de reforja e o troféu do oponente. Na derrota, 30% do XP e 25% do
+  material. Os materiais e o incomum de cada ginásio só caem nele. Todo drop sai da seed da corrida.
+- **Baú:** tudo cai num baú único; "Coletar tudo" passa de uma vez (o XP vai para cada cavalo ao coletar). Item acima
+  do teto da mochila (999; troféus e Pergaminho de reforja, 99) se perde, e a tela avisa antes e pede confirmação.
+- **Ao vivo e offline:** com a tela do treino aberta, cada vaga corre de verdade, no tempo do duelo (~75 s; o
+  resultado sai da seed e é gravado antes de aparecer). Fora dela (outra tela, jogo fechado) o jogo usa a **chance
+  medida**: 2.400 duelos simulados aos poucos para aquele cavalo naquela fase, guardados até o cavalo mudar; as
+  corridas do tempo fora (minutos ÷ duração média, até 8 h, 12 h com a Aveia e o bestiário) são decididas pela seed
+  contra essa chance e rolam os mesmos drops. O ganho esperado é o mesmo nos dois modos (meta E3). O relógio é o do
+  aparelho; relógio para trás não rende.
+- **Bestiário:** uma página por ginásio (oponentes com marcos de 10, 100 e 1.000 vitórias, materiais, peças do
+  conjunto e troféus, vistos e obtidos). Bônus da conta, só no AFK: +1% de drop raro por oponente com 100 vitórias,
+  +2% de XP por oponente com 1.000, +2% de chance de troféu por troféu, +1 h de limite offline por página completa.
+- **Bloco B (implementado em 2026-11-23):** o equipamento vale só aqui (principal de corrida e linhas de farm), com a
+  loja de peças, a **Forja**, a reforja e o Selo do campeão: seção 7. Os oponentes da Difícil correm com 5 Mágicas +3
+  e os da Lendária com 5 Raras +5 do conjunto do ginásio.
 
 ### 8.4 Mercado entre jogadores (bloco 7, com servidor)
 Só em Ouro, no modelo do Black Desert: sem troca direta, mercado anônimo, preço dentro de faixa e taxa

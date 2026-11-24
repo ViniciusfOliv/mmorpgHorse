@@ -2571,5 +2571,91 @@ test('portes: cache', function () {
   }, SINT.tabelaDe(SINT.PORTES));
 });
 
+section('câmera da corrida (ajustes 1: centrada no jogador, afasta até o limite)');
+// a tela de arte tem Wa px; o corpo do jogador fica no meio (focinho a CAMERA.nariz px à direita do meio); px de arte de
+// um metro = ppm. Rival à frente: o focinho até Wa − CAMERA.frente; atrás: a cauda (CAMERA.cauda px atrás do focinho) a
+// partir de CAMERA.borda px da esquerda.
+var CAM = FX.CAMERA;
+function telaX(m, p, ppm, Wa) { return (m - FX.camEsquerda(p, ppm, Wa)) * ppm; }
+function cabe(m, p, ppm, Wa) {
+  var x = telaX(m, p, ppm, Wa);
+  return x <= Wa - CAM.frente + 1e-6 && x - CAM.cauda >= CAM.borda - 1e-6;
+}
+test('constantes: perto 12 px/m (o chão de sempre), limite em metros e piso abaixo do que o limite pede', function () {
+  assert.strictEqual(CAM.max, 12);
+  assert.ok(CAM.limite >= 25 && CAM.limite <= 40, 'limite ' + CAM.limite);
+  [224, 240, 270, 288].forEach(function (Wa) { assert.ok(FX.camZoomAlvo([0, CAM.limite], 0, Wa) > CAM.piso, Wa); });
+});
+test('o jogador fica centrado: o meio do corpo no meio da tela, em qualquer escala', function () {
+  [224, 240, 270, 288, 640].forEach(function (Wa) {
+    [12, 8, 5, 3].forEach(function (ppm) {
+      var x = telaX(500, 500, ppm, Wa);
+      assert.ok(Math.abs(x - CAM.nariz - Wa / 2) < 1e-9, Wa + ' ' + ppm + ': focinho em ' + x);
+    });
+  });
+});
+test('grupo junto: perto (12 px/m); sozinho também', function () {
+  assert.strictEqual(FX.camZoomAlvo([300, 301, 299.5], 0, 240), 12);
+  assert.strictEqual(FX.camZoomAlvo([300], 0, 240), 12);
+});
+test('rival à frente ou atrás: afasta só o necessário para ele caber, e mais longe afasta mais', function () {
+  [224, 240, 270, 288].forEach(function (Wa) {
+    var ant = 99;
+    for (var d = 4; d <= CAM.limite; d += 2) {
+      var aF = FX.camZoomAlvo([500, 500 + d], 0, Wa), aT = FX.camZoomAlvo([500, 500 - d], 0, Wa);
+      assert.ok(cabe(500 + d, 500, aF, Wa) && cabe(500 - d, 500, aT, Wa), Wa + ' d=' + d + ': ' + aF + ' / ' + aT);
+      assert.ok(aF <= ant + 1e-9, 'monótono'); ant = aF;
+      // justo: com 5% a mais de px/m ele já não caberia (ou está no teto de 12)
+      assert.ok(aF === CAM.max || !cabe(500 + d, 500, aF * 1.05, Wa), Wa + ' d=' + d + ' folgado à frente');
+      assert.ok(aT === CAM.max || !cabe(500 - d, 500, aT * 1.05, Wa), Wa + ' d=' + d + ' folgado atrás');
+    }
+  });
+});
+test('quem passou do limite não força mais zoom (fica pela seta da borda)', function () {
+  assert.strictEqual(FX.camZoomAlvo([500, 500 + CAM.limite + 0.5], 0, 240), 12);
+  assert.strictEqual(FX.camZoomAlvo([500, 500 - CAM.limite - 3, 503], 0, 240), FX.camZoomAlvo([500, 503], 0, 240));
+});
+test('corrida real (8 raias): em todo quadro, os rivais até o limite cabem na tela e o zoom fica entre o piso e 12', function () {
+  var fr = C1.sim.frames;
+  [224, 240, 270, 288, 640].forEach(function (Wa) {
+    for (var me = 0; me < 8; me += 3) {
+      for (var i = 0; i < fr.length; i += 5) {
+        var pos = fr[i].pos, p = pos[me], z = FX.camZoomAlvo(pos, me, Wa);
+        assert.ok(z >= CAM.piso && z <= CAM.max, 'zoom ' + z);
+        for (var j = 0; j < pos.length; j++) if (Math.abs(pos[j] - p) <= CAM.limite) assert.ok(cabe(pos[j], p, z, Wa), Wa + ' q' + i + ' raia ' + j + ' fora (' + (pos[j] - p).toFixed(1) + ' m, ' + z.toFixed(2) + ' px/m)');
+      }
+    }
+  });
+});
+test('suavização: anda para o alvo sem passar dele; afastar é mais rápido que aproximar; dt 0 não mexe', function () {
+  assert.strictEqual(FX.camSuaviza(12, 4, 0), 12);
+  var f = FX.camSuaviza(12, 4, 1 / 60), a = FX.camSuaviza(4, 12, 1 / 60);
+  assert.ok(f < 12 && f > 4 && a > 4 && a < 12);
+  assert.ok(Math.log(12 / f) > Math.log(a / 4), 'afasta mais rápido: ' + f + ' / ' + a);
+  assert.ok(Math.abs(FX.camSuaviza(12, 4, 10) - 4) < 0.01 && Math.abs(FX.camSuaviza(4, 12, 10) - 12) < 0.01);
+});
+test('suavização chega ao alvo em tempo finito (sem ficar 2 px aquém para sempre): 12 -> 4 e 4 -> 12 em até 2,5 s', function () {
+  [[12, 4], [4, 12], [12, 2.8], [6, 5.5]].forEach(function (c) {
+    var z = c[0], t = 0;
+    while (z !== c[1] && t < 5) { z = FX.camSuaviza(z, c[1], 1 / 60); t += 1 / 60; }
+    assert.ok(z === c[1] && t <= 2.5, c.join('->') + ': ' + z + ' em ' + t.toFixed(2) + ' s');
+  });
+});
+test('a caixa do cavalo (molde robusto: 62 px do rabo ao focinho, 2 px à frente dele) cabe nas margens da câmera', function () {
+  assert.ok(CAM.cauda >= 62 && CAM.frente >= 3, 'cauda ' + CAM.cauda + ', frente ' + CAM.frente);
+});
+test('sem saltos: na corrida real a 60 quadros/s a escala muda no máximo 8% de um quadro para o outro', function () {
+  var fr = C1.sim.frames, dtSim = C1.sim.dt;
+  for (var me = 0; me < 8; me++) {
+    var z = FX.camZoomAlvo(fr[0].pos, me, 240), pior = 0;
+    for (var t = 0; t < C1.sim.finishTimes[me]; t += 1 / 60) {
+      var k = Math.min(fr.length - 1, Math.round(t / dtSim));
+      var n = FX.camSuaviza(z, FX.camZoomAlvo(fr[k].pos, me, 240), 1 / 60);
+      pior = Math.max(pior, Math.abs(Math.log(n / z))); z = n;
+    }
+    assert.ok(pior <= Math.log(1.08), 'raia ' + me + ': ' + Math.exp(pior).toFixed(3));
+  }
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

@@ -2829,8 +2829,8 @@ test('cada peça do catálogo passa na validação contra o game.css', () => {
   for (const n of ['rebite', 'prego', 'veio', 'ajuda', 'ajuda-ativa']) assert.ok(IA.PECAS.some(p => p.nome === n), n);
 });
 test('os ícones de item (spec de itens §13; o Pergaminho de técnica desde 2026-11-19): uma peça item-<id> de 16x16 por item do catálogo, com contorno', () => {
-  const ITENS = createRequire(import.meta.url)('../src/data.js').ITEMS;
-  const ids = Object.keys(ITENS);
+  // os itens de uso; os do AFK (com `grupo`) têm os ícones deles (tarefa A7 do plano do AFK)
+  const ids = createRequire(import.meta.url)('../src/data.js').ITENS_USO;
   assert.deepStrictEqual(ids, ['torrao', 'estrela', 'redea', 'cupom', 'manual', 'pergaminho']);
   const desenhos = new Set();
   for (const id of ids) {
@@ -2842,6 +2842,31 @@ test('os ícones de item (spec de itens §13; o Pergaminho de técnica desde 202
     desenhos.add(p.mapa.join('/'));
   }
   assert.strictEqual(desenhos.size, ids.length, 'dois ícones de item com o mesmo desenho');
+});
+
+test('os ícones dos itens do AFK: uma peça 16x16 com contorno por item (os troféus, a taça do ginásio), e o baú', () => {
+  const G = createRequire(import.meta.url)('../src/data.js');
+  const ids = Object.keys(G.ITEMS).filter(id => G.ITEMS[id].grupo);
+  assert.strictEqual(ids.length, 30);
+  const nomeDe = id => 'item-' + (G.ITEMS[id].grupo === 'trofeu' ? 'trofeu-' + G.ITEMS[id].gymId : id);
+  const desenhos = new Set(), css = fs.readFileSync(new URL('../src/game.css', import.meta.url), 'utf8');
+  for (const id of ids.concat(['bau'])) {
+    const nome = id === 'bau' ? 'item-bau' : nomeDe(id), p = IA.PECAS.find(x => x.nome === nome);
+    assert.ok(p, 'falta a peça ' + nome);
+    assert.strictEqual(p.mapa.length, 16, nome); p.mapa.forEach(l => assert.strictEqual(l.length, 16, nome));
+    assert.ok(Object.values(p.legenda).includes('--sombra'), nome + ': sem o contorno --sombra');
+    assert.ok(Object.keys(p.legenda).length >= 3, nome + ': menos de 3 cores');
+    assert.ok(css.includes('.item-icone--' + nome.slice(5) + ' { background-image: var(--arte-' + nome + '); }'), nome + ': sem a classe no game.css');
+    // contorno fechado: todo pixel pintado na borda do quadro, ou vizinho de um transparente, é --sombra
+    const k = Object.keys(p.legenda).find(c => p.legenda[c] === '--sombra');
+    p.mapa.forEach((l, y) => [...l].forEach((c, x) => {
+      if (c === '.' || c === k) return;
+      const viz = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].some(([a, b]) => a < 0 || b < 0 || a > 15 || b > 15 || p.mapa[b][a] === '.');
+      assert.ok(!viz, `${nome}: pixel (${x}, ${y}) de cor encosta no vazio sem contorno`);
+    }));
+    desenhos.add(p.mapa.join('/') + JSON.stringify(p.legenda));
+  }
+  assert.strictEqual(desenhos.size, 15 + 3 + 1, 'cada item tem o seu desenho; os 15 troféus, 3 taças');
 });
 test('ida e volta do PNG: cada pixel tem a cor do token (alfa 255) ou alfa 0', () => {
   for (const p of IA.PECAS) {

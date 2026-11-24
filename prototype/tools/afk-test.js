@@ -1,0 +1,941 @@
+// prototype/tools/afk-test.js — node prototype/tools/afk-test.js
+// Testes das regras do AFK (prototype/src/afk.js) e, no bloco B, da forja (prototype/src/forja.js).
+'use strict';
+var assert = require('assert');
+var fs = require('fs'), path = require('path');
+var G = require('../src/data.js');
+var S = require('../src/sim.js');
+var GY = require('../src/ginasio.js');
+var A; try { A = require('../src/afk.js'); } catch (e) { A = {}; console.log('  (afk.js não carregou: ' + e.message + ')'); }
+var fails = 0, count = 0;
+function section(t) { console.log('\n## ' + t); }
+function test(name, fn) {
+  count++;
+  try { fn(); console.log('  ok  ' + name); }
+  catch (e) { fails++; console.log('  FALHA ' + name + '\n       ' + (e.message || e)); }
+}
+function congela(x) { if (x && typeof x === 'object') { Object.keys(x).forEach(function (k) { congela(x[k]); }); Object.freeze(x); } return x; }
+function progCom(etapas) { var o = {}; G.GYM_ORDER.forEach(function (id) { o[id] = { etapa: etapas[id] || 0, revDia: null, revVitorias: 0 }; }); return o; }
+function cav(base, level, grau) { var h = GY.cavalo({ base: base, level: level, grau: grau || 2 }); h.uid = 'c-' + base + '-' + level; return h; }
+
+section('fases, dificuldades e vagas');
+test('GameData.AFK: três dificuldades, liberação em 50 vitórias, preço das 5 vagas, limites do offline e amostra de 2.400', function () {
+  var K = G.AFK;
+  assert.deepStrictEqual(K.difs.map(function (d) { return d.id; }), ['normal', 'dificil', 'lendaria']);
+  assert.deepStrictEqual(K.difs.map(function (d) { return d.mult; }), [1, 2, 4]);
+  assert.deepStrictEqual(K.difs.map(function (d) { return d.nivel; }), [0, 12, 25]);
+  assert.deepStrictEqual(K.difs.map(function (d) { return d.rank; }), [null, 3, 5]);
+  assert.strictEqual(K.difs[2].nivelMax, 45);
+  assert.deepStrictEqual(K.difs[1].pecas, { rar: 'magico', plus: 3 });
+  assert.deepStrictEqual(K.difs[2].pecas, { rar: 'raro', plus: 5, doConjunto: true });
+  assert.strictEqual(K.liberaApos, 50);
+  assert.deepStrictEqual(K.vagaPreco, [0, 1000, 3000, 8000, 20000]);
+  assert.strictEqual(K.offlineMin, 480); assert.strictEqual(K.offlineTetoMin, 720); assert.strictEqual(K.amostra, 2400);
+});
+test('faseId e fase: ida e volta nas 45 fases; id estragado devolve null', function () {
+  var n = 0;
+  G.GYM_ORDER.forEach(function (g) {
+    for (var e = 0; e < 5; e++) G.AFK.difs.forEach(function (d) {
+      var id = A.faseId(g, e, d.id), f = A.fase(id);
+      assert.strictEqual(id, g + ':' + e + ':' + d.id);
+      assert.strictEqual(f.gymId, g); assert.strictEqual(f.etapa, e); assert.strictEqual(f.dif, d.id); assert.strictEqual(f.mult, d.mult);
+      n++;
+    });
+  });
+  assert.strictEqual(n, 45); assert.strictEqual(A.fases().length, 45);
+  [null, undefined, 5, '', 'fogo', 'fogo:1', 'lava:1:normal', 'fogo:5:normal', 'fogo:-1:normal', 'fogo:1.5:normal', 'fogo:01:normal', 'fogo:1:facil',
+    'constructor:1:normal', 'fogo:1:normal:x', 'fogo:1:constructor'].forEach(function (x) { assert.strictEqual(A.fase(x), null, String(x)); });
+  assert.strictEqual(A.faseId('lava', 1, 'normal'), null); assert.strictEqual(A.faseId('fogo', 7, 'normal'), null); assert.strictEqual(A.faseId('fogo', 1, 'x'), null);
+});
+test('Normal usa o nível e o rank da etapa; Difícil etapa + 12 e rank 3', function () {
+  var f = A.fase('agua:3:normal');
+  assert.strictEqual(f.nivel, 16); assert.strictEqual(f.rank, 2); assert.strictEqual(f.pecas, null);
+  assert.strictEqual(A.fase('agua:0:normal').nivel, 4); assert.strictEqual(A.fase('agua:0:normal').rank, 1);
+  var d = A.fase('agua:3:dificil');
+  assert.strictEqual(d.nivel, 28); assert.strictEqual(d.rank, 3); assert.deepStrictEqual(d.pecas, { rar: 'magico', plus: 3 });
+});
+test('Lendária do líder tem nível 45 e rank 5', function () {
+  var f = A.fase('fogo:4:lendaria');
+  assert.strictEqual(f.nivel, 45); assert.strictEqual(f.rank, 5); assert.strictEqual(f.mult, 4);
+});
+test('Lendária do Soldado 1 tem nível 29', function () { assert.strictEqual(A.fase('grama:0:lendaria').nivel, 29); });
+test('nenhuma fase passa do nível 45 nem do nível máximo do jogo', function () {
+  A.fases().forEach(function (id) { var f = A.fase(id); assert.ok(f.nivel >= 4 && f.nivel <= 45 && f.nivel <= G.ECONOMY.maxLevel, id + ' ' + f.nivel); });
+});
+test('etapa não vencida no ginásio não libera', function () {
+  assert.deepStrictEqual(A.liberadas(progCom({}), {}), []);
+  assert.deepStrictEqual(A.liberadas(progCom({ fogo: 2 }), {}), ['fogo:0:normal', 'fogo:1:normal']);
+  assert.deepStrictEqual(A.liberadas(progCom({ fogo: 5, grama: 1 }), {}), ['fogo:0:normal', 'fogo:1:normal', 'fogo:2:normal', 'fogo:3:normal', 'fogo:4:normal', 'grama:0:normal']);
+  // vitórias AFK numa etapa não vencida no ginásio não liberam nada
+  assert.deepStrictEqual(A.liberadas(progCom({}), { 'fogo:0:normal': 99, 'fogo:0:dificil': 99 }), []);
+  assert.deepStrictEqual(A.liberadas(null, null), []); assert.deepStrictEqual(A.liberadas('x', 7), []);
+});
+test('Difícil só com 50 vitórias na Normal; Lendária só com 50 na Difícil', function () {
+  var p = progCom({ agua: 1 });
+  assert.deepStrictEqual(A.liberadas(p, { 'agua:0:normal': 49 }), ['agua:0:normal']);
+  assert.deepStrictEqual(A.liberadas(p, { 'agua:0:normal': 50 }), ['agua:0:normal', 'agua:0:dificil']);
+  assert.deepStrictEqual(A.liberadas(p, { 'agua:0:normal': 50, 'agua:0:dificil': 49 }), ['agua:0:normal', 'agua:0:dificil']);
+  assert.deepStrictEqual(A.liberadas(p, { 'agua:0:normal': 50, 'agua:0:dificil': 50 }), ['agua:0:normal', 'agua:0:dificil', 'agua:0:lendaria']);
+  // 50 na Difícil sem as 50 da Normal (save estragado): a Lendária não libera sozinha
+  assert.deepStrictEqual(A.liberadas(p, { 'agua:0:normal': 3, 'agua:0:dificil': 80 }), ['agua:0:normal']);
+  assert.deepStrictEqual(A.liberadas(p, { 'agua:0:normal': '50' }), ['agua:0:normal'], 'texto não conta');
+  assert.strictEqual(A.liberada('agua:0:dificil', p, { 'agua:0:normal': 50 }), true);
+  assert.strictEqual(A.liberada('agua:1:normal', p, {}), false); assert.strictEqual(A.liberada('lixo', p, {}), false);
+});
+test('oponente: o cavalo da etapa no nível e no rank da dificuldade, com as estrelas da etapa', function () {
+  var o = A.oponente('agua:4:lendaria', 1), def = G.GYMS.agua.etapas[4].cavalos[1];
+  assert.deepStrictEqual(o, GY.cavalo({ base: def.base, level: 45, grau: def.grau, rank: 5 }));
+  assert.strictEqual(o.level, 45); assert.strictEqual(o.grau, 3); assert.strictEqual(o.element, 'agua');
+  assert.deepStrictEqual(A.oponente('fogo:0:normal', 0), GY.cavalo(G.GYMS.fogo.etapas[0].cavalos[0]));
+  assert.strictEqual(A.oponente('lixo', 0), null); assert.strictEqual(A.oponente('fogo:0:normal', -1), null); assert.strictEqual(A.oponente('fogo:0:normal', 1.5), null);
+});
+test('rodízio do Soldado 3 alterna os 2 cavalos; o do líder roda os 3', function () {
+  assert.deepStrictEqual([0, 1, 2, 3, 4].map(function (n) { return A.oponenteIdx('fogo:2:normal', n); }), [0, 1, 0, 1, 0]);
+  assert.deepStrictEqual([0, 1, 2, 3, 4, 5].map(function (n) { return A.oponenteIdx('agua:4:dificil', n); }), [0, 1, 2, 0, 1, 2]);
+  assert.deepStrictEqual([0, 1, 2].map(function (n) { return A.oponenteIdx('grama:0:normal', n); }), [0, 0, 0]);
+  // no Remanso, o Soldado 4 tem um cavalo de 2 e um de 3 estrelas: o rodízio alterna de verdade
+  assert.strictEqual(A.oponente('agua:3:normal', 0).grau, 2); assert.strictEqual(A.oponente('agua:3:normal', 1).grau, 3); assert.strictEqual(A.oponente('agua:3:normal', 2).grau, 2);
+});
+test('vaga 2 custa 1000 e respeita o ouroLivre', function () {
+  assert.deepStrictEqual(A.podeComprarVaga(1, 1000), { ok: true, preco: 1000 });
+  assert.deepStrictEqual(A.podeComprarVaga(1, 999), { ok: false, motivo: 'Falta Ouro (precisa de 1.000)', preco: 1000 });
+  assert.deepStrictEqual(A.podeComprarVaga(0, 0), { ok: true, preco: 0 });
+  assert.deepStrictEqual(A.podeComprarVaga(4, 20000), { ok: true, preco: 20000 });
+  assert.strictEqual(A.podeComprarVaga(2, NaN).ok, false); assert.strictEqual(A.podeComprarVaga(2, '9999').ok, false);
+  assert.strictEqual(A.podeComprarVaga(1.5, 99999).ok, false); assert.strictEqual(A.podeComprarVaga(-1, 99999).ok, false);
+});
+test('6ª vaga: motivo "Máximo de 5 vagas"', function () {
+  assert.deepStrictEqual(A.podeComprarVaga(5, 999999), { ok: false, motivo: 'Máximo de 5 vagas' });
+  assert.deepStrictEqual(A.podeComprarVaga(9, 999999), { ok: false, motivo: 'Máximo de 5 vagas' });
+});
+
+section('corrida AFK e drops');
+var GR = require('../src/gear.js');
+var BONUS0 = { material: 0, xp: 0, raro: 0, trofeu: 0, ouro: 0 };
+var PROIBIDOS = ['torrao', 'estrela', 'redea', 'manual', 'cupom', 'pergaminho', 'selo'];
+// n prêmios de vitória (ou derrota) da fase, com seeds de corrida seguidas: conta quantas vezes cada coisa caiu
+function amostra(faseId, n, bonus, venceu) {
+  var c = { incomum: 0, pedra: 0, peca: 0, trofeu: 0, comida: 0, reforja: 0, material: 0, ouro: 0, xp: 0, ids: {}, pecas: [] }, f = A.fase(faseId), M = G.AFK.materiais[f.gymId];
+  for (var i = 0; i < n; i++) {
+    var p = A.premio(faseId, venceu !== false, S.hash2(0xABCDE, i), bonus || BONUS0);
+    Object.keys(p.itens).forEach(function (id) { c.ids[id] = (c.ids[id] || 0) + p.itens[id]; });
+    if (p.itens[M.incomum]) c.incomum++;
+    if (p.pedras) c.pedra++;
+    if (p.pecas.length) { c.peca++; c.pecas.push(p.pecas[0]); }
+    if (p.itens['trofeu-' + f.gymId + '-' + f.etapa]) c.trofeu++;
+    if (['feno', 'cenoura', 'maca', 'aveia-dourada'].some(function (id) { return p.itens[id]; })) c.comida++;
+    if (p.itens['pergaminho-reforja']) c.reforja++;
+    c.material += (p.itens[M.comuns[0]] || 0) + (p.itens[M.comuns[1]] || 0); c.ouro += p.ouro; c.xp += p.xp;
+  }
+  return c;
+}
+function perto(v, alvo, tol, msg) { assert.ok(Math.abs(v - alvo) <= tol, msg + ': ' + v.toFixed(4) + ' (esperado ' + alvo + ' ± ' + tol + ')'); }
+test('itens novos do AFK no catálogo: 6 materiais, 3 incomuns, 4 comidas, 15 troféus e o Pergaminho de reforja, sem preço', function () {
+  var I = G.ITEMS, por = {};
+  Object.keys(I).forEach(function (id) { if (I[id].grupo) (por[I[id].grupo] = por[I[id].grupo] || []).push(id); });
+  assert.deepStrictEqual(por.material, ['carvao', 'ferro-bruto', 'junco', 'concha', 'fibra', 'resina']);
+  assert.deepStrictEqual(por.incomum, ['brasa-viva', 'perola-de-rio', 'seiva-antiga']);
+  assert.deepStrictEqual(por.comida, ['feno', 'cenoura', 'maca', 'aveia-dourada']);
+  assert.deepStrictEqual(por.reforja, ['pergaminho-reforja']);
+  assert.strictEqual(por.trofeu.length, 15);
+  G.GYM_ORDER.forEach(function (g) {
+    for (var e = 0; e < 5; e++) {
+      var t = I['trofeu-' + g + '-' + e];
+      assert.ok(t && t.cap === 99 && t.gymId === g && t.etapa === e, 'troféu ' + g + ' ' + e);
+      assert.ok(t.name.indexOf(G.GYMS[g].etapas[e].nome) > 0, t.name + ' leva o nome do oponente');
+    }
+    var M = G.AFK.materiais[g];
+    M.comuns.concat([M.incomum]).forEach(function (id) { assert.strictEqual(I[id].gymId, g, id); });
+    assert.ok(G.GEAR_SETS[M.conjunto], g + ': conjunto');
+  });
+  assert.deepStrictEqual(G.GYM_ORDER.map(function (g) { return G.AFK.materiais[g].conjunto; }), ['sol', 'chuva', 'nevoa']);
+  por.material.concat(por.incomum, por.comida).forEach(function (id) { assert.strictEqual(I[id].cap, 999, id); });
+  assert.strictEqual(I['pergaminho-reforja'].cap, 99);
+  Object.keys(por).forEach(function (g) { por[g].forEach(function (id) {
+    var it = I[id];
+    assert.ok(it.price == null && !it.perDay, id + ' fora da loja');
+    assert.ok(it.id === id && it.name && it.plural && it.desc && it.origem, id + ' com os textos');
+    assert.ok(G.SHOP_ORDER.indexOf(id) < 0, id + ' fora da ordem da loja');
+  }); });
+  assert.strictEqual(I.feno.xp, 200); assert.strictEqual(I.cenoura.xp, 500); assert.strictEqual(I.maca.xp, 1200); assert.strictEqual(I['aveia-dourada'].aveiaMin, 60);
+});
+test('XP e Ouro por vitória: round(40 × (1 + 0,15 × etapa) × mult) e, em média, ouro[etapa] × mult (a fração sai pela seed); derrota 30% do XP e nada de Ouro', function () {
+  assert.deepStrictEqual(G.AFK.ouro, [0.3, 0.45, 0.6, 0.75, 1.2]);
+  [['fogo:0:normal', 40], ['fogo:2:normal', 52], ['agua:4:normal', 64], ['agua:4:dificil', 128], ['grama:4:lendaria', 256], ['grama:1:lendaria', 184]].forEach(function (c) {
+    var f = A.fase(c[0]), alvo = G.AFK.ouro[f.etapa] * f.mult, soma = 0, n = 20000;
+    for (var i = 0; i < n; i++) {
+      var v = A.premio(c[0], true, S.hash2(77, i), BONUS0);
+      assert.strictEqual(v.xp, c[1], c[0] + ' xp');
+      assert.ok(v.ouro === Math.floor(alvo + 1e-9) || v.ouro === Math.floor(alvo + 1e-9) + 1, c[0] + ' ouro ' + v.ouro);
+      soma += v.ouro;
+    }
+    perto(soma / n, alvo, 0.02, c[0] + ' Ouro médio');
+    var d = A.premio(c[0], false, 77, BONUS0);
+    assert.strictEqual(d.xp, Math.round(c[1] * 0.3), c[0] + ' xp da derrota'); assert.strictEqual(d.ouro, 0);
+  });
+});
+test('mesma seed e contador dão o mesmo resultado e os mesmos drops (E5); contador seguinte dá outra corrida', function () {
+  var h = congela(cav('mare', 12));
+  var a = A.correr(h, 'fogo:2:normal', 4242, 7, BONUS0, { vaga: 1 }), b = A.correr(h, 'fogo:2:normal', 4242, 7, BONUS0, { vaga: 1 });
+  assert.deepStrictEqual(a, b);
+  assert.strictEqual(a.cfg.seed, A.seedCorrida(4242, 1, 7));
+  assert.strictEqual(a.oponenteIdx, 1, 'rodízio pelo contador'); assert.deepStrictEqual(a.cfg.racers[1].horse, A.oponente('fogo:2:normal', 7));
+  assert.strictEqual(a.venceu, S.simulate(a.cfg).finishOrder[0] === 0, 'a config reproduz a corrida');
+  assert.strictEqual(a.metros, GY.metros(S.simulate(a.cfg)));
+  assert.ok(a.duracaoS > 40 && a.duracaoS < 120, 'duração de um duelo: ' + a.duracaoS);
+  assert.strictEqual(a.cfg.conditions.weather, 'nublado'); assert.deepStrictEqual(a.cfg.conditions.blocks, G.GYMS.fogo.pista.blocks);
+  assert.strictEqual(a.cfg.racers[0].statMul, 1 + G.GYM.vantagem, 'vantagem de elemento como no ginásio'); assert.strictEqual(a.cfg.racers[0].folego, 1, 'sem cansaço');
+  assert.strictEqual(a.cfg.recordFrames, false); assert.strictEqual(a.res, undefined, 'sem quadros, sem res');
+  var vivo = A.correr(h, 'fogo:2:normal', 4242, 7, BONUS0, { vaga: 1, recordFrames: true });
+  assert.ok(vivo.res && vivo.res.frames.length > 100, 'com quadros para a tela animar'); assert.strictEqual(vivo.venceu, a.venceu); assert.deepStrictEqual(vivo.itens, a.itens);
+  var dif = 0, seeds = new Set();
+  for (var c = 0; c < 12; c++) { var r = A.correr(h, 'fogo:2:normal', 4242, c, BONUS0, { vaga: 1 }); seeds.add(r.cfg.seed); if (r.metros !== a.metros || r.venceu !== a.venceu) dif++; }
+  assert.strictEqual(seeds.size, 12); assert.ok(dif >= 9, 'contadores diferentes dão corridas diferentes');
+  assert.notStrictEqual(A.seedCorrida(4242, 0, 7), A.seedCorrida(4242, 1, 7), 'cada vaga tem a sua seed');
+  var todas = new Set(); for (var v = 0; v < 5; v++) for (var k = 0; k < 2000; k++) todas.add(A.seedCorrida(99, v, k));
+  assert.strictEqual(todas.size, 10000, 'cada (vaga, contador) tem a sua seed');
+  [[null, 'fogo:0:normal', 1, 0], [h, 'lixo', 1, 0], [h, 'fogo:0:normal', NaN, 0], [h, 'fogo:0:normal', 1, -1], [h, 'fogo:0:normal', 1, 1.5]].forEach(function (x, i) {
+    assert.strictEqual(A.correr(x[0], x[1], x[2], x[3], BONUS0), null, 'malformada ' + i);
+  });
+  assert.strictEqual(A.correr(h, 'fogo:0:normal', 1, 0, BONUS0, { vaga: 5 }), null); assert.strictEqual(A.correr(h, 'fogo:0:normal', 1, 0, BONUS0, { vaga: -1 }), null);
+});
+test('nenhum Math.random, Date.now nem new Date durante correr e premio', function () {
+  var mr = Math.random, dn = Date.now, DataOrig = global.Date, usou = false;
+  Math.random = function () { usou = true; return mr.apply(Math, arguments); };
+  Date.now = function () { usou = true; return dn.apply(DataOrig, arguments); };
+  function Detector() { usou = true; return new (Function.prototype.bind.apply(DataOrig, [null].concat([].slice.call(arguments))))(); }
+  Detector.now = Date.now; Detector.UTC = DataOrig.UTC; Detector.parse = DataOrig.parse; Detector.prototype = DataOrig.prototype;
+  global.Date = Detector;
+  try {
+    var h = cav('ipe', 30);
+    ['fogo:0:normal', 'agua:4:dificil', 'grama:4:lendaria'].forEach(function (f) {
+      for (var c = 0; c < 6; c++) A.correr(h, f, 31337, c, { material: 0.2, xp: 0.1, raro: 0.3, trofeu: 0.5, ouro: 0.1 }, { vaga: c % 5 });
+      for (var k = 0; k < 3000; k++) { A.premio(f, true, k, BONUS0); A.premio(f, false, k, BONUS0); }
+    });
+  } finally { Math.random = mr; DataOrig.now = dn; global.Date = DataOrig; }
+  assert.strictEqual(usou, false);
+});
+test('em 20.000 vitórias na Normal: incomum 15% ±1, Pedra 6% ±0,7, peça 2% ±0,4, troféu 0,5% ±0,2, comida 8% ±0,8, reforja 1,5% ±0,35', function () {
+  var n = 20000, c = amostra('fogo:1:normal', n);
+  perto(c.incomum / n, 0.15, 0.01, 'incomum'); perto(c.pedra / n, 0.06, 0.007, 'Pedra'); perto(c.peca / n, 0.02, 0.004, 'peça');
+  perto(c.trofeu / n, 0.005, 0.002, 'troféu'); perto(c.comida / n, 0.08, 0.008, 'comida'); perto(c.reforja / n, 0.015, 0.0035, 'reforja');
+  // material: 100%, 1 a 3 (média 2), metade de cada tipo
+  perto(c.material / n, 2, 0.03, 'material por vitória');
+  perto(c.ids.carvao / c.material, 0.5, 0.01, 'metade Carvão');
+  // comida: Feno 60%, Cenoura 25%, Maçã 12%, Aveia 3% do que cai
+  var tot = (c.ids.feno || 0) + (c.ids.cenoura || 0) + (c.ids.maca || 0) + (c.ids['aveia-dourada'] || 0);
+  perto(c.ids.feno / tot, 0.60, 0.04, 'Feno'); perto(c.ids.cenoura / tot, 0.25, 0.04, 'Cenoura'); perto(c.ids.maca / tot, 0.12, 0.03, 'Maçã'); perto((c.ids['aveia-dourada'] || 0) / tot, 0.03, 0.02, 'Aveia');
+  // na Normal a peça é solta: Comum ou Mágica, nunca de conjunto
+  c.pecas.forEach(function (p) { var d = G.GEAR[p.id]; assert.ok(d && !d.set && (d.rarity === 'comum' || d.rarity === 'magico'), p.id); assert.strictEqual(p.linhas.length, d.rarity === 'magico' ? 1 : 0); });
+  var slots = {}, rar = {}; c.pecas.forEach(function (p) { slots[G.GEAR[p.id].slot] = 1; rar[G.GEAR[p.id].rarity] = 1; });
+  assert.strictEqual(Object.keys(slots).length, 5, 'os 5 slots caem'); assert.strictEqual(Object.keys(rar).length, 2, 'Comum e Mágica caem');
+});
+test('Lendária: troféu 2% e incomum com teto 60%; Pedra 24%, comida 32%, reforja 6%, material × 4; peça Rara 2% e Lendária 0,2% do conjunto do ginásio', function () {
+  var n = 30000, c = amostra('agua:3:lendaria', n);
+  perto(c.trofeu / n, 0.02, 0.003, 'troféu'); perto(c.incomum / n, 0.60, 0.012, 'incomum (teto)'); perto(c.pedra / n, 0.24, 0.01, 'Pedra');
+  perto(c.comida / n, 0.32, 0.01, 'comida'); perto(c.reforja / n, 0.06, 0.005, 'reforja'); perto(c.material / n, 8, 0.1, 'material');
+  var raras = c.pecas.filter(function (p) { return G.GEAR[p.id].rarity === 'raro'; }), lend = c.pecas.filter(function (p) { return G.GEAR[p.id].rarity === 'lendario'; });
+  assert.strictEqual(raras.length + lend.length, c.pecas.length, 'na Lendária só cai Rara ou Lendária');
+  perto(raras.length / n, 0.02, 0.003, 'Rara'); perto(lend.length / n, 0.002, 0.0012, 'Lendária');
+  c.pecas.forEach(function (p) { assert.strictEqual(G.GEAR[p.id].set, 'chuva', 'Remanso → Chuva: ' + p.id); });
+  lend.forEach(function (p) { assert.strictEqual(p.linhas.length, 3); });
+  // Difícil: Rara 1%, nunca Lendária; incomum 30%, troféu 1%
+  var d = amostra('grama:0:dificil', n);
+  perto(d.peca / n, 0.01, 0.002, 'Rara na Difícil'); d.pecas.forEach(function (p) { assert.strictEqual(G.GEAR[p.id].rarity, 'raro'); assert.strictEqual(G.GEAR[p.id].set, 'nevoa'); });
+  perto(d.incomum / n, 0.30, 0.01, 'incomum na Difícil'); perto(d.trofeu / n, 0.01, 0.002, 'troféu na Difícil');
+});
+test('derrota não rola raros: só 30% do XP e 25% do material (para baixo), sem Ouro', function () {
+  ['fogo:1:normal', 'fogo:1:dificil', 'fogo:1:lendaria'].forEach(function (f) {
+    var M = G.AFK.materiais.fogo, mult = A.fase(f).mult, soma = 0, n = 6000;
+    for (var i = 0; i < n; i++) {
+      var p = A.premio(f, false, S.hash2(55, i), { material: 0.5, xp: 0, raro: 1, trofeu: 1, ouro: 1 });
+      Object.keys(p.itens).forEach(function (id) { assert.ok(M.comuns.indexOf(id) >= 0, f + ': só material comum, veio ' + id); });
+      assert.strictEqual(p.pedras, 0); assert.strictEqual(p.pecas.length, 0); assert.strictEqual(p.ouro, 0);
+      var q = (p.itens.carvao || 0) + (p.itens['ferro-bruto'] || 0);
+      assert.ok(q <= Math.floor(3 * mult * 0.25), f + ' material ' + q); soma += q;
+    }
+    // 1 a 3 × mult × 25%, para baixo: Normal sempre 0; Difícil 0, 1, 1 (média 2/3); Lendária 1, 2, 3 (média 2)
+    perto(soma / n, mult === 1 ? 0 : mult === 2 ? 2 / 3 : 2, 0.05, f + ' material médio na derrota');
+  });
+});
+test('bonus.trofeu 0,3 leva o troféu da Normal a 0,65%; bonus.raro multiplica incomum, Pedra, peça e comida; material, XP e Ouro sobem pelo bônus', function () {
+  var n = 200000, c = amostra('agua:2:normal', n, { material: 0.25, xp: 0.10, raro: 0.5, trofeu: 0.3, ouro: 0.5 });
+  perto(c.trofeu / n, 0.0065, 0.0006, 'troféu'); perto(c.incomum / n, 0.225, 0.004, 'incomum'); perto(c.pedra / n, 0.09, 0.003, 'Pedra');
+  perto(c.peca / n, 0.03, 0.0015, 'peça'); perto(c.comida / n, 0.12, 0.003, 'comida'); perto(c.reforja / n, 0.015, 0.001, 'reforja (não é drop raro)');
+  perto(c.material / n, 2.5, 0.02, 'material'); perto(c.ouro / n, 0.9, 0.01, 'Ouro (0,6 × 1,5)'); assert.strictEqual(c.xp / n, Math.round(52 * 1.1));
+  // bônus estragado vale 0
+  assert.deepStrictEqual(A.premio('agua:2:normal', true, 9, null), A.premio('agua:2:normal', true, 9, BONUS0));
+  assert.deepStrictEqual(A.premio('agua:2:normal', true, 9, { material: 'x', xp: -1, raro: NaN, trofeu: Infinity, ouro: {} }), A.premio('agua:2:normal', true, 9, BONUS0));
+});
+test('correr e premio nunca devolvem torrao, estrela, redea, manual, cupom, pergaminho nem selo; todo id é do catálogo e do AFK', function () {
+  A.fases().forEach(function (f) {
+    for (var i = 0; i < 1500; i++) {
+      var p = A.premio(f, i % 4 !== 0, S.hash2(7, i), { material: 0.3, xp: 0.3, raro: 0.3, trofeu: 0.3, ouro: 0.3 });
+      Object.keys(p.itens).forEach(function (id) {
+        assert.ok(PROIBIDOS.indexOf(id) < 0, f + ' deu ' + id);
+        assert.ok(G.ITEMS[id] && G.ITEMS[id].grupo && p.itens[id] > 0 && p.itens[id] === Math.floor(p.itens[id]), f + ' item ' + id + ' ' + p.itens[id]);
+      });
+      assert.deepStrictEqual(Object.keys(p).sort(), ['itens', 'ouro', 'pecas', 'pedras', 'xp']);
+    }
+  });
+});
+test('peça Rara que cai tem 2 linhas de tipos diferentes, dentro das faixas; Mágica 1, Lendária 3, Comum 0', function () {
+  var F = G.ECONOMY.gear.faixas, vistos = {};
+  assert.deepStrictEqual(G.ECONOMY.gear.linhas, { comum: 0, magico: 1, raro: 2, lendario: 3 });
+  assert.deepStrictEqual(Object.keys(F), ['material', 'xp', 'raro', 'trofeu', 'ouro']);
+  assert.deepStrictEqual(F.material, { magico: [3, 6], raro: [6, 10], lendario: [10, 15] }); assert.deepStrictEqual(F.xp, F.material);
+  assert.deepStrictEqual(F.raro, { magico: [2, 5], raro: [5, 8], lendario: [8, 12] });
+  assert.deepStrictEqual(F.trofeu, { magico: [6, 12], raro: [12, 20], lendario: [20, 30] });
+  assert.deepStrictEqual(F.ouro, { magico: [2, 4], raro: [4, 6], lendario: [6, 10] });
+  ['comum', 'magico', 'raro', 'lendario'].forEach(function (rar) {
+    for (var i = 0; i < 3000; i++) {
+      var ls = GR.sortearLinhas(rar, S.mulberry32(S.hash2(3, i)));
+      assert.strictEqual(ls.length, G.ECONOMY.gear.linhas[rar]);
+      var tipos = {};
+      ls.forEach(function (l) {
+        assert.ok(!tipos[l.tipo], 'tipo repetido'); tipos[l.tipo] = 1;
+        var fx = F[l.tipo][rar];
+        assert.ok(l.valor === Math.floor(l.valor) && l.valor >= fx[0] && l.valor <= fx[1], rar + ' ' + l.tipo + ' ' + l.valor);
+        vistos[rar + l.tipo + l.valor] = 1;
+      });
+    }
+  });
+  // cada tipo e cada valor da faixa aparece (sorteio uniforme em passos de 1 ponto)
+  Object.keys(F).forEach(function (t) { ['magico', 'raro', 'lendario'].forEach(function (rar) { for (var v = F[t][rar][0]; v <= F[t][rar][1]; v++) assert.ok(vistos[rar + t + v], rar + ' ' + t + ' ' + v + ' nunca saiu'); }); });
+  assert.deepStrictEqual(GR.sortearLinhas('raro', S.mulberry32(9)), GR.sortearLinhas('raro', S.mulberry32(9)), 'determinístico');
+  assert.deepStrictEqual(GR.sortearLinhas('mitico', S.mulberry32(9)), []); assert.deepStrictEqual(GR.sortearLinhas(null, S.mulberry32(9)), []);
+  // a Rara que cai no AFK
+  var c = amostra('fogo:4:lendaria', 4000), raras = c.pecas.filter(function (p) { return G.GEAR[p.id].rarity === 'raro'; });
+  assert.ok(raras.length > 40);
+  raras.forEach(function (p) { assert.strictEqual(p.linhas.length, 2); assert.notStrictEqual(p.linhas[0].tipo, p.linhas[1].tipo); });
+});
+test('material e incomum de um ginásio nunca caem em outro; o troféu é o do oponente da fase', function () {
+  G.GYM_ORDER.forEach(function (g) {
+    var M = G.AFK.materiais[g];
+    for (var e = 0; e < 5; e++) {
+      var c = amostra(g + ':' + e + ':lendaria', 2500);
+      Object.keys(c.ids).forEach(function (id) {
+        var it = G.ITEMS[id];
+        if (it.grupo === 'material' || it.grupo === 'incomum') assert.strictEqual(it.gymId, g, id + ' caiu em ' + g);
+        if (it.grupo === 'trofeu') assert.strictEqual(id, 'trofeu-' + g + '-' + e);
+      });
+      assert.ok(c.ids[M.comuns[0]] > 0 && c.ids[M.comuns[1]] > 0 && c.ids[M.incomum] > 0, g + ' ' + e + ': os três materiais caem');
+    }
+  });
+});
+
+section('chance medida e offline');
+function medir(h, f, opts) { var e = null; do { e = A.medirPasso(e, h, f, 400, opts); } while (!A.medidaPronta(e, opts)); return e; }
+test('chaveConfig muda com nível, pontos, skills, ranks, estrelas, torrões e fase; não muda com nome, uid nem XP', function () {
+  var h = cav('mare', 20); h.skills = ['arranque']; h.skillRanks = { arranque: 2 };
+  var k = A.chaveConfig(h, 'fogo:1:normal');
+  assert.strictEqual(typeof k, 'string'); assert.strictEqual(A.chaveConfig(JSON.parse(JSON.stringify(h)), 'fogo:1:normal'), k);
+  function muda(fn, f) { var c = JSON.parse(JSON.stringify(h)); fn(c); return A.chaveConfig(c, f || 'fogo:1:normal') !== k; }
+  assert.ok(muda(function (c) { c.level = 21; }), 'nível');
+  assert.ok(muda(function (c) { c.alloc.vel += 1; }), 'pontos');
+  assert.ok(muda(function (c) { c.skills = ['sprint']; c.skillRanks = { sprint: 2 }; }), 'skills');
+  assert.ok(muda(function (c) { c.skillRanks.arranque = 3; }), 'ranks');
+  assert.ok(muda(function (c) { c.grau = 3; }), 'estrelas');
+  assert.ok(muda(function (c) { c.torroes = 2; }), 'torrões');
+  assert.ok(muda(function (c) { c.potential.vel = (c.potential.vel + 1) % 32; }), 'genética');
+  assert.ok(muda(function () {}, 'fogo:1:dificil'), 'dificuldade'); assert.ok(muda(function () {}, 'agua:1:normal'), 'ginásio');
+  assert.ok(!muda(function (c) { c.name = 'Outro'; c.uid = 'zz'; c.xp = 999; c.breedLeft = 0; }), 'nome, uid e XP não mexem na corrida');
+  assert.strictEqual(A.chaveConfig(null, 'fogo:1:normal'), null); assert.strictEqual(A.chaveConfig(h, 'lixo'), null);
+});
+test('medirPasso: avança em fatias até a amostra, sem passar; mesma configuração dá a mesma medida; outra configuração recomeça', function () {
+  var h = congela(cav('ipe', 16)), f = 'agua:3:normal', N = G.AFK.amostra;
+  var e = A.medirPasso(null, h, f, 10);
+  assert.strictEqual(e.feitos, 10); assert.strictEqual(e.chave, A.chaveConfig(h, f)); assert.ok(e.vitorias >= 0 && e.vitorias <= 10 && e.somaDuracao > 4000 && e.somaDuracao === Math.floor(e.somaDuracao), 'a soma das durações em décimos de segundo, inteira');
+  assert.strictEqual(A.medidaPronta(e), false); assert.strictEqual(A.medida(e), null, 'incompleta não vale');
+  var e2 = A.medirPasso(e, h, f, 7); assert.strictEqual(e2.feitos, 17); assert.strictEqual(e.feitos, 10, 'não muta a entrada');
+  var fim = A.medirPasso(e2, h, f, 99999);
+  assert.strictEqual(fim.feitos, N); assert.strictEqual(A.medidaPronta(fim), true);
+  assert.deepStrictEqual(A.medirPasso(fim, h, f, 50), fim, 'completa: não anda mais');
+  var deUma = medir(h, f);
+  // qualquer divisão em fatias dá a mesma medida (a soma das durações é inteira)
+  var e3 = null; [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987].forEach(function (n) { e3 = A.medirPasso(e3, h, f, n); });
+  assert.deepStrictEqual(e3, fim);
+  assert.deepStrictEqual(deUma, fim, 'em fatias de 10, 7 e o resto ou de 400 em 400: a mesma medida');
+  var m = A.medida(fim);
+  assert.ok(m.p > 0 && m.p < 1 && Math.abs(m.p - fim.vitorias / N) < 1e-12); assert.ok(m.duracaoS > 55 && m.duracaoS < 95, 'duração média de um duelo: ' + m.duracaoS);
+  // outra configuração (o cavalo subiu de nível): recomeça do zero
+  var h2 = cav('ipe', 17), r = A.medirPasso(fim, h2, f, 5);
+  assert.strictEqual(r.feitos, 5); assert.strictEqual(r.chave, A.chaveConfig(h2, f));
+  // estado estragado recomeça; entrada inválida devolve null
+  ['x', {}, { chave: fim.chave, feitos: -1, vitorias: 0, somaDuracao: 0 }, { chave: fim.chave, feitos: 5, vitorias: 9, somaDuracao: 1 }, { chave: fim.chave, feitos: 1.5, vitorias: 0, somaDuracao: 1 }].forEach(function (x, i) {
+    assert.strictEqual(A.medirPasso(x, h, f, 3).feitos, 3, 'estragado ' + i);
+  });
+  assert.strictEqual(A.medirPasso(null, h, 'lixo', 3), null); assert.strictEqual(A.medirPasso(null, null, f, 3), null);
+  assert.strictEqual(A.medirPasso(null, h, f, 0).feitos, 0);
+  // a medição usa seeds próprias da configuração: não depende do save nem do contador da vaga
+  assert.notStrictEqual(medir(cav('ipe', 30), f).vitorias, fim.vitorias);
+});
+test('E3 rápido: em 10 configurações, p com a amostra fica a menos de 3 p.p. do p com 3.000 em pelo menos 9', function () {
+  var ok = 0, linhas = [];
+  for (var i = 0; i < 10; i++) {
+    var d = ['normal', 'dificil', 'lendaria'][i % 3], e = (i * 2) % 5, g = G.GYM_ORDER[(i * 7) % 3], f = A.fase(g + ':' + e + ':' + d);
+    var h = cav(['brasa', 'mare', 'ipe'][(i + 1) % 3], Math.max(1, Math.min(50, f.nivel + [-3, 0, 2, 5, -1][i % 5])), 2 + (i % 2));
+    var p = A.medida(medir(h, f.id)).p, REF = { amostra: 3000, sal: 1 }, ref = A.medida(medir(h, f.id, REF), REF).p;
+    if (Math.abs(p - ref) < 0.03) ok++;
+    linhas.push(f.id + ' ' + p.toFixed(3) + ' × ' + ref.toFixed(3));
+  }
+  assert.ok(ok >= 9, ok + ' de 10: ' + linhas.join('; '));
+});
+function vagaDe(o) { return Object.assign({ uid: 'm1', faseId: 'fogo:2:normal', inicioMin: 1000, contador: 40 }, o || {}); }
+var MED = { p: 0.5, duracaoS: 75 };
+test('offline: minutos ÷ duração média, para baixo; cada corrida um número da seed contra p; cada vitória rola os drops como ao vivo', function () {
+  var v = vagaDe(), r = A.offline(v, 1000 + 120, MED, 777, BONUS0, 480, 2);
+  assert.strictEqual(r.minutos, 120); assert.strictEqual(r.corridas, Math.floor(120 * 60 / 75)); assert.strictEqual(r.contador, 40 + r.corridas);
+  assert.ok(r.vitorias > 30 && r.vitorias < 66, 'perto da metade de 96: ' + r.vitorias);
+  // refaz corrida a corrida pela regra
+  var xp = 0, ouro = 0, vit = 0, itens = {}, pedras = 0, pecas = [];
+  for (var k = 0; k < r.corridas; k++) {
+    var sd = A.seedCorrida(777, 2, 40 + k), venceu = A.offlineVenceu(sd, MED.p), p = A.premio(v.faseId, venceu, sd, BONUS0);
+    vit += venceu ? 1 : 0; xp += p.xp; ouro += p.ouro; pedras += p.pedras; pecas = pecas.concat(p.pecas);
+    Object.keys(p.itens).forEach(function (id) { itens[id] = (itens[id] || 0) + p.itens[id]; });
+  }
+  assert.strictEqual(r.vitorias, vit); assert.strictEqual(r.xp, xp); assert.strictEqual(r.ouro, ouro); assert.strictEqual(r.pedras, pedras);
+  assert.deepStrictEqual(r.itens, itens); assert.deepStrictEqual(r.pecas, pecas);
+  // as seeds do offline são as mesmas das corridas ao vivo que a vaga faria (o contador segue de onde parou)
+  assert.strictEqual(A.seedCorrida(777, 2, 40), A.correr(cav('mare', 12), v.faseId, 777, 40, BONUS0, { vaga: 2 }).cfg.seed);
+  // p 0 nunca vence, p 1 sempre
+  assert.strictEqual(A.offline(v, 1120, { p: 0, duracaoS: 75 }, 777, BONUS0, 480, 2).vitorias, 0);
+  assert.strictEqual(A.offline(v, 1120, { p: 1, duracaoS: 75 }, 777, BONUS0, 480, 2).vitorias, 96);
+});
+test('offline é determinístico e não muta a vaga', function () {
+  var v = congela(vagaDe()), a = A.offline(v, 1300, MED, 5, { material: 0.2, xp: 0.1, raro: 0.3, trofeu: 0.5, ouro: 0.1 }, 480, 0);
+  assert.deepStrictEqual(a, A.offline(v, 1300, MED, 5, { material: 0.2, xp: 0.1, raro: 0.3, trofeu: 0.5, ouro: 0.1 }, 480, 0));
+  assert.notDeepStrictEqual(a.itens, A.offline(v, 1300, MED, 6, BONUS0, 480, 0).itens);
+});
+test('agora antes do início dá 0 corridas, sem ganho negativo e sem erro (Foco 2)', function () {
+  [999, 0, -5000].forEach(function (agora) {
+    var r = A.offline(vagaDe(), agora, MED, 1, BONUS0, 480, 0);
+    assert.deepStrictEqual(r, { minutos: 0, corridas: 0, vitorias: 0, xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: [], contador: 40 });
+  });
+  assert.strictEqual(A.offline(vagaDe(), 1000, MED, 1, BONUS0, 480, 0).corridas, 0, 'agora igual ao início');
+  assert.strictEqual(A.offline(vagaDe(), 1001, MED, 1, BONUS0, 480, 0).corridas, 0, '1 minuto não dá uma corrida de 75 s');
+  assert.strictEqual(A.offline(vagaDe(), 1002, MED, 1, BONUS0, 480, 0).corridas, 1);
+});
+test('3 dias fora conta só o limite (Foco 1)', function () {
+  var r = A.offline(vagaDe(), 1000 + 3 * 24 * 60, MED, 1, BONUS0, 480, 0);
+  assert.strictEqual(r.minutos, 480); assert.strictEqual(r.corridas, Math.floor(480 * 60 / 75));
+  assert.strictEqual(A.offline(vagaDe(), 1000 + 3 * 24 * 60, MED, 1, BONUS0, 99999, 0).minutos, G.AFK.offlineTetoMin, 'limite pedido acima do teto: vale o teto');
+});
+test('limite com Aveia e bestiário nunca passa de 720 min', function () {
+  assert.strictEqual(A.limiteOffline(0, 0), 480); assert.strictEqual(A.limiteOffline(60, 0), 540); assert.strictEqual(A.limiteOffline(60, 120), 660);
+  assert.strictEqual(A.limiteOffline(180, 180), 720); assert.strictEqual(A.limiteOffline(99999, 99999), 720);
+  assert.strictEqual(A.limiteOffline(-50, 'x'), 480); assert.strictEqual(A.limiteOffline(NaN, null), 480); assert.strictEqual(A.limiteOffline(), 480);
+});
+test('offline sem medida completa, com vaga vazia ou entrada estragada: 0 corridas', function () {
+  var zero = function (r) { assert.strictEqual(r.corridas, 0); assert.strictEqual(r.xp, 0); assert.deepStrictEqual(r.itens, {}); };
+  [null, {}, { p: 0.5 }, { p: NaN, duracaoS: 75 }, { p: 2, duracaoS: 75 }, { p: 0.5, duracaoS: 0 }, { p: 0.5, duracaoS: -3 }].forEach(function (m) { zero(A.offline(vagaDe(), 2000, m, 1, BONUS0, 480, 0)); });
+  zero(A.offline(vagaDe({ uid: null }), 2000, MED, 1, BONUS0, 480, 0)); zero(A.offline(vagaDe({ faseId: 'lixo' }), 2000, MED, 1, BONUS0, 480, 0));
+  zero(A.offline(vagaDe({ inicioMin: 'x' }), 2000, MED, 1, BONUS0, 480, 0)); zero(A.offline(vagaDe({ contador: -1 }), 2000, MED, 1, BONUS0, 480, 0));
+  zero(A.offline(null, 2000, MED, 1, BONUS0, 480, 0)); zero(A.offline(vagaDe(), NaN, MED, 1, BONUS0, 480, 0)); zero(A.offline(vagaDe(), 2000, MED, 1, BONUS0, 480, 7));
+  zero(A.offline(vagaDe(), 2000, MED, 1, BONUS0, -10, 0));
+});
+test('offline de 8 h com p de 0,5 roda em menos de 200 ms no Node; o de 12 h com corridas de 55 s também', function () {
+  var t = process.hrtime.bigint();
+  var r = A.offline(vagaDe(), 1000 + 480, MED, 31, BONUS0, 480, 0), r2 = A.offline(vagaDe({ faseId: 'agua:4:lendaria' }), 1000 + 720, { p: 0.5, duracaoS: 55 }, 31, BONUS0, 720, 4);
+  var ms = Number(process.hrtime.bigint() - t) / 1e6;
+  assert.strictEqual(r.corridas, 384); assert.strictEqual(r2.corridas, 785);
+  assert.ok(ms < 200, ms.toFixed(1) + ' ms');
+});
+test('offline rende, em média, o mesmo que ao vivo com o mesmo p (o ganho esperado é o mesmo nos dois modos)', function () {
+  // 40 períodos de 8 h com p medido contra as corridas de verdade do mesmo cavalo (800 ao vivo)
+  var h = cav('mare', 22), f = 'fogo:4:normal', m = A.medida(medir(h, f));
+  var vivoXp = 0, vivoMat = 0, n = 800;
+  for (var c = 0; c < n; c++) { var r = A.correr(h, f, 2024, c, BONUS0); vivoXp += r.xp; vivoMat += (r.itens.carvao || 0) + (r.itens['ferro-bruto'] || 0); }
+  var offXp = 0, offMat = 0, offN = 0;
+  for (var k = 0; k < 40; k++) { var o = A.offline(vagaDe({ faseId: f, contador: 0 }), 1480, m, 9000 + k, BONUS0, 480, 0); offXp += o.xp; offMat += (o.itens.carvao || 0) + (o.itens['ferro-bruto'] || 0); offN += o.corridas; }
+  assert.ok(Math.abs(offXp / offN - vivoXp / n) / (vivoXp / n) < 0.05, 'XP por corrida: offline ' + (offXp / offN).toFixed(1) + ' × ao vivo ' + (vivoXp / n).toFixed(1));
+  assert.ok(Math.abs(offMat / offN - vivoMat / n) / (vivoMat / n) < 0.06, 'material por corrida: offline ' + (offMat / offN).toFixed(2) + ' × ao vivo ' + (vivoMat / n).toFixed(2));
+});
+
+section('baú, bestiário, comida e save');
+function ganho(o) { return Object.assign({ vitorias: 0, corridas: 0, xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: [] }, o || {}); }
+function afkNovo() { return A.sanear(null, { uids: ['m1', 'm2'], progresso: progCom({ fogo: 5, agua: 2 }), agoraMin: 5000 }); }
+test('bauSomar junta Ouro, XP por cavalo, itens, Pedras e peças, sem mutar', function () {
+  var b0 = congela(A.bauVazio());
+  assert.deepStrictEqual(b0, { ouro: 0, xp: {}, itens: {}, pedras: 0, pecas: [] });
+  var b1 = A.bauSomar(b0, ganho({ xp: 40, ouro: 3, itens: { carvao: 2 }, pedras: 1, pecas: [{ id: 'sela-comum', linhas: [] }] }), 'm1');
+  var b2 = A.bauSomar(congela(b1), ganho({ xp: 12, ouro: 0, itens: { carvao: 1, feno: 1 } }), 'm2');
+  var b3 = A.bauSomar(b2, ganho({ xp: 8, ouro: 2 }), 'm1');
+  assert.deepStrictEqual(b3, { ouro: 5, xp: { m1: 48, m2: 12 }, itens: { carvao: 3, feno: 1 }, pedras: 1, pecas: [{ id: 'sela-comum', linhas: [] }] });
+  assert.deepStrictEqual(A.bauSomar(null, ganho({ xp: 5 }), 'm1'), { ouro: 0, xp: { m1: 5 }, itens: {}, pedras: 0, pecas: [] });
+  assert.strictEqual(A.bauVazioE(b0), true); assert.strictEqual(A.bauVazioE(b3), false);
+});
+test('coletar com material no teto: perdidos mostra o excedente e o resto entra (Foco 3)', function () {
+  var bau = congela({ ouro: 30, xp: { m1: 100 }, itens: { carvao: 10, 'ferro-bruto': 4, 'trofeu-fogo-0': 2, feno: 3 }, pedras: 2, pecas: [{ id: 'sela-sol-raro', linhas: [{ tipo: 'xp', valor: 7 }, { tipo: 'ouro', valor: 5 }] }] });
+  var moch = congela({ torrao: 3, carvao: 995, 'ferro-bruto': 999, 'trofeu-fogo-0': 98 });
+  var r = A.bauColetar(bau, moch, ['m1']);
+  assert.deepStrictEqual(r.perdidos, { carvao: 6, 'ferro-bruto': 4, 'trofeu-fogo-0': 1 });
+  assert.deepStrictEqual(r.mochila, { torrao: 3, carvao: 999, 'ferro-bruto': 999, 'trofeu-fogo-0': 99, feno: 3 });
+  assert.deepStrictEqual(r.entrou, { carvao: 4, 'trofeu-fogo-0': 1, feno: 3 });
+  assert.strictEqual(r.ouro, 30); assert.strictEqual(r.pedras, 2); assert.deepStrictEqual(r.xpPorCavalo, { m1: 100 }); assert.strictEqual(r.xpDescartado, 0);
+  assert.deepStrictEqual(r.pecas, bau.pecas); assert.deepStrictEqual(r.bau, A.bauVazio());
+  // sem nada no teto, nada se perde
+  assert.deepStrictEqual(A.bauColetar(bau, {}, ['m1']).perdidos, {});
+  // item fora do AFK no baú (save adulterado) não entra na mochila nem conta como perdido
+  var adul = A.bauColetar({ ouro: 0, xp: {}, itens: { torrao: 5, estrela: 1, xyz: 2 }, pedras: 0, pecas: [] }, { torrao: 1 }, []);
+  assert.deepStrictEqual(adul.mochila, { torrao: 1 }); assert.deepStrictEqual(adul.perdidos, {});
+});
+test('coletar com cavalo que sumiu: xpDescartado e os itens entram (Foco 4)', function () {
+  var bau = { ouro: 9, xp: { m1: 100, m7: 250, m8: 40 }, itens: { junco: 5 }, pedras: 0, pecas: [] };
+  var r = A.bauColetar(bau, {}, ['m1', 'm2']);
+  assert.deepStrictEqual(r.xpPorCavalo, { m1: 100 }); assert.strictEqual(r.xpDescartado, 290);
+  assert.deepStrictEqual(r.mochila, { junco: 5 }); assert.strictEqual(r.ouro, 9);
+});
+test('bestiarioRegistrar conta as vitórias por oponente e marca o que caiu como visto; bestiarioObter marca o que entrou', function () {
+  var b0 = congela(A.bestiarioVazio());
+  var b1 = A.bestiarioRegistrar(b0, ganho({ itens: { carvao: 2, 'trofeu-fogo-2': 1 }, pecas: [{ id: 'sela-sol-raro', linhas: [] }] }), 'fogo:2', true);
+  assert.deepStrictEqual(b1.vitorias, { 'fogo:2': 1 }); assert.deepStrictEqual(Object.keys(b1.vistos).sort(), ['carvao', 'sela-sol-raro', 'trofeu-fogo-2']); assert.deepStrictEqual(b1.obtidos, {});
+  var b2 = A.bestiarioRegistrar(b1, ganho({ itens: { carvao: 1 } }), 'fogo:2', false);
+  assert.deepStrictEqual(b2.vitorias, { 'fogo:2': 1 }, 'derrota não conta');
+  // offline: várias vitórias de uma vez
+  var b3 = A.bestiarioRegistrar(b2, ganho({ vitorias: 37, corridas: 60 }), 'fogo:2', true);
+  assert.strictEqual(b3.vitorias['fogo:2'], 38);
+  var b4 = A.bestiarioObter(b3, { carvao: 2 }, [{ id: 'sela-sol-raro', linhas: [] }]);
+  assert.deepStrictEqual(Object.keys(b4.obtidos).sort(), ['carvao', 'sela-sol-raro']); assert.ok(b4.vistos.carvao && b4.vistos['sela-sol-raro'], 'obtido também é visto');
+  assert.deepStrictEqual(A.bestiarioRegistrar(b0, ganho(), 'lixo:9', true), b0, 'oponente inválido não conta');
+});
+function bestCom(vit, obt) { var b = A.bestiarioVazio(); Object.keys(vit || {}).forEach(function (k) { b.vitorias[k] = vit[k]; }); (obt || []).forEach(function (id) { b.obtidos[id] = true; b.vistos[id] = true; }); return b; }
+function paginaIds(g) { return A.bestiarioPagina(A.bestiarioVazio(), g).itens.map(function (x) { return x.id; }); }
+test('bônus do bestiário: +1% de drop raro por oponente com 100 vitórias, +2% de XP por oponente com 1.000, +2% de troféu por troféu', function () {
+  assert.deepStrictEqual(A.bestiarioBonus(A.bestiarioVazio()), { raro: 0, xp: 0, trofeu: 0, offlineMin: 0 });
+  var b = bestCom({ 'fogo:0': 100, 'fogo:1': 99, 'agua:4': 1000, 'grama:2': 5000 }, ['trofeu-fogo-0', 'trofeu-agua-3', 'carvao']);
+  var bo = A.bestiarioBonus(b);
+  assert.ok(Math.abs(bo.raro - 0.03) < 1e-9, 'três com 100 ou mais: ' + bo.raro); assert.ok(Math.abs(bo.xp - 0.04) < 1e-9, 'dois com 1.000: ' + bo.xp);
+  assert.ok(Math.abs(bo.trofeu - 0.04) < 1e-9, 'dois troféus: ' + bo.trofeu); assert.strictEqual(bo.offlineMin, 0);
+});
+test('bônus do bestiário respeita os tetos (15%, 30%, 30%, 180 min)', function () {
+  var vit = {}, obt = [];
+  G.GYM_ORDER.forEach(function (g) { for (var e = 0; e < 5; e++) vit[g + ':' + e] = 99999; obt = obt.concat(paginaIds(g)); });
+  var bo = A.bestiarioBonus(bestCom(vit, obt));
+  assert.ok(Math.abs(bo.raro - 0.15) < 1e-9); assert.ok(Math.abs(bo.xp - 0.30) < 1e-9); assert.ok(Math.abs(bo.trofeu - 0.30) < 1e-9); assert.strictEqual(bo.offlineMin, 180);
+  // números de partida maiores não furam o teto
+  var K = G.AFK.bestiario, guarda = [K.raro.por, K.xp.por, K.trofeu.por, K.pagina.min];
+  try { K.raro.por = 0.5; K.xp.por = 0.5; K.trofeu.por = 0.5; K.pagina.min = 500;
+    assert.deepStrictEqual(A.bestiarioBonus(bestCom(vit, obt)), { raro: 0.15, xp: 0.30, trofeu: 0.30, offlineMin: 180 });
+  } finally { K.raro.por = guarda[0]; K.xp.por = guarda[1]; K.trofeu.por = guarda[2]; K.pagina.min = guarda[3]; }
+});
+test('página completa dá +60 min: os 5 oponentes com 1.000 vitórias e tudo obtido (3 materiais, 10 peças do conjunto, 5 troféus)', function () {
+  var ids = paginaIds('agua');
+  assert.strictEqual(ids.length, 18);
+  assert.deepStrictEqual(ids.slice(0, 3), ['junco', 'concha', 'perola-de-rio']);
+  assert.strictEqual(ids.filter(function (id) { return G.GEAR[id] && G.GEAR[id].set === 'chuva'; }).length, 10);
+  assert.strictEqual(ids.filter(function (id) { return /^trofeu-agua-/.test(id); }).length, 5);
+  var vit = {}; for (var e = 0; e < 5; e++) vit['agua:' + e] = 1000;
+  var cheia = bestCom(vit, ids), pg = A.bestiarioPagina(cheia, 'agua');
+  assert.strictEqual(pg.completa, true); assert.strictEqual(A.bestiarioBonus(cheia).offlineMin, 60);
+  assert.deepStrictEqual(pg.oponentes.map(function (o) { return o.marcos; }), [[true, true, true], [true, true, true], [true, true, true], [true, true, true], [true, true, true]]);
+  assert.strictEqual(pg.oponentes[4].nome, 'Mestre Aguaceiro'); assert.strictEqual(pg.oponentes[2].id, 'agua:2');
+  // falta um troféu, ou um oponente com 999: não completa
+  assert.strictEqual(A.bestiarioBonus(bestCom(vit, ids.slice(0, 17))).offlineMin, 0);
+  var quase = JSON.parse(JSON.stringify(vit)); quase['agua:3'] = 999;
+  assert.strictEqual(A.bestiarioPagina(bestCom(quase, ids), 'agua').completa, false);
+  assert.deepStrictEqual(A.bestiarioPagina(bestCom({ 'agua:1': 150 }, ['junco']), 'agua').oponentes[1].marcos, [true, true, false]);
+  var pv = A.bestiarioPagina(bestCom({}, ['junco']), 'agua').itens[0];
+  assert.deepStrictEqual(pv, { id: 'junco', tipo: 'item', visto: true, obtido: true });
+  assert.strictEqual(A.bestiarioPagina(A.bestiarioVazio(), 'lava'), null);
+});
+test('comida: Feno, Cenoura e Maçã dão XP ao cavalo escolhido; a Aveia soma 60 min só ao próximo offline e zera depois', function () {
+  var afk = afkNovo(), h = cav('mare', 5);
+  assert.deepStrictEqual(A.usarComida('feno', h, afk), { ok: true, xp: 200 });
+  assert.deepStrictEqual(A.usarComida('cenoura', h, afk), { ok: true, xp: 500 });
+  assert.deepStrictEqual(A.usarComida('maca', h, afk), { ok: true, xp: 1200 });
+  assert.deepStrictEqual(A.usarComida('feno', null, afk), { ok: false, motivo: 'Escolha um cavalo.' });
+  var topo = cav('mare', G.ECONOMY.maxLevel);
+  assert.strictEqual(A.usarComida('feno', topo, afk).ok, false, 'no nível máximo a comida não é gasta');
+  assert.strictEqual(afk.aveiaMin, 0);
+  var a1 = A.usarComida('aveia-dourada', null, afk);
+  assert.deepStrictEqual(a1, { ok: true, aveiaMin: 60 });
+  afk.aveiaMin = a1.aveiaMin;
+  assert.strictEqual(A.limiteOffline(afk.aveiaMin, 0), 540);
+  // dentro do teto de 720 min: com 240 min de Aveia (ou 180 do bestiário + 60), outra não entra
+  afk.aveiaMin = 240;
+  assert.deepStrictEqual(A.usarComida('aveia-dourada', null, afk), { ok: false, motivo: 'O próximo período fora já está no limite de 12 horas.' });
+  afk.aveiaMin = 60;
+  assert.strictEqual(A.usarComida('aveia-dourada', null, afk, 180).ok, false, 'com +3 h do bestiário e 1 h de Aveia, já são 12 h');
+  assert.strictEqual(A.usarComida('aveia-dourada', null, afk, 120).aveiaMin, 120);
+  // zera quando o offline é contado
+  assert.strictEqual(A.aposOffline(afk).aveiaMin, 0); assert.strictEqual(afk.aveiaMin, 60, 'sem mutar');
+  ['torrao', 'carvao', 'trofeu-fogo-0', 'pergaminho-reforja', 'xyz', null].forEach(function (id) { assert.strictEqual(A.usarComida(id, h, afk).ok, false, String(id)); });
+});
+test('save antigo migra com afk vazio e a 1ª vaga liberada', function () {
+  var a = A.sanear(undefined, { uids: ['m1'], progresso: progCom({}), agoraMin: 777 });
+  assert.deepStrictEqual(a, { vagas: [{ uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null, ultima: null }], bau: A.bauVazio(), vitorias: {}, bestiario: A.bestiarioVazio(), aveiaMin: 0, xpCounter: 0 });
+  assert.deepStrictEqual(A.sanear('lixo', { uids: [], progresso: null, agoraMin: 777 }), a);
+  assert.deepStrictEqual(A.sanear(a, { uids: ['m1'], progresso: progCom({}), agoraMin: 900 }), a, 'saneado de novo: igual (o início guardado fica)');
+});
+test('save com vaga de uid inexistente fica com a vaga vazia; fase ou dificuldade não liberada também; o contador fica', function () {
+  var ctx = { uids: ['m1', 'm2'], progresso: progCom({ fogo: 2 }), agoraMin: 5000 };
+  var med = A.medirPasso(null, cav('mare', 9), 'fogo:1:normal', 20);
+  var bruto = { vagas: [
+    { uid: 'm1', faseId: 'fogo:1:normal', inicioMin: 4000, contador: 12, medida: med },
+    { uid: 'm9', faseId: 'fogo:0:normal', inicioMin: 4100, contador: 7, medida: null },          // cavalo que não existe
+    { uid: 'm2', faseId: 'fogo:3:normal', inicioMin: 4200, contador: 3, medida: null },          // etapa não vencida no ginásio
+    { uid: 'm2', faseId: 'fogo:0:dificil', inicioMin: 4300, contador: 5, medida: null },         // Difícil sem as 50 vitórias
+    { uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 4400, contador: 2, medida: null },          // cavalo repetido (já está na vaga 1)
+    { uid: 'm2', faseId: 'fogo:0:normal', inicioMin: 1, contador: 1, medida: null }              // 6ª vaga: não existe
+  ], vitorias: { 'fogo:0:normal': 49 } };
+  var a = A.sanear(bruto, ctx);
+  assert.strictEqual(a.vagas.length, 5);
+  assert.deepStrictEqual(a.vagas[0], { uid: 'm1', faseId: 'fogo:1:normal', inicioMin: 4000, contador: 12, medida: med, ultima: null });
+  [1, 2, 3, 4].forEach(function (i) { assert.strictEqual(a.vagas[i].uid, null, 'vaga ' + i); assert.strictEqual(a.vagas[i].faseId, null); assert.strictEqual(a.vagas[i].medida, null); assert.strictEqual(a.vagas[i].inicioMin, bruto.vagas[i].inicioMin, 'vaga que esvazia guarda o relógio'); });
+  assert.deepStrictEqual(a.vagas.map(function (v) { return v.contador; }), [12, 7, 3, 5, 2], 'o contador de cada vaga nunca volta');
+  // com as 50 vitórias, a Difícil vale
+  bruto.vitorias['fogo:0:normal'] = 50;
+  assert.strictEqual(A.sanear(bruto, ctx).vagas[3].faseId, 'fogo:0:dificil');
+});
+test('sanear: números fora da faixa, medida de outra configuração, baú e bestiário com lixo', function () {
+  var ctx = { uids: ['m1'], progresso: progCom({ fogo: 5 }), agoraMin: 5000 };
+  var a = A.sanear({
+    vagas: [{ uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 'ontem', contador: -4, medida: { chave: 5, feitos: 3 } }, null, 'x'],
+    bau: { ouro: -5, xp: { m1: 10.5, m2: 'x', m3: 40, '': 3 }, itens: { carvao: 3, torrao: 9, feno: -1, junco: 2.5, xyz: 1, concha: 2e9 }, pedras: 'muitas',
+      pecas: [{ id: 'sela-comum', linhas: [] }, { id: 'sela-magico', linhas: [] }, { id: 'nada', linhas: [] }, { id: 'sela-sol-raro', linhas: [{ tipo: 'xp', valor: 7 }, { tipo: 'xp', valor: 8 }] },
+        { id: 'sela-sol-raro', linhas: [{ tipo: 'xp', valor: 7 }, { tipo: 'ouro', valor: 5 }] }, null] },
+    vitorias: { 'fogo:0:normal': 12, 'fogo:1:normal': -3, 'lixo': 9, 'fogo:2:normal': 1.5, 'agua:0:normal': 4 },
+    bestiario: { vitorias: { 'fogo:1': 30, 'lava:0': 5, 'fogo:9': 2, 'fogo:2': -1 }, vistos: { carvao: true, torrao: true, 'sela-sol-raro': 1, xyz: true }, obtidos: { carvao: true, junco: 'sim', estrela: true } },
+    aveiaMin: 9999, xpCounter: -2
+  }, ctx);
+  assert.strictEqual(a.vagas.length, 3);
+  assert.deepStrictEqual(a.vagas[0], { uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 5000, contador: 0, medida: null, ultima: null });
+  assert.deepStrictEqual(a.vagas[1], { uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null, ultima: null });
+  assert.deepStrictEqual(a.bau, { ouro: 0, xp: { m3: 40 }, itens: { carvao: 3, concha: 1000000 }, pedras: 0,
+    pecas: [{ id: 'sela-comum', linhas: [] }, { id: 'sela-sol-raro', linhas: [{ tipo: 'xp', valor: 7 }, { tipo: 'ouro', valor: 5 }] }] });
+  assert.deepStrictEqual(a.vitorias, { 'fogo:0:normal': 12, 'agua:0:normal': 4 });
+  assert.deepStrictEqual(a.bestiario, { vitorias: { 'fogo:1': 30 }, vistos: { carvao: true, 'sela-sol-raro': true }, obtidos: { carvao: true } });
+  assert.strictEqual(a.aveiaMin, G.AFK.offlineTetoMin - G.AFK.offlineMin); assert.strictEqual(a.xpCounter, 0);
+  // início no futuro (relógio voltado para trás) fica como está: não rende até o relógio passar dele
+  assert.strictEqual(A.sanear({ vagas: [{ uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 9000, contador: 1, medida: null }] }, ctx).vagas[0].inicioMin, 9000);
+});
+test('peça antiga (sem linhas) ganha as linhas pela seed do save e pelo uid: as mesmas em duas cargas; linhas válidas ficam; lixo é sorteado de novo', function () {
+  var it = congela({ uid: 'i7', id: 'sela-sol-raro', plus: 4 });
+  var a = GR.linhasDaPeca(it, 4242), b = GR.linhasDaPeca(it, 4242);
+  assert.deepStrictEqual(a, b); assert.strictEqual(a.length, 2); assert.ok(GR.linhasValidas(it.id, a));
+  assert.deepStrictEqual(a, GR.sortearLinhas('raro', S.mulberry32(S.hash2(4242, 0x20000000 + 7))));
+  var dif = 0; for (var k = 1; k <= 20; k++) if (JSON.stringify(GR.linhasDaPeca({ uid: 'i' + k, id: 'sela-sol-raro' }, 4242)) !== JSON.stringify(a)) dif++;
+  assert.ok(dif >= 15, 'cada peça tem as suas linhas');
+  assert.notDeepStrictEqual(GR.linhasDaPeca(it, 4243), a, 'outro save, outras linhas');
+  var boas = [{ tipo: 'trofeu', valor: 15 }, { tipo: 'raro', valor: 6 }];
+  assert.deepStrictEqual(GR.linhasDaPeca({ uid: 'i7', id: 'sela-sol-raro', linhas: boas }, 4242), boas);
+  [[{ tipo: 'trofeu', valor: 15 }], [{ tipo: 'trofeu', valor: 99 }, { tipo: 'raro', valor: 6 }], [{ tipo: 'raro', valor: 6 }, { tipo: 'raro', valor: 7 }], [{ tipo: 'vel', valor: 6 }, { tipo: 'raro', valor: 7 }],
+    [{ tipo: 'trofeu', valor: 15.5 }, { tipo: 'raro', valor: 6 }], 'x', null].forEach(function (ruim, i) {
+    assert.deepStrictEqual(GR.linhasDaPeca({ uid: 'i7', id: 'sela-sol-raro', linhas: ruim }, 4242), a, 'lixo ' + i);
+  });
+  assert.deepStrictEqual(GR.linhasDaPeca({ uid: 'i3', id: 'sela-comum' }, 4242), []); assert.strictEqual(GR.linhasDaPeca({ uid: 'i3', id: 'sela-magico' }, 4242).length, 1);
+  assert.strictEqual(GR.linhasDaPeca({ uid: 'i3', id: 'sela-sol-lendario' }, 4242).length, 3); assert.deepStrictEqual(GR.linhasDaPeca({ uid: 'i3', id: 'nada' }, 4242), []);
+  assert.deepStrictEqual(GR.linhasDaPeca(null, 1), []);
+});
+test('creditar: o ganho de uma vaga vai para o baú, as vitórias da fase, o bestiário e o contador, sem mutar', function () {
+  var afk = afkNovo(); afk.vagas[0] = { uid: 'm1', faseId: 'fogo:2:normal', inicioMin: 5000, contador: 9, medida: null };
+  congela(afk);
+  var r = A.correr(cav('mare', 14), 'fogo:2:normal', 88, 9, BONUS0, { vaga: 0 });
+  var n = A.creditar(afk, 0, r);
+  assert.strictEqual(n.vagas[0].contador, 10); assert.strictEqual(n.bau.xp.m1, r.xp); assert.strictEqual(n.bau.ouro, r.ouro);
+  assert.strictEqual(n.vitorias['fogo:2:normal'] || 0, r.venceu ? 1 : 0); assert.strictEqual(n.bestiario.vitorias['fogo:2'] || 0, r.venceu ? 1 : 0);
+  // offline: avança corridas, soma as vitórias
+  var off = A.offline(afk.vagas[0], 5000 + 240, { p: 0.6, duracaoS: 75 }, 88, BONUS0, 480, 0), n2 = A.creditar(afk, 0, off);
+  assert.strictEqual(n2.vagas[0].contador, 9 + off.corridas); assert.strictEqual(n2.vitorias['fogo:2:normal'], off.vitorias); assert.strictEqual(n2.bestiario.vitorias['fogo:2'], off.vitorias);
+  assert.strictEqual(n2.bau.xp.m1, off.xp); assert.deepStrictEqual(n2.bau.itens, off.itens);
+  assert.strictEqual(A.creditar(afk, 3, r), null, 'vaga que não existe'); assert.strictEqual(A.creditar(afk, 1, r), null, 'vaga vazia');
+});
+
+section('operações das vagas (o que a tela chama)');
+function ctxDe(o) { return Object.assign({ uids: ['m1', 'm2', 'm3'], progresso: progCom({ fogo: 3, agua: 1 }), agoraMin: 6000 }, o || {}); }
+test('ocupar: põe o cavalo na vaga com o início em agora, sem medida, e mantém o contador; cada recusa com o motivo', function () {
+  var a0 = A.sanear({ vagas: [{ contador: 9 }, { contador: 4 }] }, ctxDe());
+  congela(a0);
+  var r = A.ocupar(a0, 1, 'm2', 'fogo:1:normal', ctxDe());
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.afk.vagas[1], { uid: 'm2', faseId: 'fogo:1:normal', inicioMin: 6000, contador: 4, medida: null, ultima: null });
+  assert.deepStrictEqual(r.afk.vagas[0], a0.vagas[0]);
+  // o mesmo cavalo em outra vaga: sai da antiga (um cavalo ocupa no máximo uma)
+  var r2 = A.ocupar(r.afk, 0, 'm2', 'agua:0:normal', ctxDe({ agoraMin: 6100 }));
+  assert.strictEqual(r2.ok, true); assert.strictEqual(r2.afk.vagas[0].uid, 'm2'); assert.strictEqual(r2.afk.vagas[1].uid, null); assert.strictEqual(r2.afk.vagas[1].contador, 4);
+  // trocar a fase na mesma vaga zera a medida e a última chance (a configuração mudou) e recomeça o relógio
+  var comMed = JSON.parse(JSON.stringify(r.afk)); comMed.vagas[1].ultima = { p: 0.5, duracaoS: 70 };
+  var r3 = A.ocupar(comMed, 1, 'm2', 'fogo:0:normal', ctxDe({ agoraMin: 6200 }));
+  assert.strictEqual(r3.afk.vagas[1].ultima, null); assert.strictEqual(r3.afk.vagas[1].inicioMin, 6200);
+  [[5, 'm1', 'fogo:0:normal', 'Essa vaga não existe.'], [0, 'm9', 'fogo:0:normal', 'Esse cavalo não está no estábulo.'], [0, 'm1', 'fogo:4:normal', 'Vença esse oponente no ginásio primeiro.'],
+    [0, 'm1', 'fogo:0:dificil', 'Faltam 50 vitórias na Normal para liberar a Difícil.'], [0, 'm1', 'lixo', 'Essa fase não existe.']].forEach(function (c) {
+    assert.deepStrictEqual(A.ocupar(a0, c[0], c[1], c[2], ctxDe()), { ok: false, motivo: c[3] }, c[3]);
+  });
+  var com20 = JSON.parse(JSON.stringify(a0)); com20.vitorias['fogo:0:normal'] = 20;
+  assert.strictEqual(A.ocupar(com20, 0, 'm1', 'fogo:0:dificil', ctxDe()).motivo, 'Faltam 30 vitórias na Normal para liberar a Difícil.');
+  com20.vitorias['fogo:0:normal'] = 50;
+  assert.strictEqual(A.ocupar(com20, 0, 'm1', 'fogo:0:dificil', ctxDe()).ok, true);
+  assert.strictEqual(A.ocupar(com20, 0, 'm1', 'fogo:0:lendaria', ctxDe()).motivo, 'Faltam 50 vitórias na Difícil para liberar a Lendária.');
+});
+test('esvaziar: a vaga fica vazia e o contador fica; comprarVaga acrescenta uma vaga vazia até o máximo', function () {
+  var a = A.ocupar(A.sanear(null, ctxDe()), 0, 'm1', 'fogo:0:normal', ctxDe()).afk;
+  a.vagas[0].contador = 31;
+  var e = A.esvaziar(congela(a), 0);
+  assert.deepStrictEqual(e.vagas[0], { uid: null, faseId: null, inicioMin: 6000, contador: 31, medida: null, ultima: null }, 'o contador e o relógio ficam');
+  assert.strictEqual(A.esvaziar(a, 4), null);
+  var b = a;
+  for (var k = 1; k < 5; k++) { b = A.comprarVaga(b); assert.strictEqual(b.vagas.length, k + 1); assert.deepStrictEqual(b.vagas[k], { uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null, ultima: null }); }
+  assert.strictEqual(A.comprarVaga(b), null, 'máximo de 5');
+  assert.strictEqual(a.vagas.length, 1, 'sem mutar');
+});
+test('coletar com cavalo preso na sala aberta: o XP dele fica no baú, o resto sai', function () {
+  var bau = { ouro: 4, xp: { m1: 100, m2: 60, m9: 7 }, itens: { junco: 2 }, pedras: 1, pecas: [] };
+  var r = A.bauColetar(bau, {}, ['m1', 'm2'], ['m1']);
+  assert.deepStrictEqual(r.xpPorCavalo, { m2: 60 }); assert.strictEqual(r.xpDescartado, 7); assert.deepStrictEqual(r.xpRetido, { m1: 100 });
+  assert.deepStrictEqual(r.bau, { ouro: 0, xp: { m1: 100 }, itens: {}, pedras: 0, pecas: [] });
+  assert.deepStrictEqual(A.bauColetar(bau, {}, ['m1', 'm2']).xpRetido, {});
+});
+test('a última chance completa fica na vaga até a medida nova terminar; sanear a mantém e joga fora lixo', function () {
+  var ctx = ctxDe(), a = A.ocupar(A.sanear(null, ctx), 0, 'm1', 'fogo:0:normal', ctx).afk;
+  a.vagas[0].ultima = { p: 0.62, duracaoS: 77.3 };
+  assert.deepStrictEqual(A.sanear(a, ctx).vagas[0].ultima, { p: 0.62, duracaoS: 77.3, chave: null });
+  a.vagas[0].ultima = { p: 0.62, duracaoS: 77.3, chave: 'abc' };
+  assert.deepStrictEqual(A.sanear(a, ctx).vagas[0].ultima, { p: 0.62, duracaoS: 77.3, chave: 'abc' });
+  [{ p: 2, duracaoS: 70 }, { p: 0.5, duracaoS: 0 }, { p: 'x', duracaoS: 70 }, 'x', 7, { p: 0.5 }].forEach(function (u, i) {
+    a.vagas[0].ultima = u; assert.strictEqual(A.sanear(a, ctx).vagas[0].ultima, null, 'lixo ' + i);
+  });
+  // medir(vaga): avança a medida da vaga e, quando completa, grava a última chance
+  var h = cav('mare', 8); a.vagas[0].ultima = null;
+  var v1 = A.medirVaga(a.vagas[0], h, 200);
+  assert.strictEqual(v1.medida.feitos, 200); assert.strictEqual(v1.ultima, null);
+  var v2 = v1; while (!A.medidaPronta(v2.medida)) v2 = A.medirVaga(v2, h, 400);
+  assert.deepStrictEqual(v2.ultima, Object.assign(A.medida(v2.medida), { chave: A.chaveConfig(h, 'fogo:0:normal') })); assert.strictEqual(A.medirVaga(v2, h, 400), v2, 'completa: a mesma vaga, sem trabalho');
+  // o cavalo subiu de nível: a medida recomeça, a última chance (do nível anterior) continua valendo até a nova terminar
+  var h2 = cav('mare', 9); h2.uid = h.uid;
+  var v3 = A.medirVaga(v2, h2, 100);
+  assert.strictEqual(v3.medida.feitos, 100); assert.deepStrictEqual(v3.ultima, v2.ultima);
+  assert.strictEqual(A.medirVaga({ uid: null, faseId: null }, h, 10).medida, undefined, 'vaga vazia não mede');
+});
+
+section('relógio da vaga e chance do offline (revisão da coordenação, 2026-11-23)');
+test('tirar e recolocar o cavalo não adianta a corrida: esvaziar guarda o relógio e ocupar usa o maior entre agora e o da vaga', function () {
+  var ctx = ctxDe({ agoraMin: 6000 }), a = A.ocupar(A.sanear(null, ctx), 0, 'm1', 'fogo:0:normal', ctx).afk;
+  // a tela largou uma corrida ao vivo: creditou e levou o relógio ao fim dela (agora + 1,25 min)
+  a.vagas[0].inicioMin = 6001.25; a.vagas[0].contador = 1;
+  // 200 vezes "Tirar" + "Começar treino" no mesmo minuto: o relógio continua no fim da corrida já contada
+  var corridas = 0;
+  for (var k = 0; k < 200; k++) {
+    a = A.esvaziar(a, 0);
+    assert.strictEqual(a.vagas[0].inicioMin, 6001.25, 'vaga vazia guarda o relógio');
+    a = A.ocupar(a, 0, 'm1', 'fogo:0:normal', ctxDe({ agoraMin: 6000.5 })).afk;
+    assert.strictEqual(a.vagas[0].inicioMin, 6001.25, 'recolocar não volta o relógio');
+    if (6000.5 >= a.vagas[0].inicioMin) corridas++;   // a condição de largada da tela (agora ≥ inicioMin)
+  }
+  assert.strictEqual(corridas, 0, 'nenhuma corrida a mais dentro da duração da primeira');
+  // outro cavalo na mesma vaga, e outra fase: o relógio é da vaga
+  assert.strictEqual(A.ocupar(a, 0, 'm2', 'fogo:1:normal', ctxDe({ agoraMin: 6000.6 })).afk.vagas[0].inicioMin, 6001.25);
+  // depois que o tempo passou, o relógio é agora
+  assert.strictEqual(A.ocupar(a, 0, 'm2', 'fogo:1:normal', ctxDe({ agoraMin: 6010 })).afk.vagas[0].inicioMin, 6010);
+  // sanear guarda o relógio da vaga vazia (recarregar não zera) e não inventa um para a que nunca teve cavalo
+  var v = A.sanear(A.esvaziar(a, 0), ctxDe({ agoraMin: 6000.7 })).vagas[0];
+  assert.strictEqual(v.uid, null); assert.strictEqual(v.inicioMin, 6001.25);
+  assert.strictEqual(A.sanear({ vagas: [{ uid: null, inicioMin: 'x' }] }, ctx).vagas[0].inicioMin, 0);
+});
+test('mover o cavalo de vaga leva o relógio junto: vale o maior entre o da origem, o do destino e agora', function () {
+  var ctx = ctxDe({ agoraMin: 6000 }), a = A.comprarVaga(A.sanear(null, ctx));
+  a = A.ocupar(a, 0, 'm1', 'fogo:0:normal', ctx).afk;
+  a.vagas[0].inicioMin = 6001.25;                       // m1 acabou de largar na vaga 1
+  var r = A.ocupar(a, 1, 'm1', 'fogo:0:normal', ctxDe({ agoraMin: 6000.2 })).afk;
+  assert.strictEqual(r.vagas[1].inicioMin, 6001.25, 'o relógio da origem vai com o cavalo');
+  assert.strictEqual(r.vagas[0].uid, null); assert.strictEqual(r.vagas[0].inicioMin, 6001.25, 'e a vaga de origem guarda o dela');
+  // de volta para a vaga 1, e de novo para a 2: nunca antes de 6001,25
+  var r2 = A.ocupar(r, 0, 'm1', 'fogo:0:normal', ctxDe({ agoraMin: 6000.3 })).afk;
+  assert.strictEqual(r2.vagas[0].inicioMin, 6001.25);
+  // destino com relógio mais adiantado que a origem: vale o do destino
+  r.vagas[0].inicioMin = 6005;
+  assert.strictEqual(A.ocupar(r, 0, 'm1', 'fogo:0:normal', ctxDe({ agoraMin: 6000.4 })).afk.vagas[0].inicioMin, 6005);
+});
+test('offline com a configuração trocada: usa o menor entre a chance antiga e a parcial da medida nova (0 sem amostra)', function () {
+  var h = cav('mare', 8), id = 'agua:2:normal', chave = A.chaveConfig(h, id);
+  var vaga = { uid: h.uid, faseId: id, inicioMin: 0, contador: 0, medida: null, ultima: { p: 0.8, duracaoS: 75, chave: chave } };
+  assert.deepStrictEqual(A.chanceOffline(vaga, h), { p: 0.8, duracaoS: 75 }, 'mesma configuração: a última completa');
+  // o cavalo mudou (outro nível; no jogo, uma peça tirada): a chave é outra
+  var h2 = cav('mare', 3); h2.uid = h.uid;
+  var chave2 = A.chaveConfig(h2, id);
+  assert.notStrictEqual(chave2, chave);
+  assert.deepStrictEqual(A.chanceOffline(vaga, h2), { p: 0, duracaoS: 75 }, 'sem amostra da configuração nova: 0');
+  vaga.medida = { chave: chave2, feitos: 200, vitorias: 30, somaDuracao: 150000 };
+  assert.deepStrictEqual(A.chanceOffline(vaga, h2), { p: 0.15, duracaoS: 75 }, 'a parcial, se menor');
+  vaga.medida = { chave: chave2, feitos: 200, vitorias: 190, somaDuracao: 150000 };
+  assert.deepStrictEqual(A.chanceOffline(vaga, h2), { p: 0.8, duracaoS: 75 }, 'a antiga, se menor');
+  vaga.medida = { chave: chave, feitos: 200, vitorias: 190, somaDuracao: 150000 };
+  assert.strictEqual(A.chanceOffline(vaga, h2).p, 0, 'medida de outra configuração não conta');
+  // última de save antigo (sem chave) vale como configuração trocada; sem última, a vaga não rende fora da tela
+  vaga.medida = null; vaga.ultima = { p: 0.8, duracaoS: 75 };
+  assert.strictEqual(A.chanceOffline(vaga, h).p, 0);
+  vaga.ultima = null;
+  assert.strictEqual(A.chanceOffline(vaga, h), null);
+  assert.strictEqual(A.chanceOffline(null, h), null); assert.strictEqual(A.chanceOffline(vaga, null), null);
+  // o offline com a chance 0 só conta derrotas
+  var off = A.offline({ uid: h.uid, faseId: id, inicioMin: 0, contador: 0 }, 60, { p: 0, duracaoS: 75 }, 99, null, 480, 0);
+  assert.strictEqual(off.corridas, 48); assert.strictEqual(off.vitorias, 0);
+});
+test('relógio depois do acerto offline: anda só o tempo das corridas contadas; no limite, vem para agora', function () {
+  // 3 min parados, duelo de 75 s: 2 corridas (2,5 min) e sobram 0,5 min para a próxima
+  assert.strictEqual(A.relogioAposOffline(1000, 1003, 2, 75, 480), 1002.5);
+  // entrar e sair em menos de um duelo: 0 corridas, o relógio não anda (o tempo não se perde)
+  assert.strictEqual(A.relogioAposOffline(1000, 1001, 0, 75, 480), 1000);
+  var t = 1000, n = 0;
+  for (var k = 1; k <= 10; k++) { var agora = 1000 + k; var c = Math.floor((agora - t) * 60 / 75 + 1e-9); n += c; t = A.relogioAposOffline(t, agora, c, 75, 480); }
+  assert.strictEqual(n, 8, '10 visitas de 1 min somam as mesmas 8 corridas de 10 min seguidos');
+  // passou do limite offline: o excedente não rende, o relógio encosta em agora
+  assert.strictEqual(A.relogioAposOffline(1000, 1000 + 481, 384, 75, 480), 1481);
+  assert.strictEqual(A.relogioAposOffline(1000, 1480, 384, 75, 480), 1480);
+  // relógio do aparelho para trás: fica onde estava; lixo: agora
+  assert.strictEqual(A.relogioAposOffline(1000, 990, 0, 75, 480), 1000);
+  assert.strictEqual(A.relogioAposOffline(NaN, 990, 0, 75, 480), 990);
+  assert.strictEqual(A.relogioAposOffline(1000, 1003, 2, 0, 480), 1003);
+});
+
+section('peças no treino AFK (bloco B)');
+function equipado(h, ids, plus, linhas) {
+  var items = {}, equip = {};
+  ids.forEach(function (id, i) { var uid = 'i' + (i + 1); items[uid] = { uid: uid, id: id, plus: plus || 0, linhas: (linhas && linhas[i]) || GR.linhasDaPeca({ uid: uid, id: id }, 7) }; equip[G.GEAR[id].slot] = uid; });
+  var c = JSON.parse(JSON.stringify(h)); c.pve = GR.resolvePve({ equip: equip }, items);
+  return c;
+}
+var CINCO_SOL = G.GEAR_SLOTS.map(function (sl) { return sl + '-sol-raro'; });
+test('o cavalo corre com o principal das peças (statAdd) e o oponente com as da dificuldade; a Normal não tem peças', function () {
+  var h = cav('mare', 30), hp = equipado(h, CINCO_SOL, 7);
+  var n = A.correr(hp, 'fogo:4:normal', 5, 0, BONUS0), d = A.correr(hp, 'fogo:4:dificil', 5, 0, BONUS0), l = A.correr(hp, 'fogo:4:lendaria', 5, 0, BONUS0);
+  assert.deepStrictEqual(n.cfg.racers[0].statAdd, { vel: 2.65, acel: 2.65, man: 2.65, forca: 2.65, est: 2.65 });
+  assert.deepStrictEqual(n.cfg.racers[0].pve, { clima: 'sol', mult: 1.07, semPenalidade: true });
+  assert.strictEqual(n.cfg.racers[1].statAdd, undefined); assert.strictEqual(n.cfg.racers[1].pve, undefined);
+  assert.deepStrictEqual(d.cfg.racers[1].statAdd, { vel: 1.6, acel: 1.6, man: 1.6, forca: 1.6, est: 1.6 }, 'Difícil: 5 Mágicas +3');
+  assert.strictEqual(d.cfg.racers[1].pve, undefined, 'Mágicas não formam conjunto');
+  assert.deepStrictEqual(l.cfg.racers[1].statAdd, { vel: 2.25, acel: 2.25, man: 2.25, forca: 2.25, est: 2.25 }, 'Lendária: 5 Raras +5');
+  assert.deepStrictEqual(l.cfg.racers[1].pve, { clima: 'sol', mult: 1.07, semPenalidade: true }, 'do conjunto do ginásio (Fornalha → Sol)');
+  // sem peças, o cavalo não leva nada
+  assert.strictEqual(A.correr(h, 'fogo:4:lendaria', 5, 0, BONUS0).cfg.racers[0].statAdd, undefined);
+  // as peças mudam a corrida
+  var com = 0, sem = 0;
+  for (var c = 0; c < 300; c++) { com += A.correr(hp, 'fogo:4:lendaria', 9, c, BONUS0).venceu ? 1 : 0; sem += A.correr(h, 'fogo:4:lendaria', 9, c, BONUS0).venceu ? 1 : 0; }
+  assert.ok(com > sem + 15, 'com 5 Raras +7 vence mais: ' + com + ' × ' + sem);
+});
+test('trocar uma peça muda a chaveConfig e invalida a medida; as linhas de farm (que não mexem na corrida) não mudam', function () {
+  var h = cav('ipe', 25), a = equipado(h, CINCO_SOL, 7), b = equipado(h, CINCO_SOL.slice(0, 4).concat(['armadura-magico']), 7), c = equipado(h, CINCO_SOL, 8);
+  var k = A.chaveConfig(a, 'agua:2:normal');
+  assert.notStrictEqual(k, A.chaveConfig(h, 'agua:2:normal'), 'com peças × sem peças');
+  assert.notStrictEqual(k, A.chaveConfig(b, 'agua:2:normal'), 'outra peça'); assert.notStrictEqual(k, A.chaveConfig(c, 'agua:2:normal'), 'outra melhoria');
+  var outrasLinhas = equipado(h, CINCO_SOL, 7, CINCO_SOL.map(function () { return [{ tipo: 'xp', valor: 6 }, { tipo: 'ouro', valor: 4 }]; }));
+  assert.strictEqual(A.chaveConfig(outrasLinhas, 'agua:2:normal'), k, 'só o farm mudou: a corrida é a mesma');
+  var vaga = { uid: 'm1', faseId: 'agua:2:normal', inicioMin: 0, contador: 0, medida: null, ultima: null };
+  var v1 = A.medirVaga(vaga, a, 300), v2 = A.medirVaga(v1, b, 50);
+  assert.strictEqual(v1.medida.feitos, 300); assert.strictEqual(v2.medida.feitos, 50, 'a medida recomeça com a peça trocada'); assert.strictEqual(v2.medida.chave, A.chaveConfig(b, 'agua:2:normal'));
+});
+
+section('forja (bloco B)');
+var FJ; try { FJ = require('../src/forja.js'); } catch (e) { FJ = {}; console.log('  (forja.js não carregou: ' + e.message + ')'); }
+var MOCH_FOGO = { carvao: 200, 'ferro-bruto': 200, 'brasa-viva': 50, 'trofeu-fogo-2': 5, selo: 5 };
+test('GameData.FORJA: as seis receitas com os custos da spec', function () {
+  assert.deepStrictEqual(G.FORJA, {
+    comum: { mat: 10, inc: 0, trofeu: 0, ouro: 100 }, magico: { mat: 25, inc: 3, trofeu: 0, ouro: 300 },
+    raro: { mat: 60, inc: 10, trofeu: 1, ouro: 800 }, lendario: { mat: 120, inc: 20, trofeu: 3, selo: 2, ouro: 3000 },
+    pedra: { mat: 8, inc: 0, trofeu: 0, ouro: 30 }, reforja: { mat: 15, inc: 1, trofeu: 0, ouro: 150, qualquerGinasio: true }
+  });
+  assert.strictEqual(G.ITEMS.selo.cap, 99);
+});
+test('forjar Rara de Sela na Fornalha gasta 30 Carvão + 30 Ferro, 10 Brasas, 1 troféu da Fornalha e 800, e dá a Sela do conjunto Sol com 2 linhas', function () {
+  var m = congela(JSON.parse(JSON.stringify(MOCH_FOGO)));
+  var p = FJ.pode('raro', 'sela', 'fogo', m, 800);
+  assert.deepStrictEqual(p, { ok: true, gasto: { itens: { carvao: 30, 'ferro-bruto': 30, 'brasa-viva': 10, 'trofeu-fogo-2': 1 }, ouro: 800 } });
+  var r = FJ.forjar('raro', 'sela', 'fogo', m, 4242, 0);
+  assert.strictEqual(r.ouro, 800);
+  assert.deepStrictEqual(r.mochila, { carvao: 170, 'ferro-bruto': 170, 'brasa-viva': 40, 'trofeu-fogo-2': 4, selo: 5 });
+  assert.strictEqual(r.peca.id, 'sela-sol-raro');
+  assert.strictEqual(r.peca.linhas.length, 2);
+  assert.ok(require('../src/gear.js').linhasValidas(r.peca.id, r.peca.linhas), 'linhas válidas para uma Rara');
+  assert.strictEqual(FJ.forjar('raro', 'estribos', 'agua', { junco: 60, 'perola-de-rio': 10, 'trofeu-agua-0': 1 }, 1, 0).peca.id, 'estribos-chuva-raro');
+  assert.strictEqual(FJ.forjar('raro', 'armadura', 'grama', { resina: 60, 'seiva-antiga': 10, 'trofeu-grama-4': 1 }, 1, 0).peca.id, 'armadura-nevoa-raro');
+});
+test('Rara do Sol com Pérola de rio no lugar da Brasa: motivo', function () {
+  var m = { carvao: 200, 'ferro-bruto': 200, 'perola-de-rio': 50, 'trofeu-fogo-0': 1 };
+  var p = FJ.pode('raro', 'sela', 'fogo', m, 99999);
+  assert.strictEqual(p.ok, false);
+  assert.strictEqual(p.motivo, 'Falta Brasa viva (precisa de 10, tem 0)');
+  assert.strictEqual(FJ.forjar('raro', 'sela', 'fogo', m, 1, 0), null);
+});
+test('Lendária sem 2 Selos: motivo; com 2, sai a Lendária do conjunto com 3 linhas e gasta 3 troféus e 2 Selos', function () {
+  var m = { carvao: 60, 'ferro-bruto': 60, 'brasa-viva': 20, 'trofeu-fogo-0': 1, 'trofeu-fogo-3': 2, selo: 1 };
+  assert.strictEqual(FJ.pode('lendario', 'ferraduras', 'fogo', m, 99999).motivo, 'Falta Selo do campeão (precisa de 2, tem 1)');
+  m.selo = 2;
+  var r = FJ.forjar('lendario', 'ferraduras', 'fogo', m, 9, 3);
+  assert.strictEqual(r.peca.id, 'ferraduras-sol-lendario');
+  assert.strictEqual(r.peca.linhas.length, 3);
+  assert.deepStrictEqual(r.mochila, { carvao: 0, 'ferro-bruto': 0, 'brasa-viva': 0, 'trofeu-fogo-0': 0, 'trofeu-fogo-3': 0, selo: 0 });
+  assert.strictEqual(r.ouro, 3000);
+});
+test('sem troféu: motivo; troféu de outro ginásio não serve', function () {
+  var m = { carvao: 200, 'ferro-bruto': 200, 'brasa-viva': 50, 'trofeu-agua-0': 3 };
+  var p = FJ.pode('raro', 'sela', 'fogo', m, 99999);
+  assert.strictEqual(p.ok, false);
+  assert.strictEqual(p.motivo, 'Falta troféu da Fornalha (precisa de 1, tem 0)');
+});
+test('Ouro reservado da sala não conta: com o Ouro livre abaixo do custo, motivo; forjar não confere o Ouro', function () {
+  assert.strictEqual(FJ.pode('raro', 'sela', 'fogo', MOCH_FOGO, 799).motivo, 'Falta Ouro (precisa de 800)');
+  assert.strictEqual(FJ.pode('lendario', 'sela', 'fogo', MOCH_FOGO, 2999).motivo, 'Falta Ouro (precisa de 3.000)');
+  assert.strictEqual(FJ.pode('raro', 'sela', 'fogo', MOCH_FOGO, 800).ok, true);
+});
+test('mesma seed e contador dão as mesmas linhas; contador diferente muda; a forja não muta a mochila', function () {
+  var m = congela(JSON.parse(JSON.stringify(MOCH_FOGO)));
+  var a = FJ.forjar('raro', 'sela', 'fogo', m, 777, 5), b = FJ.forjar('raro', 'sela', 'fogo', m, 777, 5);
+  assert.deepStrictEqual(a, b);
+  var dif = 0;
+  for (var c = 0; c < 20; c++) if (JSON.stringify(FJ.forjar('raro', 'sela', 'fogo', m, 777, c).peca.linhas) !== JSON.stringify(a.peca.linhas)) dif++;
+  assert.ok(dif >= 15, 'contadores diferentes dão linhas diferentes (' + dif + '/20)');
+  assert.strictEqual(FJ.forjar('raro', 'sela', 'fogo', m, 777, -1), null);
+  assert.strictEqual(FJ.forjar('raro', 'sela', 'fogo', m, NaN, 0), null);
+});
+test('material: meio a meio, o ímpar sai do que o jogador tem mais, e o que falta de um sai do outro', function () {
+  assert.deepStrictEqual(FJ.pode('magico', 'sela', 'agua', { junco: 40, concha: 90, 'perola-de-rio': 3 }, 300).gasto.itens, { junco: 12, concha: 13, 'perola-de-rio': 3 });
+  assert.deepStrictEqual(FJ.pode('magico', 'sela', 'agua', { junco: 90, concha: 40, 'perola-de-rio': 3 }, 300).gasto.itens, { junco: 13, concha: 12, 'perola-de-rio': 3 });
+  assert.deepStrictEqual(FJ.pode('comum', 'sela', 'agua', { junco: 2, concha: 40 }, 100).gasto.itens, { junco: 2, concha: 8 });
+  assert.deepStrictEqual(FJ.pode('comum', 'sela', 'agua', { concha: 10 }, 100).gasto.itens, { concha: 10 });
+  assert.strictEqual(FJ.pode('comum', 'sela', 'agua', { junco: 4, concha: 5 }, 100).motivo, 'Faltam materiais: Junco e Concha (precisa de 10, tem 9)');
+  assert.strictEqual(FJ.forjar('comum', 'sela', 'agua', { junco: 5, concha: 5 }, 1, 0).peca.id, 'sela-comum');
+  assert.deepStrictEqual(FJ.forjar('comum', 'sela', 'agua', { junco: 5, concha: 5 }, 1, 0).peca.linhas, []);
+  assert.strictEqual(FJ.forjar('magico', 'testeira', 'grama', { fibra: 25, 'seiva-antiga': 3 }, 1, 0).peca.id, 'testeira-magico');
+});
+test('Pedra Negra e Pergaminho de reforja: sem slot, sem sorteio; o Pergaminho respeita o teto de 99', function () {
+  var r = FJ.forjar('pedra', null, 'grama', { fibra: 4, resina: 4 });
+  assert.deepStrictEqual(r, { mochila: { fibra: 0, resina: 0 }, ouro: 30, pedra: 1 });
+  var q = FJ.forjar('reforja', null, 'fogo', { carvao: 15, 'brasa-viva': 1, 'pergaminho-reforja': 2 });
+  assert.deepStrictEqual(q, { mochila: { carvao: 0, 'brasa-viva': 0, 'pergaminho-reforja': 3 }, ouro: 150, item: 'pergaminho-reforja' });
+  // o Pergaminho aceita os 15 materiais somados de qualquer ginásio e o incomum de qualquer um; gasta primeiro do que tem mais
+  var misto = { carvao: 4, junco: 6, resina: 5, 'seiva-antiga': 1 };
+  assert.deepStrictEqual(FJ.pode('reforja', null, 'fogo', misto, 150), { ok: true, gasto: { itens: { carvao: 4, junco: 6, resina: 5, 'seiva-antiga': 1 }, ouro: 150 } });
+  assert.deepStrictEqual(FJ.pode('reforja', null, 'agua', misto, 150).gasto, FJ.pode('reforja', null, 'fogo', misto, 150).gasto, 'o ginásio escolhido não importa');
+  assert.deepStrictEqual(FJ.pode('reforja', null, 'fogo', { carvao: 20, concha: 9, fibra: 2, 'perola-de-rio': 3, 'brasa-viva': 1 }, 150).gasto.itens, { carvao: 13, concha: 2, 'perola-de-rio': 1 });
+  assert.strictEqual(FJ.pode('reforja', null, 'fogo', { carvao: 7, junco: 7, 'brasa-viva': 1 }, 150).motivo, 'Faltam materiais de qualquer ginásio (precisa de 15, tem 14)');
+  assert.strictEqual(FJ.pode('reforja', null, 'fogo', { carvao: 15 }, 150).motivo, 'Falta material incomum de qualquer ginásio (precisa de 1, tem 0)');
+  assert.strictEqual(FJ.pode('pedra', null, 'fogo', { junco: 8 }, 30).ok, false, 'a Pedra continua pedindo os materiais do ginásio escolhido');
+  assert.strictEqual(FJ.pode('reforja', null, 'fogo', { carvao: 15, 'brasa-viva': 1, 'pergaminho-reforja': 99 }, 999).ok, false);
+});
+test('receita, slot ou ginásio inválido: pode recusa e forjar devolve null', function () {
+  [['xyz', 'sela', 'fogo'], ['raro', 'xyz', 'fogo'], ['raro', 'sela', 'xyz'], [null, null, null], ['raro', null, 'fogo'], ['__proto__', 'sela', 'fogo']].forEach(function (c) {
+    assert.strictEqual(FJ.pode(c[0], c[1], c[2], MOCH_FOGO, 99999).ok, false, JSON.stringify(c));
+    assert.strictEqual(FJ.forjar(c[0], c[1], c[2], MOCH_FOGO, 1, 0), null, JSON.stringify(c));
+  });
+  assert.strictEqual(FJ.pode('raro', 'sela', 'fogo', null, 99999).ok, false);
+});
+test('forja.js é puro e entra no build, no index.html e depois do afk.js', function () {
+  var fonte = fs.readFileSync(path.join(__dirname, '../src/forja.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(!/Math\.random|Date|performance\.now|document|window|localStorage/.test(fonte), 'forja.js sem sorteio fora da seed, relógio ou tela');
+  assert.ok(/root\.Forja = Forja/.test(fonte), 'UMD no navegador');
+  assert.ok(fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8').indexOf('src/forja.js') > 0, 'index.html carrega');
+  assert.ok(/'src\/afk\.js', 'src\/forja\.js'/.test(fs.readFileSync(path.join(__dirname, '../build.mjs'), 'utf8')), 'build.mjs junta, depois do afk.js');
+});
+
+section('pureza');
+test('afk.js é puro: sem Math.random, relógio, tela nem estado global; carrega no navegador e no build', function () {
+  var fonte = fs.readFileSync(path.join(__dirname, '../src/afk.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(!/Math\.random|Date|performance\.now|document|window|localStorage/.test(fonte), 'afk.js sem sorteio fora da seed, relógio ou tela');
+  assert.ok(/root\.Afk = Afk/.test(fonte), 'UMD no navegador');
+  assert.ok(fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8').indexOf('src/afk.js') > 0, 'index.html carrega');
+  assert.ok(/'src\/ginasio\.js', 'src\/afk\.js'/.test(fs.readFileSync(path.join(__dirname, '../build.mjs'), 'utf8')), 'build.mjs junta, depois do ginasio.js');
+  assert.ok(/afk-test\.js/.test(fs.readFileSync(path.join(__dirname, '../../scripts/check.sh'), 'utf8')), 'o check.sh roda este teste');
+});
+
+console.log('\n' + count + ' testes, ' + fails + ' falhas');
+process.exit(fails ? 1 : 0);

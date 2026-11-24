@@ -383,6 +383,26 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-icone--cupom { background-image: var(--arte-item-cupom); }
 .item-icone--manual { background-image: var(--arte-item-manual); }
 .item-icone--pergaminho { background-image: var(--arte-item-pergaminho); }
+/* itens do AFK (tools/icones-afk.mjs); os 15 troféus usam a taça do ginásio deles */
+.item-icone--carvao { background-image: var(--arte-item-carvao); }
+.item-icone--ferro-bruto { background-image: var(--arte-item-ferro-bruto); }
+.item-icone--junco { background-image: var(--arte-item-junco); }
+.item-icone--concha { background-image: var(--arte-item-concha); }
+.item-icone--fibra { background-image: var(--arte-item-fibra); }
+.item-icone--resina { background-image: var(--arte-item-resina); }
+.item-icone--brasa-viva { background-image: var(--arte-item-brasa-viva); }
+.item-icone--perola-de-rio { background-image: var(--arte-item-perola-de-rio); }
+.item-icone--seiva-antiga { background-image: var(--arte-item-seiva-antiga); }
+.item-icone--feno { background-image: var(--arte-item-feno); }
+.item-icone--cenoura { background-image: var(--arte-item-cenoura); }
+.item-icone--maca { background-image: var(--arte-item-maca); }
+.item-icone--aveia-dourada { background-image: var(--arte-item-aveia-dourada); }
+.item-icone--pergaminho-reforja { background-image: var(--arte-item-pergaminho-reforja); }
+.item-icone--trofeu-fogo { background-image: var(--arte-item-trofeu-fogo); }
+.item-icone--trofeu-agua { background-image: var(--arte-item-trofeu-agua); }
+.item-icone--trofeu-grama { background-image: var(--arte-item-trofeu-grama); }
+.item-icone--bau { background-image: var(--arte-item-bau); }
+.item-icone--selo { background-image: var(--arte-item-selo); }
 .item-nome { grid-column: 2; margin: 0; font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 24px; overflow-wrap: anywhere; }
 .item-qtd { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 700; line-height: 24px; white-space: nowrap; }
 .item-desc { grid-column: 2 / -1; margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
@@ -437,6 +457,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .montaria-linha[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
 .item-skills { grid-template-columns: minmax(0, 1fr); }
 .item-skill { justify-content: flex-start; }
+.item-skill-opcao { min-width: 0; }
+.item-skill { gap: 6px; }
+.item-skill .rank-marcas { margin-left: auto; }
+.item-skill-opcao .habilidade-resumo { padding: 2px 4px 0; }
+.levelup .habilidade--nova { margin-top: 6px; text-align: left; }
 
 /* opções selecionáveis (aria-pressed) */
 .opcoes { display: grid; gap: 10px; }
@@ -728,6 +753,35 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .habilidade span { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .habilidade .habilidade-quando { color: var(--texto); }
 .habilidade--garra { margin-top: 8px; }
+/* skill em resumo (ajustes 1): ícone, nome e rank no gatilho (um botão com a peça ⓘ depois do nome, como o nome dos
+   status), o resumo embaixo e o texto completo num balão (.skill-dica). Mouse (só onde há hover) ou foco do teclado: o
+   balão por cima, sem empurrar a tela nem pegar o mouse; toque/clique (aria-expanded): o texto abre embaixo do resumo */
+.skill-dica-area { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ajuda.skill-dica-btn:not(.skill-dica-btn--i) {
+  width: auto; height: auto; min-width: 0; min-height: 44px; margin: -8px 0 -6px; padding: 0 2px; gap: 6px; justify-content: flex-start; align-self: flex-start;
+  color: var(--texto); font: inherit; text-align: left; white-space: normal;
+}
+.skill-dica-btn:not(.skill-dica-btn--i)::before { order: 1; }
+.skill-dica-btn b { min-width: 0; overflow-wrap: anywhere; }
+.skill-dica-topo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.skill-dica-topo > .btn { flex: 1 1 auto; min-width: 0; }
+.ajuda.skill-dica-btn--i { margin: 0 -8px 0 -12px; }
+.habilidade-resumo, .habilidade span.habilidade-resumo { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.3; color: var(--texto); }
+.skill-dica {
+  display: none; flex-direction: column; gap: 2px; margin: 4px 0 0; padding: 6px 8px; background: var(--painel-3);
+  box-shadow: 0 0 0 2px var(--sombra), inset 3px 0 0 0 var(--ouro); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.4;
+}
+.skill-dica span, .habilidade .skill-dica span { color: var(--texto); }
+.skill-dica .habilidade-quando { color: var(--ouro-claro); }
+.skill-dica-area:has([data-dica][aria-expanded="true"]) > .skill-dica { display: flex; }
+.skill-dica-area:has([data-dica]:focus-visible:not([aria-expanded="true"]):not(.dica-esc)) > .skill-dica {
+  display: flex; position: absolute; left: 0; right: 0; top: 100%; z-index: 30; pointer-events: none;
+}
+@media (hover: hover) {
+  .skill-dica-area:has([data-dica]:hover:not([aria-expanded="true"]):not(.dica-esc)) > .skill-dica {
+    display: flex; position: absolute; left: 0; right: 0; top: 100%; z-index: 30; pointer-events: none;
+  }
+}
 /* Rank das skills de vaga (aba Skills): o topo, as 5 marcas, a linha do próximo rank, o custo e o "Subir rank" */
 .rank-topo { justify-content: space-between; margin: 0 0 8px; color: var(--texto-2); }
 .rank-topo strong { color: var(--texto); }
@@ -778,29 +832,31 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .iniciais-nav .nota { flex-basis: 100%; }
 
 /* ---------- estábulo ---------- */
-.selvagens { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-.selvagem { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-width: 0; }
-.selvagem .retrato { align-self: center; margin-bottom: 6px; }
-.selvagem b { font-family: var(--fonte-ui); font-size: var(--t-m); }
-.selvagem .nota { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.3; }
-.selvagem--comum { box-shadow: inset 0 -4px 0 0 var(--r-comum); }
-.selvagem--magico { box-shadow: inset 0 -4px 0 0 var(--r-magico); }
-.selvagem--raro { box-shadow: inset 0 -4px 0 0 var(--r-raro); }
-.selvagem--lendario { box-shadow: inset 0 -4px 0 0 var(--r-lendario); }
-.selvagem--mitico { box-shadow: inset 0 -4px 0 0 var(--r-mitico); }
+/* os cavalos selvagens (ajustes 1): só o título, num bloco recolhido e desativado com o selo "em breve"; o botão
+   disabled não reage ao toque (sem hover, sem cursor de mão) e o texto fica apagado */
+.selvagens-bloco > h2.titulo { margin: 0; }
+.selvagens-abrir {
+  all: unset; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; flex: 1 1 auto; min-height: 44px;
+  font: inherit; color: var(--texto-2); cursor: default; pointer-events: none;
+}
+.selvagens-abrir > span:first-child { opacity: 0.75; }
+.selo-breve {
+  margin-left: auto; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--tinta); background: var(--texto-2); padding: 4px 6px 3px; box-shadow: 0 0 0 2px var(--sombra); text-shadow: none;
+}
 /* ---------- Expedição: ginásios e a trilha (spec 2026-11-17-ginasios §10) ---------- */
 /* cartão do ginásio e etapa tocável: a moldura do botão (§4.4), como a linha do Estábulo; avança 4px sobre o respiro do painel */
-.ginasios, .trilha { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
-.ginasios > li, .trilha > li { display: block; min-width: 0; }
+.ginasios, .afk-cartoes, .trilha { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.ginasios > li, .afk-cartoes > li, .trilha > li { display: block; min-width: 0; }
 /* a trilha de baixo para cima: o DOM vai da 1ª etapa ao líder (ordem de leitura e de foco), a coluna mostra o líder no topo */
 .trilha { flex-direction: column-reverse; gap: 12px; }
-.ginasio-cartao, .etapa-btn {
+.ginasio-cartao, .afk-cartao, .etapa-btn {
   appearance: none; border: 0; margin: 0; width: 100%; min-width: 0; min-height: 48px; position: relative;
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 2px;
   padding: 8px 10px; background: var(--painel-2); color: var(--texto); font: inherit; text-align: left;
   touch-action: manipulation; -webkit-user-select: none; user-select: none;
 }
-.ginasio-cartao, .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn {
+.ginasio-cartao, .afk-cartao, .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn {
   cursor: pointer;
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
@@ -808,15 +864,15 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
     inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
     inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
 }
-.ginasio-cartao:hover, .etapa--proxima .etapa-btn:hover, .etapa--revanche .etapa-btn:hover { background: var(--painel-3); }
-.ginasio-cartao:active, .etapa--proxima .etapa-btn:active, .etapa--revanche .etapa-btn:active {
+.ginasio-cartao:hover, .afk-cartao:hover, .etapa--proxima .etapa-btn:hover, .etapa--revanche .etapa-btn:hover { background: var(--painel-3); }
+.ginasio-cartao:active, .afk-cartao:active, .etapa--proxima .etapa-btn:active, .etapa--revanche .etapa-btn:active {
   transform: translateY(2px);
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
     inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
     inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
 }
-.ginasio-cartao:focus-visible, .etapa-btn:focus-visible { outline-offset: 5px; }
+.ginasio-cartao:focus-visible, .afk-cartao:focus-visible, .etapa-btn:focus-visible { outline-offset: 5px; }
 .ginasio-cartao-nome {
   grid-column: 1; min-width: 0; overflow-wrap: anywhere;
   font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1.5; color: var(--texto); text-shadow: var(--px) var(--px) 0 var(--sombra);
@@ -873,6 +929,105 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-desafio .acoes .btn { width: 100%; }
 /* tela de desafio: "Começar duelo" e "Pular tudo" numa linha cada, lado a lado, mesmo a 360 px com a Galmuri11 */
 .tela--desafio > .acoes .btn { padding-left: 8px; padding-right: 8px; white-space: nowrap; }
+/* ---------- treino AFK (spec 2026-11-23-afk-drops; guia de arte §8b: a estrutura das telas de hoje) ----------
+   Vagas em cartões (o retrato pequeno, o oponente, a chance, a barra da corrida em curso, a última corrida e os botões);
+   o baú em linhas; a escolha do treino em grupos de opções; o bestiário com os marcos e a coleção. Alturas pares; nada se
+   move além da barra da corrida (largura em passos de 1%, sem transição). */
+.etapa-treinar { display: flex; justify-content: flex-end; margin-top: 6px; }
+.afk-vagas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.afk-vaga { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 8px 10px; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 14px; }
+.afk-vaga--livre, .afk-vaga--comprar { background: var(--painel); box-shadow: inset 0 0 0 2px var(--linha); padding-left: 10px; }
+.afk-vaga--sala { box-shadow: inset 4px 0 0 0 var(--ouro); }
+.afk-vaga-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.afk-vaga-num { font-family: var(--fonte-display); font-size: var(--t-m); line-height: var(--lh-s); }
+.afk-vaga-estado { font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
+.afk-vaga:not(.afk-vaga--livre):not(.afk-vaga--comprar) .afk-vaga-estado { color: var(--ganho); }
+.afk-vaga--sala .afk-vaga-estado { background: var(--ouro); color: var(--tinta) !important; }
+.afk-vaga-corpo { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.afk-vaga-retrato { line-height: 0; }
+.afk-vaga-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.afk-fase, .afk-chance, .afk-estado, .afk-ultima, .afk-prog-txt { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; margin: 0; overflow-wrap: anywhere; }
+.afk-chance, .afk-estado, .afk-prog-txt { color: var(--texto-2); }
+.afk-correndo { display: flex; flex-direction: column; gap: 6px; }
+.afk-prog { margin: 2px; }
+.afk-prog > i { width: 0; }
+.afk-ultima { padding: 4px 6px; background: var(--painel); }
+.afk-ultima--vitoria { box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 10px; }
+.afk-ultima--derrota { box-shadow: inset 4px 0 0 0 var(--perda); padding-left: 10px; }
+.afk-vaga-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.afk-vaga-acoes .btn { flex: 1 1 auto; }
+.afk-vaga .acoes .btn { width: 100%; }
+/* o baú: uma linha por coisa (o ícone, o nome e a quantidade à direita) */
+.afk-bau > h2 { justify-content: flex-start; gap: 8px; }
+.afk-bau > h2 .item-icone { grid-row: auto; flex: none; }
+.afk-bau-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.afk-bau-linha { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 2px 8px; background: var(--painel-2); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; }
+.afk-bau-linha > span:not(.item-icone):not(.raridade) { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.afk-bau-linha > b { margin-left: auto; white-space: nowrap; }
+.afk-bau-linha .item-icone { grid-row: auto; flex: none; width: 16px; height: 16px; background-size: 16px 16px; }
+.afk-bau-linha img.icone { flex: none; }
+.afk-bau .acoes .btn, .afk-comecar .acoes .btn { width: 100%; }
+.afk-perda, .afk-coletado, .afk-resumo-txt, .afk-resumo-ganho, .afk-escolhido { margin: 0; }
+.afk-resumo { box-shadow: inset 4px 0 0 0 var(--ouro); }
+.afk-resumo-ganho { color: var(--ganho); }
+/* a escolha do treino: opções lado a lado quando cabem (duas colunas a 360 px) */
+.afk-grupo { margin: 8px 0 4px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); color: var(--texto-2); font-weight: 400; }
+.afk-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px 8px; margin: 2px; }
+.afk-opcao { min-height: 48px; text-align: left; }
+.afk-opcao[aria-disabled="true"] { cursor: not-allowed; }
+.afk-opcao[aria-disabled="true"] .opcao-nome { color: var(--texto-2); }
+/* o cartão do treino na Expedição */
+.afk-cartao-bau { grid-row: auto; flex: none; width: 16px; height: 16px; background-size: 16px 16px; }
+/* bestiário */
+.afk-best-bonus p { margin: 0; }
+.afk-best-abas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 2px 6px; }
+.afk-best-aba[aria-pressed="true"] { background: var(--painel-3); box-shadow: 0 0 0 2px var(--sombra), inset 0 -4px 0 0 var(--ouro); }
+/* reforja de uma linha da peça (aba Equipamento) */
+.reforja { margin-top: 8px; padding: 8px; background: var(--painel); box-shadow: 0 0 0 2px var(--sombra); display: grid; gap: 6px; }
+.reforja p { margin: 0; }
+.reforja-linhas { display: grid; gap: 6px; }
+.reforja-linha[aria-pressed="true"], .reforja-selo[aria-pressed="true"] { background: var(--painel-3); box-shadow: 0 0 0 2px var(--sombra), inset 0 -4px 0 0 var(--ouro); }
+.reforja-selo { display: flex; align-items: center; justify-content: center; gap: 8px; }
+/* forja: o que você tem, o tipo da peça e as receitas */
+.forja-estoque { list-style: none; margin: 0 0 6px; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+.forja-estoque li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.forja-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
+.forja-slot { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.forja-slot[aria-pressed="true"] { background: var(--painel-3); box-shadow: 0 0 0 2px var(--sombra), inset 0 -4px 0 0 var(--ouro); }
+.forja-receitas { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.forja-receita { padding: 10px; background: var(--painel-2); box-shadow: 0 0 0 2px var(--sombra); }
+.forja-nome { margin: 0 0 2px; font-size: 1em; }
+.forja-sai, .forja-custo { margin: 0 0 6px; }
+.forja-confirma { flex-wrap: wrap; }
+.forja-confirma .nota { flex: 1 0 100%; margin: 0 0 6px; }
+.afk-best-ops, .afk-best-itens { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.afk-best-op { display: grid; grid-template-columns: calc(var(--px) * 64) minmax(0, 1fr); align-items: center; gap: 10px; padding: 4px 8px; background: var(--painel-2); }
+.afk-best-op .etapa-busto { grid-column: 1; grid-row: auto; }
+.afk-best-op-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.afk-marcos { display: flex; flex-wrap: wrap; gap: 6px; }
+.afk-marco { font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); padding: 2px 6px; background: var(--painel); color: var(--texto-2); box-shadow: inset 0 0 0 2px var(--linha); }
+.afk-marco--feito { background: var(--ouro); color: var(--tinta); box-shadow: none; }
+.afk-best-item { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 2px 8px; background: var(--painel-2); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; }
+.afk-best-item .item-icone { grid-row: auto; flex: none; width: 16px; height: 16px; background-size: 16px 16px; }
+.afk-best-peca { flex: none; line-height: 0; }
+.afk-best-nome { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.afk-best-estado { margin-left: auto; white-space: nowrap; color: var(--texto-2); }
+.afk-best-item--obtido { box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 12px; }
+.afk-best-item--obtido .afk-best-estado { color: var(--ganho); }
+.afk-best-item--oculto { background: var(--painel); }
+.afk-best-item--oculto .item-icone, .afk-best-item--oculto .afk-best-peca { opacity: 0.35; }
+.afk-best-item--oculto .afk-best-nome { color: var(--texto-2); }
+/* equipamento de PVE: o selo "só AFK" no título, o total das peças equipadas e as linhas de farm de cada peça */
+.selo-afk { margin-left: 8px; padding: 2px 6px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); background: var(--ouro); color: var(--tinta); white-space: nowrap; }
+.equip-total { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; overflow-wrap: anywhere; }
+.peca-linhas { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.peca-linhas > li { padding: 2px 6px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); background: var(--painel); color: var(--ganho); }
+.peca-sem-linhas { display: block; }
+/* comidas na Mochila: a escolha do cavalo embaixo da linha do item */
+.item-lista--afk > h2 { margin-bottom: 2px; }
+.comida-cavalos { justify-content: flex-start; }
+.comida-cavalos > .nota { flex: 1 1 100%; }
+.comida-cavalos .btn { margin-left: 0; }
 /* resumo: um duelo por linha (o texto, a plaquinha de quem venceu e o fôlego de quem seguiu), o XP de cada cavalo e a etapa liberada */
 .gin-duelos, .gin-xp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .gin-duelo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; background: var(--painel-2); padding: 6px 8px; min-width: 0; }
@@ -987,6 +1142,9 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 /* o selo "Ativa" da linha: uma plaquinha presa na borda de cima, sobre o canto da moldura do retrato (não toma a largura
    do texto); os 16px entre as linhas a deixam longe da sombra da linha de cima */
 .montaria-linha .badge-ativa { position: absolute; z-index: 2; top: -8px; left: 18px; width: 48px; text-align: center; font-family: var(--fonte-9); font-size: var(--t-s); padding: 4px 0 3px; }
+/* o símbolo do sexo ao lado do nome (ajustes 1): o ícone 16×16 1:1 na grade, colado ao nome, sem quebrar dele */
+.sexo-icone { display: inline-flex; vertical-align: middle; margin-left: calc(4 * var(--px)); line-height: 0; text-shadow: none; }
+.sexo-icone .icone { margin: 0; }
 .montaria-linha-poder { color: var(--texto-2); white-space: nowrap; }
 .montaria-linha-poder b { color: var(--texto); }
 /* a seta: o desenho ocupa as colunas 2 a 5 das 8 do svg; as margens deixam 6px entre o texto e ela e 8px até a borda */
@@ -1506,7 +1664,7 @@ img.icone.icone--n24 { width: calc(var(--px) * 24); height: calc(var(--px) * 24)
   .montaria-linha-seta { fill: ButtonText; }   /* o svg não ganha a cor do sistema sozinho */
   /* ginásios: o cartão e a etapa tocável com borda de botão; a próxima em Highlight; a fechada em GrayText; a vencida (só
      texto) e a plaquinha de estado e de revanche com borda da cor do texto */
-  .ginasio-cartao, .etapa-btn { border: 2px solid ButtonText; }
+  .ginasio-cartao, .afk-cartao, .etapa-btn { border: 2px solid ButtonText; }
   .etapa--vencida .etapa-btn { border-color: CanvasText; }
   .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn { border-color: Highlight; }
   .etapa--feita .etapa-btn { border-color: CanvasText; }

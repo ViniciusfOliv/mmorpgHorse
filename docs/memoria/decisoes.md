@@ -40,6 +40,160 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Na amostra do Litoral a arquibancada fica mais à direita (168 em vez de 60)** — na largada ela cobre o mar; só na
   amostra, para o mar e o farol aparecerem nas duas versões.
 
+## 2026-11-23 — Tudo na `main` (decisão do Vinicius)
+- **AFK, ajustes do lote 1 e build dos testadores integrados e oficiais republicados** ("pode integrar tudo na main e
+  republicar") — avanço direto de 29f65fd para 100e438, depois de o `check.sh` completo passar nesse commit.
+
+## 2026-11-23 — Ajustes de interface, lote 1 (pedidos do Vinicius; ramo `claude/ajustes-1`, a partir de `claude/afk`)
+- **Câmera da corrida centrada no jogador; afasta só para caber quem está a até 30 m (à frente ou atrás)** — pedido do
+  Vinicius ("focar no meu cavalo e afastar quando os outros se distanciam"); a do refino centrava o meio do grupo e o
+  jogador andava pela tela. Quem passa de 30 m não força zoom e fica pela seta com os metros (no piso, ~2,5 px/m numa tela
+  de 240, os cavalos ainda se separam). Escala de 12 px/m de perto, sem piso fixo: o piso sai do limite.
+- **Zoom pelos metros por pixel de arte, não por degraus de `s`** — o buffer segue ampliado por `s` inteiro e os cavalos
+  1:1 (guia §2); trocar `s` no meio da corrida mudaria o layout das raias e pediria uma transição que pisca. O pedido
+  aceitava as duas formas ("e/ou").
+- **Suavização com velocidade mínima** (`CAMERA.vMin`) — a exponencial sozinha deixava o rival de trás 1–2 px cortado
+  por segundos; o `ui-test` pegou. Afasta mais rápido (~0,2 s) do que aproxima (~0,6 s): ninguém sai da tela ao se
+  afastar e a volta é calma.
+- **`CAMERA.cauda` = 62 px** — medido: o rabo do molde robusto fica 62 px atrás do focinho (esguio 49), 2 px à frente.
+- **Skills em resumo: `GameData.SKILLS[id].resumo` (sem números, até 30 letras)** — os números mudam com o rank e já
+  estão no texto completo; o resumo diz o que a skill faz. Skill de tipo: o resumo é o efeito em pontos; Garra: onde a
+  arrancada começa.
+- **O nome da skill é o gatilho** (botão com a peça ⓘ depois dele, como o nome dos status) na aba Skills e no resultado;
+  na escolha do Cupom o nome já é o botão da ação, então o gatilho é um "ⓘ" ao lado. Mouse (só com `hover: hover`) e
+  foco: balão por cima, sem mexer na tela e sem pegar o mouse; toque/clique: abre embaixo (`aria-expanded`), como os ⓘ;
+  Esc esconde. O balão fica sempre no DOM, ligado por `aria-describedby`.
+- **Símbolo do sexo depois do nome e antes do #N** ("Brasa ♂ #1"), num `span role="img"` com "macho"/"fêmea"; a linha
+  do Estábulo diz o sexo no nome acessível. A palavra "Macho"/"Fêmea" continua só na aba Ficha.
+- **Cavalos selvagens: só o título num botão `disabled` com o selo "em breve"** — sem retratos (a vitrine animada era o
+  que fazia a `final-10-expedicao.png` mudar a cada rodada); a lista `WILD_SHOWCASE` fica no `game.js` porque o wiki a lê.
+
+## 2026-11-23 — Build dos testadores (`dist/jogo-teste.html`, pedido do Vinicius)
+- **Terceiro build, só para testes rápidos de outras pessoas, sem o modo DEV**: evolução ×10 (XP da corrida, do ginásio e
+  do AFK; as comidas não, porque o texto delas diz o valor), iniciais Raros com genética 22 (nota A) em todos os status,
+  rivais da sala Mágicos com um só Raro e Poder entre 90% e 96% do cavalo ativo (o rival acima do alvo perde pontos
+  livres e, se preciso, genética). Save próprio (`galope-elemental:teste-rapido`). Bloco `RAPIDO` do `game.js` dentro de
+  `@dev` (o build tira da produção; `jogo.html` não muda). Os ginásios seguem como estão.
+
+## 2026-11-23 — AFK: correções da revisão da coordenação e merge da `main`
+- **Relógio da vaga (defeito grave corrigido):** "Tirar" + "Começar treino" largava e creditava outra corrida na hora.
+  Agora a vaga vazia **guarda o relógio** (`inicioMin`), `Afk.ocupar` usa o maior entre agora, o relógio da vaga de
+  destino e o da vaga de onde o cavalo veio, e o `sanear` não zera o relógio da vaga vazia.
+- **Chance do offline com a configuração trocada:** `ultima` guarda a `chave` medida; se o cavalo mudou (peça, nível,
+  skill) e a medida nova não terminou, o offline usa o **menor** entre a chance antiga e a parcial da medida em curso (0
+  sem amostra) — `Afk.chanceOffline`. Um conjunto de peças não vale mais em várias vagas offline.
+- **Acerto offline não perde o resto:** o relógio anda só o tempo das corridas contadas (`Afk.relogioAposOffline`); só
+  quando o período passa do limite offline ele vem para agora.
+- **Vaga assistida com a aba escondida:** ao voltar à aba, a corrida assistida fecha e o tempo dela entra no acerto.
+- **Pergaminho de reforja na forja:** aceita os 15 materiais **somados de qualquer ginásio** e o incomum de qualquer um
+  (flag `qualquerGinasio`), gastando primeiro do que o jogador tem mais — como a spec diz (decisão da coordenação).
+- **Reforja sem Selo pode sortear de novo o mesmo tipo da linha rerrolada**; só não repete o das outras linhas
+  (confirmado pela coordenação).
+- **Merge da `main` (29f65fd) no `claude/afk`:** a arte da `main` manda no visual (Nunito, painéis azuis, moldura); as
+  telas do AFK, da forja e das peças usam as mesmas classes e tokens e se adaptaram sem mudança de regra. Conflitos só em
+  `ESTADO.md` (ficaram os dois registros), `dist/` (regenerado) e capturas (regeneradas).
+- Números calibrados já registrados: amostra 2.400 e Ouro × 0,15 (bloco A, abaixo e `docs/exemplos.md` §5b); `main`
+  0,75 · 1 · 1,25 · 1,75 e `plusStep` 0,2 (bloco B, abaixo e §5b).
+
+## 2026-11-23 — AFK, execução do bloco B (decisões do construtor; o design não muda)
+- **Principal das peças recalibrado para o PVE (meta E4):** Comum 0,75 · Mágico 1 · Raro 1,25 · Lendário 1,75, e +0,2 por
+  nível de melhoria (eram 2 · 2 · 3 · 4 e +0,5 quando a peça valia no PVP). O status é inteiro, então a soma das peças é
+  arredondada. Com isso o nível 45 com 5 Raras +7 vence o líder da Lendária dentro de 40–60% e, sem peças, de 15–35%.
+- **Conjunto de 3 peças: +10% em todas as linhas de farm** (o bônus antigo de skill e Sorte saiu: era de PVP); 4 peças:
+  clima 1,07; 5: sem penalidade de clima — os dois só no duelo do AFK (`entry.pve`).
+- **Peça que caiu no treino ou saiu da forja não tem preço de venda** (só "Descartar"): senão o AFK viraria Ouro por fora
+  do teto da E1. Só a peça comprada na loja vende de volta (25%).
+- **Sem trava de peça com páreo aberto:** como a peça não entra no Poder, equipar, tirar, melhorar e reforjar ficam
+  liberados sempre. As telas do PVP (Correr, largada, cabeça da Montaria, Estábulo) não mostram mais o resumo das peças.
+- **A sub-aba se chama "Peças"** (e não "Equipamento"): com 4 sub-abas a palavra não cabia numa linha a 360 px.
+- **`GEAR_PVP` (desligado) guarda o caminho antigo** (peças no Poder, na sala e nos bots; Pedra do pódio), em vez de
+  apagar o código; `Gear.botGear` e `Gear.ratingPts` saíram.
+- **Forja:** todas as receitas usam os materiais do ginásio escolhido na tela (a do Pergaminho "de qualquer ginásio" vale
+  em qualquer um); se um dos dois materiais não cobre a metade, o resto sai do outro; o troféu gasto é o que o jogador tem
+  mais. Peça pede confirmação (as linhas são sorteadas ao confirmar); Pedra e Pergaminho forjam direto. Seed das linhas:
+  `hash2(seedBase, 0x464F0000 + forjaCounter)`.
+- **Seed da reforja com dois hashes:** `hash2(hash2(seedBase, 0x52460000 + nº do uid), rerolls)`, no lugar de
+  `uid × 1000 + rerolls` do plano (que colidiria depois de 1.000 reforjas e disputaria faixa com outros sais).
+- **Reforja sem Selo:** o tipo novo não repete o das outras linhas, mas pode sair o mesmo de antes (como no plano).
+- **`ITEMS.selo` entrou já na B3** (a forja da Lendária precisa dele); ícone em código (medalha com fitas), sem créditos.
+- **O teste de interface do Selo no resultado troca o sorteio por um que sempre cai** (a regra dos 10% só para o 1º
+  lugar está no `sim-test.js`): achar uma sala com vitória e Selo pela seed levaria dezenas de corridas.
+- **Um commit só para o bloco B:** as tarefas B1 a B5 mexem nos mesmos arquivos e foram fechadas juntas.
+
+## 2026-11-23 — AFK, execução do bloco A (decisões do construtor; o design não muda)
+- **`faseId` usa o id do ginásio do catálogo** (`fogo:2:dificil`, e não `fornalha:2:dificil` como no exemplo do plano):
+  é o id que o `GameData.GYMS` e o progresso do save já usam.
+- **A vantagem de elemento do AFK é a do ginásio (`GYM.vantagem`, hoje 4%)**, e não um número próprio: a spec diz "nas
+  regras do duelo de ginásio" e cita 3%, que era o valor antigo; a corrida AFK chama o mesmo `Ginasio.dueloCfg`.
+- **Amostra da chance medida: 2.400 duelos (a spec partia de 400).** Com 400, só 25 de 30 configurações ficam a menos de
+  3 p.p. da referência de 5.000 (a conta do desvio de uma proporção dá o mesmo: ±2,5 p.p. perto de 50%); com 1.600, 43
+  de 45 no `balance.js` (95,6%, no limite da E3); com 2.400, 44 de 45. São ~1,5 s num computador, feitos em fatias.
+- **Ouro do AFK: a tabela de partida × 0,15** (0,3 · 0,45 · 0,6 · 0,75 · 1,2 por vitória, × dificuldade). Com a de
+  partida o cavalo típico de nível 50 tirava ~2.440 de Ouro por hora no líder da Lendária com o máximo de +Ouro (teto
+  da E1: 450); agora o teto absoluto medido é 367.
+- **E2 e E3, como foram medidas** (a spec não fixava): em `docs/exemplos.md` §5b. A segunda parte da E2 ("1 ou 2 degraus
+  abaixo em metade dos casos") deu 44% e fica como informação até a B2: os oponentes da Difícil e da Lendária ainda não
+  têm as peças que a E4 vai calibrar.
+- **Para o Vinicius (não mudei regra):** o XP do AFK por hora é de 2 a 15 vezes o do PVP com os números de partida;
+  os oponentes são fracos para um cavalo Raro; o prêmio quase não cresce com a etapa. Números em `docs/exemplos.md` §5b.
+- **A medição em fatias soma as durações em décimos de segundo inteiros** (a E5 achou a diferença entre fatias).
+- **Relógio do treino na tela (A7):** a corrida ao vivo é gravada ao largar (contador + ganho, antes de aparecer) e a
+  vaga só larga a seguinte quando o tempo real do duelo passa; o tempo fora da tela do treino (outra tela do jogo, aba
+  escondida, jogo fechado) é sempre acertado pela chance medida. "Assistir" anima a corrida em curso no tempo real do
+  duelo; x2 e "Voltar ao treino" não adiantam o treino.
+- **Vaga sem a chance medida não rende fora da tela** (a spec diz que o offline usa a última chance completa): a medição
+  leva ~10 s com o jogo aberto e o resumo avisa quando isso aconteceu.
+- **A Aveia dourada só é gasta quando o período fora passa do limite sem ela** (uma ida rápida a outra tela não a consome).
+- **O resumo "Enquanto você estava fora" aparece para paradas de 10 min ou mais**; ao abrir o jogo, ele abre na tela do
+  treino. Paradas menores são creditadas no baú sem aviso.
+- **Coleta com perda pede um segundo toque** ("Coletar e perder" / "Cancelar"): a spec pede que a tela avise antes.
+- **Ícones dos itens do AFK em código** (18 mapas 16×16, `icones-afk.mjs`); os 15 troféus usam uma taça por ginásio.
+- **Vaga vazia não tem início** (`inicioMin` 0): o save saneado é o mesmo em qualquer hora; o relógio da vaga começa
+  quando um cavalo entra.
+- **A vaga guarda a última chance completa** (`ultima`): o offline usa essa enquanto a medida nova (o cavalo mudou) não
+  termina, como a spec pede; trocar o cavalo ou a fase da vaga zera as duas.
+- **XP de cavalo preso na sala aberta fica no baú** ao coletar (o resto sai), pela regra da sala: nada sobe o Poder do
+  cavalo ativo acima do que a sala viu.
+- **Bônus de insígnia não entra no AFK** (nem o +3% de Ouro nem o +3% de XP): o AFK tem os bônus dele (peças e
+  bestiário).
+- **Peça solta (Comum ou Mágica) só cai na Normal**, Rara na Difícil (1%) e na Lendária (2%), Lendária só na Lendária
+  (0,2%): a leitura literal da tabela do §5.4. Das soltas, 30% saem Mágicas (número de partida, `drops.peca.normal.magica`).
+- **"Drop raro" (bônus das peças e do bestiário) multiplica incomum, Pedra, peça e comida**, como na lista do §5.7; o
+  Pergaminho de reforja e o troféu ficam fora (o troféu tem o bônus dele). O teto de 60% do incomum vale antes do bônus.
+- **Quantidade com fração (bônus de material e de Ouro):** a parte inteira e mais 1 com chance igual à fração, pela seed
+  — o valor esperado fica exato, e +3% de Ouro vale alguma coisa mesmo com 2 de Ouro por vitória.
+- **Na derrota, o material é `floor(quantidade × 25%)`**, como a spec manda: na Normal isso é sempre 0 (1 a 3 × 25%), na
+  Difícil 0 a 1 e na Lendária 1 a 3.
+- **A Pedra Negra que cai não é item da mochila:** vai para o saldo de Pedras que o save já tem (`pedras` no prêmio).
+- **Troféus:** `trofeu-<ginásio>-<etapa>`, com o nome "<objeto> do <oponente>" (os 15 objetos em `GameData.AFK.trofeus`).
+- **Os itens do AFK entram em `GameData.ITEMS` com `grupo`**; `GameData.ITENS_USO` lista os seis de antes (as telas e os
+  testes que enumeravam o catálogo passaram a usar essa lista).
+- **Seed da corrida AFK: `hash2(hash2(seedBase, 0x41460000 + vaga), contador)`**; o offline decide a corrida k com a
+  mesma seed que a corrida ao vivo de mesmo contador usaria (o contador segue de onde parou).
+- **Os oponentes dos ginásios não têm skill de vaga hoje** (são os iniciais): o rank 3 e o rank 5 da Difícil e da
+  Lendária ficam prontos, mas só o nível (e, no bloco B, as peças) deixa essas dificuldades mais fortes.
+
+## 2026-11-23 — AFK: revisão do Vinicius (spec e plano atualizados)
+- **Treinar pelo ginásio:** Expedição → ginásio → os oponentes já vencidos com "Treinar (AFK)".
+- **Drop exclusivo por ginásio pesa de verdade:** a peça Rara (e a Lendária) do conjunto só se forja com o incomum e os
+  troféus do ginásio do conjunto.
+- **Peças com linhas de farm sorteadas pela seed** (Mágico 1, Raro 2, Lendário 3), no lugar do atributo fixo por slot.
+- **Pergaminho de reforja:** rerrola uma linha escolhida; Ouro crescente na mesma peça (100 × 1,5^n), sem voltar a zero.
+- **Selo do campeão, só do 1º lugar no PVP valendo (10%):** passa a ser exigido no rank IV → V das skills (muda o custo
+  da spec das skills), garante a reforja (mantém o tipo, valor na metade de cima — chamada da coordenação, já que a
+  reforja é de uma linha só) e forja a Lendária de conjunto (2 Selos).
+- Plano: `docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B, B5 novo).
+
+## 2026-11-23 — Conteúdo PVE: corrida AFK, itens e rancho (decisões do Vinicius, design em andamento)
+- **Corrida AFK com drops (estilo Idleon/Taskbar Hero), itens mais variados (raros, bestiário, quantidades por ação) e
+  equipamento com status só de PVE** entram em design juntos, porque compartilham os drops — propostas do Vinicius. O
+  equipamento suspenso volta valendo só no PVE (AFK e expedição), nunca no PVP, o que mantém o PVP justo.
+- **O AFK é para assistir enquanto joga e também para coletar offline** — escolha do Vinicius.
+- **O Ouro continua vindo principalmente do PVP**; o AFK rende sobretudo material (proposta da coordenação, para a
+  aposta continuar sendo o centro).
+- **O rancho (fazenda estilo Stardew/Albion, com comidas, casas e trabalhadores) fica só como ideia por enquanto** —
+  escolha do Vinicius; se voltar, começa como tela de gestão.
+
 ## 2026-11-22 — Integração da arte, etapa 8 (créditos e limpeza): a direção de arte fecha
 - **Créditos no Perfil** (botão "Créditos" na seção "Sobre o jogo"): quem fez o jogo e a arte, a fonte e a paleta, com o
   texto de `docs/arte/creditos.md`; "Licença da fonte" abre o texto inteiro da SIL OFL 1.1 (`window.__OFL`, do
