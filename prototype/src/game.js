@@ -3580,6 +3580,27 @@
       return GD.GYMS[id].name + ': ' + ginProgressoTxt(id) + (ginRevancheHoje(id) ? ', revanche hoje' : '');
     }).join('; ') + '.';
   }
+  // ---- A viagem entre o mapa e a trilha (spec §3.2, plano A4): zoom e íris ao entrar num ginásio, o inverso ao voltar.
+  // As trocas de tela vão por relógio (não dependem de o canvas estar sendo desenhado); os canvas só mostram o passo da
+  // hora (Mapa.passoViagem). Com movimento reduzido, ou com o mapa fora da tela, a troca é direta, como antes.
+  var viagem = null;   // { tipo: 'entra' | 'sai', id, el, t0 }
+  function relogio() { return (window.performance ? performance.now() : 0) / 1000; }
+  function naTela(el) { if (!el) return false; var r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < (window.innerHeight || 0) && r.height > 0; }
+  function comecaViagem(tipo, id, tela, troca, fim) {
+    var v = viagem = { tipo: tipo, id: id, el: GD.GYMS[id].element, t0: relogio() };
+    acordaLaco();
+    setTimeout(function () {
+      if (viagem !== v) return;
+      if (ui.screen !== tela) { viagem = null; return; }   // o jogador foi para outra aba no meio: a viagem para
+      troca(); acordaLaco();
+    }, MP.VIAGEM[tipo].troca * 1000);
+    setTimeout(function () { if (viagem !== v) return; viagem = null; if (fim) fim(); }, MP.VIAGEM[tipo].fim * 1000 + 30);
+  }
+  function passoDaViagem(lado) {
+    if (!viagem) return null;
+    var V = MP.passoViagem(viagem.tipo, relogio() - viagem.t0);
+    return V.lado === lado ? V : null;
+  }
   function mapaMundoHtml() {
     if (!temMapaMundo()) return '';
     return '<div class="mapa-mundo-palco"><canvas class="mapa-mundo" data-mapa-mundo="1" role="img" aria-label="' + esc(mapaMundoTxt()) + '"></canvas></div>';
@@ -3600,8 +3621,10 @@
         item.drawn = true;
         var t0 = window.performance ? performance.now() : 0;
         m.quadro(t, dt, r);
-        var t1 = t0 ? performance.now() : 0;
-        ctx.drawImage(m.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        var t1 = t0 ? performance.now() : 0, V = passoDaViagem('mundo');
+        if (V) { var pg = MP.POS[viagem.el], f = [pg[0], pg[1] - 8]; MP.desenhaViagem(ctx, k, ox, L.W, m.c, f, V.z, V.r, f, viagem.el); }
+        else ctx.drawImage(m.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        cv.setAttribute('data-viagem', V ? viagem.tipo : '');
         // o custo (média móvel, para o ui-test): o desenho do quadro (data-ms) e a cópia ampliada para a tela (data-ms-copia)
         if (t0) {
           var t2 = performance.now(), ms = t1 - t0, mc = t2 - t1;
@@ -3673,8 +3696,10 @@
         item.rapido = !r && tr.anda();   // a pista se pintando e o trote: desenho a cada quadro
         var t0 = window.performance ? performance.now() : 0;
         tr.quadro(t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
-        var t1 = t0 ? performance.now() : 0;
-        ctx.drawImage(tr.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        var t1 = t0 ? performance.now() : 0, V = passoDaViagem('trilha');
+        if (V) { var hp = tr.posCavalo(); MP.desenhaViagem(ctx, k, ox, L.W, tr.c, [128, 192], 1, V.r, [hp[0], hp[1] - 20], viagem.el); }
+        else ctx.drawImage(tr.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        cv.setAttribute('data-viagem', V ? viagem.tipo : '');
         if (t0) {
           var ms = t1 - t0; item.ms = item.n ? item.ms * 0.9 + ms * 0.1 : ms; item.n = (item.n || 0) + 1;
           if (item.n > 3) cv.setAttribute('data-ms', item.ms.toFixed(3));
@@ -7864,14 +7889,16 @@
         break;
       }
       // ---- Ginásios (aba Expedição): abrir a trilha, abrir o detalhe da etapa próxima, voltar ----
-      case 'ginasio-abrir':
-        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id)) break;
-        ui.gym = { id: id, etapa: null, time: [], res: null, msg: null };
-        go('ginasio');
-        // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola na hora o
-        // mínimo para ela aparecer inteira; o foco fica no título
-        mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"], .etapa[data-estado="revanche"]'));
+      case 'ginasio-abrir': {
+        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || viagem) break;
+        var abreGin = function () { ui.gym = { id: id, etapa: null, time: [], res: null, msg: null }; go('ginasio'); };
+        // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola o mínimo
+        // para ela aparecer inteira (depois da viagem, se houver); o foco fica no título
+        var mostraProx = function () { mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"], .etapa[data-estado="revanche"]')); };
+        if (MP && !reduced() && mapaArte.mundo && naTela(telaEl.querySelector('canvas[data-mapa-mundo]'))) { comecaViagem('entra', id, 'expedicao', abreGin, mostraProx); break; }
+        abreGin(); mostraProx();
         break;
+      }
       case 'ginasio-etapa': {
         // só abre o que o módulo deixa hoje (ginModo): a etapa próxima ou a revanche do líder livre hoje (o aria-disabled só
         // avisa: confere de novo pelo progresso salvo e pelo dia)
@@ -7943,7 +7970,14 @@
       case 'ginasio-pular-tudo':
         if ((ui.screen === 'corrida' || ui.screen === 'entreduelos' || ui.screen === 'desafio') && ui.gym && ui.gym.ver) ginPulaTudo();
         break;
-      case 'ginasio-voltar':
+      case 'ginasio-voltar': {
+        if (viagem) break;
+        // da trilha para o mapa: a viagem de volta (do detalhe, do preparo e do resumo, a volta é direta, como antes)
+        var gV = ui.gym;
+        if (MP && !reduced() && ui.screen === 'ginasio' && gV && gV.etapa === null && !gV.res && mapaArte.trilhas[gV.id] && temMapaMundo() &&
+          naTela(telaEl.querySelector('canvas[data-mapa]'))) { comecaViagem('sai', gV.id, 'ginasio', voltaDaSubtela, null); break; }
+        voltaDaSubtela(); break;
+      }
       case 'montaria-voltar':
       case 'perfil-voltar':
         voltaDaSubtela(); break;
@@ -8540,7 +8574,7 @@
         // o ritmo de sempre (~14 q/s) e, a cada quadro, só os itens marcados como rápidos (a viagem e a trilha se pintando)
         var t = now / 1000, todos = now - lastIdle > 70;
         if (todos) lastIdle = now;
-        for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel && (todos || live[i].rapido)) live[i].draw(t);
+        for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel && (todos || live[i].rapido || viagem)) live[i].draw(t);
       }
     } finally { reducedQuadro = null; }
   }

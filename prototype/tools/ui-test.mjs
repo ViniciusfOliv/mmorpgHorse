@@ -14376,6 +14376,14 @@ try {
     const save = ginT6Save({ ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 }, agua: { etapa: 5, revDia: null, revVitorias: 0 } }) })
     const pg = await ginAbre(label, { save, chave: GIN_REAL, pagina: 'preview.html', vp: { width: 360, height: 780 } })
     try {
+      // voltar da trilha para o mapa: com animação, a viagem de volta termina (data-viagem vazio) antes do próximo toque
+      const volta = async () => {
+        await pg.locator('#tela [data-acao="ginasio-voltar"]').click()
+        await pg.waitForSelector('#t-expedicao')
+        await pg.waitForFunction(() => { const c = document.querySelector('canvas[data-mapa-mundo]'); return !c || !c.getAttribute('data-viagem') }, null, { timeout: 3000 })
+          .catch(() => problems.push(`${label}: a viagem de volta não terminou`))
+        await sleep(100)
+      }
       const abreAba = async () => { await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao') }
       await abreAba()
       await pg.waitForSelector('canvas[data-mapa-mundo][data-ms]', { timeout: 6000 }).catch(() => problems.push(`${label}: o mapa-múndi não foi desenhado`))
@@ -14398,6 +14406,14 @@ try {
         await pg.locator('canvas[data-mapa-mundo]').scrollIntoViewIfNeeded()
         const pos = await pg.evaluate((el) => window.Mapa.POS[el], id)
         await toca(pos[0], pos[1])
+        if (id === 'agua') {   // a ida é uma viagem: o mapa mostra data-viagem="entra"; um 2º toque no meio dela não abre outro ginásio
+          const viu = await pg.waitForSelector('canvas[data-mapa-mundo][data-viagem="entra"]', { timeout: 1000 }).then(() => true, () => false)
+          if (!viu) problems.push(`${label}: tocar no mapa não começou a viagem`)
+          // quadros da ida, para conferir (fora das capturas oficiais): zoom com a íris fechando e a íris abrindo na trilha
+          for (const [n, ms] of [[1, 220], [2, 420]]) { await sleep(ms === 220 ? 150 : 200); await pg.screenshot({ path: join(SHOTS, `viagem-entra-${n}.png`) }) }
+          await pg.locator('#tela [data-acao="ginasio-abrir"][data-id="grama"]').click({ force: true }).catch(() => {})
+          await sleep(250); await pg.screenshot({ path: join(SHOTS, 'viagem-entra-3.png') })
+        }
         await pg.waitForSelector('#t-ginasio', { timeout: 3000 }).catch(() => {})
         const t = await pg.locator('#t-ginasio').textContent().catch(() => null)
         if (t !== G.GYMS[id].name) problems.push(`${label}: tocar em ${id} no mapa abriu "${t}"`)
@@ -14405,8 +14421,7 @@ try {
         await pg.waitForSelector('canvas[data-mapa][data-ms]', { timeout: 6000 }).catch(() => problems.push(`${label}: a trilha de ${id} não foi desenhada`))
         await sleep(600)
         await pg.locator('canvas[data-mapa]').screenshot({ path: join(SHOTS, `mapa-trilha-${id}.png`) })
-        await pg.locator('#tela [data-acao="ginasio-voltar"]').click()
-        await pg.waitForSelector('#t-expedicao')
+        await volta()
       }
       // depois de vencer (o save em memória passa a etapa da Fornalha de 2 para 3): ao abrir a trilha de novo, a pista se
       // pinta até o Tenente e o cavalo trota (data-anda 1), e termina parada (data-anda 0); com movimento reduzido, pronta
@@ -14421,14 +14436,14 @@ try {
       const parou = await pg.waitForFunction(() => document.querySelector('canvas[data-mapa]').getAttribute('data-anda') === '0', null, { timeout: 6000 }).then(() => true, () => false)
       if (!parou) problems.push(`${label}: a animação da trilha não terminou em 6 s`)
       await pg.locator('canvas[data-mapa]').screenshot({ path: join(SHOTS, 'mapa-trilha-fogo-depois.png') })
-      await pg.locator('#tela [data-acao="ginasio-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
+      await volta()
       await pg.emulateMedia({ reducedMotion: 'reduce' })
       await pg.evaluate(() => { window.__galope.state.ginasios.fogo.etapa = 4 })
       await abreFogo()
       await sleep(400)
       if ((await pg.locator('canvas[data-mapa]').getAttribute('data-anda')) !== '0') problems.push(`${label}: com movimento reduzido a trilha animou`)
+      await volta()
       await pg.emulateMedia({ reducedMotion: 'no-preference' })
-      await pg.locator('#tela [data-acao="ginasio-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
       // fora dos ginásios (o mar no canto) não abre nada
       await toca(130, 380)
       await sleep(200)

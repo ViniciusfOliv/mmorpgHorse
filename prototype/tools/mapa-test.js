@@ -81,6 +81,24 @@ test('o cavalo fica ao lado de cada parada, fora da pedra, virado para o oponent
   });
 });
 
+section('viagem');
+test('entrar: zoom 1→2→3, íris fechando, troca para a trilha em 0,58 s e íris abrindo até 0,98 s', function () {
+  assert.deepStrictEqual([0, 0.13, 0.3].map(function (u) { return MP.passoViagem('entra', u).z; }), [1, 2, 3]);
+  assert.strictEqual(MP.passoViagem('entra', 0.1).r, null, 'sem íris no começo');
+  var a = MP.passoViagem('entra', 0.3).r, b = MP.passoViagem('entra', 0.45).r; assert.ok(a > b && b > 0, 'a íris fecha');
+  assert.strictEqual(MP.passoViagem('entra', 0.55).r, 0); assert.strictEqual(MP.passoViagem('entra', 0.55).lado, 'mundo');
+  assert.strictEqual(MP.passoViagem('entra', MP.VIAGEM.entra.troca).lado, 'trilha');
+  assert.ok(MP.passoViagem('entra', 0.8).r > MP.passoViagem('entra', 0.6).r, 'a íris abre');
+  assert.strictEqual(MP.passoViagem('entra', 0.97).fim, false); assert.strictEqual(MP.passoViagem('entra', MP.VIAGEM.entra.fim).fim, true);
+});
+test('sair: íris fechando na trilha, troca em 0,38 s, zoom 3→2→1 no mapa e fim em 0,9 s', function () {
+  assert.strictEqual(MP.passoViagem('sai', 0.1).lado, 'trilha'); assert.ok(MP.passoViagem('sai', 0.1).r > MP.passoViagem('sai', 0.25).r);
+  assert.strictEqual(MP.passoViagem('sai', MP.VIAGEM.sai.troca).lado, 'mundo');
+  assert.deepStrictEqual([0.5, 0.8, 0.86].map(function (u) { return MP.passoViagem('sai', u).z; }), [3, 2, 1]);
+  assert.strictEqual(MP.passoViagem('sai', 0.89).fim, false); assert.strictEqual(MP.passoViagem('sai', 0.9).fim, true);
+  assert.strictEqual(MP.passoViagem('sai', -1).lado, 'trilha', 'tempo negativo fica no começo');
+});
+
 section('cosmético');
 test('a RNG cosmética repete com a mesma semente e varia com outra', function () {
   var a = MP.rng(7), b = MP.rng(7), c = MP.rng(8);

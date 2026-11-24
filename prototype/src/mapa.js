@@ -692,8 +692,51 @@
     };
   }
 
+  // ------------------------------------------------------------------ a viagem entre o mapa e a trilha (spec §3.2)
+  // Pura: o passo da viagem no instante u (segundos desde o começo). Entrar: zoom inteiro 1× → 2× → 3× (0,12 s cada) sobre o
+  // ginásio, íris fechando até 0,5 s, tela fechada por 0,08 s, troca para a trilha e íris abrindo em volta do cavalo (0,4 s).
+  // Sair: o inverso (íris fechando em volta do cavalo, troca, íris abrindo sobre o ginásio em 3×, zoom 3× → 2× → 1×).
+  // { lado: 'mundo' | 'trilha', z: 1 | 2 | 3, r: abertura da íris 0..1 (1 = aberta, null = sem íris), fim }
+  var VIAGEM = { entra: { troca: 0.58, fim: 0.98 }, sai: { troca: 0.38, fim: 0.9 } };
+  function passoViagem(tipo, u) {
+    u = Math.max(0, u);
+    if (tipo === 'entra') {
+      if (u < 0.5) return { lado: 'mundo', z: u < 0.12 ? 1 : u < 0.24 ? 2 : 3, r: u < 0.24 ? null : 1 - (u - 0.24) / 0.26, fim: false };
+      if (u < 0.58) return { lado: 'mundo', z: 3, r: 0, fim: false };
+      if (u < 0.98) return { lado: 'trilha', z: 1, r: (u - 0.58) / 0.4, fim: false };
+      return { lado: 'trilha', z: 1, r: null, fim: true };
+    }
+    if (u < 0.3) return { lado: 'trilha', z: 1, r: 1 - u / 0.3, fim: false };
+    if (u < 0.38) return { lado: 'trilha', z: 1, r: 0, fim: false };
+    var z = u < 0.72 ? 3 : u < 0.84 ? 2 : 1;
+    if (u < 0.66) return { lado: 'mundo', z: z, r: (u - 0.38) / 0.28, fim: false };
+    return { lado: 'mundo', z: z, r: null, fim: u >= 0.9 };
+  }
+  var R0_IRIS = 260;
+  // Desenha no canvas da tela (ctx, k pixels do aparelho por pixel de arte, corte lateral ox, largura visível Wv) a arte
+  // (src, W × H) ampliada z vezes em volta de foco e, com r != null, a íris: fora do círculo em volta de centro (pixels de
+  // arte), a tinta; no aro, 2 px na cor do elemento.
+  function desenhaViagem(ctx, k, ox, Wv, src, foco, z, r, centro, el) {
+    var vw = W / z, vh = H / z, sx = Math.round(lim(foco[0] - vw / 2, 0, W - vw)), sy = Math.round(lim(foco[1] - vh / 2, 0, H - vh));
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(src, sx, sy, vw, vh, -ox * k, 0, W * k, H * k);
+    if (r === null || r === undefined) return;
+    var u = k * z, cor = COR_EL[el] || COR_EL.fogo, oxz = ox / z;
+    var cx = (centro[0] - sx) - oxz, cy = centro[1] - sy, rr = Math.max(0, r) * R0_IRIS / z, Wd = Math.ceil(Wv / z) + 1, Hd = Math.ceil(vh);
+    for (var j = 0; j < Hd; j++) {
+      var dy = j + 0.5 - cy;
+      ctx.fillStyle = '#2e222f';
+      if (Math.abs(dy) >= rr) { ctx.fillRect(0, j * u, Wd * u, u); continue; }
+      var w = Math.round(Math.sqrt(rr * rr - dy * dy)), a = Math.round(cx - w), b = Math.round(cx + w);
+      ctx.fillRect(0, j * u, Math.max(0, a - 2) * u, u); ctx.fillRect((b + 2) * u, j * u, Math.max(0, Wd - b - 2) * u, u);
+      ctx.fillStyle = '#' + cor[2]; ctx.fillRect((a - 2) * u, j * u, u, u); ctx.fillRect((b + 1) * u, j * u, u, u);
+      ctx.fillStyle = '#' + cor[3]; ctx.fillRect((a - 1) * u, j * u, u, u); ctx.fillRect(b * u, j * u, u, u);
+    }
+  }
+
   return {
     W: W, H: H, ORDEM: ORDEM, NOMES: NOMES, COR_EL: COR_EL, POS: ILHA.pos, R64: R64, PARADAS: PARADAS,
+    passoViagem: passoViagem, VIAGEM: VIAGEM, desenhaViagem: desenhaViagem,
     rng: rng, nevoaDe: nevoaDe, marcadores: marcadores, ginasioEm: ginasioEm, escurecer: escurecer,
     curvaTrilha: function () { return CURVA_T; }, pontoTrilha: function (s) { return ponto(CURVA_T, s); }, arcoParada: function (i) { return ARCO_PARADA[i]; },
     posCavaloTrilha: function (i) { var q = posCavalo(arcoDoCavalo(i)); return q; }, mascaraCaminho: mascaraCaminho,
