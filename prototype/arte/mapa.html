@@ -1,0 +1,118 @@
+<title>Mapa dos Ginásios</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+/* Molde da amostra do mapa dos ginásios (prototype/tools/mapa-amostra-build.mjs troca os marcadores e gera
+   prototype/arte/mapa-amostra.html). Tela de jogo, escura de propósito, no tom azul da interface de hoje (Nunito +
+   painéis 323353/3e3546/484a77/4d65b4, guia de arte §6). Largo: proposta e "hoje" lado a lado; estreito: empilhados. */
+@font-face { font-family: 'NunitoA'; font-weight: 600; src: url(/*__N600__*/) format('woff2'); }
+@font-face { font-family: 'NunitoA'; font-weight: 800; src: url(/*__N800__*/) format('woff2'); }
+:root {
+  --noite: #323353; --painel: #3e3546; --painel-2: #484a77; --painel-3: #4d65b4; --linha: #4d9be6; --tinta: #2e222f;
+  --texto: #ffffff; --texto-2: #c7dcd0; --texto-3: #9babb2; --ouro: #f9c22b; --ouro-2: #f79617; --ganho: #91db69;
+  --perda: #e83b3b; --foco: #8ff8e2; --fogo: #fb6b1d; --agua: #4d9be6; --grama: #1ebc73;
+  --f: 'NunitoA', 'Nunito', system-ui, sans-serif; --f-dado: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--noite); color: var(--texto); font-family: var(--f); font-weight: 600; font-size: 15px; line-height: 1.5;
+  background-image: radial-gradient(var(--painel) 1px, transparent 1px); background-size: 6px 6px; }
+.pagina { max-width: 1120px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 18px; }
+header { display: grid; gap: 6px; }
+h1 { font-weight: 800; font-size: 26px; line-height: 1.2; margin: 0; color: var(--ouro); text-shadow: 2px 2px 0 var(--tinta); text-wrap: balance; }
+.sub { margin: 0; color: var(--texto-2); max-width: 72ch; }
+button { font: inherit; font-weight: 800; color: var(--texto); background: var(--painel-2); border: 2px solid var(--tinta);
+  box-shadow: inset 0 2px 0 var(--painel-3), inset 0 -2px 0 var(--tinta); padding: 6px 12px 8px; cursor: pointer; min-height: 44px; }
+button:hover { background: var(--painel-3); }
+button[aria-pressed="true"] { background: var(--ouro); color: var(--tinta); box-shadow: inset 0 2px 0 #fbb954, inset 0 -2px 0 var(--ouro-2); }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible { outline: 3px solid var(--foco); outline-offset: 2px; }
+.palco { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.tela { min-width: 0; display: grid; gap: 10px; background: var(--painel); border: 2px solid var(--tinta);
+  box-shadow: inset 0 2px 0 var(--painel-2); padding: 10px; }
+.tela h2 { margin: 0; font-weight: 800; font-size: 17px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.tela h2 small { font-weight: 600; font-size: 13px; color: var(--texto-3); }
+.moldura { background: var(--tinta); display: grid; place-items: center; overflow: hidden; position: relative; }
+canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: manipulation; }
+#tela:focus-visible { outline: 3px solid var(--foco); outline-offset: -3px; }
+.lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.lista button { width: 100%; text-align: left; display: flex; gap: 10px; align-items: center; justify-content: space-between; font-weight: 600; }
+.lista button b { font-weight: 800; }
+.lista button .est { font-size: 13px; color: var(--texto-2); }
+.lista button[aria-current] { outline: 2px solid var(--ouro); outline-offset: -4px; }
+.lista button[aria-disabled="true"] { opacity: .6; }
+.ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ctl > span { color: var(--texto-3); font-size: 13px; }
+.hoje img { display: block; width: 100%; height: auto; image-rendering: auto; border: 2px solid var(--tinta); }
+.hoje .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hoje figure { margin: 0; display: grid; gap: 4px; }
+.hoje figcaption { font-size: 13px; color: var(--texto-3); }
+.baixo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; align-items: start; }
+.caixa { min-width: 0; background: var(--painel); border: 2px solid var(--tinta); box-shadow: inset 0 2px 0 var(--painel-2); padding: 12px 14px; display: grid; gap: 10px; }
+.caixa h3 { margin: 0; font-weight: 800; font-size: 16px; }
+.resumo { display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-size: 14px; color: var(--texto-2); justify-content: start; }
+.resumo b { font-family: var(--f-dado); color: var(--texto); font-variant-numeric: tabular-nums; text-align: right; }
+.barra { height: 10px; background: var(--tinta); position: relative; }
+.barra i { position: absolute; inset: 0 auto 0 0; background: var(--ganho); }
+.barra i.alto { background: var(--ouro-2); } .barra i.estouro { background: var(--perda); }
+.nota-med { margin: 0; font-size: 13px; color: var(--texto-3); }
+.notas { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; color: var(--texto-2); font-size: 14px; }
+.notas b { color: var(--ouro); font-weight: 800; }
+.tag { display: inline-block; font-size: 11px; font-weight: 800; padding: 0 6px; border: 1px solid var(--tinta); vertical-align: 1px; color: var(--tinta); }
+.tag.cod { background: var(--ganho); } .tag.jogo { background: var(--linha); } .tag.pago { background: var(--ouro-2); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 820px) { .palco, .baixo { grid-template-columns: minmax(0, 1fr); } h1 { font-size: 22px; } }
+</style>
+
+<div class="pagina">
+  <header>
+    <h1>Galope Elemental · mapa dos ginásios</h1>
+    <p class="sub">Proposta da frente 2: um mapa-múndi vivo com os três ginásios e, ao entrar num deles, a trilha de terra entre
+      os oponentes, com o seu cavalo trotando de uma parada à outra. Toque num ginásio (ou use o teclado: setas e Enter) e,
+      dentro dele, em <b>Vencer a próxima etapa</b> para ver a trilha se pintar. Tudo na paleta Resurrect 64 e no pixel inteiro.</p>
+  </header>
+  <section class="palco">
+    <div class="tela">
+      <h2>Proposta <small id="legenda">mapa-múndi</small></h2>
+      <div class="moldura" id="moldura"><canvas id="tela" tabindex="0" role="application" aria-roledescription="mapa" aria-label="Mapa"></canvas></div>
+      <p class="sr" id="anuncio" aria-live="polite"></p>
+      <div class="ctl" id="ctl"></div>
+      <ul class="lista" id="lista" aria-label="Lugares do mapa"></ul>
+    </div>
+    <div class="tela hoje">
+      <h2>Hoje <small>capturas oficiais do jogo (final-24 e final-25)</small></h2>
+      <div class="duas">
+        <figure><img id="hojeMundo" alt="Hoje: a lista dos três ginásios em cartões, abaixo da cena da Expedição"><figcaption>Expedição: os ginásios em lista</figcaption></figure>
+        <figure><img id="hojeTrilha" alt="Hoje: o mapa da trilha com o caminho pontilhado e os oponentes por cima"><figcaption>Trilha: imagem com pontos e oponentes por cima</figcaption></figure>
+      </div>
+      <div class="caixa" style="background:var(--noite)">
+        <h3>Estado de exemplo</h3>
+        <div class="ctl" id="estados"></div>
+        <p class="nota-med">Fornalha com 2 de 5 vencidos (névoa rala), Remanso conquistado (insígnia e revanche do dia) e
+          Capoeira sem nenhum (névoa densa). Os botões trocam o estado para ver as outras situações.</p>
+      </div>
+    </div>
+  </section>
+  <section class="baixo">
+    <div class="caixa">
+      <h3>Custo por quadro</h3>
+      <p class="nota-med">Medido agora, neste aparelho. Orçamento do guia de arte: 2 ms de JavaScript por quadro num celular
+        médio; o teto da spec da animação para o mapa é 0,35 ms no computador (≈ 1,4 ms no celular, régua ×4).</p>
+      <div class="resumo" id="resumo"></div>
+      <div class="barra"><i id="barra"></i></div>
+    </div>
+    <div class="caixa">
+      <h3>O que está na tela</h3>
+      <ul class="notas" id="notas"></ul>
+    </div>
+  </section>
+</div>
+<script>window.__MOLDES = /*__MOLDES__*/; window.__GLIFOS = /*__GLIFOS__*/; window.__MAPA = /*__DADOS__*/;</script>
+<script>
+/*__JOGO__*/
+</script>
+<script>
+/*__JS__*/
+</script>
