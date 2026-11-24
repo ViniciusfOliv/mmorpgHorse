@@ -314,8 +314,10 @@
     if (C.cenario) {
       SP.drawTrack(ctx, { width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: cam * ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: PISO, finishM: D, hills: MORROS, curves: CURVAS, distanceMarkersEvery: 200, t: T, weather: clima, pixel: S,
-        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo, relevo: CFG.relevo || undefined });
+        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo, relevo: CFG.relevo || undefined, perfil: PERFIL });
+      var tSc = performance.now();
       SP.drawSombraCerca(ctx, W, laneTop, cam * ppm, S, chao);
+      perfilSoma('sombra da cerca', performance.now() - tSc);
     } else {
       ctx.fillStyle = '#6fa8d8'; ctx.fillRect(0, 0, W, laneTop);
       ctx.fillStyle = '#8a6440'; ctx.fillRect(0, laneTop, W, H - laneTop);
@@ -328,7 +330,9 @@
     var natO = { weather: clima, wind: VENTO, t: T, W: W, H: H, P: S, laneTop: laneTop, trackBottom: laneTop + n * laneH, reduced: false,
       seed: SEMENTE, cam: cam * ppm, camada: 'tras', surface: PISO,
       lift: function (px) { var m = cam + px / ppm; return (SP.hillLiftAt(m, MORROS, L.maxLift) + arcoArt(m)) * S; } };
+    var tNat = performance.now();
     if (C.clima) FX.drawNature(ctx, natO);
+    perfilSoma('natureza (trás)', performance.now() - tNat);
 
     marca('cen');
     // ---- cavalos (o mesmo passo a passo do game.js)
@@ -595,14 +599,18 @@
   ];
   // o tempo do ambiente na fase (Sprites.statsViva e o msPor/msMax da região viva): zera no começo, lê no fim
   function vivaAtual() { try { return CFG.camadas.ambiente && CFG.regiao !== 'nenhuma' ? SP.regiaoViva(CFG.regiao, CFG.clima === 'ciclo' ? 'sol' : CFG.clima) : null; } catch (e) { return null; } }
+  // o tempo de cada parte do cenário (drawTrack com o.perfil, mais a sombra da cerca e a natureza de trás)
+  var PERFIL = { soma: {}, max: {} };
+  function perfilSoma(k, d) { PERFIL.soma[k] = (PERFIL.soma[k] || 0) + d; if (!(PERFIL.max[k] >= d)) PERFIL.max[k] = d; }
   function zeraAmbiente() {
+    PERFIL.soma = {}; PERFIL.max = {};
     var st = SP.statsViva && SP.statsViva(); if (st) { st.ms = 0; st.quadros = 0; st.por = {}; st.max = {}; }
     var v = vivaAtual(); if (v) { v.msPor = {}; v.msMax = {}; }
   }
   function leAmbiente() {
     var st = SP.statsViva && SP.statsViva(), v = vivaAtual();
     if (!st || !st.quadros) return null;
-    return { q: st.quadros, ms: st.ms, por: JSON.parse(JSON.stringify(st.por)), max: JSON.parse(JSON.stringify(st.max)),
+    return { q: st.quadros, ms: st.ms, perfil: JSON.parse(JSON.stringify(PERFIL)), por: JSON.parse(JSON.stringify(st.por)), max: JSON.parse(JSON.stringify(st.max)),
       camadas: v && v.msPor ? JSON.parse(JSON.stringify(v.msPor)) : {}, camadasMax: v && v.msMax ? JSON.parse(JSON.stringify(v.msMax)) : {} };
   }
   // diagnóstico (~80 s): liga e desliga cada parte do cenário, travado em 60 FPS, para achar o que pesa no aparelho
@@ -696,6 +704,7 @@
       linhas.push('cenário na fase ' + (i + 1) + ' (méd/p95/máx ms): ' + f1(c.med) + '/' + f1(c.p95) + '/' + f1(c.max));
       var a = f.amb;
       if (!a) return;
+      if (a.perfil && Object.keys(a.perfil.soma).length) linhas.push('  partes do cenário (méd/máx ms): ' + Object.keys(a.perfil.soma).map(function (k) { return k + ' ' + (a.perfil.soma[k] / a.q).toFixed(2) + '/' + f1(a.perfil.max[k]); }).join(' · '));
       var d2 = function (v) { return v == null ? '—' : v.toFixed(2); };
       linhas.push('  ambiente (méd/máx ms): ' + Object.keys(a.por).map(function (k) { return k + ' ' + d2(a.por[k] / a.q) + '/' + f1(a.max[k]); }).join(' · '));
       var ks = Object.keys(a.camadas);

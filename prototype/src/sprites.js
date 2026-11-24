@@ -3186,6 +3186,14 @@
     // relevo das subidas numa tela fora (o.relevo === 'fora'): com uma subida na tela, a pista inteira é desenhada numa
     // tela à parte e colada no fim com as colunas da faixa levantadas (compoeRelevo); o desenho sai igual ao da cópia
     // (deslocaFaixa), sem ler o canvas do próprio quadro, o que num celular com GPU obriga a terminar o quadro no meio
+    // o.perfil (medição, spike do teste de engine): soma o tempo de cada parte do desenho em o.perfil.soma[parte] e
+    // guarda o pior em o.perfil.max[parte]; sem ele, nada é medido
+    var PF = o.perfil || null, tPF = PF ? agoraMs() : 0;
+    function pf(k) {
+      if (!PF) return;
+      var a = agoraMs(), d = a - tPF; tPF = a;
+      PF.soma[k] = (PF.soma[k] || 0) + d; if (!(PF.max[k] >= d)) PF.max[k] = d;
+    }
     var alvoRel = null, yRel = laneTop - 8 * P, liftCol = null;
     if (o.relevo === 'fora' && (o.hills || []).length && o.hillRelief !== false && typeof document !== 'undefined' && document.createElement) {
       liftCol = function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, o.hills, o.hillMaxLift) * P; };
@@ -3258,6 +3266,7 @@
     ridge(0.15, 2, 6, 0.08, HC.near, 90);
     }
 
+    pf('fundo');
     // --- curvas (o.curves): arco da pista NA TELA (RaceFx.curveOffsetTela, "as pontas mais altas"). Com o meio da
     // tela numa curva, a cerca, as raias e os cavalos (no game.js, com o mesmo camTela) sobem até 20 px de arte
     // nas pontas da tela e a arquibancada 10/6 disso; placas "CURVA" na cerca. Precisa do fx.js (RaceFx); sem ele
@@ -3349,6 +3358,7 @@
     ctx.fillRect(0, laneTop - 4 * P, W, 4 * P);
     }
 
+    pf('arquibancada');
     // --- faixa da pista no arco das curvas: da cerca externa à interna, tudo sobe dyX(x) pixels do canvas na
     // coluna x (0 fora das curvas). Peças por coluna (postes, tracejados, placas) usam dyX; faixas de largura
     // total são desenhadas por trecho de colunas (faixaLarga); o piso, recortado por trecho.
@@ -3371,6 +3381,7 @@
       frenteQuadro = { RG: RG, clima: clima, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P, viv: viv };
     }
 
+    pf('grama');
     // --- superfície da pista
     var artH = Math.ceil(trackH / P);
     var tile = surfaceTile(surface, RG ? clima : weather, artH, !!RG);
@@ -3413,6 +3424,7 @@
       }
     }
 
+    pf('piso e raias');
     // --- subidas
     var hills = o.hills || [];
     for (var hi = 0; hi < hills.length; hi++) {
@@ -3432,6 +3444,7 @@
       }
     }
 
+    pf('subidas');
     // --- curvas: linhas tracejadas de início e fim (o arco e as placas na cerca dizem que é curva)
     for (var cvi = 0; cvi < curves.length; cvi++) {
       var ca = sx(curves[cvi][0]), cb = sx(curves[cvi][1]);
@@ -3443,6 +3456,7 @@
       }
     }
 
+    pf('curvas');
     // --- marcas de distância (linhas na pista)
     var ev = Math.max(10, o.distanceMarkersEvery || 200);
     var finishM = o.finishM || 1000;
@@ -3470,6 +3484,7 @@
       }
     }
 
+    pf('marcas e chegada');
     // --- cercas (externa em cima, interna embaixo)
     function rail(y, postsUp) {
       // postes a cada 4 m
@@ -3486,6 +3501,7 @@
     }
     rail(laneTop, true);
 
+    pf('cerca de cima');
     // --- cerca interna e gramado interno (na curva o gramado começa mais acima: o rodapé fica maior)
     // (com a região, chão de terra escura: o primeiro plano, drawTrackFront, cobre quase tudo)
     var innerC = RG ? K('#4c3e24') : weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
@@ -3534,6 +3550,7 @@
     }
     if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, trackBottom - dyX(fx), 2 * P, 8 * P); }
 
+    pf('interno');
     // --- placas (depois do campo interno; nenhuma passa da cerca para baixo), acompanhando a cerca no arco
     // placas de distância sobre a cerca externa
     for (var m2 = mStart; m2 <= mEnd; m2 += ev) {
@@ -3606,11 +3623,13 @@
       drawBoard(ctx, fx + P, postTop - 19 * P, 'CHEGADA', P, '#2e222f', '#ffffff');
     }
 
+    pf('placas');
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
     if (alvoRel) { compoeRelevo(alvoRel, ctx.canvas, W, Hh, yRel, P, liftCol, innerC); ctx = alvoRel; }
     else if (hills.length && o.hillRelief !== false) {
       deslocaFaixa(ctx, W, Hh, laneTop - 8 * P, P, function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, hills, o.hillMaxLift) * P; }, innerC);
     }
+    pf('relevo');
   }
 
   // RaceFx (fx.js) carregado no navegador ou no Node; sem ele, null (a pista fica reta)

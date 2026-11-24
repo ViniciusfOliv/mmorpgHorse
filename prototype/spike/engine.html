@@ -6387,6 +6387,14 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
     // relevo das subidas numa tela fora (o.relevo === 'fora'): com uma subida na tela, a pista inteira é desenhada numa
     // tela à parte e colada no fim com as colunas da faixa levantadas (compoeRelevo); o desenho sai igual ao da cópia
     // (deslocaFaixa), sem ler o canvas do próprio quadro, o que num celular com GPU obriga a terminar o quadro no meio
+    // o.perfil (medição, spike do teste de engine): soma o tempo de cada parte do desenho em o.perfil.soma[parte] e
+    // guarda o pior em o.perfil.max[parte]; sem ele, nada é medido
+    var PF = o.perfil || null, tPF = PF ? agoraMs() : 0;
+    function pf(k) {
+      if (!PF) return;
+      var a = agoraMs(), d = a - tPF; tPF = a;
+      PF.soma[k] = (PF.soma[k] || 0) + d; if (!(PF.max[k] >= d)) PF.max[k] = d;
+    }
     var alvoRel = null, yRel = laneTop - 8 * P, liftCol = null;
     if (o.relevo === 'fora' && (o.hills || []).length && o.hillRelief !== false && typeof document !== 'undefined' && document.createElement) {
       liftCol = function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, o.hills, o.hillMaxLift) * P; };
@@ -6459,6 +6467,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
     ridge(0.15, 2, 6, 0.08, HC.near, 90);
     }
 
+    pf('fundo');
     // --- curvas (o.curves): arco da pista NA TELA (RaceFx.curveOffsetTela, "as pontas mais altas"). Com o meio da
     // tela numa curva, a cerca, as raias e os cavalos (no game.js, com o mesmo camTela) sobem até 20 px de arte
     // nas pontas da tela e a arquibancada 10/6 disso; placas "CURVA" na cerca. Precisa do fx.js (RaceFx); sem ele
@@ -6550,6 +6559,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
     ctx.fillRect(0, laneTop - 4 * P, W, 4 * P);
     }
 
+    pf('arquibancada');
     // --- faixa da pista no arco das curvas: da cerca externa à interna, tudo sobe dyX(x) pixels do canvas na
     // coluna x (0 fora das curvas). Peças por coluna (postes, tracejados, placas) usam dyX; faixas de largura
     // total são desenhadas por trecho de colunas (faixaLarga); o piso, recortado por trecho.
@@ -6572,6 +6582,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
       frenteQuadro = { RG: RG, clima: clima, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P, viv: viv };
     }
 
+    pf('grama');
     // --- superfície da pista
     var artH = Math.ceil(trackH / P);
     var tile = surfaceTile(surface, RG ? clima : weather, artH, !!RG);
@@ -6614,6 +6625,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
       }
     }
 
+    pf('piso e raias');
     // --- subidas
     var hills = o.hills || [];
     for (var hi = 0; hi < hills.length; hi++) {
@@ -6633,6 +6645,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
       }
     }
 
+    pf('subidas');
     // --- curvas: linhas tracejadas de início e fim (o arco e as placas na cerca dizem que é curva)
     for (var cvi = 0; cvi < curves.length; cvi++) {
       var ca = sx(curves[cvi][0]), cb = sx(curves[cvi][1]);
@@ -6644,6 +6657,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
       }
     }
 
+    pf('curvas');
     // --- marcas de distância (linhas na pista)
     var ev = Math.max(10, o.distanceMarkersEvery || 200);
     var finishM = o.finishM || 1000;
@@ -6671,6 +6685,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
       }
     }
 
+    pf('marcas e chegada');
     // --- cercas (externa em cima, interna embaixo)
     function rail(y, postsUp) {
       // postes a cada 4 m
@@ -6687,6 +6702,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
     }
     rail(laneTop, true);
 
+    pf('cerca de cima');
     // --- cerca interna e gramado interno (na curva o gramado começa mais acima: o rodapé fica maior)
     // (com a região, chão de terra escura: o primeiro plano, drawTrackFront, cobre quase tudo)
     var innerC = RG ? K('#4c3e24') : weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
@@ -6735,6 +6751,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
     }
     if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, trackBottom - dyX(fx), 2 * P, 8 * P); }
 
+    pf('interno');
     // --- placas (depois do campo interno; nenhuma passa da cerca para baixo), acompanhando a cerca no arco
     // placas de distância sobre a cerca externa
     for (var m2 = mStart; m2 <= mEnd; m2 += ev) {
@@ -6807,11 +6824,13 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
       drawBoard(ctx, fx + P, postTop - 19 * P, 'CHEGADA', P, '#2e222f', '#ffffff');
     }
 
+    pf('placas');
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
     if (alvoRel) { compoeRelevo(alvoRel, ctx.canvas, W, Hh, yRel, P, liftCol, innerC); ctx = alvoRel; }
     else if (hills.length && o.hillRelief !== false) {
       deslocaFaixa(ctx, W, Hh, laneTop - 8 * P, P, function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, hills, o.hillMaxLift) * P; }, innerC);
     }
+    pf('relevo');
   }
 
   // RaceFx (fx.js) carregado no navegador ou no Node; sem ele, null (a pista fica reta)
@@ -11495,8 +11514,10 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
     if (C.cenario) {
       SP.drawTrack(ctx, { width: W, height: H, cameraX: cam, pxPerMeter: ppm, camPx: cam * ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: PISO, finishM: D, hills: MORROS, curves: CURVAS, distanceMarkersEvery: 200, t: T, weather: clima, pixel: S,
-        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo, relevo: CFG.relevo || undefined });
+        highlightLane: me, hillMaxLift: L.maxLift, wind: VENTO, curveScale: L.arcoK, regiao: CFG.regiao === 'nenhuma' ? null : CFG.regiao, vivo: !!C.ambiente, hillRelief: !CFG.semRelevo, relevo: CFG.relevo || undefined, perfil: PERFIL });
+      var tSc = performance.now();
       SP.drawSombraCerca(ctx, W, laneTop, cam * ppm, S, chao);
+      perfilSoma('sombra da cerca', performance.now() - tSc);
     } else {
       ctx.fillStyle = '#6fa8d8'; ctx.fillRect(0, 0, W, laneTop);
       ctx.fillStyle = '#8a6440'; ctx.fillRect(0, laneTop, W, H - laneTop);
@@ -11509,7 +11530,9 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
     var natO = { weather: clima, wind: VENTO, t: T, W: W, H: H, P: S, laneTop: laneTop, trackBottom: laneTop + n * laneH, reduced: false,
       seed: SEMENTE, cam: cam * ppm, camada: 'tras', surface: PISO,
       lift: function (px) { var m = cam + px / ppm; return (SP.hillLiftAt(m, MORROS, L.maxLift) + arcoArt(m)) * S; } };
+    var tNat = performance.now();
     if (C.clima) FX.drawNature(ctx, natO);
+    perfilSoma('natureza (trás)', performance.now() - tNat);
 
     marca('cen');
     // ---- cavalos (o mesmo passo a passo do game.js)
@@ -11776,14 +11799,18 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
   ];
   // o tempo do ambiente na fase (Sprites.statsViva e o msPor/msMax da região viva): zera no começo, lê no fim
   function vivaAtual() { try { return CFG.camadas.ambiente && CFG.regiao !== 'nenhuma' ? SP.regiaoViva(CFG.regiao, CFG.clima === 'ciclo' ? 'sol' : CFG.clima) : null; } catch (e) { return null; } }
+  // o tempo de cada parte do cenário (drawTrack com o.perfil, mais a sombra da cerca e a natureza de trás)
+  var PERFIL = { soma: {}, max: {} };
+  function perfilSoma(k, d) { PERFIL.soma[k] = (PERFIL.soma[k] || 0) + d; if (!(PERFIL.max[k] >= d)) PERFIL.max[k] = d; }
   function zeraAmbiente() {
+    PERFIL.soma = {}; PERFIL.max = {};
     var st = SP.statsViva && SP.statsViva(); if (st) { st.ms = 0; st.quadros = 0; st.por = {}; st.max = {}; }
     var v = vivaAtual(); if (v) { v.msPor = {}; v.msMax = {}; }
   }
   function leAmbiente() {
     var st = SP.statsViva && SP.statsViva(), v = vivaAtual();
     if (!st || !st.quadros) return null;
-    return { q: st.quadros, ms: st.ms, por: JSON.parse(JSON.stringify(st.por)), max: JSON.parse(JSON.stringify(st.max)),
+    return { q: st.quadros, ms: st.ms, perfil: JSON.parse(JSON.stringify(PERFIL)), por: JSON.parse(JSON.stringify(st.por)), max: JSON.parse(JSON.stringify(st.max)),
       camadas: v && v.msPor ? JSON.parse(JSON.stringify(v.msPor)) : {}, camadasMax: v && v.msMax ? JSON.parse(JSON.stringify(v.msMax)) : {} };
   }
   // diagnóstico (~80 s): liga e desliga cada parte do cenário, travado em 60 FPS, para achar o que pesa no aparelho
@@ -11877,6 +11904,7 @@ window.__ANIM_MANIFESTO = {"_sobre":"Manifesto da animação ambiente (prototype
       linhas.push('cenário na fase ' + (i + 1) + ' (méd/p95/máx ms): ' + f1(c.med) + '/' + f1(c.p95) + '/' + f1(c.max));
       var a = f.amb;
       if (!a) return;
+      if (a.perfil && Object.keys(a.perfil.soma).length) linhas.push('  partes do cenário (méd/máx ms): ' + Object.keys(a.perfil.soma).map(function (k) { return k + ' ' + (a.perfil.soma[k] / a.q).toFixed(2) + '/' + f1(a.perfil.max[k]); }).join(' · '));
       var d2 = function (v) { return v == null ? '—' : v.toFixed(2); };
       linhas.push('  ambiente (méd/máx ms): ' + Object.keys(a.por).map(function (k) { return k + ' ' + d2(a.por[k] / a.q) + '/' + f1(a.max[k]); }).join(' · '));
       var ks = Object.keys(a.camadas);
