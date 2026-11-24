@@ -3,6 +3,16 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-24 — Desempenho no celular, correção das subidas e spec do mapa (Vinicius)
+- **Correção das subidas na `main`** (e157f3f5, avanço direto; check completo OK, desenho por quadro 1,79 ms) e
+  oficiais republicados (jogo v17, DEV v15, wiki v14, testadores v3). Causa: hachura das subidas por `createPattern`
+  (~19 preenchimentos/quadro) que no S24 FE custava 4 ms em média e até 28 ms; agora tira pré-desenhada.
+- **No S24 FE, no ritmo da tela, a corrida com as regiões vivas passa:** 119 FPS, 1% low 69, 1 quadro lento em 7.138.
+  Os soluços das rodadas travadas vinham da trava de 60 do spike numa tela de 120 Hz.
+- **Sem trava de 60 FPS por enquanto** ("faça o melhor por enquanto"); a trava para bateria volta perto do lançamento,
+  com método melhor que o acumulador do spike v3.
+- **Spec do mapa dos ginásios aprovada**; o plano vem do chat do mapa.
+
 ## 2026-11-24 — Meshy para as vistas da cena de desafio; etapa 0 da animação aprovada (Vinicius: "Prossiga")
 - **Bake-off da cena de desafio:** Meshy (3D renderizado em pixel art) venceu — única ferramenta que dá frente e costas
   com o mesmo traço; PixelLab inpaint fraco, Gemini com ganho pequeno (~US$ 0,16), Canva bom só para variar o fundo.
