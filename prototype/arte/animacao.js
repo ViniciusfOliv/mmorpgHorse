@@ -484,6 +484,28 @@
     D(quadroChama(q, tam || 1, lado), x - 3, y - 8);
   }
 
+  // --- 10. Sombra de contato (integração do personagem): elipse achatada sob os cascos, feita escurecendo um degrau a
+  // própria cor do chão da cena (não é preto com alfa), com o miolo dois degraus; deslocada 2 px para a direita (luz de
+  // cima e da esquerda). Pré-desenhada a partir do fundo parado.
+  var DEGRAU = {
+    e6904e: 'cd683d', fbb954: 'e6904e', cd683d: '9e4539', '9e4539': '6e2727', fdcbb0: 'e6904e', fca790: 'cd683d', ab947a: '966c6c',
+    a2a947: '676633', '91db69': 'a2a947', cddf6c: 'a2a947', '676633': '4c3e24', '239063': '165a4c', '1ebc73': '239063', '547e64': '374e4a',
+    '966c6c': '694f62', f9c22b: 'e6904e', ffffff: 'c7dcd0', c7dcd0: '9babb2', '9babb2': '7f708a', '4c3e24': '2e222f', '6e2727': '45293f'
+  };
+  function sombraContato(fundo, cx, cy, rx, ry) {   // fundo: Buf da cena; devolve { c, x, y }
+    var w = rx * 2 + 1, h = ry * 2 + 1, b = new Buf(w, h);
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+      var ex = (x - rx) / rx, ey = (y - ry) / ry, r2 = ex * ex + ey * ey; if (r2 > 1) continue;
+      var v = fundo.em(cx - rx + x, cy - ry + y); if (!v) continue;
+      var h1 = DEGRAU[hexDe(v)]; if (!h1) continue;
+      var h2 = r2 < 0.35 ? DEGRAU[h1] || h1 : h1;
+      if (r2 > 0.8 && ((x + y) & 1)) continue;   // borda em pontilhado: a sombra se desfaz no chão
+      b.d[y * w + x] = c32(h2);
+    }
+    b.poe();
+    return { c: b.c, x: cx - rx, y: cy - ry };
+  }
+
   // ================================================================ cavalo: idle em camadas
   // O molde é um mapa de papéis (0 vazio, 1 contorno, 2 pelagem, 3 sombra, 4 crina, 5 sombra da crina, 6 detalhe,
   // 7 seda, 8 pele, 9 sela; sprites.js). As peças saem do mapa e das âncoras (nariz, garupa):
@@ -825,6 +847,8 @@
         var cv = new CavaloIdle(A.moldes[d[0]], 'parado', PELAGENS[d[1]], 100 + j * 17);
         return { cv: cv, x: [150, 86, 22][j], pe: s.raia0 + (j + 1) * s.raia - 4, ref: cv.anc.footY };
       });
+      var fundoP = new Buf(s.W, s.H); fundoP.g.drawImage(s.pista, 0, lt - 16); fundoP.img = fundoP.g.getImageData(0, 0, s.W, s.H); fundoP.d = new Uint32Array(fundoP.img.data.buffer);
+      s.cavalos.forEach(function (h) { var a = h.cv.anc.bbox; h.sombra = sombraContato(fundoP, h.x + Math.round(a.x + a.w / 2) + 2, h.pe + 1, Math.round(a.w * 0.42), 3); });
       s.antes = this.desenhaAntes();
       s.agenda = new Agenda(); s.agenda.itens = [s.mar, s.coqueiros, s.capim, s.torcida];
       s.mar.camada = 'mar'; s.coqueiros.camada = 'coqueiros'; s.capim.camada = 'capim'; s.torcida.camada = 'torcida';
@@ -895,7 +919,7 @@
       if (!mede(L.passaros, function () { s.gaivotas.desenha(t, cam, W); if (MAIS) { s.gaivotasMais.desenha(t, cam, W); s.revoada.desenha(t, cam, W); } })) {}
       var auto = estado.auto;
       if (!estado.camera) {
-        if (!mede(L.cavalos, function () { s.cavalos.forEach(function (h) { D(h.cv.quadro(t, auto), h.x, h.pe - h.ref); }); }))
+        if (!mede(L.cavalos, function () { s.cavalos.forEach(function (h) { if (MAIS) D(h.sombra.c, h.sombra.x, h.sombra.y); D(h.cv.quadro(t, auto), h.x, h.pe - h.ref); }); }))
           s.cavalos.forEach(function (h) { D(h.cv.parado(), h.x, h.pe - h.ref); });
       }
       mede(L.particulas, function () {
@@ -1365,20 +1389,25 @@
       // painel do piloto pago: o mesmo cavalo (padrão, baio) por código à esquerda e com os quadros do PixelLab à direita
       s.pl = { acoes: {}, ordem: [], buf: tela(256, 88), fundo: tela(256, 88), atual: null, t0: 0, fila: 0, seq: true };
       s.pl.fundo.getContext('2d').drawImage(IMG['telas/haras'], 0, -72);
+      var fb = Buf.de(s.pl.fundo); s.pl.sombras = [sombraContato(fb, 40 + 32 + 2, 85, 25, 3), sombraContato(fb, 150 + 32 + 2, 85, 25, 3)];
       s.pl.trocaMolde = function (mol) {   // o mesmo molde e a mesma pelagem nos dois lados
         var pel = PELAGENS[PELAGEM_DO_ESTILO[mol.split('-')[1]]], cores = [0].concat(pel.slice(1).map(c32)), Q = A.pilotoIdx[mol] || {};
         s.pl.molde = mol; s.pl.acoes = {};
         s.pl.codigo = new CavaloIdle(A.moldes[mol], 'retrato', pel, 777);
+        s.pl.codigoJ = new CavaloIdle(A.moldes[mol], 'parado', pel, 778);   // para o cavar com jóquei
         Object.keys(Q).forEach(function (k) {
           s.pl.acoes[k] = Q[k].map(function (idx) { var b = new Buf(64, 64); for (var i = 0; i < 4096; i++) b.d[i] = idx[i] ? cores[idx[i]] : 0; b.poe(); return b.c; });
         });
-        var pref = ['comer', 'cavar', 'cauda', 'respira'];
+        var pref = ['comer', 'cavar', 'cavarJ', 'cauda', 'respira'];
         s.pl.ordem = Object.keys(s.pl.acoes).sort(function (a, b) { return pref.indexOf(a.split('-')[0]) - pref.indexOf(b.split('-')[0]) || a.localeCompare(b); });
         s.pl.fila = 0; s.pl.atual = null;
       };
       s.pl.trocaMolde('padrao-lisa');
       s.antes = tela(256, 160); var ag = s.antes.getContext('2d'); ag.drawImage(IMG['telas/haras'], 0, 0);
       s.cavalos.forEach(function (h) { ag.drawImage(h.cv.parado(), h.x, h.pe - h.ref); });
+      // sombra de contato de cada cavalo (do fundo parado do Haras), no centro dos cascos + 2 px
+      var fundoH = Buf.de(IMG['telas/haras']);
+      s.cavalos.forEach(function (h) { var a = h.cv.anc.bbox, cx = h.x + (h.cv.espelho ? 63 - (a.x + a.w / 2) : a.x + a.w / 2); h.sombra = sombraContato(fundoH, Math.round(cx) + 2, h.pe + 1, Math.round(a.w * 0.42), 3); });
     },
     quadro: function (t, dt, L) {
       var s = this;
@@ -1407,7 +1436,7 @@
         if (rajadaForte(t) && r() < dt * 10) s.part.nasce(T_GIRO, 60 + r() * 150, 120 + r() * 20, 0, 0, 2 + r(), r() * 0.5);
         s.part.passo(dt, t); s.part.desenha(0, 0, Math.floor(t * 12));
       });
-      if (!mede(L.cavalos, function () { s.cavalos.forEach(function (h) { D(h.cv.quadro(t, estado.auto), h.x, h.pe - h.ref); }); }))
+      if (!mede(L.cavalos, function () { s.cavalos.forEach(function (h) { if (MAIS) D(h.sombra.c, h.sombra.x, h.sombra.y); D(h.cv.quadro(t, estado.auto), h.x, h.pe - h.ref); }); }))
         s.cavalos.forEach(function (h) { D(h.cv.parado(), h.x, h.pe - h.ref); });
     }
   };
@@ -1423,11 +1452,13 @@
       if (pl.seq) { pl.fila = (pl.fila + 1) % pl.ordem.length; pl.atual = pl.ordem[pl.fila]; }
       pl.t0 = t; u = 0; Q = pl.acoes[pl.atual];
     }
-    if (pl.disparado !== pl.t0) { var gst = GESTO_CODIGO[pl.atual.split('-')[0]]; if (gst) pl.codigo.dispara(gst, t); pl.disparado = pl.t0; }
+    var comJ = pl.atual.indexOf('cavarJ') === 0, cod = comJ ? pl.codigoJ : pl.codigo;
+    if (pl.disparado !== pl.t0) { var gst = GESTO_CODIGO[pl.atual.split('-')[0].replace('J', '')]; if (gst) cod.dispara(gst, t); pl.disparado = pl.t0; }
     var q = u < dur ? Math.floor(u * 6) % Q.length : 0;
     var g0 = g; g = pl.buf.getContext('2d');
     D(pl.fundo, 0, 0);
-    D(pl.codigo.quadro(t, false), 40, 84 - 57);
+    pl.sombras.forEach(function (sm) { D(sm.c, sm.x, sm.y); });
+    D(cod.quadro(t, false), 40, 84 - 57);
     D(Q[q], 150, 84 - 57);
     g = g0;
     var cv = el('piloto'), gp = cv.getContext('2d'); gp.imageSmoothingEnabled = false;
@@ -1520,7 +1551,7 @@
     }
     ctl.appendChild(botao('Lupa ×2', estado.lupa, function (b) { estado.lupa = !estado.lupa; b.setAttribute('aria-pressed', estado.lupa); ajustaCanvas(); }));
   }
-  var ROTULO_PILOTO = { 'comer-8102': 'Comer', 'comer-8101': 'Comer (seed B)', 'cavar-8111': 'Cavar', 'cavar-8112': 'Cavar (seed B)', 'cauda-8121': 'Cauda', 'respira-8131': 'Respiração' };
+  var ROTULO_PILOTO = { 'comer-8102': 'Comer', 'comer-8101': 'Comer (seed B)', 'cavar-8111': 'Cavar', 'cavar-8112': 'Cavar (seed B)', 'cauda-8121': 'Cauda', 'respira-8131': 'Respiração', 'cavarJ-8111': 'Cavar com jóquei', 'cavarJ-8113': 'Cavar com jóquei' };
   var NOME_PORTE = { esguio: 'Esguio', padrao: 'Padrão', robusto: 'Robusto' }, NOME_CRINA = { lisa: 'lisa', chamas: 'chamas', ondas: 'ondas', folhas: 'folhas' };
   function montaPiloto(c) {
     var ctl = el('ctlPiloto'), pl = c.pl; ctl.innerHTML = '';

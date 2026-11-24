@@ -35,12 +35,14 @@ for (const k of TODOS) {
 // ação-seed; do lote, só a seed escolhida (escolhas-todos.json)
 const piloto = {};
 const DIR_IDLE = path.join(PIX, 'idle');
-const escolhas = fs.existsSync(path.join(DIR_IDLE, 'escolhas-todos.json')) ? JSON.parse(fs.readFileSync(path.join(DIR_IDLE, 'escolhas-todos.json'), 'utf8')) : {};
+const lerEsc = n => fs.existsSync(path.join(DIR_IDLE, n)) ? JSON.parse(fs.readFileSync(path.join(DIR_IDLE, n), 'utf8')) : {};
+const escolhas = { retrato: lerEsc('escolhas-todos.json'), parado: lerEsc('escolhas-joquei.json') };
 if (fs.existsSync(DIR_IDLE)) for (const f of fs.readdirSync(DIR_IDLE).sort()) {
-  const m = /^([a-z]+-[a-z]+)-retrato-(\w+)-s(\d+)-(\d+)\.png$/.exec(f); if (!m) continue;
-  const [, molde, acao, seed, q] = m;
-  if (molde !== 'padrao-lisa' && !(escolhas[molde] && escolhas[molde][acao] && String(escolhas[molde][acao].seed) === seed)) continue;
-  ((piloto[molde] ||= {})[`${acao}-${seed}`] ||= [])[+q] = uri(path.join(DIR_IDLE, f));
+  const m = /^([a-z]+-[a-z]+)-(retrato|parado)-(\w+)-s(\d+)-(\d+)\.png$/.exec(f); if (!m) continue;
+  const [, molde, est, acao, seed, q] = m, esc = escolhas[est];
+  if (!(est === 'retrato' && molde === 'padrao-lisa') && !(esc[molde] && esc[molde][acao] && String(esc[molde][acao].seed) === seed)) continue;
+  const chave = (est === 'parado' ? acao + 'J' : acao) + '-' + seed;   // cavarJ = cavar com jóquei
+  ((piloto[molde] ||= {})[chave] ||= [])[+q] = uri(path.join(DIR_IDLE, f));
 }
 const dados = { imagens, moldes, piloto, regioes: { litoral: { posicao: manifesto.litoral.posicao || {} } } };
 
