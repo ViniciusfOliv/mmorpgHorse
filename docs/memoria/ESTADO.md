@@ -1,5 +1,12 @@
 # Estado do projeto
 
+**Atualização geral de 2026-11-25 (pedido do Vinicius, para trabalhar numa pasta local):** a `main` recebeu a memória da
+coordenação, o README com o passo a passo de clonar, jogar, gerar o build e enviar (capa corrigida) e as capturas oficiais
+de `prototype/screens/` refeitas com a animação e o mapa. **Branch esquecido:** `claude/nifty-newton-e8u133` tem 21 commits
+de 2026-11-18/19 que nunca entraram na `main` (balanço "cavalo superior vence" com Garra v2 e skills niveladas, ginásios em
+sequência Capoeira → Remanso → Fornalha, mapa da Expedição antigo, medição de fluidez `fluidez.mjs` e trocas de tela mais
+rápidas). Parte foi refeita depois por outro caminho (o mapa); o resto espera a decisão do Vinicius — não integrar sem ela.
+
 **Integração de 2026-11-24 (aprovada pelo Vinicius):** animação ambiente (etapas 0 a 6) + mapa dos ginásios (blocos A e
 B: mapa-múndi vivo, viagem, trilha que se pinta, cena de desafio com as vistas Meshy e idle) na `main` por avanço direto
 (77ba27e4), com o `check.sh` completo OK (83 blocos, 132 metas; desenho por quadro 2,17 ms). Republicados: jogo v18, DEV
