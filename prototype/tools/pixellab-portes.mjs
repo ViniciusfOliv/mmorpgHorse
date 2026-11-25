@@ -388,7 +388,8 @@ export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guia
 }
 
 // ---------------------------------------------------------------- arquivos de novos/
-const rel = f => path.relative(RAIZ, f);
+// Caminho relativo das mensagens, sempre com "/" (no Windows o path.relative usa "\").
+const rel = f => path.relative(RAIZ, f).split(path.sep).join('/');
 function lerJson(arq) { try { return JSON.parse(fs.readFileSync(arq, 'utf8')); } catch { return null; } }
 function gravarJson(arq, v) {
   fs.mkdirSync(path.dirname(arq), { recursive: true });
