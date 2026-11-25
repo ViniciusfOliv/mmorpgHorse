@@ -29,7 +29,8 @@ import { htmlFolhaInterface } from './tools/folha-interface.mjs'
 import { encodePng } from './tools/png.mjs'
 
 const ROOT = dirname(fileURLToPath(import.meta.url))
-const read = (p) => readFile(join(ROOT, p), 'utf8')
+// Texto sempre em LF: uma cópia em CRLF (zip baixado no Windows, git sem o .gitattributes) gera os mesmos bytes.
+const read = async (p) => (await readFile(join(ROOT, p), 'utf8')).replace(/\r\n/g, '\n')
 
 const SCRIPTS = ['src/data.js', 'src/sim.js', 'src/breed.js', 'src/marcas.js', 'src/gear.js', 'src/itens.js', 'src/ginasio.js', 'src/afk.js', 'src/forja.js', 'src/luz.js', 'src/sprites.js', 'src/ambiente.js', 'src/mapa.js', 'src/fx.js', 'src/dev.js', 'src/game.js']
 const SO_DEV = ['src/dev.js']   // fora do jogo de produção
