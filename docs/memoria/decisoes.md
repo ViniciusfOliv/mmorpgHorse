@@ -1410,3 +1410,18 @@ Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, 
 - 2026-11-24 · A cena do mapa recebe a imagem e a máscara do caminho de quem chama (`{ imagem, caminho }`) · o mapa é da frente 2; com a máscara, peixe, brasas e fumaça nunca nascem em cima da trilha.
 - 2026-11-24 · Junção do mapa dos ginásios no ramo da animação: a cena do desafio é a do `mapa.js` (a arena antiga da Fornalha animada sai do motor) e os cavalos dela respiram pelo idle, não pelo balanço de 1 px da figura inteira · pedido da coordenação; o idle das vistas (respiração, piscar, orelha, crina, cauda) já existia e o balanço somado a ele dobrava o movimento.
 - 2026-11-24 · Bloco `fluxo-capturas-ginasio` na fase em série do `ui-test-paralelo` (régua de 1,2 ms mantida) · mede ms por quadro com `performance.now()`; na fila paralela passava da régua por carga (até a cena sem idle deu 1,07 com 4 processos), e a regra do próprio executor é rodar sozinho bloco de tempo medido que falha em paralelo.
+
+## 2026-11-25 — O que trazer do branch esquecido `claude/nifty-newton-e8u133` (decisão do Vinicius: "Faça os dois, com a tabela de economia junto")
+- **Não trazer:** Garra v2 e skills niveladas (refeitas na frente skills-ranks, com a Garra de força variável escolhida
+  por ele), ginásios em sequência (a spec do mapa mantém as três trilhas abertas), mapa da Expedição antigo, arte dele e
+  figura do treinador na cena (substituídos pelo mapa-múndi vivo e pela cena com as vistas Meshy).
+- **Trazer, refeito sobre a `main`:** (1) estreia mais leve + salas mais justas na aba Correr, com a tabela de economia
+  do Ouro junto — medido na `main` (sintético, 3000 salas): o inicial vence 6,5% (justo 17,6%) com rivais de 91,5–111,5%;
+  com 93,5–104,5%, 13,2%. Chat `Salas justas + tabela de economia` (Opus alto, `claude/salas-economia`), que para na
+  spec para aprovação antes de mudar regra. (2) Fluidez das trocas de tela: `fluidez.mjs` + desenho adiado fora da tela.
+  Chat `Fluidez das trocas de tela` (Fable 5.2 alto, `claude/fluidez`).
+- **Ideias de retenção que estavam só nesse branch (nada aprovado):** objetivo do dia e da semana; liga semanal em
+  grupos de 30 que zera toda semana; "Hall dos cavalos" de maior Poder como vitrine; torneio da semana; missões do dia;
+  linhagem; álbum; limite diário só como bônus dos primeiros pódios, nunca cortando o pote. Rank entre jogadores reais
+  depende do servidor. Pergunta que ficou sem resposta: como é o dia do jogador (uma sentada de 10–15 min, várias
+  visitas de 2 min ou sem limite).
