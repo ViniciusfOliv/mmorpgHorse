@@ -8669,7 +8669,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   };
   var DOIS_PI = Math.PI * 2;
   // um animador por cavalo e estado (a semente das marcas, a pose e o molde); quem some da tela sai no limpar do cache
-  var idleRegistro = new Map();
+  var idleRegistro = new Map(), IDLE_REGISTRO_MAX = 16;
   var ccCena = new WeakMap();   // opções da cena -> chave das cores (moldeIdle)
   function moldeIdle(nome, estado, o) {
     var M = moldes[nome], sem = (o.semente >>> 0) || 0, k = nome + '|' + estado + '|' + sem + '|' + (o.anima === 'cena' ? 'c' : '');
@@ -8688,9 +8688,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       // pintados: os quadros do idle já pintados (a respiração e as orelhas voltam aos mesmos estados; repintar custava
       // ~1 ms a cada troca na cena do desafio)
       r = { anim: new IdleMolde(M, estado, sem * 2654435761 + estado.length, gestos), chave: '', canvas: null, pintados: new Map() };
-      if (idleRegistro.size > 48) idleRegistro.clear();
+      // os menus não limpam mais este registro a cada troca de tela (só a corrida limpa): sai o animador usado há mais
+      // tempo, um por vez (cada um guarda até 96 quadros pintados; 16 animadores ≈ 10 MB no pior caso — a largada tem 8)
+      while (idleRegistro.size >= IDLE_REGISTRO_MAX) idleRegistro.delete(idleRegistro.keys().next().value);
       idleRegistro.set(k, r);
-    }
+    } else if (idleRegistro.size > 1) { idleRegistro.delete(k); idleRegistro.set(k, r); }   // usado agora: vai para o fim da fila
     var t = Number(o.t) || 0;
     // sem marcas nas vistas de frente e de costas (decisão do Vinicius para a v1 da cena de desafio nova)
     var oP = IDLE_GESTOS_ESTADO[estado] ? Object.assign({}, o, { marcas: null }) : o;
@@ -8698,16 +8700,25 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var cc = o.anima === 'cena' ? ccCena.get(o) : null, vista = estado === 'frente' || estado === 'costas';
     if (cc == null) { cc = '#' + chaveCores(o); if (o.anima === 'cena') ccCena.set(o, cc); }
     if (o.anima === 'cena' && !r.aquecido) {
-      // as cenas (poucos cavalos): os estados dos próximos segundos pintados já na montagem, por um animador à parte com a
+      // as cenas (poucos cavalos): os estados dos próximos segundos pintados adiantado, por um animador à parte com a
       // mesma semente (os eventos saem da RNG cosmética e do t: os mesmos do animador de verdade) — sem isso, o 1º ciclo
-      // pintava um estado novo a cada troca (~0,5 ms cada)
+      // pintava um estado novo a cada troca (~0,5 ms cada). No navegador vão em fatias de até 4 estados por tarefa, depois
+      // do 1º desenho (pintar os ~20 a 60 de uma vez, dentro do 1º desenho da cena, segurava a troca de tela: fluidez,
+      // 2026-11-25); o quadro de agora é pintado na hora, como sempre. Sem temporizador (testes no Node), tudo de uma vez.
       r.aquecido = true;
-      var aq = new IdleMolde(M, estado, sem * 2654435761 + estado.length, null), fim = t + aq.respira + 0.5;
-      for (var ta = t; ta < fim && r.pintados.size < 64; ta += 1 / 14) {
-        aq.agenda(ta);
-        var ka = aq.monta(ta) + cc;
-        if (!r.pintados.has(ka)) r.pintados.set(ka, pintaMolde(M, aq.mapa, M.ancoras[estado], oP, vista));
-      }
+      var aq = new IdleMolde(M, estado, sem * 2654435761 + estado.length, null), fim = t + aq.respira + 0.5, ta = t;
+      var fatia = function (max) {
+        for (var n = 0; ta < fim && r.pintados.size < 64 && n < max; ta += 1 / 14) {
+          aq.agenda(ta);
+          var ka = aq.monta(ta) + cc;
+          if (!r.pintados.has(ka)) { r.pintados.set(ka, pintaMolde(M, aq.mapa, M.ancoras[estado], oP, vista)); n++; }
+        }
+        return ta < fim && r.pintados.size < 64;
+      };
+      if (typeof window !== 'undefined' && typeof window.setTimeout === 'function' && typeof document !== 'undefined') {
+        var passo = function () { if (idleRegistro.get(k) === r && moldes && moldes[nome] === M && fatia(4)) window.setTimeout(passo, 0); };
+        window.setTimeout(passo, 30);
+      } else fatia(Infinity);
     }
     r.anim.agenda(t);
     // a chave primeiro (barata); o mapa só é montado para um quadro que ainda não foi pintado
@@ -17421,6 +17432,20 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     ctx.imageSmoothingEnabled = false;
     return { ctx: ctx, k: k };
   }
+  // O canvas na resolução de arte (um pixel do canvas = um pixel de arte), ampliado pelo CSS até o mesmo tamanho na tela
+  // do setupCanvasGrade (image-rendering: pixelated: vizinho mais próximo, os mesmos pixels). Para os canvas que só copiam
+  // um buffer de arte inteiro (mapa-múndi, trilha, cena de desafio): a cópia ampliada de 256 × 384 para ~1000 × 1500, a
+  // cada quadro, sai da linha principal (era metade do custo do quadro e da troca de tela no celular simples) e a memória
+  // cai k² vezes. Quem desenha recebe k = 1. A cena das abas continua na grade: o cavalo dela (efeito de raridade, sombra)
+  // não sai igual desenhado a 1× e ampliado.
+  function setupCanvasArte(cv, artW, artH) {
+    var r = dpr(), k = gradeS || Math.max(1, Math.round(1.5 * r));
+    cv.width = artW; cv.height = artH;
+    cv.style.width = (artW * k / r) + 'px'; cv.style.height = (artH * k / r) + 'px';
+    var ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    return { ctx: ctx, k: 1 };
+  }
   function portraitHtml(horse, opts) {
     opts = opts || {};
     var id = portraitQueue.length;
@@ -17484,6 +17509,46 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     ctx.fillStyle = C.escuro; ctx.fillRect(0, 31 * k, w * k, k);
   }
 
+  // 1º desenho dos retratos (fluidez da troca de tela): sai no 1º quadro depois da troca (requestAnimationFrame, antes da
+  // pintura), só para os que estão na tela ou perto dela; os de fora da primeira dobra saem depois do 2º quadro, um por
+  // tarefa, ou na hora em que entram na tela (o IntersectionObserver do laço). O 1º quadro pintado é o mesmo de antes: só o
+  // desenho que ninguém vê ainda fica para depois. render() descarta os pendentes da tela anterior (adiadosGer).
+  var ADIADO_MARGEM = 120;   // px além da borda da janela que já contam como "na tela"
+  var adiados = [], adiadosGer = 0;
+  function adiaDesenho(item, cv) {
+    if (typeof window.requestAnimationFrame !== 'function') { item.draw(0); return; }
+    cv.__adiado = item;
+    adiados.push(item);
+    if (adiados.length > 1) return;
+    var g = adiadosGer;
+    window.requestAnimationFrame(function () { if (g === adiadosGer) desenhaAdiadosNaTela(g); });
+  }
+  function desenhaAdiado(item) {
+    if (!item.cv || item.cv.__adiado !== item) return;
+    item.cv.__adiado = null;
+    if (!item.drawn) item.draw(0);
+  }
+  function desenhaAdiadosNaTela(g) {
+    var alt = window.innerHeight || document.documentElement.clientHeight || 0, resto = [];
+    var lista = adiados, i, dentro = [];
+    adiados = [];
+    // primeiro todas as leituras (um layout só), depois os desenhos
+    for (i = 0; i < lista.length; i++) {
+      var r = lista[i].cv.getBoundingClientRect();
+      if (r.bottom >= -ADIADO_MARGEM && r.top <= alt + ADIADO_MARGEM) dentro.push(lista[i]);
+      else resto.push(lista[i]);
+    }
+    for (i = 0; i < dentro.length; i++) desenhaAdiado(dentro[i]);
+    if (!resto.length) return;
+    // os de fora da tela: depois do 2º quadro (a tela nova já pintada), um por tarefa
+    function proximo() {
+      var it = resto.shift();
+      while (it && it.cv.__adiado !== it) it = resto.shift();
+      if (!it) return;
+      setTimeout(function () { if (g !== adiadosGer) return; desenhaAdiado(it); proximo(); }, 0);
+    }
+    window.requestAnimationFrame(function () { if (g === adiadosGer) proximo(); });
+  }
   function hydrate(root) {
     var icons = root.querySelectorAll('canvas[data-icon]');
     for (var i = 0; i < icons.length; i++) {
@@ -17522,8 +17587,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
             }, vis));
           }
         };
-        item.draw(0);
         vivo(item, cv);
+        adiaDesenho(item, cv);
       })(ps[j]);
     }
     var perfis = root.querySelectorAll('canvas[data-perfil]');
@@ -17837,7 +17902,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (state && !saveBloqueado && screen !== 'corrida') afkConfere();   // cavalo que saiu do estábulo, fase que fechou: a vaga esvazia
     if (screen !== ui.screen) {
       ui.confirmReset = false; ui.confirmLiberar = null; ui.diariaVer = false;
-      SP.limparCacheMoldes();   // os moldes recoloridos da tela anterior não voltam a ser usados
+      // os moldes recoloridos saem só ao entrar e ao sair da corrida (ela enche o cache com os quadros do galope, que os
+      // menus não usam, e não aproveita os deles). Entre os menus ficam: os mesmos cavalos voltam (Estábulo ↔ ficha ↔
+      // Expedição) e repintar cada um a cada troca custava a maior parte do tempo dela (fluidez, 2026-11-25). Os caches
+      // têm teto em bytes (LRU), então não crescem sem limite.
+      if (screen === 'corrida' || ui.screen === 'corrida') SP.limparCacheMoldes();
     }
     // voltar de uma sub-tela (Perfil, Montaria) para a mesma aba de origem preserva o estado do Haras e da Loja
     var voltaMesmaAba = kindOf(ui.screen) === 'sub' && screen === ui.tab;
@@ -17975,6 +18044,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (visObs) visObs.disconnect();
     live = [];
     portraitQueue = [];
+    adiados = []; adiadosGer++;
     cenaQueue = []; cenaItems = []; telaItems = [];
     var html;
     if (saveBloqueado) ui.screen = 'bloqueio';
@@ -18016,6 +18086,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     }
     if (devHooks) devHooks.render();
     afkLaco();   // o laço do treino AFK (só nas telas dele) e a medição da chance
+    // a tela acabou de ser desenhada (hydrate): o 1º passo da animação dos canvas vivos vem um intervalo depois (~70 ms),
+    // e não no quadro seguinte, colado na troca (fluidez)
+    if (window.performance && ui.screen !== 'corrida') lastIdle = performance.now();
     acordaLaco();
   }
 
@@ -18893,10 +18966,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var im = arenaImgs[id];
     if (!im) {
       im = arenaImgs[id] = new Image();
-      im.onload = function () { cenaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.onload = function () { if (imgEsperada(im)) cenaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
       im.src = m[id];
     }
-    return im.complete && im.naturalWidth ? im : null;
+    return imgSeChegou(im);
   }
   // ---------------------------------------------------------------------------------------------
   // Etapa 6 da direção de arte: a cena de cada aba (256×160, window.__TELAS.cenas, com o pontilhado de baixo assado no
@@ -18907,16 +18980,26 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // ---------------------------------------------------------------------------------------------
   var TELA_W = 256, CENA_ABA_H = 160, MAPA_H = 384;
   var telaImgs = {}, telaItems = [];
+  // As imagens embutidas (data:) carregam uma vez por chave e, ao chegar, quem está na tela é desenhado de novo — mas só
+  // se algum desenho a pediu antes de ela ficar pronta (im.__esperada). O aquecimento (aqueceTelas) pede as imagens
+  // adiantado, sem ninguém esperando por elas: aí a chegada não redesenha nada.
+  var aquecendo = false;
+  function imgSeChegou(im) {
+    if (im && im.complete && im.naturalWidth) return im;
+    if (im && !aquecendo) im.__esperada = true;
+    return null;
+  }
+  function imgEsperada(im) { var e = !!im.__esperada; im.__esperada = false; return e; }
   function telaImg(tipo, id) {
     var m = window.__TELAS, src = m && m[tipo] && hasOwn(m[tipo], id) ? m[tipo][id] : null;
     if (typeof src !== 'string' || typeof Image !== 'function') return null;
     var key = tipo + ':' + id, im = telaImgs[key];
     if (!im) {
       im = telaImgs[key] = new Image();
-      im.onload = function () { telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.onload = function () { if (imgEsperada(im)) telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
       im.src = src;
     }
-    return im.complete && im.naturalWidth ? im : null;
+    return imgSeChegou(im);
   }
   // Animação ambiente (spec 2026-11-23-animacao-ambiente; plano, etapa 3): as cenas animadas por código
   // (prototype/src/ambiente.js) no topo das abas. Uma por cena, montada quando a imagem dela chega;
@@ -18937,8 +19020,29 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     } catch (e) { ambCenas[par[0]] = false; if (window.console) console.warn('ambiente ' + par[0] + ': ' + e.message); }
     return ambCenas[par[0]] || null;
   }
+  // O quadro do instante 0 (fluidez, 2026-11-25). O 1º desenho de cada tela pede o instante 0 (hydrate: item.draw(0)) e o
+  // laço segue do relógio um intervalo depois. Esse quadro é sempre o mesmo para o mesmo estado (só as partículas, que não
+  // andam com dt 0, ficam onde estavam): fica guardado na 1ª vez — ou antes, no aquecimento — e as visitas seguintes só
+  // copiam a imagem guardada, em vez de desenhar a cena inteira de novo dentro da troca de tela (de 12 a 36 ms cada, no
+  // celular simples). Vale para a cena de cada aba, o mapa-múndi e as trilhas; nunca com movimento reduzido (aí o quadro é
+  // um só e sai do desenho de sempre) nem no meio da viagem.
+  function copiaTela(orig, para) {
+    var c = para || document.createElement('canvas');
+    if (c.width !== orig.width) c.width = orig.width;
+    if (c.height !== orig.height) c.height = orig.height;
+    var x = c.getContext('2d');
+    x.clearRect(0, 0, c.width, c.height);
+    x.drawImage(orig, 0, 0);
+    return c;
+  }
+  // a pose do instante 0 da cena de uma aba, guardada (o aquecimento chama; o 1º desenho da tela também)
+  function ambientePose0(c) {
+    if (!c.pose0) { c.atualiza(0, c.tAnt == null ? 0.07 : 0); c.desenha(null, 0); c.pose0 = copiaTela(c.buffer); c.tAnt = 0; }
+    return c.pose0;
+  }
   // um quadro da cena no buffer dela (resolução de arte) e a cópia ampliada em ctx: (x, y) e escala k em pixels do canvas
   function desenhaAmbiente(c, ctx, t, x, y, k) {
+    if (t === 0) { ctx.drawImage(ambientePose0(c), x, y, c.W * k, c.H * k); c.tAnt = 0; return; }
     var dt = c.tAnt == null ? 0.07 : Math.min(0.25, Math.max(0, t - c.tAnt)), t0 = window.performance.now();
     c.tAnt = t;
     c.atualiza(t, dt); c.desenha(null, 0);
@@ -18966,11 +19070,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // o cavalo parado 1:1 com o corpo centrado em cx e os cascos em base (pixels de arte do canvas)
   // cena: a luz da cena no cavalo (Luz.CONDICOES; padrão o Estábulo); espelha: virado para a esquerda; palha: a linha de
   // palha na frente dos cascos (o Estábulo), senão só os tufos do chão
-  function cavaloParado(ctx, k, h, vis, cx, base, t, chao, cena, espelha, palha) {
+  function opcoesParado(k, h, vis, cx, base, t, chao, cena, espelha) {
     vis.reduzido = reduced();
-    var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
+    return comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
       jockey: false, silks: PLAYER_SILKS, chao: chao, cena: cena === undefined ? 'estabulo' : cena, anima: 'cena', espelhado: !!espelha,   // vivo: idle e gestos (animação ambiente, etapa 2)
       quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
+  }
+  function cavaloParado(ctx, k, h, vis, cx, base, t, chao, cena, espelha, palha) {
+    var o = opcoesParado(k, h, vis, cx, base, t, chao, cena, espelha);
     if (!espelha) SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
     else { ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1); SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); ctx.restore(); }
     // a palha do chão na frente dos cascos (Regra 7)
@@ -19026,10 +19133,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var im = mapaArte.imgs[chave];
     if (!im && typeof Image === 'function') {
       im = mapaArte.imgs[chave] = new Image();
-      im.onload = function () { telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.onload = function () { if (imgEsperada(im)) telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
       im.src = src;
     }
-    return im && im.complete && im.naturalWidth ? im : null;
+    return imgSeChegou(im);
   }
   function temMapaMundo() { var m = window.__MAPA_MUNDO; return !!(MP && m && typeof m.terreno === 'string' && m.ginasios); }
   // o mundo é montado uma vez (≈ 0,1 s), quando a ilha, os ginásios e os corpos dos líderes já chegaram; null até lá
@@ -19091,15 +19198,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return '<div class="mapa-mundo-palco"><canvas class="mapa-mundo" data-mapa-mundo="1" role="img" aria-label="' + esc(mapaMundoTxt()) + '"></canvas></div>';
   }
   function drawMapaMundo(cv) {
-    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
+    var L = larguraTela(cv), s = setupCanvasArte(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
     cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
     var item = {
       drawn: false,
       draw: function (t) {
-        var m = mapaMundo();
+        var m = mapaMundo(), prog = null;
         item.t = t;
         if (!m) return;
-        if (!item.drawn) m.estado(mapaProgresso());
+        if (!item.drawn) { prog = mapaProgresso(); m.estado(prog); }
         // com ?quadro= (capturas) o t fica parado no instante pedido, mas o que anda por dt (a pista que se pinta, o trote,
         // a viagem) anda no relógio
         var tr0 = QUADRO_FIXO != null ? performance.now() / 1000 : t;
@@ -19107,11 +19214,16 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         tAnt = tr0;
         if (item.drawn && r) return;
         item.drawn = true;
-        var t0 = window.performance ? performance.now() : 0;
-        m.quadro(t, dt, r);
+        var t0 = window.performance ? performance.now() : 0, fonte = m.c;
+        if (t === 0 && !r) {
+          // o quadro do instante 0 deste progresso: o guardado, se houver (ver copiaTela); fora da medição de custo
+          var ch0 = JSON.stringify(prog || mapaProgresso()), p0 = mapaArte.pose0;
+          if (!p0 || p0.chave !== ch0) { m.quadro(0, 0, false); p0 = mapaArte.pose0 = { chave: ch0, c: copiaTela(m.c, p0 && p0.c) }; }
+          fonte = p0.c; t0 = 0;
+        } else m.quadro(t, dt, r);
         var t1 = t0 ? performance.now() : 0, V = passoDaViagem('mundo');
-        if (V) { var pg = MP.POS[viagem.el], f = [pg[0], pg[1] - 8]; MP.desenhaViagem(ctx, k, ox, L.W, m.c, f, V.z, V.r, f, viagem.el); }
-        else ctx.drawImage(m.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        if (V) { var pg = MP.POS[viagem.el], f = [pg[0], pg[1] - 8]; MP.desenhaViagem(ctx, k, ox, L.W, fonte, f, V.z, V.r, f, viagem.el); }
+        else ctx.drawImage(fonte, -ox * k, 0, TELA_W * k, MAPA_H * k);
         cv.setAttribute('data-viagem', V ? viagem.tipo : '');
         // o custo (média móvel, para o ui-test): o desenho do quadro (data-ms) e a cópia ampliada para a tela (data-ms-copia)
         if (t0) {
@@ -19159,10 +19271,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (tr) { tr.op = op; tr.p = null; mapaArte.trilhas[id] = tr; }
     return tr;
   }
+  // o que decide o quadro parado de uma trilha: o estado das 5 etapas, a parada do cavalo e o visual dele
+  function trilhaChave(id, tr) {
+    return JSON.stringify([GD.GYMS[id].etapas.map(function (e, i) { return ginEtapaEstado(id, i); }), tr.p, tr.op.cavalo]);
+  }
   function drawMapaTrilha(cv) {
     var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];
     if (!g) return;
-    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
+    var L = larguraTela(cv), s = setupCanvasArte(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox, tAnt = 0;
     cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
     var h = playerHorse(), vis = h ? opcoesVisuais(h, joqueiDoJogador()) : null;
     var item = {
@@ -19183,14 +19299,26 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
           tr.op.cavalo = h ? comVisuais({ palette: h.palette, element: h.element, jockey: true, silks: PLAYER_SILKS }, vis) : null;
         }
         if (item.drawn && r) return;
+        var primeiro = !item.drawn;
         item.drawn = true;
         item.rapido = !r && tr.anda();   // a pista se pintando e o trote: desenho a cada quadro
-        var t0 = window.performance ? performance.now() : 0;
-        // (com ?quadro=, enquanto a pista se pinta e o cavalo trota, o relógio: a espera da pintura é marcada em t)
-        tr.quadro(QUADRO_FIXO != null && item.rapido ? tr0 : t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
+        var t0 = window.performance ? performance.now() : 0, fonte = tr.c;
+        if (t === 0 && !r && !item.rapido) {
+          // o quadro do instante 0 desta trilha parada (as etapas, a parada e o cavalo de agora): o guardado, se houver
+          // (ver copiaTela); fora da medição de custo
+          var ch0 = primeiro || !item.ch0 ? (item.ch0 = trilhaChave(id, tr)) : item.ch0, p0 = tr.pose0;
+          if (!p0 || p0.chave !== ch0 || p0.x0 > ox || p0.x1 < ox + L.W) {
+            tr.quadro(0, 0, false, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
+            p0 = tr.pose0 = { chave: ch0, x0: ox, x1: ox + L.W, c: copiaTela(tr.c, p0 && p0.c) };
+          }
+          fonte = p0.c; t0 = 0;
+        } else {
+          // (com ?quadro=, enquanto a pista se pinta e o cavalo trota, o relógio: a espera da pintura é marcada em t)
+          tr.quadro(QUADRO_FIXO != null && item.rapido ? tr0 : t, dt, r, { x0: ox, x1: ox + L.W, y0: 0, y1: MAPA_H });
+        }
         var t1 = t0 ? performance.now() : 0, V = passoDaViagem('trilha');
-        if (V) { var hp = tr.posCavalo(); MP.desenhaViagem(ctx, k, ox, L.W, tr.c, [128, 192], 1, V.r, [hp[0], hp[1] - 20], viagem.el); }
-        else ctx.drawImage(tr.c, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        if (V) { var hp = tr.posCavalo(); MP.desenhaViagem(ctx, k, ox, L.W, fonte, [128, 192], 1, V.r, [hp[0], hp[1] - 20], viagem.el); }
+        else ctx.drawImage(fonte, -ox * k, 0, TELA_W * k, MAPA_H * k);
         cv.setAttribute('data-viagem', V ? viagem.tipo : '');
         if (t0) {
           var ms = t1 - t0; item.ms = item.n ? item.ms * 0.9 + ms * 0.1 : ms; item.n = (item.n || 0) + 1;
@@ -19232,10 +19360,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (!im) {
       im = treinadorImgs[id] = new Image();
       // ao chegar, as cenas do desafio e os mapas da trilha na tela são desenhados de novo
-      im.onload = function () { cenaItems.concat(telaItems).forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.onload = function () { if (imgEsperada(im)) cenaItems.concat(telaItems).forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
       im.src = m[id].corpo;
     }
-    return im.complete && im.naturalWidth ? im : null;
+    return imgSeChegou(im);
   }
   // o busto (64×64) do oponente para os cartões da trilha: <img> 1:1 na grade, decorativo; '' sem a arte
   function treinadorBustoHtml(nome) {
@@ -19278,7 +19406,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (!e) return;
     var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), palcoW = cv.parentElement ? cv.parentElement.clientWidth : 0;
     var W = Math.max(160, Math.min(CENA_W, palcoW ? Math.floor(palcoW * r / kG) : CENA_W)), ox = Math.floor((CENA_W - W) / 2);
-    var s = setupCanvasGrade(cv, W, CENA_H), k = s.k, ctx = s.ctx;
+    var s = setupCanvasArte(cv, W, CENA_H), k = s.k, ctx = s.ctx;
     cv.setAttribute('data-arte', W + 'x' + CENA_H);
     cv.setAttribute('data-folego', e.folA + ',' + e.folB);   // o fôlego das placas (o do duelo gravado), para o ui-test
     var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, joqueiDoJogador());
@@ -19312,6 +19440,105 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     item.draw(0);
     vivo(item, cv);
     cenaItems.push(item);
+  }
+  // ---- Aquecimento das telas (fluidez, 2026-11-25). O que cada tela monta uma vez só — as imagens embutidas, a cena
+  // animada de cada aba, o mapa-múndi, as trilhas e as arenas da cena de desafio, e os estados do idle dos cavalos do
+  // pasto do Haras — custava de 0,1 a 0,5 s no 1º toque que abria a tela (celular simples). Agora é montado adiantado, um
+  // passo por vez, em tempo ocioso depois da carga (requestIdleCallback; sem ele, um temporizador). Só nos menus: nunca na
+  // corrida, na sala, nos duelos, no meio da viagem ou com a aba escondida. Quem abrir uma tela antes de o passo dela
+  // rodar monta na hora, como antes. Só desenho: nada lê nem grava o save, nada sorteia.
+  var aqueceFila = null, aqueceTent = 0;
+  function aquecePassos() {
+    var passos = [];
+    // 1. as imagens (decodificam fora da linha principal; os passos seguintes esperam por elas)
+    passos.push(function () {
+      ['estabulo', 'correr', 'expedicao', 'haras', 'loja'].forEach(function (a) { if (temTela('cenas', a)) telaImg('cenas', a); });
+      GD.GYM_ORDER.forEach(function (id) {
+        if (temTela('mapas', id)) telaImg('mapas', id);
+        arenaImg(id);
+        GD.GYMS[id].etapas.forEach(function (e) { treinadorImg(ginTreinadorId(e.nome)); });
+      });
+      var m = window.__MAPA_MUNDO;
+      if (temMapaMundo()) { mapaImg('terreno', m.terreno); MP.ORDEM.forEach(function (el) { mapaImg('g-' + el, m.ginasios[el]); }); }
+      return true;
+    });
+    // 2. a cena animada de cada aba (sem movimento reduzido: aí a imagem fica parada e o motor não é usado)
+    Object.keys(AMB_ABA).forEach(function (aba) {
+      passos.push(function () {
+        if (reduced() || !temTela('cenas', aba)) return true;
+        var img = telaImg('cenas', aba);
+        if (!img) return false;
+        // a cena montada e um quadro dela no buffer (o 1º quadro de cada cena custa de 3 a 5 vezes um quadro normal);
+        // fora da medição de custo (ambMs)
+        var c = ambienteDe(AMB_ABA[aba], img);
+        if (c) ambientePose0(c);
+        return true;
+      });
+    });
+    // 3. o mapa-múndi, com um quadro (o progresso é posto de novo no 1º desenho da tela)
+    passos.push(function () {
+      if (!temMapaMundo() || mapaArte.falhou) return true;
+      var m = mapaMundo();
+      if (!m) return false;
+      var prog = mapaProgresso();
+      m.estado(prog); m.quadro(0, 0, reduced());
+      if (!reduced()) mapaArte.pose0 = { chave: JSON.stringify(prog), c: copiaTela(m.c, mapaArte.pose0 && mapaArte.pose0.c) };
+      return true;
+    });
+    // 4. as trilhas, com um quadro. tr.p volta a null: o 1º desenho da tela posiciona de novo pelo save daquela hora, sem
+    // a pintura da pista (que é só para quem já viu a trilha nesta sessão)
+    GD.GYM_ORDER.forEach(function (id) {
+      passos.push(function () {
+        if (!MP || !temTela('mapas', id)) return true;
+        var tr = trilhaObj(id), g = GD.GYMS[id];
+        if (!tr) return false;
+        if (tr.p != null) return true;   // a tela já abriu: nada a adiantar
+        var h = playerHorse();
+        tr.estados(g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); }));
+        tr.posiciona(Math.min(ginProgresso(id), ginEtapasTotal(id) - 1), { de: null, reduzido: reduced() });
+        tr.op.cavalo = h ? comVisuais({ palette: h.palette, element: h.element, jockey: true, silks: PLAYER_SILKS }, opcoesVisuais(h, joqueiDoJogador())) : null;
+        tr.quadro(0, 0, reduced(), { x0: 0, x1: TELA_W, y0: 0, y1: MAPA_H });
+        if (!reduced() && !tr.anda()) { tr.p = Math.min(ginProgresso(id), ginEtapasTotal(id) - 1); tr.pose0 = { chave: trilhaChave(id, tr), x0: 0, x1: TELA_W, c: copiaTela(tr.c) }; }
+        tr.p = null;
+        return true;
+      });
+    });
+    // 5. as arenas da cena de desafio
+    GD.GYM_ORDER.forEach(function (id) {
+      passos.push(function () { return !MP || !MP.cena || !window.__ARENAS || !hasOwn(window.__ARENAS, id) || !!cenaObj(id); });
+    });
+    // 6. os cavalos do pasto do Haras: os estados do idle dos próximos segundos (o cavalo ativo do Estábulo já passou por
+    // isso na carga). Um cavalo por passo.
+    [0, 1].forEach(function (i) {
+      passos.push(function () {
+        var m = state && !reduced() && SP.moldsReady ? cavalosDoHaras()[i] : null;
+        if (m) SP.quadroIdle(opcoesParado(1, m, opcoesVisuais(m, null), 0, 0, relogio() + i * 7.3, null, null, i === 1));
+        return true;
+      });
+    });
+    return passos;
+  }
+  function aqueceTelas() {
+    if (aqueceFila) return;
+    aqueceFila = aquecePassos();
+    aqueceAgenda(400);
+  }
+  function aqueceAgenda(ms) {
+    window.setTimeout(function () {
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(aquecePasso, { timeout: 1500 });
+      else aquecePasso();
+    }, ms);
+  }
+  function aquecePasso() {
+    if (!aqueceFila || !aqueceFila.length) return;
+    var tipo = kindOf(ui.screen);
+    if (!state || saveBloqueado || viagem || (tipo !== 'aba' && tipo !== 'sub') || document.visibilityState === 'hidden') { aqueceAgenda(1000); return; }
+    var ok = true;
+    aquecendo = true;
+    try { ok = aqueceFila[0]() !== false; } catch (e) { ok = true; } finally { aquecendo = false; }
+    // um passo que espera imagem tenta de novo (até ~3 s); depois disso fica para quando a tela abrir
+    if (ok || ++aqueceTent > 20) { aqueceFila.shift(); aqueceTent = 0; }
+    if (aqueceFila.length) aqueceAgenda(ok ? 20 : 150);
   }
   // a tela de desafio do duelo k (go() só chega aqui com o desafio pago e o duelo k gravado)
   function renderDesafio() {
@@ -24112,7 +24339,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // animação e no resultado depois do pódio sair da tela. acordaLaco() religa (render, rolagem, preferência).
   var lastIdle = 0, lacoAtivo = false;
   var visObs = window.IntersectionObserver ? new window.IntersectionObserver(function (ents) {
-    for (var e = 0; e < ents.length; e++) ents[e].target.__visivel = ents[e].isIntersecting;
+    for (var e = 0; e < ents.length; e++) {
+      ents[e].target.__visivel = ents[e].isIntersecting;
+      if (ents[e].isIntersecting && ents[e].target.__adiado) desenhaAdiado(ents[e].target.__adiado);   // entrou na tela antes da vez
+    }
     acordaLaco();
   }) : null;
   function vivo(item, cv) {
@@ -24215,8 +24445,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // a corrida, que redesenha sozinha a cada quadro (re-renderizar recriaria a corrida).
     if (!/[?&]semmoldes=1(&|$)/.test(window.location.search) && window.__MOLDES) {
       // (na corrida, refaz só o layout: a escala de trabalho do canvas depende da escala dos moldes)
-      SP.loadMolds(window.__MOLDES, function () { if (ui.screen !== 'corrida') redesenhoPassivo(); else if (raceView) raceView.relayout(); });
-    }
+      SP.loadMolds(window.__MOLDES, function () { if (ui.screen !== 'corrida') redesenhoPassivo(); else if (raceView) raceView.relayout(); aqueceTelas(); });
+    } else aqueceTelas();
     try {
       var hot = window.claude && window.claude.hot;
       if (hot && typeof hot.snapshot === 'function') hot.snapshot(snapshot);
