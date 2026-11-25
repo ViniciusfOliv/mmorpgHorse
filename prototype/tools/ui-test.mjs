@@ -235,6 +235,10 @@ const GIN_CENA_CORES = `(() => { const cv = document.querySelector('#tela .gin-c
   for (let j = 0; j < d.length; j += 4) cores.add((d[j] << 16) | (d[j + 1] << 8) | d[j + 2])
   return cores.size })()`
 
+// os retratos de fora da primeira dobra são desenhados logo depois da troca de tela (game.js, adiaDesenho): quem confere o
+// desenho de todos os retratos espera os adiados acabarem
+const retratosProntos = (page) => page.waitForFunction(() => ![...document.querySelectorAll('#tela canvas.retrato')].some((c) => c.__adiado), null, { timeout: 5000 }).catch(() => {})
+
 async function checkOverflow(page, label) {
   const o = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }))
   if (o.sw > o.cw) problems.push(`[${label}] rolagem horizontal: scrollWidth ${o.sw} > ${o.cw}`)
@@ -9307,6 +9311,7 @@ try {
         await espia(pg)
         await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
         await pg.waitForSelector('#t-estabulo')
+        await retratosProntos(pg)
         confereDesenhos(await desenhos(pg), s.mounts.map((m) => ({ chave: m.uid, marcas: esperadas[m.uid], joquei: null, raridade: m.rarity })), 'estábulo', (d) => d.quadro)
         await semQuebra(pg, label + '-estabulo')
         // RF1: jóquei com lixo volta ao inicial; válido fica (capacete sem diferença de maiúsculas)
@@ -9813,6 +9818,7 @@ try {
         await espia(pg)
         await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
         await pg.waitForSelector('#t-estabulo')
+        await retratosProntos(pg)
         confereRetratos(await espiado(pg), Object.entries(esperados).map(([chave, porte]) => ({ chave, porte })), label + ' (estábulo)')
         await espia(pg, false)
         await confereFicha(pg, 'm1', 'padrao', label + '-ficha-brasa')

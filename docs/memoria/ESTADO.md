@@ -1,5 +1,28 @@
 # Estado do projeto
 
+**Fluidez das trocas de tela (2026-11-25, ramo `claude/fluidez`, fora da `main`; a integração é da coordenação).** Pedido
+repassado pela coordenação como aprovado pelo Vinicius: trazer para a `main` de hoje a fluidez que ficou no ramo `claude/nifty-newton-e8u133`. Feito por
+reimplementação (o mapa antigo não existe mais). Medição: `node prototype/tools/fluidez.mjs` (CPU 4× mais lenta, 360 × 780,
+dpr 3, mediana de 5 rodadas, save com 8 montarias; do toque ao 2º quadro; na viagem, o pior intervalo entre quadros).
+Antes → depois, em ms: aba Expedição 618 → 58 (2ª vez 88 → 58); viagem ao ginásio 349 → 39; voltar ao mapa 79 → 41; Haras
+321 → 95; Estábulo 120 → 66; preparo 112 → 72; voltar do preparo 71 → 31; resumo → trilha 77 → 28; Desafiar → cena 152 →
+76; pôr cavalo no time 72 → 43; voltar da ficha 114 → 65; voltar do Perfil 113 → 66; Loja 87 → 59; Mochila 60 → 57; ficha 63
+→ 57; Correr ~45; Perfil ~35; resumo ~22 (sem ganho, já rápidos); carga ~1,0 s (sem ganho). **O que mudou** (`game.js`,
+`sprites.js`; o que aparece na tela não muda): (1) o cache dos moldes recoloridos só é limpo na fronteira da corrida (era a
+cada troca); (2) "aquecimento": imagens, cena de cada aba, mapa-múndi, trilhas e arenas montados em tempo ocioso depois da
+carga (pronto ~3,5 s depois dela no perfil lento; quem toca antes monta na hora, como antes: a viagem aí engasga ~280 ms
+uma vez); (3) o quadro do instante 0 das cenas, do mapa e das trilhas fica guardado; (4) retratos fora da tela desenhados
+depois do 1º quadro (`adiaDesenho`); (5) mapa-múndi, trilha e cena de desafio em canvas na resolução de arte, ampliados
+pelo CSS; (6) idle das cenas pintado em fatias. Bloco `fluidez` no `ui-test` (teto por troca, 80–170 ms, em série; ~1 min a
+mais no `check.sh`). **Acima da meta de 60 ms:** Haras na 1ª visita (95: os retratos dos cavalos do Haras são pintados pela
+1ª vez), Desafiar (76: ~35 ms são a simulação dos duelos, que é regra), preparo (72), Estábulo, voltar da ficha e do Perfil
+(~66). O piso desta medição é ~20–35 ms (dois quadros). **Ideias não feitas:** cena das abas na resolução de arte (o cavalo
+com efeito de raridade não sai igual a 1×; pediria desenhar o cavalo num canvas por cima), manter o DOM do cabeçalho e das
+abas entre as telas (medido: o HTML custa 2–7 ms; o ganho seria pequeno), transição curta entre telas (mexe em foco e
+capturas), aquecer os retratos do Haras, `content-visibility`, e a carga (~1 s: quase toda do HTML de 2,5 MB). Dois testes
+do `ui-test` (marcas, portes) passaram a esperar os retratos adiados (`retratosProntos`). Build de teste do ramo publicado
+(ver o fim desta entrada quando a coordenação integrar).
+
 **Integração de 2026-11-24 (aprovada pelo Vinicius):** animação ambiente (etapas 0 a 6) + mapa dos ginásios (blocos A e
 B: mapa-múndi vivo, viagem, trilha que se pinta, cena de desafio com as vistas Meshy e idle) na `main` por avanço direto
 (77ba27e4), com o `check.sh` completo OK (83 blocos, 132 metas; desenho por quadro 2,17 ms). Republicados: jogo v18, DEV

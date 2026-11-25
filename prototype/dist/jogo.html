@@ -19024,8 +19024,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // laço segue do relógio um intervalo depois. Esse quadro é sempre o mesmo para o mesmo estado (só as partículas, que não
   // andam com dt 0, ficam onde estavam): fica guardado na 1ª vez — ou antes, no aquecimento — e as visitas seguintes só
   // copiam a imagem guardada, em vez de desenhar a cena inteira de novo dentro da troca de tela (de 12 a 36 ms cada, no
-  // celular simples). Vale para a cena de cada aba, o mapa-múndi e as trilhas; nunca com movimento reduzido (aí o quadro é
-  // um só e sai do desenho de sempre) nem no meio da viagem.
+  // celular simples). Vale para a cena de cada aba, o mapa-múndi e as trilhas (na viagem, a íris é desenhada por cima da
+  // imagem guardada); nunca com movimento reduzido (aí o quadro é um só e sai do desenho de sempre).
   function copiaTela(orig, para) {
     var c = para || document.createElement('canvas');
     if (c.width !== orig.width) c.width = orig.width;
