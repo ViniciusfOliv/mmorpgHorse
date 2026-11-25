@@ -20,8 +20,11 @@ mais no `check.sh`). **Acima da meta de 60 ms:** Haras na 1ª visita (95: os ret
 com efeito de raridade não sai igual a 1×; pediria desenhar o cavalo num canvas por cima), manter o DOM do cabeçalho e das
 abas entre as telas (medido: o HTML custa 2–7 ms; o ganho seria pequeno), transição curta entre telas (mexe em foco e
 capturas), aquecer os retratos do Haras, `content-visibility`, e a carga (~1 s: quase toda do HTML de 2,5 MB). Dois testes
-do `ui-test` (marcas, portes) passaram a esperar os retratos adiados (`retratosProntos`). Build de teste do ramo publicado
-(ver o fim desta entrada quando a coordenação integrar).
+do `ui-test` (marcas, portes) passaram a esperar os retratos adiados (`retratosProntos`). Capturas: as do fluxo regravadas num processo
+só diferem das oficiais só no que já varia de uma rodada para a outra (partículas, chuva, o instante da íris, o potro
+sorteado), e 59 de 64 capturas com movimento reduzido saem iguais pixel a pixel às do build de antes (as outras 5 são telas
+que dependem da seed do perfil); as oficiais não foram regravadas. Build de teste do ramo (o `jogo-dev.html` com outro
+título): https://claude.ai/artifact/WuzcYRrrDofQcgPCBFHcBK (versão 1). Os oficiais não foram republicados.
 
 **Integração de 2026-11-24 (aprovada pelo Vinicius):** animação ambiente (etapas 0 a 6) + mapa dos ginásios (blocos A e
 B: mapa-múndi vivo, viagem, trilha que se pinta, cena de desafio com as vistas Meshy e idle) na `main` por avanço direto
