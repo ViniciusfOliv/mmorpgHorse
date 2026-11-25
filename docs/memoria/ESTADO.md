@@ -1,5 +1,14 @@
 # Estado do projeto
 
+**Salas justas + tabela de economia (2026-11-25, ramo `claude/salas-economia`, fase 1 feita, esperando aprovação):**
+spec `docs/superpowers/specs/2026-11-25-salas-economia-design.md` com a medição pelo pareamento real do jogo
+(`prototype/tools/salas-medida.js`, cópia do `buildLobby`): hoje o inicial vence 6% (justo 17%), perde ~25 de Ouro por
+sala de 50 e, da 21ª sala em diante, passa metade das salas no treino gratuito (sem Ouro). Tabela de todas as fontes e
+gastos de Ouro e o fluxo por hora (começo/meio/fim, antes/depois). Recomendação: estreia D (10 salas de 4–5 corredores,
+rivais 93–100,5% com teto, rampa até a 20ª: vence ~39%, pódio ~83%) + faixa normal 93,5–104,5% (justo), sem mexer em
+prêmio, entrada nem taxa. Em aberto para o Vinicius: saves antigos não veem a estreia; teto do catálogo (Mítico nv 50
+vence 40–51%); o Poder erra por cavalo. Nada de regra mudou; fase 2 só com a aprovação (via coordenação).
+
 **Integração de 2026-11-24 (aprovada pelo Vinicius):** animação ambiente (etapas 0 a 6) + mapa dos ginásios (blocos A e
 B: mapa-múndi vivo, viagem, trilha que se pinta, cena de desafio com as vistas Meshy e idle) na `main` por avanço direto
 (77ba27e4), com o `check.sh` completo OK (83 blocos, 132 metas; desenho por quadro 2,17 ms). Republicados: jogo v18, DEV
