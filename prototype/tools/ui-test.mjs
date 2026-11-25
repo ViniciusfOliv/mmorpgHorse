@@ -25,6 +25,7 @@ import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { createServer } from 'node:http'
 import { PECAS as PECAS_ARTE } from './interface-arte.mjs'
+import { medirFluidez } from './fluidez.mjs'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
@@ -49,7 +50,7 @@ const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adultera
   'crescimento-jogo',
   'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
   'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'expedicao-mapa', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
-  'fluxo-pequeno']
+  'fluxo-pequeno', 'fluidez']
 if (process.argv.includes('--blocos')) { console.log(BLOCOS.join('\n')); process.exit(0) }
 // UI_SO=reserva,gravacao,...: roda só os blocos com esses nomes (para desenvolver um teste sem esperar o resto); sem UI_SO
 // (a rodada completa), roda tudo
@@ -14990,6 +14991,110 @@ try {
   await rm.getByRole('button', { name: /Pular/ }).click()
   await rm.waitForSelector('#t-resultado')
   await rm.context().close()
+  }
+
+  // ---------------- fluidez: o tempo das trocas de tela (tools/fluidez.mjs) ----------------
+  // Mede as trocas das abas, da Expedição, do ginásio e das subtelas com a CPU 4× mais lenta (mediana de 3 rodadas) contra
+  // um teto por troca: perto de 2× o medido em 2026-11-25 depois da melhoria (a máquina oscila até 1,3× de uma hora para a
+  // outra), para pegar regressão sem ficar instável — antes dela a aba Expedição levava 555 ms na 1ª vez, a viagem ao
+  // ginásio engasgava 351 ms, o Haras levava 286 ms e o Estábulo 121 ms. Mede tempo real: roda sozinho (EM_SERIE).
+  // Confere também o que a melhoria adiou ou guardou: o aquecimento das telas acaba sozinho no Estábulo; os retratos de fora
+  // da primeira dobra acabam desenhados; o mapa-múndi e a cena da aba já saem pintados no 1º quadro da Expedição (o quadro
+  // guardado do instante 0); o cache dos moldes fica entre os menus e é limpo ao entrar na corrida.
+  if (quer('fluidez')) {
+    const label = 'fluidez'
+    const TETO_FLUIDEZ = { correr: 90, expedicao: 120, viagem: 110, preparo: 130, voltar: 90, time: 100, desafio: 170, resumo: 80, trilha: 90, 'volta-mapa': 120,
+      haras: 150, loja: 130, mochila: 120, estabulo: 130, ficha: 150, 'ficha-voltar': 130, perfil: 90, 'perfil-voltar': 130, expedicao2: 110 }
+    try {
+      const m = await medirFluidez(browser, BASE + 'jogo-dev.html', 3)
+      notes.fluidez = { carga: m.carga, aquecido: m.aquecido, ...Object.fromEntries(Object.entries(m.trocas).map(([k, v]) => [k, v.quadro])) }
+      for (const [nome, v] of Object.entries(m.trocas)) {
+        const teto = TETO_FLUIDEZ[nome]
+        if (!(teto > 0)) problems.push(`${label}: a troca "${nome}" não tem teto (TETO_FLUIDEZ)`)
+        else if (v.quadro > teto) problems.push(`${label}: a troca "${nome}" levou ${v.quadro} ms (teto ${teto} ms; mediana de 3, CPU 4× mais lenta)`)
+      }
+      if (m.aquecido === null) problems.push(`${label}: o build não tem o aquecimento das telas (window.__galope.aquecido)`)
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { pagina: 'jogo-dev.html', deviceScaleFactor: 3, vivo: true })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        // 8 montarias (cópias da inicial) e o Estábulo de novo: os retratos de fora da tela são desenhados logo depois
+        await pg.evaluate(() => {
+          const st = window.__galope.state
+          for (let i = 0; st.mounts.length < 8; i++) {
+            const c = JSON.parse(JSON.stringify(st.mounts[0]))
+            c.uid = 'm' + st.nextUid; st.nextUid += 1; c.name = 'Cópia ' + (i + 1)
+            Object.keys(c.equip || {}).forEach((k) => { c.equip[k] = null })
+            st.mounts.push(c)
+          }
+          st.stableSlots = Math.max(st.stableSlots, st.mounts.length)
+        })
+        const vai = async (sel, tit) => { await pg.locator(sel).first().click(); await pg.waitForSelector(tit) }
+        const pintados = (sel) => pg.evaluate((s) => [...document.querySelectorAll(s)].map((c) => {
+          const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0
+          for (let i = 3; i < d.length; i += 4) if (d[i]) n++
+          return n
+        }), sel)
+        await vai('[data-acao="aba"][data-id="correr"]', '#t-correr')
+        await vai('[data-acao="aba"][data-id="estabulo"]', '#t-estabulo')
+        // no 1º quadro: os retratos que estão na tela já pintados; os de fora podem esperar
+        const naTela = await pg.evaluate(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() => ok([...document.querySelectorAll('#tela canvas.retrato')].map((c) => {
+          const r = c.getBoundingClientRect(), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+          let n = 0
+          for (let i = 3; i < d.length; i += 4) if (d[i]) n++
+          return { dentro: r.bottom > 0 && r.top < window.innerHeight, n }
+        }))))))
+        if (naTela.length < 8) problems.push(`${label}: o Estábulo com 8 montarias mostrou ${naTela.length} retratos`)
+        if (naTela.some((x) => x.dentro && !x.n)) problems.push(`${label}: retrato na tela sem desenho no 2º quadro ${JSON.stringify(naTela)}`)
+        await sleep(600)
+        const p1 = await pintados('#tela canvas.retrato')
+        if (p1.some((n) => !n)) problems.push(`${label}: retratos sem desenho 0,6 s depois da troca ${JSON.stringify(p1)}`)
+        const foco = await pg.evaluate(() => document.activeElement && document.activeElement.id)
+        if (foco !== 't-estabulo') problems.push(`${label}: o foco não foi para o título do Estábulo (${foco})`)
+        // rolar até o fim logo depois da troca: o retrato que entra na tela é desenhado na hora (IntersectionObserver)
+        await vai('[data-acao="aba"][data-id="correr"]', '#t-correr')
+        await vai('[data-acao="aba"][data-id="estabulo"]', '#t-estabulo')
+        await pg.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+        await sleep(300)
+        const p2 = await pintados('#tela canvas.retrato')
+        if (p2.some((n) => !n)) problems.push(`${label}: retrato sem desenho depois de rolar até o fim ${JSON.stringify(p2)}`)
+        await pg.evaluate(() => window.scrollTo(0, 0))
+        // o aquecimento acaba sozinho, parado no Estábulo
+        const aq = await pg.waitForFunction(() => window.__galope.aquecido() === true, null, { timeout: 20000 }).then(() => true, () => false)
+        if (!aq) problems.push(`${label}: o aquecimento das telas não acabou em 20 s no Estábulo`)
+        // os moldes recoloridos ficam de um menu para o outro (o Estábulo de volta não repinta nada)
+        const c0 = await pg.evaluate(() => window.Sprites._cacheMoldes())
+        await vai('[data-acao="aba"][data-id="correr"]', '#t-correr')
+        const c1 = await pg.evaluate(() => window.Sprites._cacheMoldes())
+        if (!(c0 > 0) || c1 < c0) problems.push(`${label}: o cache dos moldes não ficou entre os menus (${c0} → ${c1})`)
+        // a Expedição depois do aquecimento: o mapa-múndi e a cena da aba já pintados no 1º quadro
+        await pg.locator('[data-acao="aba"][data-id="expedicao"]').click()
+        const exp = await pg.evaluate(() => new Promise((ok) => requestAnimationFrame(() => ok(['canvas[data-mapa-mundo]', 'canvas[data-cena-aba]'].map((s) => {
+          const c = document.querySelector('#tela ' + s)
+          if (!c) return -1
+          const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0
+          for (let i = 3; i < d.length; i += 4) if (d[i]) n++
+          return n / (c.width * c.height)
+        })))))
+        if (exp.some((x) => !(x > 0.9))) problems.push(`${label}: o mapa-múndi ou a cena da Expedição sem desenho no 1º quadro depois do aquecimento ${JSON.stringify(exp)}`)
+        // e seguem vivos: o laço desenha de novo (o mapa ganha a medição de custo depois de alguns quadros)
+        await pg.waitForSelector('canvas[data-mapa-mundo][data-ms]', { timeout: 6000 }).catch(() => problems.push(`${label}: o mapa-múndi não seguiu animando depois do quadro guardado`))
+        // a trilha: o canvas na resolução de arte, do mesmo tamanho na tela que a grade daria
+        await pg.locator('[data-acao="ginasio-abrir"][data-id="grama"]').click()
+        await pg.waitForSelector('#t-ginasio')
+        await pg.waitForFunction(() => { const c = document.querySelector('canvas[data-mapa]'); return c && c.getAttribute('data-viagem') === '' }, null, { timeout: 4000 }).catch(() => {})
+        const tri = await pg.locator('canvas[data-mapa]').evaluate((c) => {
+          const r = c.getBoundingClientRect(), a = c.getAttribute('data-arte').split('x').map(Number), k = r.width * window.devicePixelRatio / a[0]
+          return { w: c.width, h: c.height, arte: a, k, kAlt: r.height * window.devicePixelRatio / a[1], render: getComputedStyle(c).imageRendering }
+        })
+        if (tri.w !== tri.arte[0] || tri.h !== tri.arte[1]) problems.push(`${label}: o canvas da trilha não está na resolução de arte ${JSON.stringify(tri)}`)
+        if (Math.abs(tri.k - Math.round(tri.k)) > 0.01 || Math.abs(tri.k - tri.kAlt) > 0.01 || tri.render !== 'pixelated') problems.push(`${label}: a trilha não é ampliada por um inteiro, sem suavizar ${JSON.stringify(tri)}`)
+        await checkOverflow(pg, label)
+      } finally {
+        await pg.context().close()
+      }
+    } catch (e) {
+      problems.push(`${label}: ` + e.message)
+    }
   }
 
   // depois de todos os blocos: as câmeras anotadas pelo fluxo, fluxo-desktop e fluxo-pequeno (só as que rodaram)
