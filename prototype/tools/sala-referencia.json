@@ -1,0 +1,805 @@
+{
+ "sobre": "hash de cada sala de sala-casos.mjs montada pelo jogo (buildLobby) antes do T15",
+ "salas": {
+  "normal-0": {
+   "recorte": "4320067926237c01",
+   "sala": "693d9a67c3f1b6db"
+  },
+  "normal-1": {
+   "recorte": "e445c5a1b66737bb",
+   "sala": "b69ede8ba3065daf"
+  },
+  "normal-2": {
+   "recorte": "b7f4e78d7ecc9422",
+   "sala": "bf56a71d50a58fa7"
+  },
+  "normal-3": {
+   "recorte": "e898817685bfa2b3",
+   "sala": "9691130882653f95"
+  },
+  "normal-4": {
+   "recorte": "5af7e0ca50764762",
+   "sala": "fe38329095ad6c9f"
+  },
+  "normal-5": {
+   "recorte": "151e222063ab2095",
+   "sala": "e70e7e1007a240c3"
+  },
+  "normal-6": {
+   "recorte": "1bfb877b98178a4e",
+   "sala": "0db7ef6497c98c4a"
+  },
+  "normal-7": {
+   "recorte": "c2519676a7bce914",
+   "sala": "459198be700e9bb7"
+  },
+  "normal-8": {
+   "recorte": "e97e4ac670c51cf0",
+   "sala": "2445c7b0c74399a5"
+  },
+  "normal-9": {
+   "recorte": "b64e133568e99add",
+   "sala": "a03c63b3efbfc2c3"
+  },
+  "normal-10": {
+   "recorte": "bd19a5e030920928",
+   "sala": "4df176c0f994e8d9"
+  },
+  "normal-11": {
+   "recorte": "d77a9b22d199d349",
+   "sala": "25e22d496f5996b0"
+  },
+  "normal-12": {
+   "recorte": "402d313415c9315c",
+   "sala": "0407860994118698"
+  },
+  "normal-13": {
+   "recorte": "8f522d58069e01f3",
+   "sala": "db89441488aa40af"
+  },
+  "normal-14": {
+   "recorte": "6511d7ff4014bb63",
+   "sala": "d5913605bde9daff"
+  },
+  "normal-15": {
+   "recorte": "916b610a536cbee0",
+   "sala": "5ca83fb90f8cbda6"
+  },
+  "normal-16": {
+   "recorte": "105bbfe3cdc22305",
+   "sala": "a8205cdc0f206566"
+  },
+  "normal-17": {
+   "recorte": "ae70545fe6e71f19",
+   "sala": "387edea29fdc3209"
+  },
+  "normal-18": {
+   "recorte": "b13633fd9c31450a",
+   "sala": "b1c38c0b7ccfe756"
+  },
+  "normal-19": {
+   "recorte": "f9887c4011e5039a",
+   "sala": "439b343029fcbd7b"
+  },
+  "normal-20": {
+   "recorte": "69db8e44a9647835",
+   "sala": "c041e32a003483df"
+  },
+  "normal-21": {
+   "recorte": "04e5ec3dd65de848",
+   "sala": "8f929850157b5a5a"
+  },
+  "normal-22": {
+   "recorte": "a7be64af53b4694e",
+   "sala": "a38cb93ef4d7ac08"
+  },
+  "normal-23": {
+   "recorte": "d834998edb023c17",
+   "sala": "2bf03b729fc4b60c"
+  },
+  "normal-24": {
+   "recorte": "627ce075fe6a8cea",
+   "sala": "60ccfb1f0ab64a1f"
+  },
+  "normal-25": {
+   "recorte": "bfc8e64b1b803749",
+   "sala": "7308dd0c1a81738e"
+  },
+  "normal-26": {
+   "recorte": "4ba0581584bce089",
+   "sala": "33401a64b810efd8"
+  },
+  "normal-27": {
+   "recorte": "6f3aa2f35de6be19",
+   "sala": "95442f4c5d551c97"
+  },
+  "normal-28": {
+   "recorte": "57c2c95fd222b39f",
+   "sala": "48cf9061a06650fb"
+  },
+  "normal-29": {
+   "recorte": "52ba77c39e820818",
+   "sala": "c56087c188789c63"
+  },
+  "normal-30": {
+   "recorte": "75beac0b04408316",
+   "sala": "51dfd3c48350ed86"
+  },
+  "normal-31": {
+   "recorte": "648741a5af546735",
+   "sala": "2843b59ce31bb78e"
+  },
+  "normal-32": {
+   "recorte": "d5fa405d88cf50ac",
+   "sala": "c3d3a612ca73f94f"
+  },
+  "normal-33": {
+   "recorte": "f7f6280bf8f536d3",
+   "sala": "48b831b88fbc30d0"
+  },
+  "normal-34": {
+   "recorte": "462bc44cba0623fd",
+   "sala": "cfc956813ca2b6ec"
+  },
+  "normal-35": {
+   "recorte": "cabcccff231315d0",
+   "sala": "bf3806e75c16a27e"
+  },
+  "normal-36": {
+   "recorte": "86b7b260a538996d",
+   "sala": "ac582817f48822cb"
+  },
+  "normal-37": {
+   "recorte": "fc599d2f5355e53b",
+   "sala": "aa53843ee63edc4f"
+  },
+  "normal-38": {
+   "recorte": "6eb4218900148b05",
+   "sala": "9ffeb322b95e9e25"
+  },
+  "normal-39": {
+   "recorte": "93b5bb7e93d2e1f1",
+   "sala": "44acc1f5ba46c6a8"
+  },
+  "normal-40": {
+   "recorte": "d9f485a4c149f1b0",
+   "sala": "5bb2283e5fb65582"
+  },
+  "normal-41": {
+   "recorte": "6a02d771cf96bd8f",
+   "sala": "647c8b90b3e91f12"
+  },
+  "normal-42": {
+   "recorte": "180d338296e325da",
+   "sala": "50a77594dba4f604"
+  },
+  "normal-43": {
+   "recorte": "a520f4a94ed6803e",
+   "sala": "5fc13eedc472e456"
+  },
+  "normal-44": {
+   "recorte": "e30c1e13db5be32f",
+   "sala": "9289196dc02d95e0"
+  },
+  "normal-45": {
+   "recorte": "c7d813f8a3bc224b",
+   "sala": "f38e0228a3dfdcc0"
+  },
+  "normal-46": {
+   "recorte": "1ac1397f7f23b6dc",
+   "sala": "7bb2a961bf54750c"
+  },
+  "normal-47": {
+   "recorte": "b40a1067fc070cc7",
+   "sala": "c1bfbe4f8ff73fd4"
+  },
+  "normal-48": {
+   "recorte": "d3a522b4cb924bad",
+   "sala": "2f2f06f08445b574"
+  },
+  "normal-49": {
+   "recorte": "06b77c880c357034",
+   "sala": "6810b932fca036ae"
+  },
+  "normal-50": {
+   "recorte": "1382c1720e28307e",
+   "sala": "66f74fa689716baa"
+  },
+  "normal-51": {
+   "recorte": "71a7018164404eb4",
+   "sala": "d924b0340b428e3c"
+  },
+  "normal-52": {
+   "recorte": "0a31cd8a0c790066",
+   "sala": "0c058f3dc4b4072a"
+  },
+  "normal-53": {
+   "recorte": "76315b566f0de1e3",
+   "sala": "bc2aeb8205d59dc0"
+  },
+  "normal-54": {
+   "recorte": "340010427f53a410",
+   "sala": "0d2bd9a1d5f33d17"
+  },
+  "normal-55": {
+   "recorte": "29fc9a6000ec875c",
+   "sala": "e7970c6db0a523d8"
+  },
+  "normal-56": {
+   "recorte": "10be4d0c20cb063e",
+   "sala": "ac330787f9f6ff76"
+  },
+  "normal-57": {
+   "recorte": "5dc70bdb81384723",
+   "sala": "f9a7ed1ec3273c2f"
+  },
+  "normal-58": {
+   "recorte": "d68c1b4dae9b44a6",
+   "sala": "ff33832c7fbf87a2"
+  },
+  "normal-59": {
+   "recorte": "1bcea74b3e3e0581",
+   "sala": "1375968b82ea456b"
+  },
+  "normal-60": {
+   "recorte": "88fb537c6f4848a6",
+   "sala": "99ca45c89beb0e1b"
+  },
+  "normal-61": {
+   "recorte": "8e2885d8bb2a1ef0",
+   "sala": "3ecab0b041d6b036"
+  },
+  "normal-62": {
+   "recorte": "456a39e305e2e443",
+   "sala": "fa1f5c79221b6793"
+  },
+  "normal-63": {
+   "recorte": "54c6b8a517aef735",
+   "sala": "9cd762f2954c09a1"
+  },
+  "normal-64": {
+   "recorte": "03549bf1b53f8c59",
+   "sala": "996007e58a9999b1"
+  },
+  "normal-65": {
+   "recorte": "5966caf824394259",
+   "sala": "764ea338bcfb53a9"
+  },
+  "normal-66": {
+   "recorte": "a0821a8752ac8563",
+   "sala": "b499bb2f48fd1d9c"
+  },
+  "normal-67": {
+   "recorte": "6220085307aa2c67",
+   "sala": "53607accd8435493"
+  },
+  "normal-68": {
+   "recorte": "96c1d226ad9e98af",
+   "sala": "57c2a58c8bae152f"
+  },
+  "normal-69": {
+   "recorte": "f6ce5d84aa7e63a0",
+   "sala": "62fdf68e97ca3ce8"
+  },
+  "normal-70": {
+   "recorte": "7c803b3bf11f6613",
+   "sala": "fc559676c0cf86b7"
+  },
+  "normal-71": {
+   "recorte": "119d28bad3d709cb",
+   "sala": "bd83ecfa972a6d5a"
+  },
+  "normal-72": {
+   "recorte": "3141ec1ad94872a1",
+   "sala": "b8dec9b8ed3a4865"
+  },
+  "normal-73": {
+   "recorte": "fee8cb45cbdc8d78",
+   "sala": "4d19bba45707e8ec"
+  },
+  "normal-74": {
+   "recorte": "54890ec44bc14437",
+   "sala": "c464a5a5902e5314"
+  },
+  "normal-75": {
+   "recorte": "3c1e90751b2cc660",
+   "sala": "abcc8fa93ca420b1"
+  },
+  "normal-76": {
+   "recorte": "c6ff8fd9f41f1ef6",
+   "sala": "b307c47c3cd068ab"
+  },
+  "normal-77": {
+   "recorte": "6c0f5e63358c3982",
+   "sala": "48216a443705fdb4"
+  },
+  "normal-78": {
+   "recorte": "9ce9103bc6921720",
+   "sala": "65670180d52a0498"
+  },
+  "normal-79": {
+   "recorte": "45d4a37a6b45c2c6",
+   "sala": "1e4750d5e6c4a8c9"
+  },
+  "normal-80": {
+   "recorte": "864c0dbed8f94bd9",
+   "sala": "7163c642ad5241f3"
+  },
+  "normal-81": {
+   "recorte": "ca9b463900692bff",
+   "sala": "2aff4033ba82df7c"
+  },
+  "normal-82": {
+   "recorte": "d5e505b6eb23a6b6",
+   "sala": "bc1c7ed8c2457450"
+  },
+  "normal-83": {
+   "recorte": "27e12dbbbc98e2b5",
+   "sala": "6e21111fbd4e7f95"
+  },
+  "normal-84": {
+   "recorte": "c85d4e17e63a81b7",
+   "sala": "2bb7c3f780f655bf"
+  },
+  "normal-85": {
+   "recorte": "a3456486d85652be",
+   "sala": "c9ce8974a825f69f"
+  },
+  "normal-86": {
+   "recorte": "b0da2a8eeac2a5ec",
+   "sala": "f73d1d383c17183c"
+  },
+  "normal-87": {
+   "recorte": "cc46e13824763c7d",
+   "sala": "656b5a6477ada7be"
+  },
+  "normal-88": {
+   "recorte": "96d6cbc87aee2379",
+   "sala": "67c836f20460cb60"
+  },
+  "normal-89": {
+   "recorte": "1cf781814be2c1e3",
+   "sala": "497a0b7ec732c206"
+  },
+  "normal-90": {
+   "recorte": "dbdb9ae8b132df18",
+   "sala": "4fcf2fb71fa3885c"
+  },
+  "normal-91": {
+   "recorte": "3aa9ea617f933cab",
+   "sala": "7ffa1a3cd053d611"
+  },
+  "normal-92": {
+   "recorte": "e5bedd20a58d9e53",
+   "sala": "6bc5eee537a1ed11"
+  },
+  "normal-93": {
+   "recorte": "c08d723f67da5636",
+   "sala": "5e044e5b4301b5a3"
+  },
+  "normal-94": {
+   "recorte": "d01e24beacf8e5b1",
+   "sala": "6ba19474b147c98e"
+  },
+  "normal-95": {
+   "recorte": "15cdfbd8d7e6f664",
+   "sala": "8c875ff8792994b9"
+  },
+  "normal-96": {
+   "recorte": "729fd5616d49f002",
+   "sala": "d7e507cb3a8f854f"
+  },
+  "normal-97": {
+   "recorte": "926d2243e733e6b6",
+   "sala": "32b7a66afce4da76"
+  },
+  "normal-98": {
+   "recorte": "1e54bf4650c173c1",
+   "sala": "6574922e415b7685"
+  },
+  "normal-99": {
+   "recorte": "e5cfd4a59aff923a",
+   "sala": "c7a674c97521c7be"
+  },
+  "normal-100": {
+   "recorte": "dff3ccbf40b0ac11",
+   "sala": "0ed9a73b8a4d7fee"
+  },
+  "normal-101": {
+   "recorte": "89b5b9ac5c6fac40",
+   "sala": "adbbc5d7e0aee0b4"
+  },
+  "normal-102": {
+   "recorte": "ea4455edaec513de",
+   "sala": "af518bb26d23e432"
+  },
+  "normal-103": {
+   "recorte": "1e72574aad467f79",
+   "sala": "2784146b6f49c44e"
+  },
+  "normal-104": {
+   "recorte": "88638ed6cc11c86a",
+   "sala": "b64cb9863b062c24"
+  },
+  "normal-105": {
+   "recorte": "65ac1df574de99bb",
+   "sala": "22f9e978fdc7dba0"
+  },
+  "normal-106": {
+   "recorte": "c3c28ad0db29ae52",
+   "sala": "b7253a26c64db9fc"
+  },
+  "normal-107": {
+   "recorte": "234d6c944385c8eb",
+   "sala": "a8d7c413b2aa9550"
+  },
+  "normal-108": {
+   "recorte": "2763a735e6e26ff7",
+   "sala": "756cef9201a91961"
+  },
+  "normal-109": {
+   "recorte": "2c0c5a152c46207b",
+   "sala": "ac13ff6810e19ddb"
+  },
+  "normal-110": {
+   "recorte": "53d3d6c4395d764f",
+   "sala": "a279604d8d59e93d"
+  },
+  "normal-111": {
+   "recorte": "b653a22da0833bfc",
+   "sala": "ba0694693ea63305"
+  },
+  "normal-112": {
+   "recorte": "821ede749095f232",
+   "sala": "d38214ef662f5837"
+  },
+  "normal-113": {
+   "recorte": "e217f84dff0f66a1",
+   "sala": "d6e0ce27182d8c61"
+  },
+  "normal-114": {
+   "recorte": "f1a45854036c553d",
+   "sala": "297ecff1a669b84b"
+  },
+  "normal-115": {
+   "recorte": "fbc525237cbccc5a",
+   "sala": "a4af04bdd272e32a"
+  },
+  "normal-116": {
+   "recorte": "ae23443577a2564b",
+   "sala": "0c4c961a9e85e337"
+  },
+  "normal-117": {
+   "recorte": "0b4079a6d15b4552",
+   "sala": "bd00a94756c3042a"
+  },
+  "normal-118": {
+   "recorte": "1dee842d753168df",
+   "sala": "8b05bcf5db02670e"
+  },
+  "normal-119": {
+   "recorte": "9f41da22784c2207",
+   "sala": "953bc8f777443ed3"
+  },
+  "normal-120": {
+   "recorte": "879236b1cffeaee1",
+   "sala": "2dbc3baa7f289ae7"
+  },
+  "normal-121": {
+   "recorte": "cec6038dc508c158",
+   "sala": "d7e3fe43d251d986"
+  },
+  "normal-122": {
+   "recorte": "b8fd10c9407ef7b3",
+   "sala": "3feb273fcb721705"
+  },
+  "normal-123": {
+   "recorte": "ed8367f5d2f94535",
+   "sala": "223db2402fa95b77"
+  },
+  "normal-124": {
+   "recorte": "32aef8bfb8ffb08c",
+   "sala": "10f581c3dad2df00"
+  },
+  "normal-125": {
+   "recorte": "0a62a7bad51381a7",
+   "sala": "332a0d0fcfb266c3"
+  },
+  "normal-126": {
+   "recorte": "2dec54c7eb195947",
+   "sala": "bba96a021b3a5f26"
+  },
+  "normal-127": {
+   "recorte": "3e41de82ae2c23b1",
+   "sala": "bd106a5a4935e2e4"
+  },
+  "normal-128": {
+   "recorte": "90923a01599d971f",
+   "sala": "f511ade9e26532b9"
+  },
+  "normal-129": {
+   "recorte": "23c877185bce75be",
+   "sala": "290ad10f50fd464c"
+  },
+  "normal-130": {
+   "recorte": "ac061b0ce9e51c05",
+   "sala": "add19414e496c689"
+  },
+  "normal-131": {
+   "recorte": "4bf0b8213b3b1d7f",
+   "sala": "feec3ff5405428b7"
+  },
+  "normal-132": {
+   "recorte": "ce72df2531894db2",
+   "sala": "a9bd2a617a17295a"
+  },
+  "normal-133": {
+   "recorte": "cd6897494455385b",
+   "sala": "580960fe4a2f94c2"
+  },
+  "normal-134": {
+   "recorte": "b073ef2c21f56e3b",
+   "sala": "fffb4312064cb8a3"
+  },
+  "normal-135": {
+   "recorte": "af53fa5c8d7ef2ec",
+   "sala": "39b7e5a0e67f7228"
+  },
+  "normal-136": {
+   "recorte": "3df25475a1428484",
+   "sala": "c1df5338eff6ff9b"
+  },
+  "normal-137": {
+   "recorte": "1dc9424b79db208d",
+   "sala": "707ebb95c1529461"
+  },
+  "normal-138": {
+   "recorte": "c4e2b5f080be308f",
+   "sala": "f77f351f73bc07f2"
+  },
+  "normal-139": {
+   "recorte": "01569a5f79d2a1b6",
+   "sala": "c7917bb6cf77f457"
+  },
+  "rapido-0": {
+   "recorte": "2b7235599551d962",
+   "sala": "cfeec0fe02b3b79d"
+  },
+  "rapido-1": {
+   "recorte": "94c463582fc68cf0",
+   "sala": "4c55f2fc154bc5e8"
+  },
+  "rapido-2": {
+   "recorte": "9eb4ce241ccf7d40",
+   "sala": "a604c1cf0f70e485"
+  },
+  "rapido-3": {
+   "recorte": "d74d20bad8c2b144",
+   "sala": "e704ee963364903f"
+  },
+  "rapido-4": {
+   "recorte": "1c568386d4ce4495",
+   "sala": "fbdcdaa7b2e11c62"
+  },
+  "rapido-5": {
+   "recorte": "aaf6fc28395a96fa",
+   "sala": "a4529cc5041ec62c"
+  },
+  "rapido-6": {
+   "recorte": "792de6afa6783aec",
+   "sala": "f11a4e844ef70ed6"
+  },
+  "rapido-7": {
+   "recorte": "8bb0324c2848fd34",
+   "sala": "7d449d07882124d0"
+  },
+  "rapido-8": {
+   "recorte": "00cd74091cd9a270",
+   "sala": "e5aff2bfa187f538"
+  },
+  "rapido-9": {
+   "recorte": "9e8641fcb4de6456",
+   "sala": "18480fc305ca8554"
+  },
+  "rapido-10": {
+   "recorte": "0b1f2f8846c9d3ae",
+   "sala": "8571c997075511a3"
+  },
+  "rapido-11": {
+   "recorte": "b3011a643a6874be",
+   "sala": "9b02441a48253d42"
+  },
+  "rapido-12": {
+   "recorte": "b540ba9c484ab8b7",
+   "sala": "795b0ea6040ccf49"
+  },
+  "rapido-13": {
+   "recorte": "d59835c751bef41c",
+   "sala": "a4b8f58cd0142478"
+  },
+  "rapido-14": {
+   "recorte": "65c8cd831df0f6a6",
+   "sala": "7241aba819635c40"
+  },
+  "rapido-15": {
+   "recorte": "f0f2d4b52d27b108",
+   "sala": "aaeac10e115fd4a4"
+  },
+  "rapido-16": {
+   "recorte": "83de499ba26c1812",
+   "sala": "58fe3066752b2276"
+  },
+  "rapido-17": {
+   "recorte": "8f2e74705e870cd9",
+   "sala": "cc8bc7820df5e112"
+  },
+  "rapido-18": {
+   "recorte": "ccd25eea710485ea",
+   "sala": "8df60f8dcadf06f3"
+  },
+  "rapido-19": {
+   "recorte": "7c82329f483e94d7",
+   "sala": "58f8349add5f9e5b"
+  },
+  "rapido-20": {
+   "recorte": "4d41a96d334fac78",
+   "sala": "c747b441a67b82b5"
+  },
+  "rapido-21": {
+   "recorte": "1fb0d292e8b304e8",
+   "sala": "9c91efdfdf8eb08f"
+  },
+  "rapido-22": {
+   "recorte": "26734be3dd28b349",
+   "sala": "d3f48a766aa32189"
+  },
+  "rapido-23": {
+   "recorte": "8ff2ea6faff4312e",
+   "sala": "147ba3f10172dea1"
+  },
+  "rapido-24": {
+   "recorte": "c71c84279e0b56fc",
+   "sala": "7128e9876f67bb1c"
+  },
+  "rapido-25": {
+   "recorte": "a8b6905ea139dce8",
+   "sala": "fd8608e2430201c4"
+  },
+  "rapido-26": {
+   "recorte": "3a4b8149244884b4",
+   "sala": "06f108bd5a0a82e4"
+  },
+  "rapido-27": {
+   "recorte": "d283ba2a6b1e94a3",
+   "sala": "5eea751be12f9ac4"
+  },
+  "rapido-28": {
+   "recorte": "ebe2b59e59b22be7",
+   "sala": "0bf048644818627f"
+  },
+  "rapido-29": {
+   "recorte": "a90f8a2032fb8608",
+   "sala": "849749b3f7a8d4c5"
+  },
+  "dev-seed-0": {
+   "recorte": "5b846da8c99e05a2",
+   "sala": "30b9047e9a01cdac"
+  },
+  "dev-seed-1": {
+   "recorte": "c3a161a79529a328",
+   "sala": "2d25f1087d46a9d4"
+  },
+  "dev-seed-2": {
+   "recorte": "08a2f668f354b525",
+   "sala": "e8d319dd2efad6f9"
+  },
+  "dev-seed-3": {
+   "recorte": "b4069c81bdebd6f4",
+   "sala": "5a226a56d9b9bf59"
+  },
+  "dev-seed-4": {
+   "recorte": "d3991b5082c79d3e",
+   "sala": "c1c65efea841d5ea"
+  },
+  "dev-seed-5": {
+   "recorte": "1d5772dd4db822a3",
+   "sala": "fa14f9dee90fd3e5"
+  },
+  "dev-seed-6": {
+   "recorte": "59fe11dfb5f2f11a",
+   "sala": "5e004a178f82216d"
+  },
+  "dev-seed-7": {
+   "recorte": "aef3b97c8ff0924a",
+   "sala": "6d21f5f62b6484cc"
+  },
+  "dev-seed-8": {
+   "recorte": "667878e38693b546",
+   "sala": "3aa1cb0f17f04bfa"
+  },
+  "dev-seed-9": {
+   "recorte": "cacd24b63a75d893",
+   "sala": "90187a5e23a21aa0"
+  },
+  "dev-seed-10": {
+   "recorte": "8c8cc9ea0acaa285",
+   "sala": "9462077f77dc21c8"
+  },
+  "dev-seed-11": {
+   "recorte": "7a115dcebbbd98e2",
+   "sala": "66725f29ed3e5096"
+  },
+  "dev-seed-12": {
+   "recorte": "0e60a1be4b5cb592",
+   "sala": "a955916ce7bba4de"
+  },
+  "dev-seed-13": {
+   "recorte": "4ad0df77e118aa67",
+   "sala": "f3697a0ce832bcbe"
+  },
+  "dev-seed-14": {
+   "recorte": "9ebdd39e9508758c",
+   "sala": "76ea34ce1d3e50b2"
+  },
+  "dev-cond-0": {
+   "recorte": "fd5101e56eea7f09",
+   "sala": "e7011384fa135779"
+  },
+  "dev-cond-1": {
+   "recorte": "588cc41b071c8f62",
+   "sala": "ff64c274c01fa1b8"
+  },
+  "dev-cond-2": {
+   "recorte": "5e23e27664459e96",
+   "sala": "739ff20f7959caba"
+  },
+  "dev-cond-3": {
+   "recorte": "4c46b134adb2e240",
+   "sala": "5d878ff93207fd20"
+  },
+  "dev-cond-4": {
+   "recorte": "59b1164a26379c03",
+   "sala": "b54f97ab21e4fc4b"
+  },
+  "dev-cond-5": {
+   "recorte": "a0025434634c84e1",
+   "sala": "ab37c84e18bf359d"
+  },
+  "dev-cond-6": {
+   "recorte": "19d1fba3faedd1aa",
+   "sala": "f3634622e85c07fc"
+  },
+  "dev-cond-7": {
+   "recorte": "7ce35eee2a1a9afb",
+   "sala": "2c1f390267092bb1"
+  },
+  "dev-cond-8": {
+   "recorte": "321c1b63274a8053",
+   "sala": "e6d8734e2029898a"
+  },
+  "dev-cond-9": {
+   "recorte": "dddb8886f7035be4",
+   "sala": "95201cd9704ce60f"
+  },
+  "dev-cond-10": {
+   "recorte": "7dc37c6a906f3bd0",
+   "sala": "eaf31d4ba010cacc"
+  },
+  "dev-cond-11": {
+   "recorte": "8ea67d496a19f6f6",
+   "sala": "ce57d729ab1564ab"
+  },
+  "dev-cond-12": {
+   "recorte": "b85c180b6b8fdc3d",
+   "sala": "12d53d56a3b62bd5"
+  },
+  "dev-cond-13": {
+   "recorte": "2df7c7cd6fb6f456",
+   "sala": "644c30a8a9638408"
+  },
+  "dev-cond-14": {
+   "recorte": "7d69be7e29a3352d",
+   "sala": "670c1630e8015d28"
+  }
+ }
+}
