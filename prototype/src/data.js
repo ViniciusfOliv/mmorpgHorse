@@ -505,7 +505,10 @@
       grauMult: [1, 1.25, 1.5],
       ownRegistration: 50, exchange: 50,
       stableSlotPrice: 300, stableSlotsStart: 3, stableSlotsMax: 8,
-      levelSaturation: 30, mareWeight: 0.6
+      levelSaturation: 30, mareWeight: 0.6,
+      // D8: com Sorte genética 31 nos dois pais, sortePP pontos percentuais passam de "1 abaixo" para "1 acima" na
+      // raridade e de "desce" para "sobe" nas estrelas (Breed.sorteShift)
+      sortePP: 5
     },
     // Equipamento: preço por raridade, venda, pedras de reforço, +N e bônus de conjunto.
     gear: {
@@ -717,6 +720,8 @@
     // chance da fração).
     xpBase: 40, xpPorEtapa: 0.15, ouro: [0.3, 0.45, 0.6, 0.75, 1.2],
     derrota: { xp: 0.30, material: 0.25 },
+    // D8: a Sorte do cavalo da vaga soma até isto ao bônus de drop raro (genética de Sorte 31 → +15%; Afk.sorteRaro)
+    sorteRaro: 0.15,
     // Drops por vitória (§5.4). material: quantidade sorteada de min a max, × mult, metade de cada tipo do ginásio.
     // incomum, pedra, comida e reforja: chance na Normal, × mult (incomum com teto). peca: chance por dificuldade
     // (solta = Comum ou Mágica sem conjunto, magica = fração das soltas que sai Mágica; raro e lendario = do conjunto

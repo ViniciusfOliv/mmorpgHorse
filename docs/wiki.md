@@ -65,7 +65,7 @@ Cada montaria tem 7 status na escala de 1 a 150. Na corrida o motor usa n(x) = s
 | FOR | ![](../prototype/assets/arte/icones/st-forca.png) Força | Rendimento nas subidas, nos pisos pesados e para passar pelo pelotão. | Fator da subida = min(1, 0,824 + 0,11 × n(FOR)): de 87,9% (FOR 50) a 98,9% (FOR 150). Alivia o piso pesado (20% × n(FOR) da perda), o aperto do pelotão (60% × n(FOR), até zerar) e o gasto extra da subida (+30% × (1 − 0,5 × n(FOR))). |
 | EST | ![](../prototype/assets/arte/icones/st-est.png) Estamina | Fôlego para manter o ritmo até o fim; também deixa correr mais forte no meio e no sprint. | Tanque = 66 + 20 × n(EST) (EST 50 → 76). Também sobe o teto do ritmo: + 3,5% × (n(EST) − 0,5) no meio e + 6,5% × (n(EST) − 0,5) no sprint final, então rende mesmo com tanque de sobra. O clima não mexe na Estamina. |
 | GAR | ![](../prototype/assets/arte/icones/st-garra.png) Garra | Força média da arrancada final, que acontece sempre; com mais Garra ela começa mais cedo e empurra mais. | A arrancada começa em 80% − 14% × (n(GAR) − 0,5) da pista (GAR 50 → 80%; GAR 100 → 73%). Lá ela acontece **sempre**. A força média é F = 0 + 0,19 × n(GAR); a de cada corrida vai de 0% a 200% dela, pela seed, e o teto de velocidade vai a ×(1 + força) até a chegada. Mais Garra: começa antes e empurra mais. |
-| SOR | ![](../prototype/assets/arte/icones/st-sorte.png) Sorte | Vem do nascimento e não recebe pontos. Chance de jogar o Dado da Sorte duas vezes. | Vem do nascimento: não recebe pontos. No Dado da Sorte, a chance de rolar um 2º dado é (SOR − 40) / 40, presa entre 0% e 100% (SOR 40 → 0%; SOR 80 → 100%). Não entra em mais nada: as skills ativam sempre, sem sorteio. |
+| SOR | ![](../prototype/assets/arte/icones/st-sorte.png) Sorte | Vem do nascimento e não recebe pontos. Chance de jogar o Dado da Sorte duas vezes. | Vem do nascimento: não recebe pontos. No Dado da Sorte, a chance de rolar um 2º dado é (SOR − 40) / 40, presa entre 0% e 100% (SOR 40 → 0%; SOR 80 → 100%). Fora da corrida, a **genética** de Sorte melhora a cruza e o drop raro do treino AFK (ver Cruzamento e Treino AFK). Não entra no Poder, e as skills ativam sempre, sem sorteio. |
 
 ### Explicações do botão ⓘ
 
@@ -455,7 +455,7 @@ Sobe o rank de uma skill do cavalo, junto com Ouro, na aba Skills. Só se ganha 
 | ![](../prototype/assets/arte/icones/sk-folego-de-montanha.png) **Fôlego de Montanha** | Entra numa subida | gasto extra da subida ×0,3 (−70%), em cada bloco, até o fim dele | Em cada subida: gasta 70% menos estamina extra da subida. | ao sair da subida, recupera 3% de estamina | qualquer tipo | Jequitibá | 8,4 | FÔLEGO MONT. |
 | ![](../prototype/assets/arte/icones/sk-segundo-ar.png) **Segundo Ar** | Estamina cai a 30% ou menos | recupera 10% do tanque na hora; velocidade ×1,03 (+3%), por 8 s | Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s. | dispara com 35% de estamina em vez de 30% | qualquer tipo | Capim, Garoa, Jequitibá | 11,2 | SEGUNDO AR |
 | ![](../prototype/assets/arte/icones/sk-arrancada-final.png) **Arrancada Final** | Começa a arrancada do cavalo (reta final): em 80% da pista − 14% × (n(GAR) − 0,5), mais cedo com mais Garra | impulso da Garra +2,8 p.p. | Na reta final: +2,8% de força na arrancada de Garra. | também +1% de velocidade até a chegada | qualquer tipo | Ventania | 14 | ARR. FINAL |
-| ![](../prototype/assets/arte/icones/sk-dado-viciado.png) **Dado Viciado** | Antes do 1º Dado da Sorte (vale para todos os Dados da corrida) | +1 dado no Dado da Sorte, de 1 a 60 (até o fim da corrida) | Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida. | 2 dados extras, os dois de 1 a 100 | qualquer tipo | — | 2,8 | DADO VICIADO |
+| ![](../prototype/assets/arte/icones/sk-dado-viciado.png) **Dado Viciado** | Antes do 1º Dado da Sorte (vale para todos os Dados da corrida) | +1 dado no Dado da Sorte, de 1 a 60 (até o fim da corrida) | Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida. | 2 dados extras, os dois de 1 a 100 | qualquer tipo | — | 0 | DADO VICIADO |
 
 ### Fogo (2)
 
@@ -998,6 +998,10 @@ A base é a **menor** raridade entre os pais. O potro pode nascer 1 abaixo, igua
 | Raro × Lendário | — | 20% | 50% | 30% | — |
 | Lendário × Lendário | — | — | 30% | 70% | — |
 
+### Sorte dos pais
+
+A genética de Sorte dos pais (0 a 31) melhora as chances: s = 0,6 × genética da égua ÷ 31 + 0,4 × genética do garanhão ÷ 31 (de 0 a 1). Depois da interpolação por L, até **5 × s pontos percentuais** saem da coluna "1 abaixo" e entram na "1 acima"; nas estrelas, saem de "desce" e entram em "sobe" (nunca mais do que a coluna tem). As tabelas acima e abaixo são sem Sorte (s = 0). Com genética de Sorte 31 nos dois pais, dois Raros no level 30 dão 10% de Lendário (sem Sorte, 5%). O sorteio é o mesmo, pela seed (só mudam os limites), e Mítico continua sem nascer de cruzamento.
+
 ### Estrelas do potro
 
 As estrelas do potro multiplicam os pontos que ele ganha por level (ver Raridades). Estrelas base = arredondar(0,6 × estrelas da égua + 0,4 × estrelas do garanhão). Se a raridade **subiu**, o potro nasce ★; se **desceu**, nasce ★★★. Se manteve, sorteia desce/mantém/sobe (fora de 1–3 soma em "mantém").
@@ -1205,7 +1209,7 @@ Poder = 2,5·VEL + 2·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
 | Entra numa subida | 0,6 | 8,4 |
 | Estamina cai a 30% ou menos | 0,8 | 11,2 |
 | Começa a arrancada do cavalo (reta final): em 80% da pista − 14% × (n(GAR) − 0,5), mais cedo com mais Garra | 1 | 14 |
-| Antes do 1º Dado da Sorte (vale para todos os Dados da corrida) | 0,2 | 2,8 |
+| Antes do 1º Dado da Sorte (vale para todos os Dados da corrida) | 0 | 0 |
 | Clima (qualquer) | 0,8 | 11,2 |
 
 | Liga | Poder | Cor |
@@ -1400,6 +1404,8 @@ Na aba Expedição. Receitas fixas, **sem chance de falhar**: o jogador escolhe 
 ### Bestiário
 
 Uma página por ginásio: os oponentes (marcos de 10, 100 e 1.000 vitórias no treino), os materiais, as peças do conjunto e os troféus (vistos e obtidos). Bônus da conta, só no AFK: 1% de drop raro por oponente com 100 vitórias (até 15%); 2% de XP por oponente com 1.000 (até 30%); 2% de chance de troféu por troféu (até 30%); 1 h de limite offline por página completa (até 3 h). "Drop raro" vale para material incomum, Pedra Negra, peça e comida.
+
+**Sorte do cavalo:** a vaga soma 15% × genética de Sorte ÷ 31 ao drop raro (genética 16: +7,7%; 31: +15%), junto das peças e do bestiário, ao vivo e no offline.
 
 | Item | Tipo | Para que serve | Teto na mochila | De onde vem |
 | --- | --- | --- | ---: | --- |

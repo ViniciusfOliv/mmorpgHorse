@@ -4009,10 +4009,10 @@
   function afkConfere() { if (state) state.afk = AF.sanear(state.afk, afkCtx()); }
   function afkNaTela() { return ui.screen === 'afk' || (ui.screen === 'corrida' && !!(ui.afk && ui.afk.ver)); }
   function afkPresa(v) { return !!state.pending && !!v.uid && v.uid === state.activeId; }
-  // os bônus de uma vaga: o bestiário (da conta) e, no bloco B, as peças do cavalo
+  // os bônus de uma vaga: o bestiário (da conta), as peças do cavalo e a Sorte dele (D8, só no drop raro)
   function afkBonus(uid) {
     var b = AF.bestiarioBonus(state.afk.bestiario), m = mountByUid(uid), f = m ? gearOf(m).farm : { material: 0, xp: 0, raro: 0, trofeu: 0, ouro: 0 };
-    return { material: f.material, xp: b.xp + f.xp, raro: b.raro + f.raro, trofeu: b.trofeu + f.trofeu, ouro: f.ouro };
+    return { material: f.material, xp: b.xp + f.xp, raro: b.raro + f.raro + AF.sorteRaro(m), trofeu: b.trofeu + f.trofeu, ouro: f.ouro };
   }
   // o cavalo como o afk.js o recebe: com as peças resolvidas (pve), que só valem aqui
   function afkCavalo(m) { var c = clone(m); c.pve = gearOf(m); return c; }
@@ -4373,7 +4373,8 @@
         '<div class="afk-vaga-info"><b class="cavalo-nome">' + esc(m.name) + '</b>' +
           '<span class="linha-meta"><span>Nível ' + esc(m.level) + '</span>' + elementHtml(m.element) + '</span>' +
           '<span class="afk-fase">' + esc('Contra ' + afkFaseTxt(f)) + '</span>' +
-          '<span class="afk-chance">' + esc(afkChanceTxt(v)) + '</span></div></div>' +
+          '<span class="afk-chance">' + esc(afkChanceTxt(v)) + '</span>' +
+          (AF.sorteRaro(m) > 0 ? '<span class="nota afk-sorte">' + esc('Sorte: +' + statNum2(AF.sorteRaro(m) * 100) + '% de drop raro') + '</span>' : '') + '</div></div>' +
       estado +
       (ult ? '<p class="afk-ultima afk-ultima--' + (ult.venceu ? 'vitoria' : 'derrota') + '">' + esc('Última corrida. ' + afkUltimaTxt(ult)) + '</p>' : '') +
       '<p class="nota afk-vitorias">' + esc('Vitórias nesta dificuldade: ' + fmt(vit) + (falta > 0 ? ' (faltam ' + fmt(falta) + ' para liberar a ' + prox.name + ')' : '') + '.') + '</p>' +
@@ -4868,6 +4869,13 @@
     '</button>';
   }
 
+  // D8: a Sorte do par (genética) já está nas chances; a linha diz quanto ela move, em pontos percentuais
+  function harasSorteTxt(s) {
+    var pp = Math.round(GD.ECONOMY.breeding.sortePP * s * 10) / 10;
+    return 'Sorte dos pais (genética): ' + (pp > 0 ? 'até +' + statNum2(pp) + ' p.p.' : 'sem efeito') + ' para subir de raridade e de estrela (máximo +' +
+      GD.ECONOMY.breeding.sortePP + ' p.p. com a genética de Sorte 31 nos dois). Já está nas chances.';
+  }
+
   function calcHtml(P) {
     var o = BRD.odds(P.f, P.m);
     var bars = BRD.RARITY_IDS.map(function (id) {
@@ -4913,6 +4921,7 @@
       '<p class="nota marcas-linha">' + esc(P.f.name + ' · ' + porteTexto(P.f) + ' · ' + marcasTexto(P.f)) + '</p>' +
       '<p class="nota marcas-linha">' + esc(P.m.name + ' · ' + porteTexto(P.m) + ' · ' + marcasTexto(P.m)) + '</p>' +
       '<div class="calc-barras">' + bars + '</div>' +
+      '<p class="nota calc-sorte">' + esc(harasSorteTxt(o.sorte)) + '</p>' +
       '<p>' + grau + '</p>' +
       '<p>' + esc(genTxt) + '</p>' +
       '<p>' + esc(elTxt) + '</p>' +

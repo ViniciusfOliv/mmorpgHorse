@@ -19,6 +19,12 @@
  * se DESCEU, ★3 (sem sorteio de grau). No modelo v3 as estrelas só dão os pontos livres do treino
  * (RaceSim.freePoints): não há piso de genética por estrela nem status base sorteado.
  *
+ * SORTE (D8, spec 2026-11-26-d8-sorte): sorteOf(cavalo) = genética de Sorte (potential.sorte, 0–31, saneada como no
+ * RaceSim) / 31; s do par = mareWeight·s(égua) + (1−mareWeight)·s(garanhão) (sorteFactor). Nas colunas já interpoladas
+ * por L, d = min(coluna 0, ECONOMY.breeding.sortePP · s) p.p. saem da coluna 0 ("1 abaixo" / "desce") e entram na
+ * coluna 2 ("1 acima" / "sobe"). Só mudam os limites das faixas: o número e a ordem das chamadas de rng() não mudam,
+ * e com s = 0 tudo é igual a antes. Mítico continua fora (maxRarityOrder).
+ *
  * GENÉTICA (potential, 0–31 por status): por status, potInherit (50%) de herdar a de um dos pais
  * (escolhido por sorteio, 50/50); senão inteiro uniforme de 0 a 31. TIPO: o dos pais se for igual;
  * senão 50% de cada. O potro nasce sem alloc (pontos livres zerados) e sem o campo base.
@@ -108,6 +114,22 @@
     return clamp((E.mareWeight * levelOf(f) + (1 - E.mareWeight) * levelOf(m)) / E.levelSaturation, 0, 1);
   }
 
+  // Fator de Sorte (D8): genética de Sorte / 31, de 0 a 1; ausente ou não numérica vale 0.
+  function sorteOf(mount) {
+    var g = Number(mount && mount.potential && mount.potential.sorte);
+    return isFinite(g) ? clamp(g, 0, 31) / 31 : 0;
+  }
+  function sorteFactor(f, m) {
+    var w = G.ECONOMY.breeding.mareWeight;
+    return w * sorteOf(f) + (1 - w) * sorteOf(m);
+  }
+  // tira até sortePP·s p.p. da coluna 0 e põe na coluna 2 (nunca deixa a coluna 0 negativa)
+  function sorteShift(cols, s) {
+    var d = Math.min(cols[0], G.ECONOMY.breeding.sortePP * s);
+    if (d > 0) { cols[0] -= d; cols[2] += d; }
+    return cols;
+  }
+
   function lerpCols(a, b, L) {
     var out = [];
     for (var i = 0; i < a.length; i++) out.push(a[i] + (b[i] - a[i]) * L);
@@ -117,7 +139,7 @@
   // colunas de raridade (em %) para o par
   function rarityCols(f, m) {
     var row = order(f) === order(m) ? TUNING.rarity.same : TUNING.rarity.mixed;
-    return lerpCols(row.lv1, row.lv30, levelFactor(f, m));
+    return sorteShift(lerpCols(row.lv1, row.lv30, levelFactor(f, m)), sorteFactor(f, m));
   }
 
   function rarityOdds(f, m) {
@@ -142,7 +164,7 @@
     return 0;
   }
 
-  function grauCols(f, m) { return lerpCols(TUNING.grau.lv1, TUNING.grau.lv30, levelFactor(f, m)); }
+  function grauCols(f, m) { return sorteShift(lerpCols(TUNING.grau.lv1, TUNING.grau.lv30, levelFactor(f, m)), sorteFactor(f, m)); }
 
   function grauOdds(f, m) {
     var cols = grauCols(f, m), gb = grauBase(f, m), out = { 1: 0, 2: 0, 3: 0 };
@@ -155,7 +177,7 @@
   }
 
   function odds(f, m) {
-    return { L: levelFactor(f, m), rarity: rarityOdds(f, m), grau: grauOdds(f, m), rarityUpGrau: 1, rarityDownGrau: 3 };
+    return { L: levelFactor(f, m), sorte: sorteFactor(f, m), rarity: rarityOdds(f, m), grau: grauOdds(f, m), rarityUpGrau: 1, rarityDownGrau: 3 };
   }
 
   // 1 chamada de rng()
@@ -416,6 +438,8 @@
     RARITY_IDS: RARITY_IDS,
     CORCEL_SETS: CORCEL_SETS,
     levelFactor: levelFactor,
+    sorteOf: sorteOf,
+    sorteFactor: sorteFactor,
     rarityOdds: rarityOdds,
     grauOdds: grauOdds,
     odds: odds,

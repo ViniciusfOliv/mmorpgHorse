@@ -18,6 +18,26 @@ function congela(x) { if (x && typeof x === 'object') { Object.keys(x).forEach(f
 function progCom(etapas) { var o = {}; G.GYM_ORDER.forEach(function (id) { o[id] = { etapa: etapas[id] || 0, revDia: null, revVitorias: 0 }; }); return o; }
 function cav(base, level, grau) { var h = GY.cavalo({ base: base, level: level, grau: grau || 2 }); h.uid = 'c-' + base + '-' + level; return h; }
 
+section('D8: Sorte do cavalo no drop raro');
+test('sorteRaro: 0,15 × genética de Sorte / 31 (4 casas); sem cavalo, sem genética ou lixo vale 0', function () {
+  assert.strictEqual(G.AFK.sorteRaro, 0.15);
+  assert.strictEqual(A.sorteRaro({ potential: { sorte: 31 } }), 0.15); assert.strictEqual(A.sorteRaro({ potential: { sorte: 16 } }), 0.0774);
+  assert.strictEqual(A.sorteRaro({ potential: { sorte: 0 } }), 0); assert.strictEqual(A.sorteRaro({ potential: { sorte: 99 } }), 0.15);
+  [null, undefined, 5, 'x', {}, { potential: null }, { potential: { sorte: 'x' } }, { potential: { sorte: -3 } }].forEach(function (c) { assert.strictEqual(A.sorteRaro(c), 0, JSON.stringify(c)); });
+});
+test('o bônus da Sorte no bonus.raro sobe os drops raros e não mexe na rng (material, XP e Ouro iguais)', function () {
+  var f = A.faseId('fogo', 4, 'lendaria'), b0 = { material: 0, xp: 0, raro: 0, trofeu: 0, ouro: 0 }, b1 = Object.assign({}, b0, { raro: A.sorteRaro({ potential: { sorte: 31 } }) });
+  var n0 = 0, n1 = 0;
+  for (var i = 0; i < 4000; i++) {
+    var p0 = A.premio(f, true, S.hash2(91, i), b0), p1 = A.premio(f, true, S.hash2(91, i), b1);
+    assert.strictEqual(p1.xp, p0.xp); assert.strictEqual(p1.ouro, p0.ouro);
+    var mat = function (p) { return Object.keys(p.itens).filter(function (k) { return G.AFK.materiais.fogo.comuns.indexOf(k) >= 0; }).map(function (k) { return k + p.itens[k]; }).join(); };
+    assert.strictEqual(mat(p1), mat(p0));
+    n0 += p0.pedras + p0.pecas.length; n1 += p1.pedras + p1.pecas.length;
+  }
+  assert.ok(n1 > n0 * 1.08 && n1 < n0 * 1.22, 'Pedra + peça: ' + n0 + ' → ' + n1);
+});
+
 section('fases, dificuldades e vagas');
 test('GameData.AFK: três dificuldades, liberação em 50 vitórias, preço das 5 vagas, limites do offline e amostra de 2.400', function () {
   var K = G.AFK;

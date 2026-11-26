@@ -17,7 +17,7 @@
 | D5 | Sentido da regra das insígnias | ✅ **Aprovada: C** — hoje vale "não entra no `simulate`"; antes do online, bônus só no PVE | Hoje não; depois sim | Baixa agora, alta no online |
 | D6 | Ramos | ✅ **Aprovada:** trazer `youthful-maxwell` (avanço direto, push só com "sim" na hora); `salas-economia` como base da D9; **guardar** `nifty-newton`; não apagar nada | Não | Média |
 | D7 | Playwright | ✅ **Aprovada: D** — `prototype/tools/package.json`, Playwright 1.64.1 fixo | Não (infra) | **Alta**: destrava o `check.sh` |
-| D8 | Sorte e Dado Viciado | ✅ **Direção decidida:** Sorte melhora a cruza e os drops do AFK (com teto, pela seed); Dado Viciado sai do Poder; clima da Sorte fica | Sim (cruza, AFK) | Média |
+| D8 | Sorte e Dado Viciado | ✅ **Implementada em 2026-11-26** (spec `2026-11-26-d8-sorte`). **Direção decidida:** Sorte melhora a cruza e os drops do AFK (com teto, pela seed); Dado Viciado sai do Poder; clima da Sorte fica | Sim (cruza, AFK) | Média |
 | D9 | Salas justas e estreia (`salas-economia`) | ✅ **Aprovada:** T15 (extrair `sala.js`) e depois estreia D + faixa justa 93,5–104,5% | Sim (pareamento) | **Alta**: hoje o começo é ralo |
 
 Ordem sugerida para você responder: **D7 → D2 → D9 → D1 → D4**, depois D3, D5, D8 e D6.

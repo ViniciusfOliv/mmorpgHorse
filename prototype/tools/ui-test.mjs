@@ -1574,6 +1574,9 @@ try {
       if (p1 !== p1Regra || !(p1 > p0 + 0.1)) problems.push(`${label}: chance com as peças ${p1} (regra: ${p1Regra}; sem peças ${p0})`)
       const chTxt = (await afkTxt(pg, '.afk-vaga[data-vaga="0"] .afk-chance'))[0] || ''
       if (chTxt !== 'Chance de vitória: ' + Math.round(p1 * 100) + '%') problems.push(`${label}: a vaga mostra "${chTxt}" (esperado ${Math.round(p1 * 100)}%)`)
+      // D8: a Sorte do cavalo no drop raro, com o número da regra (Afk.sorteRaro)
+      const sorteTxt = (await afkTxt(pg, '.afk-vaga[data-vaga="0"] .afk-sorte'))[0] || '', sr = AFK.sorteRaro(s.mounts.find((m) => m.uid === 'm1'))
+      if (sorteTxt !== 'Sorte: +' + String(Math.round(sr * 10000) / 100).replace('.', ',') + '% de drop raro') problems.push(`${label}: a vaga mostra a Sorte "${sorteTxt}" (regra: ${sr})`)
       notes.equipamentoPveChance = { semPecas: p0, comPecas: p1, poder: poder0 }
       // 4. loja: comprar uma peça (250) e uma Pedra Negra (40); a peça comprada ganha a linha de farm pela seed
       await pg.locator('[data-acao="aba"][data-id="loja"]').click(); await pg.waitForSelector('#t-loja')
@@ -13321,6 +13324,9 @@ try {
     const calcTxt = await cz.locator('.calc').textContent()
     if (!/125/.test(calcTxt)) problems.push('cruzamento: calculadora sem o preço 125: ' + calcTxt)
     if (!/Mítico 0% \(Mítico não nasce de cruzamento\)/.test(calcTxt) || /despertar/.test(calcTxt)) problems.push('cruzamento: calculadora com o texto antigo do Mítico: ' + calcTxt)
+    // D8: a linha da Sorte dos pais (genética), com o quanto ela move
+    const czSorte = ((await cz.locator('.calc-sorte').textContent()) || '').trim()
+    if (!/^Sorte dos pais \(genética\): (até \+[\d,]+ p\.p\.|sem efeito) para subir de raridade e de estrela \(máximo \+5 p\.p\. com a genética de Sorte 31 nos dois\)\. Já está nas chances\.$/.test(czSorte)) problems.push('cruzamento: linha da Sorte dos pais "' + czSorte + '"')
     await cz.locator('[data-acao="cruzar"]').click()
     const c1 = await cz.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
     if (c1.gold !== 4875) problems.push('cruzamento: ouro ' + c1.gold + ' (esperado 4875)')

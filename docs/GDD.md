@@ -33,7 +33,7 @@ progressão de nível, estrelas e raridade. Fórmulas e tabelas completas: `docs
 | Força (FOR) | Velocidade na subida, piso pesado (terra/areia) e disputa no pelotão |
 | Estamina (EST) | Tamanho do tanque de fôlego e ritmo no meio e no sprint |
 | Garra (GAR) | Força média da arrancada final, que acontece sempre (a de cada corrida varia pela seed); com mais Garra ela começa mais cedo e empurra mais |
-| Sorte (SOR) | Chance de rolar um segundo dado no Dado da Sorte (não mexe nas skills, que ativam sempre); **só de nascimento** |
+| Sorte (SOR) | Chance de rolar um segundo dado no Dado da Sorte (não mexe nas skills, que ativam sempre); fora da corrida, a genética de Sorte melhora a cruza e o drop raro do AFK (D8, seção 6 e 8.3a); **só de nascimento**, fora do Poder |
 
 **Nada cresce sozinho.** O status de um cavalo é a **base** (raridade + genética) mais os **pontos
 comprados** pelo jogador, e só isso:
@@ -70,7 +70,7 @@ poucos pontos percentuais abaixo (spec 1b §15).
 
 **Skills de vaga: ativam sempre e têm rank (2026-11-19).** Quando o gatilho acontece (largada, reta, curva,
 subida, estamina baixa, reta final, Dado, clima), a skill de vaga **ativa sempre**, sem sorteio: raridade,
-nível e Sorte não mudam a ativação (a raridade dá as vagas; a Sorte só vale no Dado, seção 4). Cada skill
+nível e Sorte não mudam a ativação (a raridade dá as vagas; na corrida a Sorte só vale no Dado, seção 4). Cada skill
 tem um **rank, de I a V, por cavalo**: um fator único por rank multiplica só a parte de bônus do efeito
 (duração e distância não crescem) e, no rank V, cada skill ganha um **marco** próprio. O rank sobe na aba
 Skills com **Ouro + Pergaminhos de técnica** (8.2) e, do IV para o V, também **1 Selo do campeão** (seção 7), sem sorteio, sem falha e sem volta; com páreo aberto,
@@ -116,7 +116,7 @@ O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima** na corrida val
 
 **Dado da Sorte:** quando o líder cruza 1/3 e 2/3 da pista, todas as montarias rolam um dado de 1 a 100; a chance de rolar um segundo dado e ficar com o melhor é **(Sorte − 40)/40**, de 0 (Sorte 40) a 1 (Sorte 80 ou mais): a Sorte nasce entre 40 e 76, e a conta começa onde ela começa.
 O maior dado vence (empate: só os empatados rolam de novo) e o clima vira o do tipo do vencedor; se já for esse, o clima segura.
-Tudo sai da seed da corrida: a sorte vicia o dado, não o decide (um Mítico de genética 31 contra sete Comuns de genética 0 vence o Dado em 20,8%; o justo é 12,5%). A Sorte vale pouco na corrida (0,7 p.p. entre os extremos de genética), por desenho.
+Tudo sai da seed da corrida: a sorte vicia o dado, não o decide (um Mítico de genética 31 contra sete Comuns de genética 0 vence o Dado em 20,8%; o justo é 12,5%). A Sorte vale pouco na corrida (0,7 p.p. entre os extremos de genética), por desenho: o papel dela é a criação e o PVE (D8). O Dado Viciado não soma Poder (peso 0 desde a D8): só mexe no Dado.
 
 **Mapa aleatório, sem extremos:** cada corrida sorteia pela seed uma pista de 1.400 a 2.000 m (de 50 em
 50) dividida em 5 a 9 blocos de **reta** (Velocidade), **curva** (Manobra) ou **subida** (Força); o
@@ -159,6 +159,8 @@ Spec completa e algoritmo: `docs/superpowers/specs/2026-11-06-cruzamento-design.
 | raridades diferentes, lv1 → lv30 | 35% → 20% | 50% → 50% | 15% → 29% | 0% → 1% |
 
 A base é a menor raridade entre os pais. **Estrelas do potro:** se a raridade subiu, nasce ★; se desceu, ★★★; se igual, a base é 0,6·estrelas da égua + 0,4·estrelas do garanhão (arredondada) e o sorteio é desce/mantém/sobe = 25% → 10% / 55% → 50% / 20% → 40% (lv1 → lv30).
+
+**Sorte dos pais (D8, 2026-11-26):** s = 0,6·genética de Sorte da égua/31 + 0,4·a do garanhão/31 (0 a 1); até **5·s p.p.** saem de "1 abaixo" para "1 acima" na raridade e de "desce" para "sobe" nas estrelas (nunca mais do que a coluna tem). Ex.: Raro × Raro no nível 30 com Sorte 31 nos dois: Lendário 5% → 10%. Mesmo sorteio pela seed; as tabelas acima são sem Sorte.
 
 **Chances saturam no nível 30; a égua pesa 60%:** L = (0,6·nível da égua + 0,4·nível do garanhão) / 30, limitado a 1. **Mítico nunca nasce de cruzamento — só por despertar** (Lendário → Mítico, depois das expedições).
 
@@ -372,6 +374,8 @@ Spec: `docs/superpowers/specs/2026-11-23-afk-drops-design.md`; regras em `protot
 - **Bestiário:** uma página por ginásio (oponentes com marcos de 10, 100 e 1.000 vitórias, materiais, peças do
   conjunto e troféus, vistos e obtidos). Bônus da conta, só no AFK: +1% de drop raro por oponente com 100 vitórias,
   +2% de XP por oponente com 1.000, +2% de chance de troféu por troféu, +1 h de limite offline por página completa.
+- **Sorte do cavalo (D8, 2026-11-26):** a vaga soma até +15% ao drop raro (15% × genética de Sorte/31; genética 16:
+  ~+8%), junto das peças e do bestiário, ao vivo e no offline.
 - **Bloco B (implementado em 2026-11-23):** o equipamento vale só aqui (principal de corrida e linhas de farm), com a
   loja de peças, a **Forja**, a reforja e o Selo do campeão: seção 7. Os oponentes da Difícil correm com 5 Mágicas +3
   e os da Lendária com 5 Raras +5 do conjunto do ginásio.
@@ -386,7 +390,7 @@ Spec e medições: `docs/superpowers/specs/2026-11-12-crescimento-livre-design.m
   fator dos pontos por nível; as estrelas também multiplicam.
 - **Custo por faixa até 150:** +1 no custo a cada 10 pontos no mesmo status; sem limite de 34% e sem teto
   por raridade. A física da corrida é linear até 150, para que nenhum ponto deixe de render.
-- **Sorte só de nascimento** (sem pontos), com o Dado em (Sorte − 40)/40. A **skill de tipo multiplica** os
+- **Sorte só de nascimento** (sem pontos), com o Dado em (Sorte − 40)/40; a genética dela melhora a cruza e o drop raro do AFK (D8). A **skill de tipo multiplica** os
   dois status do tipo no seu terço.
 - **Bots e "Distribuir sugerido":** a mesma build por pesos (seis status de corrida com peso 1 e × 1,2 nos
   dois do tipo). É a mais forte medida contra as inclinadas (51–55% no duelo direto), então distribuir

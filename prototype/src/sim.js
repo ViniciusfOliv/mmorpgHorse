@@ -503,12 +503,12 @@
   // do rank 5 não soma à parte); nível e raridade somam
   // T.ratingLevel·(nível − 1)/49 + T.ratingRar·ordem/4 (o mesmo para os três tipos).
   // Para curva, subida e estamina baixa o peso segue a
-  // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
-  // pacote de balanceamento, não chances: o gatilho 'dice' acontece em toda corrida (o Dado extra só mexe
-  // na virada de clima, por isso vale pouco), e o de clima vale 0.8 mesmo sem acontecer sempre.
+  // chance de o gatilho acontecer numa corrida típica; clima (0.8) é peso calibrado no pacote de balanceamento, não
+  // chance (vale 0.8 mesmo sem acontecer sempre). 'dice' vale 0 desde a D8 (2026-11-26): o Dado extra só mexe na virada
+  // de clima (0,2–1,5 p.p. de vitória), e o Dado Viciado saía caro no Poder sem render na corrida (era 0.2).
   // Exposto como RaceSim.SKILL_TRIGGER_WEIGHT; 'weather' vale para todo gatilho 'weather:<clima>'.
   // O sim-test confere que todo gatilho usado em GameData.SKILLS tem peso aqui (o fallback 1 é só defesa).
-  var SKILL_TRIGGER_WEIGHT = { start: 1, straight: 1, curve: 0.8, curveExit: 0.8, hill: 0.6, lowStamina: 0.8, final: 1, dice: 0.2, weather: 0.8 };
+  var SKILL_TRIGGER_WEIGHT = { start: 1, straight: 1, curve: 0.8, curveExit: 0.8, hill: 0.6, lowStamina: 0.8, final: 1, dice: 0, weather: 0.8 };
   function skillWeight(id) {
     var sk = GameData.SKILLS[id];
     if (!sk) return 0;

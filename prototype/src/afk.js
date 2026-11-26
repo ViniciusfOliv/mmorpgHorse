@@ -20,7 +20,9 @@
  * CORRIDA (correr): um duelo nas regras do ginásio (Ginasio.dueloCfg: vantagem de elemento, largada Nublada, pista do
  *   ginásio, Dado da Sorte normal), sem cansaço, contra o oponente do rodízio (n = contador).
  * PRÊMIO (premio): função só da fase, de venceu, da seedCorrida e do bônus — a corrida ao vivo e o offline usam a mesma.
- *   bonus = { material, xp, raro, trofeu, ouro } em fração (0,3 = +30%; peças do cavalo + bestiário); lixo vale 0.
+ *   bonus = { material, xp, raro, trofeu, ouro } em fração (0,3 = +30%; peças do cavalo + bestiário + Sorte); lixo vale 0.
+ *   SORTE (D8): sorteRaro(cavalo) = GameData.AFK.sorteRaro × genética de Sorte / 31 (0–31; ausente vale 0), somado ao
+ *   bonus.raro da vaga por quem monta o bônus (o mesmo ao vivo e no offline). Não mexe na rng (as 11 chamadas ficam).
  *   Ordem FIXA das chamadas da rng dos drops (todas acontecem sempre, caia ou não):
  *     1) quantidade de material (min a max) · 2) para que tipo vai o ímpar · 3) arredondamento do bônus de material ·
  *     4) arredondamento do bônus de Ouro · 5) incomum · 6) Pedra Negra · 7) comida · 8) qual comida · 9) peça ·
@@ -429,6 +431,11 @@
     return { gymId: gymId, oponentes: ops, itens: itens, completa: completa };
   }
   function r4(x) { return Math.round(x * 10000) / 10000; }
+  // D8: o bônus de drop raro da Sorte do cavalo (fração; 0 a K.sorteRaro), arredondado a 4 casas como o do bestiário
+  function sorteRaro(cavalo) {
+    var g = Number(objeto(cavalo) && objeto(cavalo.potential) && cavalo.potential.sorte);
+    return isFinite(g) ? r4(K.sorteRaro * Math.min(31, Math.max(0, g)) / 31) : 0;
+  }
   // -> { raro, xp, trofeu (frações), offlineMin }
   function bestiarioBonus(best) {
     var b = bestiarioSaneado(best), B = K.bestiario, nRaro = 0, nXp = 0, nTrof = 0, paginas = 0;
@@ -634,6 +641,7 @@
     bestiarioObter: bestiarioObter,
     bestiarioPagina: bestiarioPagina,
     bestiarioBonus: bestiarioBonus,
+    sorteRaro: sorteRaro,
     usarComida: usarComida,
     sanear: sanear,
     creditar: creditar,

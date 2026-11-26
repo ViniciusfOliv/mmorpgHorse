@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-26 — D8 implementada: Sorte na cruza e no AFK, Dado Viciado fora do Poder (Vinicius: "Pode implementar")
+Spec: `docs/superpowers/specs/2026-11-26-d8-sorte.md`. A Sorte vira o status da criação e do PVE; na corrida segue só no Dado.
+- Conta a **genética** de Sorte (0–31), não o número: cada raridade tem o efeito inteiro, e um Comum serve de criador.
+- **Cruza:** até **5 p.p.** (`ECONOMY.breeding.sortePP`) de "1 abaixo"/"desce" para "1 acima"/"sobe", com a égua pesando
+  60%. Mesma rng, só os limites mudam; Mítico segue sem nascer. Raro × Raro nv 30 com Sorte 31: Lendário 5% → 10%.
+- **AFK:** até **+15%** de drop raro (`AFK.sorteRaro`, `Afk.sorteRaro`), igual ao teto do bestiário.
+- **Dado Viciado:** peso do gatilho `dice` 0,2 → 0; as 200 salas de referência ficaram iguais.
+
 ## 2026-11-26 — D2 implementada: preparação com relógio (Vinicius: "Pode implementar")
 Spec: `docs/superpowers/specs/2026-11-26-d2-preparacao.md`. 12 s (`ECONOMY.preparacaoS`) para trocar de cavalo na sala,
 só para Poder ≤ o da sala; "Largar!" larga na hora; no zero larga sozinha.

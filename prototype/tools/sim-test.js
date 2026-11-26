@@ -896,8 +896,11 @@ test('nomes de potro e economia do cruzamento', function () {
 
 section('cruzamento');
 function mk2(o) { return { uid: o.uid || 'x', name: o.name || 'X', element: o.element || 'fogo', rarity: o.rarity || 'raro', grau: o.grau || 2, sex: o.sex || 'm', level: o.level == null ? 30 : o.level,
-  skills: o.skills || [], potential: o.potential || { vel: 10, acel: 10, man: 10, forca: 10, est: 10, garra: 10, sorte: 10 },
+  skills: o.skills || [], potential: o.potential || { vel: 10, acel: 10, man: 10, forca: 10, est: 10, garra: 10, sorte: 0 },   // Sorte 0: as tabelas sem o efeito da D8
   palette: o.palette || { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' } }; }
+// D8: roda fn com o efeito da Sorte na cruza desligado (sortePP 0), para os testes gravados antes dele provarem que,
+// sem esse efeito, o breed.js sorteia igual (mesmas chamadas da rng, na mesma ordem)
+function semSortePP(fn) { return function () { var E = G.ECONOMY.breeding, pp = E.sortePP; E.sortePP = 0; try { fn(); } finally { E.sortePP = pp; } }; }
 function near(a, b, tol, msg) { assert.ok(Math.abs(a - b) <= tol, msg + ': ' + a + ' vs ' + b); }
 test('levelFactor satura no 30 e pesa a égua', function () {
   assert.strictEqual(B.levelFactor(mk2({ sex: 'f', level: 30 }), mk2({ level: 30 })), 1);
@@ -929,6 +932,49 @@ test('rollRarity reproduz as chances em 20 mil sorteios e nunca dá mítico', fu
   var nl = { comum: 0, magico: 0, raro: 0, lendario: 0, mitico: 0 }, r2 = S.mulberry32(778);
   for (i = 0; i < 20000; i++) nl[B.rollRarity(r2, mk2({ sex: 'f', rarity: 'lendario' }), mk2({ rarity: 'lendario' }))]++;
   assert.strictEqual(nl.mitico, 0); near(nl.lendario / 200, 70, 2, 'dois lendários: 65 + 5 dobrado');
+});
+// D8 (spec 2026-11-26-d8-sorte): a genética de Sorte dos pais move até sortePP p.p. de "1 abaixo"/"desce" para
+// "1 acima"/"sobe", pela mesma rng (1 chamada em rollRarity e em rollGrau); Mítico nunca nasce.
+function comSorte(o, g) { var h = mk2(o); h.potential = Object.assign({}, h.potential, { sorte: g }); return h; }
+test('D8: sorteOf e sorteFactor (genética/31, égua 60%; ausente ou lixo vale 0)', function () {
+  near(B.sorteOf(comSorte({}, 31)), 1, 1e-12, '31'); near(B.sorteOf(comSorte({}, 15.5)), 0.5, 1e-12, 'meio');
+  assert.strictEqual(B.sorteOf({}), 0); assert.strictEqual(B.sorteOf({ potential: { sorte: 'x' } }), 0); assert.strictEqual(B.sorteOf(comSorte({}, 99)), 1);
+  near(B.sorteFactor(comSorte({ sex: 'f' }, 31), comSorte({}, 0)), 0.6, 1e-12, 'só a égua');
+  near(B.sorteFactor(comSorte({ sex: 'f' }, 0), comSorte({}, 31)), 0.4, 1e-12, 'só o garanhão');
+});
+test('D8: Sorte máxima — Raro × Raro nv 30 vira Mágico 25 / Raro 65 / Lendário 10; estrelas 5 / 50 / 45; Comum nv 1 ganha 5 p.p.', function () {
+  var o = B.rarityOdds(comSorte({ sex: 'f' }, 31), comSorte({}, 31));
+  near(o.magico, 0.25, 1e-9, 'magico'); near(o.raro, 0.65, 1e-9, 'raro'); near(o.lendario, 0.10, 1e-9, 'lendario'); assert.strictEqual(o.mitico, 0);
+  var g = B.grauOdds(comSorte({ sex: 'f' }, 31), comSorte({}, 31));
+  near(g[1], 0.05, 1e-9, 'desce'); near(g[2], 0.50, 1e-9, 'mantém'); near(g[3], 0.45, 1e-9, 'sobe');
+  var c0 = B.rarityOdds(mk2({ sex: 'f', rarity: 'comum', level: 1 }), mk2({ rarity: 'comum', level: 1 }));
+  var c1 = B.rarityOdds(comSorte({ sex: 'f', rarity: 'comum', level: 1 }, 31), comSorte({ rarity: 'comum', level: 1 }, 31));
+  near(c1.magico - c0.magico, 0.05, 1e-9, 'Comum × Comum: +5 p.p. de Mágico');
+  var meio = B.rarityOdds(comSorte({ sex: 'f' }, 31), comSorte({}, 0));
+  near(meio.lendario, 0.05 + 0.03, 1e-9, 's = 0,6 → +3 p.p.');
+  assert.strictEqual(B.odds(comSorte({ sex: 'f' }, 31), comSorte({}, 31)).sorte, 1);
+});
+test('D8: com Sorte as chances somam 100%, nunca dão Mítico e o rollRarity/rollGrau seguem com 1 chamada da rng', function () {
+  ['comum', 'magico', 'raro', 'lendario'].forEach(function (ra) {
+    ['comum', 'raro', 'lendario'].forEach(function (rb) {
+      [0, 1, 30].forEach(function (lv) {
+        var a = comSorte({ sex: 'f', rarity: ra, level: lv, grau: 1 }, 31), b = comSorte({ rarity: rb, level: lv, grau: 3 }, 31);
+        var o = B.rarityOdds(a, b), g = B.grauOdds(a, b), so = 0, sg = 0;
+        Object.keys(o).forEach(function (k) { assert.ok(o[k] >= 0, k); so += o[k]; }); [1, 2, 3].forEach(function (k) { assert.ok(g[k] >= 0); sg += g[k]; });
+        near(so, 1, 1e-9, ra + '×' + rb + ' raridade'); near(sg, 1, 1e-9, ra + '×' + rb + ' estrelas'); assert.strictEqual(o.mitico, 0);
+        var n = 0, base = S.mulberry32(lv + 5), rng = function () { n++; return base(); };
+        B.rollRarity(rng, a, b); assert.strictEqual(n, 1, 'rollRarity'); B.rollGrau(rng, a, b, 0); assert.strictEqual(n, 2, 'rollGrau');
+      });
+    });
+  });
+  var rng = S.mulberry32(779), n = { comum: 0, magico: 0, raro: 0, lendario: 0, mitico: 0 };
+  for (var i = 0; i < 20000; i++) n[B.rollRarity(rng, comSorte({ sex: 'f' }, 31), comSorte({}, 31))]++;
+  near(n.magico / 200, 25, 2, 'magico %'); near(n.lendario / 200, 10, 1, 'lendario %'); assert.strictEqual(n.mitico, 0);
+});
+test('D8: o Dado Viciado não soma Poder (peso do gatilho dice 0)', function () {
+  assert.strictEqual(S.SKILL_TRIGGER_WEIGHT.dice, 0); assert.strictEqual(S.skillWeight('dado-viciado'), 0);
+  var h = mk2({ skills: ['sprint'] }), d = mk2({ skills: ['sprint', 'dado-viciado'] }); d.skillRanks = { 'dado-viciado': 5 };
+  assert.strictEqual(S.powerRating(d), S.powerRating(h));
 });
 test('rentalPrice e isCorcel', function () {
   assert.strictEqual(B.rentalPrice(mk2({ rarity: 'comum', grau: 2 })), 125); assert.strictEqual(B.rentalPrice(mk2({ rarity: 'lendario', grau: 3 })), 2250);
@@ -1008,7 +1054,7 @@ test('uid distinto mesmo com nomes iguais', function () {
   G.FOAL_NAMES = saved; assert.strictEqual(a.name, b.name); assert.notStrictEqual(a.uid, b.uid);
 });
 
-test('snapshot dourado dos potros de exemplos.md', function () {
+test('snapshot dourado dos potros de exemplos.md (sem o efeito da Sorte)', semSortePP(function () {
   // docs/exemplos.md §4 "Três potros de exemplo": seedBase 20261106, nextUid 2, breedCounter 0/1/2.
   // Regravado no modelo v3 da Tarefa 3: sem status base sorteado nem piso de genética por estrela
   // (a ordem das chamadas de rng mudou); o exemplos.md acompanha na tarefa da documentação.
@@ -1046,7 +1092,7 @@ test('snapshot dourado dos potros de exemplos.md', function () {
     }, 'potro ' + i);
     assert.deepStrictEqual(S.computeStats(x, null), st(c.stats), 'status do potro ' + i + ' no nível 1');
   });
-});
+}));
 test('potro herda o rank do pai menos 1 (mínimo 1; o maior, se os dois têm); a skill sorteada nasce no rank 1', function () {
   var viu = { herdou3: 0, herdou4: 0, sorteada: 0, piso: 0 };
   for (var s = 0; s < 400; s++) {
@@ -1067,7 +1113,7 @@ test('potro herda o rank do pai menos 1 (mínimo 1; o maior, se os dois têm); a
   var c2 = B.foal({ f: mk2({ sex: 'f', skills: ['sprint'] }), m: Object.assign(mk2({ skills: ['sprint'] }), { skillRanks: { sprint: 9 } }), seedBase: 31, breedCounter: 2, nextUid: 1 });
   c2.skills.forEach(function (id) { assert.strictEqual(c2.skillRanks[id], 1); });
 });
-test('o rank herdado não consome a RNG: 400 potros saem iguais aos de antes da mudança (tirando o skillRanks)', function () {
+test('o rank herdado não consome a RNG: 400 potros saem iguais aos de antes da mudança (tirando o skillRanks; sem o efeito da Sorte)', semSortePP(function () {
   var els = ['fogo', 'agua', 'grama'], rars = ['comum', 'magico', 'raro', 'lendario'], ids = Object.keys(G.SKILLS), acc = [];
   for (var s = 0; s < 400; s++) {
     var mk = function (sex, q) { return { uid: sex + s, name: sex, element: els[(s + q) % 3], rarity: rars[(s >> q) % 4], grau: 1 + (s + q) % 3, sex: sex, level: 5 + (s * 7 + q) % 45,
@@ -1079,7 +1125,7 @@ test('o rank herdado não consome a RNG: 400 potros saem iguais aos de antes da 
   }
   // impressão digital gravada com o breed.js de antes das skills com rank (commit 92a58fb), pelos mesmos pais e seeds
   assert.strictEqual(crypto.createHash('sha1').update(JSON.stringify(acc)).digest('hex'), 'e5a1fa4e3b614f3c5a37f0739d7c71ba4c48cc3e');
-});
+}));
 
 section('Marcas');
 function marcasPai(o, m) { var p = mk2(o); p.marcas = m; return p; }
@@ -1178,7 +1224,7 @@ test('portes: catálogo', function () {
   var todos = G.STARTERS.concat(G.WILD_HORSES); assert.strictEqual(todos.length, 15);
   todos.forEach(function (h) { assert.strictEqual(h.porte, T[h.id], h.id); assert.ok(B.porteValido(h.porte)); });
 });
-test('portes: sorteios antigos intactos', function () {
+test('portes: sorteios antigos intactos (sem o efeito da Sorte)', semSortePP(function () {
   var cat = G.STARTERS.concat(G.WILD_HORSES), lista = [];
   for (var i = 1; i <= 200; i++) {
     var f = JSON.parse(JSON.stringify(cat[i % cat.length])), m = JSON.parse(JSON.stringify(cat[(i * 7 + 3) % cat.length]));
@@ -1187,7 +1233,7 @@ test('portes: sorteios antigos intactos', function () {
     assert.ok(B.porteValido(x.porte)); delete x.porte; delete x.skillRanks; lista.push(x);
   }
   assert.strictEqual(B.hashChave(JSON.stringify(lista)), IMPRESSAO_FOAL_2A);
-});
+}));
 test('portes: herança (4.000 potros de égua esguia × garanhão robusto)', function () {
   var f = mk2({ sex: 'f' }), m = mk2({}); f.porte = 'esguio'; m.porte = 'robusto';
   var N = 4000, mut = 0, semMut = 0, deF = 0;

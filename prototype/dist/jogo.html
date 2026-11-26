@@ -2234,7 +2234,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       grauMult: [1, 1.25, 1.5],
       ownRegistration: 50, exchange: 50,
       stableSlotPrice: 300, stableSlotsStart: 3, stableSlotsMax: 8,
-      levelSaturation: 30, mareWeight: 0.6
+      levelSaturation: 30, mareWeight: 0.6,
+      // D8: com Sorte genética 31 nos dois pais, sortePP pontos percentuais passam de "1 abaixo" para "1 acima" na
+      // raridade e de "desce" para "sobe" nas estrelas (Breed.sorteShift)
+      sortePP: 5
     },
     // Equipamento: preço por raridade, venda, pedras de reforço, +N e bônus de conjunto.
     gear: {
@@ -2446,6 +2449,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // chance da fração).
     xpBase: 40, xpPorEtapa: 0.15, ouro: [0.3, 0.45, 0.6, 0.75, 1.2],
     derrota: { xp: 0.30, material: 0.25 },
+    // D8: a Sorte do cavalo da vaga soma até isto ao bônus de drop raro (genética de Sorte 31 → +15%; Afk.sorteRaro)
+    sorteRaro: 0.15,
     // Drops por vitória (§5.4). material: quantidade sorteada de min a max, × mult, metade de cada tipo do ginásio.
     // incomum, pedra, comida e reforja: chance na Normal, × mult (incomum com teto). peca: chance por dificuldade
     // (solta = Comum ou Mágica sem conjunto, magica = fração das soltas que sai Mágica; raro e lendario = do conjunto
@@ -3145,12 +3150,12 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // do rank 5 não soma à parte); nível e raridade somam
   // T.ratingLevel·(nível − 1)/49 + T.ratingRar·ordem/4 (o mesmo para os três tipos).
   // Para curva, subida e estamina baixa o peso segue a
-  // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
-  // pacote de balanceamento, não chances: o gatilho 'dice' acontece em toda corrida (o Dado extra só mexe
-  // na virada de clima, por isso vale pouco), e o de clima vale 0.8 mesmo sem acontecer sempre.
+  // chance de o gatilho acontecer numa corrida típica; clima (0.8) é peso calibrado no pacote de balanceamento, não
+  // chance (vale 0.8 mesmo sem acontecer sempre). 'dice' vale 0 desde a D8 (2026-11-26): o Dado extra só mexe na virada
+  // de clima (0,2–1,5 p.p. de vitória), e o Dado Viciado saía caro no Poder sem render na corrida (era 0.2).
   // Exposto como RaceSim.SKILL_TRIGGER_WEIGHT; 'weather' vale para todo gatilho 'weather:<clima>'.
   // O sim-test confere que todo gatilho usado em GameData.SKILLS tem peso aqui (o fallback 1 é só defesa).
-  var SKILL_TRIGGER_WEIGHT = { start: 1, straight: 1, curve: 0.8, curveExit: 0.8, hill: 0.6, lowStamina: 0.8, final: 1, dice: 0.2, weather: 0.8 };
+  var SKILL_TRIGGER_WEIGHT = { start: 1, straight: 1, curve: 0.8, curveExit: 0.8, hill: 0.6, lowStamina: 0.8, final: 1, dice: 0, weather: 0.8 };
   function skillWeight(id) {
     var sk = GameData.SKILLS[id];
     if (!sk) return 0;
@@ -4136,6 +4141,12 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
  * se DESCEU, ★3 (sem sorteio de grau). No modelo v3 as estrelas só dão os pontos livres do treino
  * (RaceSim.freePoints): não há piso de genética por estrela nem status base sorteado.
  *
+ * SORTE (D8, spec 2026-11-26-d8-sorte): sorteOf(cavalo) = genética de Sorte (potential.sorte, 0–31, saneada como no
+ * RaceSim) / 31; s do par = mareWeight·s(égua) + (1−mareWeight)·s(garanhão) (sorteFactor). Nas colunas já interpoladas
+ * por L, d = min(coluna 0, ECONOMY.breeding.sortePP · s) p.p. saem da coluna 0 ("1 abaixo" / "desce") e entram na
+ * coluna 2 ("1 acima" / "sobe"). Só mudam os limites das faixas: o número e a ordem das chamadas de rng() não mudam,
+ * e com s = 0 tudo é igual a antes. Mítico continua fora (maxRarityOrder).
+ *
  * GENÉTICA (potential, 0–31 por status): por status, potInherit (50%) de herdar a de um dos pais
  * (escolhido por sorteio, 50/50); senão inteiro uniforme de 0 a 31. TIPO: o dos pais se for igual;
  * senão 50% de cada. O potro nasce sem alloc (pontos livres zerados) e sem o campo base.
@@ -4225,6 +4236,22 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return clamp((E.mareWeight * levelOf(f) + (1 - E.mareWeight) * levelOf(m)) / E.levelSaturation, 0, 1);
   }
 
+  // Fator de Sorte (D8): genética de Sorte / 31, de 0 a 1; ausente ou não numérica vale 0.
+  function sorteOf(mount) {
+    var g = Number(mount && mount.potential && mount.potential.sorte);
+    return isFinite(g) ? clamp(g, 0, 31) / 31 : 0;
+  }
+  function sorteFactor(f, m) {
+    var w = G.ECONOMY.breeding.mareWeight;
+    return w * sorteOf(f) + (1 - w) * sorteOf(m);
+  }
+  // tira até sortePP·s p.p. da coluna 0 e põe na coluna 2 (nunca deixa a coluna 0 negativa)
+  function sorteShift(cols, s) {
+    var d = Math.min(cols[0], G.ECONOMY.breeding.sortePP * s);
+    if (d > 0) { cols[0] -= d; cols[2] += d; }
+    return cols;
+  }
+
   function lerpCols(a, b, L) {
     var out = [];
     for (var i = 0; i < a.length; i++) out.push(a[i] + (b[i] - a[i]) * L);
@@ -4234,7 +4261,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // colunas de raridade (em %) para o par
   function rarityCols(f, m) {
     var row = order(f) === order(m) ? TUNING.rarity.same : TUNING.rarity.mixed;
-    return lerpCols(row.lv1, row.lv30, levelFactor(f, m));
+    return sorteShift(lerpCols(row.lv1, row.lv30, levelFactor(f, m)), sorteFactor(f, m));
   }
 
   function rarityOdds(f, m) {
@@ -4259,7 +4286,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return 0;
   }
 
-  function grauCols(f, m) { return lerpCols(TUNING.grau.lv1, TUNING.grau.lv30, levelFactor(f, m)); }
+  function grauCols(f, m) { return sorteShift(lerpCols(TUNING.grau.lv1, TUNING.grau.lv30, levelFactor(f, m)), sorteFactor(f, m)); }
 
   function grauOdds(f, m) {
     var cols = grauCols(f, m), gb = grauBase(f, m), out = { 1: 0, 2: 0, 3: 0 };
@@ -4272,7 +4299,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   }
 
   function odds(f, m) {
-    return { L: levelFactor(f, m), rarity: rarityOdds(f, m), grau: grauOdds(f, m), rarityUpGrau: 1, rarityDownGrau: 3 };
+    return { L: levelFactor(f, m), sorte: sorteFactor(f, m), rarity: rarityOdds(f, m), grau: grauOdds(f, m), rarityUpGrau: 1, rarityDownGrau: 3 };
   }
 
   // 1 chamada de rng()
@@ -4533,6 +4560,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     RARITY_IDS: RARITY_IDS,
     CORCEL_SETS: CORCEL_SETS,
     levelFactor: levelFactor,
+    sorteOf: sorteOf,
+    sorteFactor: sorteFactor,
     rarityOdds: rarityOdds,
     grauOdds: grauOdds,
     odds: odds,
@@ -5939,7 +5968,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
  * CORRIDA (correr): um duelo nas regras do ginásio (Ginasio.dueloCfg: vantagem de elemento, largada Nublada, pista do
  *   ginásio, Dado da Sorte normal), sem cansaço, contra o oponente do rodízio (n = contador).
  * PRÊMIO (premio): função só da fase, de venceu, da seedCorrida e do bônus — a corrida ao vivo e o offline usam a mesma.
- *   bonus = { material, xp, raro, trofeu, ouro } em fração (0,3 = +30%; peças do cavalo + bestiário); lixo vale 0.
+ *   bonus = { material, xp, raro, trofeu, ouro } em fração (0,3 = +30%; peças do cavalo + bestiário + Sorte); lixo vale 0.
+ *   SORTE (D8): sorteRaro(cavalo) = GameData.AFK.sorteRaro × genética de Sorte / 31 (0–31; ausente vale 0), somado ao
+ *   bonus.raro da vaga por quem monta o bônus (o mesmo ao vivo e no offline). Não mexe na rng (as 11 chamadas ficam).
  *   Ordem FIXA das chamadas da rng dos drops (todas acontecem sempre, caia ou não):
  *     1) quantidade de material (min a max) · 2) para que tipo vai o ímpar · 3) arredondamento do bônus de material ·
  *     4) arredondamento do bônus de Ouro · 5) incomum · 6) Pedra Negra · 7) comida · 8) qual comida · 9) peça ·
@@ -6348,6 +6379,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return { gymId: gymId, oponentes: ops, itens: itens, completa: completa };
   }
   function r4(x) { return Math.round(x * 10000) / 10000; }
+  // D8: o bônus de drop raro da Sorte do cavalo (fração; 0 a K.sorteRaro), arredondado a 4 casas como o do bestiário
+  function sorteRaro(cavalo) {
+    var g = Number(objeto(cavalo) && objeto(cavalo.potential) && cavalo.potential.sorte);
+    return isFinite(g) ? r4(K.sorteRaro * Math.min(31, Math.max(0, g)) / 31) : 0;
+  }
   // -> { raro, xp, trofeu (frações), offlineMin }
   function bestiarioBonus(best) {
     var b = bestiarioSaneado(best), B = K.bestiario, nRaro = 0, nXp = 0, nTrof = 0, paginas = 0;
@@ -6553,6 +6589,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     bestiarioObter: bestiarioObter,
     bestiarioPagina: bestiarioPagina,
     bestiarioBonus: bestiarioBonus,
+    sorteRaro: sorteRaro,
     usarComida: usarComida,
     sanear: sanear,
     creditar: creditar,
@@ -19647,10 +19684,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   function afkConfere() { if (state) state.afk = AF.sanear(state.afk, afkCtx()); }
   function afkNaTela() { return ui.screen === 'afk' || (ui.screen === 'corrida' && !!(ui.afk && ui.afk.ver)); }
   function afkPresa(v) { return !!state.pending && !!v.uid && v.uid === state.activeId; }
-  // os bônus de uma vaga: o bestiário (da conta) e, no bloco B, as peças do cavalo
+  // os bônus de uma vaga: o bestiário (da conta), as peças do cavalo e a Sorte dele (D8, só no drop raro)
   function afkBonus(uid) {
     var b = AF.bestiarioBonus(state.afk.bestiario), m = mountByUid(uid), f = m ? gearOf(m).farm : { material: 0, xp: 0, raro: 0, trofeu: 0, ouro: 0 };
-    return { material: f.material, xp: b.xp + f.xp, raro: b.raro + f.raro, trofeu: b.trofeu + f.trofeu, ouro: f.ouro };
+    return { material: f.material, xp: b.xp + f.xp, raro: b.raro + f.raro + AF.sorteRaro(m), trofeu: b.trofeu + f.trofeu, ouro: f.ouro };
   }
   // o cavalo como o afk.js o recebe: com as peças resolvidas (pve), que só valem aqui
   function afkCavalo(m) { var c = clone(m); c.pve = gearOf(m); return c; }
@@ -20011,7 +20048,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         '<div class="afk-vaga-info"><b class="cavalo-nome">' + esc(m.name) + '</b>' +
           '<span class="linha-meta"><span>Nível ' + esc(m.level) + '</span>' + elementHtml(m.element) + '</span>' +
           '<span class="afk-fase">' + esc('Contra ' + afkFaseTxt(f)) + '</span>' +
-          '<span class="afk-chance">' + esc(afkChanceTxt(v)) + '</span></div></div>' +
+          '<span class="afk-chance">' + esc(afkChanceTxt(v)) + '</span>' +
+          (AF.sorteRaro(m) > 0 ? '<span class="nota afk-sorte">' + esc('Sorte: +' + statNum2(AF.sorteRaro(m) * 100) + '% de drop raro') + '</span>' : '') + '</div></div>' +
       estado +
       (ult ? '<p class="afk-ultima afk-ultima--' + (ult.venceu ? 'vitoria' : 'derrota') + '">' + esc('Última corrida. ' + afkUltimaTxt(ult)) + '</p>' : '') +
       '<p class="nota afk-vitorias">' + esc('Vitórias nesta dificuldade: ' + fmt(vit) + (falta > 0 ? ' (faltam ' + fmt(falta) + ' para liberar a ' + prox.name + ')' : '') + '.') + '</p>' +
@@ -20506,6 +20544,13 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     '</button>';
   }
 
+  // D8: a Sorte do par (genética) já está nas chances; a linha diz quanto ela move, em pontos percentuais
+  function harasSorteTxt(s) {
+    var pp = Math.round(GD.ECONOMY.breeding.sortePP * s * 10) / 10;
+    return 'Sorte dos pais (genética): ' + (pp > 0 ? 'até +' + statNum2(pp) + ' p.p.' : 'sem efeito') + ' para subir de raridade e de estrela (máximo +' +
+      GD.ECONOMY.breeding.sortePP + ' p.p. com a genética de Sorte 31 nos dois). Já está nas chances.';
+  }
+
   function calcHtml(P) {
     var o = BRD.odds(P.f, P.m);
     var bars = BRD.RARITY_IDS.map(function (id) {
@@ -20551,6 +20596,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       '<p class="nota marcas-linha">' + esc(P.f.name + ' · ' + porteTexto(P.f) + ' · ' + marcasTexto(P.f)) + '</p>' +
       '<p class="nota marcas-linha">' + esc(P.m.name + ' · ' + porteTexto(P.m) + ' · ' + marcasTexto(P.m)) + '</p>' +
       '<div class="calc-barras">' + bars + '</div>' +
+      '<p class="nota calc-sorte">' + esc(harasSorteTxt(o.sorte)) + '</p>' +
       '<p>' + grau + '</p>' +
       '<p>' + esc(genTxt) + '</p>' +
       '<p>' + esc(elTxt) + '</p>' +
