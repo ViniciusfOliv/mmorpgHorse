@@ -1,6 +1,6 @@
 # CLAUDE.md — MMORPG Horse
 
-Regras para o Claude neste repositório. Mantenha enxuto (< 120 linhas): material de consulta vai
+Regras para o Claude neste repositório. Mantenha enxuto (no máximo 300 linhas): material de consulta vai
 para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carregar à toa).
 
 ## 1. Projeto
@@ -11,7 +11,7 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
   (compradas; cosméticos e passe). Pacote de montaria só com moeda ganha jogando.
 - **Tecnologia:** base web (HTML/CSS/JS puro, sem dependências), em `prototype/`. Decidido em
   2026-11-10: o protótipo **vira o jogo**, empacotado para Android, e os módulos de regra (`sim.js`,
-  `data.js`, `breed.js`, `gear.js`, `itens.js`, `ginasio.js`, `afk.js`, `forja.js`) vão para o servidor. Empacotador e servidor ainda a definir.
+  `data.js`, `breed.js`, `gear.js`, `itens.js`, `ginasio.js`, `afk.js`, `forja.js`, `sala.js`) vão para o servidor. Empacotador e servidor ainda a definir.
 - **Fonte da verdade:** `docs/GDD.md`. Números reais do protótipo: `docs/wiki.md` e
   `prototype/dist/wiki.html` (gerados do código pelo build; não editar). Medições de balanceamento:
   `docs/exemplos.md`. Fórmulas da simulação: comentário no topo de `prototype/src/sim.js`.
@@ -40,6 +40,7 @@ lançamento: `docs/cronograma.md`.
 | Testes do treino AFK e da forja | `node prototype/tools/afk-test.js` | 12 s |
 | Testes dos efeitos da corrida (dados, skills, clima, vento, curvas, ambiente) e do desenho do mapa dos ginásios | `node prototype/tools/fx-test.js` / `node prototype/tools/mapa-test.js` | 5 s / <1 s |
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
+| Sala (pareamento, `sala.js`): testes em Node / as 200 salas do jogo no navegador contra `sala-referencia.json` | `node prototype/tools/sala-test.mjs` / `node prototype/tools/sala-referencia.mjs --check` | 2 s / 5 s |
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~45 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~5 min |

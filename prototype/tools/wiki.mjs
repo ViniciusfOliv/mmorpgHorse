@@ -51,14 +51,14 @@ const numDe = (rel, re, oQue) => Number(extrair(rel, re, oQue)[1])
 const listaJs = (txt) => JSON.parse(txt.replace(/'/g, '"'))
 
 function lerFonte() {
-  const game = 'src/game.js', sim = 'src/sim.js', breed = 'src/breed.js', fx = 'src/fx.js'
+  const game = 'src/game.js', sala = 'src/sala.js', sim = 'src/sim.js', breed = 'src/breed.js', fx = 'src/fx.js'
   const abas = extrair(game, /var ABAS = \[(.*)\];/, 'a lista ABAS')[1]
   // equipamento suspenso (bloco 1b): com GEAR_ON = false a Loja só vende itens (as peças e as Pedras ficam escondidas)
   // GEAR_ON liga as telas do equipamento (que só vale no treino AFK); GEAR_PVP, as peças na corrida valendo (desligado)
   const gearConst = extrair(game, /var GEAR_ON = (true|false), GEAR_PVP = (true|false);/, 'as constantes GEAR_ON e GEAR_PVP')
   const gearOn = gearConst[1] === 'true', gearPvp = gearConst[2] === 'true'
   const ventos = extrair(fx, /a < ([\d.]+) \? 'calmo' : a < ([\d.]+) \? 'brisa' : 'ventania'/, 'a distribuição do vento (RaceFx.wind)')
-  const alvo = extrair(game, /var target = pr \* \(([\d.]+) \+ ([\d.]+) \* rng\(\)\)/, 'a faixa de Poder dos bots')
+  const alvo = extrair(sala, /var target = e\.pr \* \(([\d.]+) \+ ([\d.]+) \* rng\(\)\)/, 'a faixa de Poder dos bots')
   return {
     treinoOuro: listaJs(extrair(game, /var TRAINING_GOLD = (\[[^\]]*\]);/, 'TRAINING_GOLD')[1]),
     treinoXpDiv: numDe(game, /xpGain = L\.training \? Math\.round\(xpBase \/ (\d+)\)/, 'a divisão do XP do treino'),
@@ -66,14 +66,14 @@ function lerFonte() {
     abas: [...abas.matchAll(/rotulo: '([^']+)'/g)].map((m) => m[1]),
     gearOn,
     gearPvp,
-    pistas: listaJs('[' + extrair(game, /var TRACK_NAMES = \[([\s\S]*?)\];/, 'TRACK_NAMES')[1] + ']'),
+    pistas: listaJs('[' + extrair(sala, /var NOMES_PISTA = \[([\s\S]*?)\];/, 'NOMES_PISTA')[1] + ']'),
     retrato: extrair(game, /var PORTRAIT_W = (\d+), PORTRAIT_H = (\d+);/, 'o tamanho do retrato').slice(1, 3).map(Number),
     retratoEscala: numDe(game, /var PORTRAIT_SCALE = (\d+);/, 'PORTRAIT_SCALE'),
     botAlvo: [Number(alvo[1]), Number(alvo[2])],
-    botFaixa: numDe(game, /c\.fit\.diff <= target \* ([\d.]+)/, 'a tolerância de Poder dos bots'),
+    botFaixa: numDe(sala, /c\.fit\.diff <= target \* ([\d.]+)/, 'a tolerância de Poder dos bots'),
     devVagas: numDe(game, /var DEV_SKILL_VAGAS = (\d+);/, 'DEV_SKILL_VAGAS'),
-    botFaixaNivel: extrair(game, /return \[Math\.max\(1, L0 - (\d+)\), Math\.min\(E\.maxLevel \|\| 50, L0 \+ (\d+)\)\];/, 'a faixa de level dos bots (levelBand)').slice(1, 3).map(Number),
-    botReserva: numDe(game, /cands = all\.slice\(0, (\d+)\);/, 'quantos modelos o bot considera sem candidato na faixa'),
+    botFaixaNivel: extrair(sala, /return \[Math\.max\(1, L0 - (\d+)\), Math\.min\(E\.maxLevel \|\| 50, L0 \+ (\d+)\)\];/, 'a faixa de level dos bots (levelBand)').slice(1, 3).map(Number),
+    botReserva: numDe(sala, /\.sort\(function \(x, y\) \{ return x\.fit\.diff - y\.fit\.diff; \}\)\.slice\(0, (\d+)\);/, 'quantos modelos o bot considera sem candidato na faixa'),
     vento: { calmo: Number(ventos[1]), brisa: Number(ventos[2]) - Number(ventos[1]), ventania: 1 - Number(ventos[2]) },
     subidaForca: numDe(sim, /T\.hillDrain \* \(1 - ([\d.]+) \* nf\) \* hillDrainMult/, 'o alívio de Força no gasto da subida'),
     pelotaoMax: numDe(sim, /Math\.min\(neighbors, (\d+)\)/, 'o teto de vizinhos do pelotão'),

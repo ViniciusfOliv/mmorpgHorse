@@ -20,11 +20,13 @@ step() { printf '\n== %s ==\n' "$1"; }
 step "1/8 Build (prototype/dist e docs/wiki.md)"
 node prototype/build.mjs
 
-step "2/8 Simulação e AFK"
+step "2/8 Simulação, AFK e sala"
 node prototype/tools/sim-test.js > "$SHOTS_DIR/unit.txt" || { cat "$SHOTS_DIR/unit.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/unit.txt"
 node prototype/tools/afk-test.js > "$SHOTS_DIR/afk.txt" || { cat "$SHOTS_DIR/afk.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/afk.txt"
+node prototype/tools/sala-test.mjs > "$SHOTS_DIR/sala.txt" || { cat "$SHOTS_DIR/sala.txt"; exit 1; }
+tail -n 1 "$SHOTS_DIR/sala.txt"
 
 step "3/8 Efeitos da corrida e desenho do mapa"
 node prototype/tools/fx-test.js > "$SHOTS_DIR/fx.txt" || { cat "$SHOTS_DIR/fx.txt"; exit 1; }
@@ -51,6 +53,8 @@ node -e "require('module').createRequire(process.cwd() + '/prototype/tools/ui-te
   echo "Falta o Playwright dos testes: rode  npm ci --prefix prototype/tools  (o Chromium: npx --prefix prototype/tools playwright install chromium)"; exit 1; }
 node prototype/tools/wiki-test.mjs > "$SHOTS_DIR/wiki.txt" 2>&1 || { cat "$SHOTS_DIR/wiki.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/wiki.txt"
+# a sala montada pelo jogo no navegador igual à referência (sala-referencia.json; regravar só de propósito)
+node prototype/tools/sala-referencia.mjs --check
 
 step "7/8 Balanceamento rápido"
 node prototype/tools/balance.js --quick > "$SHOTS_DIR/balance.txt" || { cat "$SHOTS_DIR/balance.txt"; exit 1; }
