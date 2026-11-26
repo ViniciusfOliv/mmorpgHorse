@@ -78,7 +78,7 @@ o PVP de aposta entre jogadores reais.
   vantagem indireta. A regra do `CLAUDE.md` §8 "Gemas nunca viram Ouro, direta ou indiretamente" e a linha "Gema nunca
   acelera o que paga Ouro" **deixam de valer como estão** e precisam de texto novo (proposta abaixo). Antes de a loja
   real existir (bloco 6), vale uma avaliação jurídica sobre a classificação etária e de jogo de azar.
-- **Texto proposto para o §8 (aplicar só com o seu "sim", no ticket de documentação):** "O Ouro nunca é vendido, por
+- **Texto proposto para o §8 (aplicado em 2026-11-26, "Sim, aplique"):** "O Ouro nunca é vendido, por
   dinheiro nem por Gemas. Vantagens pagas (VIP e Gemas) só as listadas na spec da loja, cada uma com teto em
   `data.js` e coberta por teste; item comprado com Gema nunca tem resultado sorteado."
 - **Complemento do Vinicius (2026-11-25):** *"Estábulo terá o total de 8 vagas, 5 por ouro e 2 por gemas e 1 por VIP. O

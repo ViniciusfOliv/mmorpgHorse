@@ -15,7 +15,7 @@ Jogo em pixel art (web + Play Store) de corrida de cavalos com progressão estil
 | Jogabilidade da corrida | **Automática.** Estratégia acontece antes: escolher a montaria e o equipamento para o mapa e o clima da corrida. Servidor simula com *seed*; cliente só anima. |
 | "MMO" | **Hub social**: cidade/estábulo compartilhado (chat, ranking, haras/guildas, mercado). Resto por menus. |
 | Obter cavalos | **Cruzamento + Expedições PVE** (núcleo) + **pacotes de montaria** comprados só com moeda ganha jogando (nunca com Gemas: caixa de recompensa paga é vedada no Brasil para menores). |
-| Monetização | **Duas moedas**: 🪙 Ouro (só ganho jogando, é apostável) / 💎 Gemas (compradas; compram tempo, espaço, conveniência e aparência, nunca poder nem Ouro). Gemas **nunca** viram Ouro. Evita classificação como jogo de azar. |
+| Monetização | **Duas moedas**: 🪙 Ouro (só ganho jogando, é apostável) / 💎 Gemas (compradas; cosméticos, VIP e vagas). **O Ouro nunca é vendido**, por dinheiro nem por Gemas; vantagens pagas só as listadas na spec da loja, com teto e teste (D1, 2026-11-26). Antes da loja real, avaliação jurídica sobre a classificação (o VIP dá +2% de Ouro no AFK). |
 | PVP | Corridas de **4–8 jogadores**, entrada igual, pote dividido 1º/2º/3º (menos taxa da casa). Bots completam vagas, com Poder de 93,5% a 104,5% do jogador; nas 10 primeiras salas do save (estreia) são 4–5 corredores mais leves (93% a 100,5%), em rampa até a 20ª (D9, 2026-11-25; números no wiki). **Espectadores apostam** (fase 2; em reavaliação pelo risco de classificação 18+, ver `docs/cronograma.md`). |
 | Matchmaking | **Ligas por Rating de Poder do cavalo** + **MMR do jogador** dentro da liga. Modo opcional **Copa Nivelada** (status normalizados). |
 
@@ -281,8 +281,10 @@ jogadores · cosméticos por Gemas · desmanche · transferência de peças entr
 - **Ferradura de tração:** família nova, reduz a perda em terra e areia.
 
 ### 8.2 Itens de treino e as duas lojas (blocos 4 e 6)
-A Gema compra tempo, espaço, conveniência e aparência; nunca poder nem Ouro. Tudo que fortalece o
-cavalo existe de graça, jogando. Item comprado com Gema nunca tem resultado sorteado.
+A Gema compra cosméticos, VIP e vagas (D1, 2026-11-26). O Ouro nunca é vendido, por dinheiro nem por Gemas; as vantagens
+pagas são só as listadas na spec da loja, cada uma com teto em `data.js` e coberta por teste. Item comprado com Gema
+nunca tem resultado sorteado. **VIP** (com Gemas ou muito Ouro): +5% de XP, +2% de Ouro no treino AFK, +1 vaga no
+estábulo e cruza mais rápida; preço e duração na spec da loja.
 
 **No jogo desde a frente de itens (spec `docs/superpowers/specs/2026-11-16-itens-loja-diaria-design.md`):** os cinco
 itens de treino, a mochila e a loja por Ouro. Cada item é de uso único, vale para um cavalo, pede confirmação e não tem
@@ -296,7 +298,7 @@ volta. Os números ficam juntos em `GameData.ITEMS` (`prototype/src/data.js`), p
 | Cupom de troca de skill | uma skill das vagas sai e entra outra, sorteada entre as que o cavalo pode aprender | loja: 250 de Ouro, 1 por dia; diária: 6º dia | sim, skill escolhida numa lista |
 | Manual de doma | tentativa na hora: 35% de chance de aprender uma skill; o manual é gasto mesmo se não aprender | loja: 200 de Ouro, 1 por dia; diária: 4º dia | sim, garante aprender |
 | Pergaminho de técnica (2026-11-19) | sobe o rank de uma skill, junto com Ouro (seção 3); não se usa pela mochila | jogando: pódio de corrida valendo e 1ª vitória em etapas dos ginásios (8.6); **nunca por Ouro** | não |
-| Acelerador de cruza · vaga extra de estábulo (até 3) · redefinir cruzas · mudar aparência | — | não | sim |
+| Acelerador de cruza · vaga extra de estábulo (2 por Gemas, além das 5 pelo Ouro; +1 do VIP) · redefinir cruzas · mudar aparência | — | não | sim |
 
 - **Mochila:** até 99 de cada item; a Rédea nova tem o teto dela, 999. Fica na aba **Loja**, parte Mochila, com o botão
   Usar; Torrão e Estrela também se usam na ficha do cavalo (aba Status), Manual e Cupom na aba Skills.
@@ -340,7 +342,7 @@ Gemas também caem de graça, em pouca quantidade, por missões.
   qualidade. Com servidor, o aluguel passa a ser entre jogadores.
 - **Um trabalho por vez:** cada cavalo corre valendo, fica de aluguel ou cruza (o treino AFK é à parte: só o cavalo
   ativo com a sala aberta para de treinar).
-- Gema nunca acelera o que paga Ouro (treino AFK e aluguel).
+- Vantagem paga no treino AFK e no aluguel só a listada na spec da loja, com teto (D1: o VIP dá +2% de Ouro no AFK).
 
 ### 8.3a Treino AFK (implementado em 2026-11-23: vagas, drops, baú, offline, bestiário, forja e equipamento de PVE)
 Spec: `docs/superpowers/specs/2026-11-23-afk-drops-design.md`; regras em `prototype/src/afk.js`; números em

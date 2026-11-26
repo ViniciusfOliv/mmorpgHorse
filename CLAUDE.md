@@ -8,7 +8,7 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
   (Fogo/Água/Grama) e foco em PVP com apostas de moeda virtual.
 - **Plataformas:** web + Google Play + Steam (Steam decidida em 2026-11-19).
 - **Monetização:** duas moedas — 🪙 Ouro (só se ganha jogando; é o que se aposta) e 💎 Gemas
-  (compradas; cosméticos e passe). Pacote de montaria só com moeda ganha jogando.
+  (compradas; cosméticos, VIP e vagas). Pacote de montaria só com moeda ganha jogando.
 - **Tecnologia:** base web (HTML/CSS/JS puro, sem dependências), em `prototype/`. Decidido em
   2026-11-10: o protótipo **vira o jogo**, empacotado para Android, e os módulos de regra (`sim.js`,
   `data.js`, `breed.js`, `gear.js`, `itens.js`, `ginasio.js`, `afk.js`, `forja.js`, `sala.js`) vão para o servidor. Empacotador e servidor ainda a definir.
@@ -91,8 +91,9 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
   Esse registro alimenta a declaração de IA da Steam (conteúdo que o jogador vê/ouve).
 
 ## 8. Regras de design que não podem quebrar
-- **Gemas nunca viram Ouro**, direta ou indiretamente (protege contra classificação como jogo de
-  azar). Qualquer troca/mercado novo precisa respeitar isso.
+- **O Ouro nunca é vendido**, por dinheiro nem por Gemas. Vantagens pagas (VIP e Gemas) só as listadas na spec da
+  loja, cada uma com teto em `data.js` e coberta por teste; item comprado com Gema nunca tem resultado sorteado
+  (D1, 2026-11-26). Qualquer troca/mercado novo precisa respeitar isso.
 - Corrida **determinística**: mesma seed + configuração ⇒ mesmo resultado (servidor simula,
   cliente só anima). O `balance.js` verifica.
 - Resultado nunca é calculado/mostrado antes de a entrada ser paga; sala não pode ser re-sorteada
@@ -111,8 +112,7 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
   gravação só (`prototype/src/ginasio.js`); a tela só anima o que foi gravado. Revanche do líder: uma por dia em cada
   ginásio. Ginásios em sequência (Grama → Água → Fogo): cada um abre com a insígnia do
   anterior, regra do módulo (`Ginasio.aberto`); fechado, o desafio é recusado antes de pagar. Bônus de insígnia é da conta e nunca entra no cálculo da corrida (offline ficam como estão; antes do online, passam a valer só no PVE, como o equipamento — D5).
-- Item comprado com Gema nunca tem resultado sorteado, e Gema nunca acelera o que paga Ouro. O Ouro
-  nunca é vendido por Gemas. Todo sorteio novo (troca de skill, genética do potro, circuito) sai da seed.
+- Todo sorteio novo (troca de skill, genética do potro, circuito) sai da seed.
 
 ## 9. Não faça
 - Não editar `prototype/dist/` à mão.

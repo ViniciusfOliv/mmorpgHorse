@@ -3,6 +3,12 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-26 — Texto de Gemas/VIP aplicado no CLAUDE.md §1 e §8 (Vinicius: "Sim, aplique")
+- Sai "Gemas nunca viram Ouro, direta ou indiretamente" e "Gema nunca acelera o que paga Ouro"; entra: **o Ouro nunca é
+  vendido**, por dinheiro nem por Gemas; vantagens pagas (VIP e Gemas) só as listadas na spec da loja, com teto em
+  `data.js` e teste; item comprado com Gema nunca tem resultado sorteado. GDD §2, §8.2 e §8.3 acompanham.
+- Motivo: o VIP da D1 dá +2% de Ouro no AFK. Risco registrado: avaliação jurídica antes da loja real (bloco 6).
+
 ## 2026-11-26 — Treino AFK com o jogo fechado rende 70% (Vinicius: "Pode implementar")
 Spec: `docs/superpowers/specs/2026-11-26-afk-offline-70.md`; medição em `docs/auditoria/medicao-farm-vagas.md`.
 - Regra dele: o rendimento depende do cavalo (vitórias por hora), e o jogo aberto tem de render mais que o fechado.

@@ -11,7 +11,8 @@ Sorte melhora a cruza, até 5 p.p., e o drop raro do AFK, até +15%; o Dado Vici
 A D1 (vagas): o estábulo começa com 2 e compra até 5 (2.000 · 10.000 · 50.000); saves antigos ficam com as suas.
 D3 e D5 (só texto: clima "+1,5 em cada status"; insígnias só no PVE antes do online) aplicadas.
 Farm medido (`docs/auditoria/medicao-farm-vagas.md`): preços das vagas mantidos; o treino fechado rende 70%.
-**Próximo:** texto do §8 sobre Gemas/VIP (pede o "sim"); D6/D7;
+Texto de Gemas/VIP aplicado no `CLAUDE.md` §8 (o Ouro nunca é vendido; vantagens pagas só listadas, com teto).
+**Próximo:** D6/D7; spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
 tickets em `docs/auditoria/plano-fase-1.md`. Os ramos `claude/salas-economia` e `claude/fluidez` são do chat da nuvem e
 ainda não foram revisados.
 
