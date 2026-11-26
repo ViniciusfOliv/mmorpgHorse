@@ -694,7 +694,7 @@ custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / ${T.cost
       return [comIcone('cl-' + w, nomeClima(w)), W.element ? elCel(W.element) : '—', W.penalizes ? elCel(W.penalizes) : '—', efeitoGeralClima(w), W.desc]
     }) },
     { t: 'h3', txt: 'Multiplicador de clima (m)' },
-    { t: 'p', txt: `Elemento dono do clima: ${multF(T.weatherMult)}${climaSkillTxt}. Elemento penalizado: ${multF(2 - T.weatherMult)}. O resto, e todos no ${nomeClima('nublado')}, ×1. O multiplicador entra somado a n(x): nc(x) = n(x) + (m − 1) × ${num(T.weatherAdd)}, o mesmo efeito em qualquer nível.` },
+    { t: 'p', txt: `Elemento dono do clima: ${multF(T.weatherMult)}${climaSkillTxt}. Elemento penalizado: ${multF(2 - T.weatherMult)}. O resto, e todos no ${nomeClima('nublado')}, ×1. O multiplicador **não multiplica o status**: entra somado a n(x): nc(x) = n(x) + (m − 1) × ${num(T.weatherAdd)}, ou seja **+${num((T.weatherMult - 1) * T.weatherAdd * 100, 2)} em cada status** para o dono do clima (−${num((T.weatherMult - 1) * T.weatherAdd * 100, 2)} para o penalizado), o mesmo efeito em qualquer nível.` },
     { t: 'tabela', rotulo: 'Multiplicador de clima', cab: ['Elemento', ...clIds.map(nomeClima)], linhas: elIds.map((e) => [elCel(e), ...clIds.map((w) => N(multF(S.weatherMult(e, w, false))))]) },
     { t: 'formula', txt: `nc(x)      = n(x) + (m − 1) × ${num(T.weatherAdd)}
 vMax       = (${num(T.vBase)} + ${num(T.vRange)} × nc(VEL)) × (1 + ${num(T.weatherVel)} × (m − 1))

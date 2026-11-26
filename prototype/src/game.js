@@ -2780,11 +2780,12 @@
       var stats = RS.computeStats(h);
       var el = GD.ELEMENTS[h.element];
       var rating = RS.powerRating(h);
-      var wPct = Math.round((RS.TUNING.weatherMult - 1) * 100);
+      // D3: o clima soma pontos fixos em cada status (não %): (m − 1) · weatherAdd · 100 = +1,5 para o dono do clima
+      var wPts = statNum2((RS.TUNING.weatherMult - 1) * RS.TUNING.weatherAdd * 100);
       // melhor e pior clima, cada um com o ícone (HTML pronto: o texto passa por esc)
-      var best = el.weather && GD.WEATHERS[el.weather] ? climaIcone(el.weather) + esc(GD.WEATHERS[el.weather].name + ' (+' + wPct + '%)') : '—';
+      var best = el.weather && GD.WEATHERS[el.weather] ? climaIcone(el.weather) + esc(GD.WEATHERS[el.weather].name + ' (+' + wPts + ')') : '—';
       var worst = Object.keys(GD.WEATHERS).filter(function (w) { return GD.WEATHERS[w].penalizes === h.element; })
-        .map(function (w) { return climaIcone(w) + esc(GD.WEATHERS[w].name + ' (−' + wPct + '%)'); }).join(', ') || '—';
+        .map(function (w) { return climaIcone(w) + esc(GD.WEATHERS[w].name + ' (−' + wPts + ')'); }).join(', ') || '—';
       // os dois status de genética mais alta (empate: a ordem de STAT_KEYS)
       var fortes = [];
       for (var f = 0; f < 2; f++) {
@@ -6197,8 +6198,9 @@
     var el = elementOf(h.element);
     var w = GD.WEATHERS[L.cond.weather];
     var m = RS.weatherMult(h.element, L.cond.weather, false);
-    var pct = Math.round((m - 1) * 100);
-    var eff = pct > 0 ? '+' + pct + '% para ' + el.name : pct < 0 ? '−' + Math.abs(pct) + '% para ' + el.name : 'sem efeito para ' + el.name;
+    // D3: o clima soma (m − 1) · weatherAdd · 100 pontos em cada status de corrida (VEL, ACE, MAN, FOR e GAR), não %
+    var pts = (m - 1) * RS.TUNING.weatherAdd * 100, pct = pts > 1e-9 ? 1 : pts < -1e-9 ? -1 : 0;
+    var eff = pct > 0 ? '+' + statNum2(pts) + ' em cada status para ' + el.name : pct < 0 ? '−' + statNum2(-pts) + ' em cada status para ' + el.name : 'sem efeito para ' + el.name;
     // chance de rolar o 2º dado, pela mesma conta do RaceSim.rollDice: (Sorte − sorteDiceLo)/(sorteDiceFull − sorteDiceLo)
     var T = RS.TUNING, sorte = RS.computeStats(h).sorte;
     var dois = Math.round(clamp((sorte - T.sorteDiceLo) / (T.sorteDiceFull - T.sorteDiceLo), 0, 1) * 100);

@@ -180,7 +180,7 @@ No status 50 é exatamente +3%; no 100, ≈ +1,5%.
 para multiplicativo: o clima passa a valer mais para cavalos fortes (aumenta a diferença no fim de jogo), exige `balance.js`
 completo e muda `tuningHash`. C — fórmula mista: complexa, sem ganho claro.
 
-**✅ Aprovada pelo Vinicius (2026-11-25): "Sim, só o texto"** — soma fixa mantida; GDD §4, sala, wiki e o comentário
+**✅ Aprovada pelo Vinicius (2026-11-25): "Sim, só o texto"; aplicada em 2026-11-26 ("+1,5 em cada status")** — soma fixa mantida; GDD §4, sala, wiki e o comentário
 do `TUNING` corrigidos no T8.
 
 **Recomendação: A.** A escolha aditiva foi deliberada e mantém o clima relevante para o inicial; o erro é só de texto.
@@ -246,7 +246,7 @@ que não sai do pote; o próprio GDD (§8.6) já marca isso para rever antes do 
 PVP": tirar os três bônus do PVP agora. **C — A hoje, B antes do online:** no protótipo offline fica como está; na spec
 do bloco 7, os bônus passam a valer só no PVE (AFK, ginásio), como o equipamento.
 
-**✅ Aprovada pelo Vinicius (2026-11-25): "Sim, assim"** — offline fica como está; o `CLAUDE.md` §8 ganha o sentido
+**✅ Aprovada pelo Vinicius (2026-11-25): "Sim, assim"; texto aplicado em 2026-11-26 no `CLAUDE.md` §8 e no GDD §8.6** — offline fica como está; o `CLAUDE.md` §8 ganha o sentido
 "não entra no cálculo da corrida" (T8); na spec do bloco 7, os bônus passam a valer só no PVE.
 
 **Recomendação: C.** Offline, o efeito é pequeno e não há Ouro de outros jogadores em jogo; reescrever agora é trabalho sem

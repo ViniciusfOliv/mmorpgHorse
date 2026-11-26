@@ -303,7 +303,7 @@ São 3 tipos (elementos). Cada um tem a sua skill de tipo, sempre ativa num ter�
 
 ### Multiplicador de clima (m)
 
-Elemento dono do clima: ×1,03; com a skill de clima ativa (Sol a Pino, Pé na Chuva e Névoa Amiga), de ×1,07 no rank I a ×1,094 no rank V (ver Skills, Rank das skills). Elemento penalizado: ×0,97. O resto, e todos no Nublado, ×1. O multiplicador entra somado a n(x): nc(x) = n(x) + (m − 1) × 0,5, o mesmo efeito em qualquer nível.
+Elemento dono do clima: ×1,03; com a skill de clima ativa (Sol a Pino, Pé na Chuva e Névoa Amiga), de ×1,07 no rank I a ×1,094 no rank V (ver Skills, Rank das skills). Elemento penalizado: ×0,97. O resto, e todos no Nublado, ×1. O multiplicador **não multiplica o status**: entra somado a n(x): nc(x) = n(x) + (m − 1) × 0,5, ou seja **+1,5 em cada status** para o dono do clima (−1,5 para o penalizado), o mesmo efeito em qualquer nível.
 
 | Elemento | Sol | Chuva | Névoa | Nublado |
 | --- | ---: | ---: | ---: | ---: |

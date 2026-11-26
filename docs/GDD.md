@@ -105,7 +105,7 @@ no tipo" fica em 48–53% contra as outras. A meta que vale é o **equilíbrio d
 de um tipo só ele aprende (Fogo 2, Água 3, Grama 2). Skill que atrapalha rival fica fora por enquanto
 (rever depois do teste fechado).
 
-O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima** na corrida valendo; nos duelos de ginásio ele também vale como vantagem de elemento (8.6). O dono do clima tem os status ×1,03 (mais com a skill de clima do elemento ativa, e o reforço cresce com o rank dela: números no wiki; as 4 peças do conjunto do clima, suspensas, não acumulam com ela); o penalizado, ×0,97.
+O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima** na corrida valendo; nos duelos de ginásio ele também vale como vantagem de elemento (8.6). O dono do clima ganha **+1,5 em cada status** de corrida (VEL, ACE, MAN, FOR e GAR; com a skill de clima do elemento ativa, de +3,5 no rank I a +4,7 no rank V: números no wiki; as 4 peças do conjunto do clima, suspensas, não acumulam com ela); o penalizado, −1,5. É uma soma fixa, não um percentual: vale o mesmo em qualquer nível (D3, 2026-11-25; o código guarda isso como m = 1,03 / 0,97, somado como (m − 1) × 0,5 ao status/100).
 
 | Clima | Favorece | Penaliza | Efeito geral |
 |---|---|---|---|
@@ -493,6 +493,8 @@ ninguém jogou ainda.
     sem contar o tempo parado nos cartões.
 - **Com servidor (bloco 7):** o +3% de Ouro sobre prêmios pagos por outros jogadores cria Ouro do nada; isso tem de ser
   revisto antes do online.
+- **Regra das insígnias (D5, 2026-11-25):** bônus de insígnia é da conta e nunca entra no cálculo da corrida (offline
+  ficam como estão; antes do online, passam a valer só no PVE, como o equipamento).
 - **Online (extra, bloco 7):** quatro ginásios dominados por jogadores (Fogo, Água, Grama e um acima dos
   três), desafiáveis pelo trono. Riscos a tratar na spec: um jogador segurar o trono para sempre
   (proposta: um conjunto por liga e temporadas) e conluio entre contas.

@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-26 — D3 e D5 aplicadas (só texto; Vinicius: "+1,5 em cada status" e "Sim, assim")
+- **D3:** o clima é soma fixa: o dono ganha **+1,5 em cada status** de corrida (−1,5 o penalizado; com a skill de clima,
+  +3,5 a +4,7). A sala ("Clima inicial Sol: +1,5 em cada status para Fogo"), o cartão do inicial ("Sol (+1,5)"), o GDD §4,
+  o wiki e o comentário do `TUNING` deixaram de dizer "+3%"/"×1,03" como se fosse percentual. Nenhum resultado muda.
+- **D5:** `CLAUDE.md` §8 e GDD §8.6: bônus de insígnia nunca entra no cálculo da corrida; offline fica como está; antes do
+  online, os bônus passam a valer só no PVE, como o equipamento.
+
 ## 2026-11-26 — D1 (vagas) implementada: 2 de início, até 5 pelo Ouro (Vinicius: "Pode implementar")
 Spec: `docs/superpowers/specs/2026-11-26-d1-vagas.md`. `ECONOMY.breeding`: `stableSlotsStart: 2`, `stableSlotsMax: 5`,
 `stableSlotPrices: [2000, 10000, 50000]` (regra em `Breed.precoVaga`), `stableSlotsLegado: 8`.

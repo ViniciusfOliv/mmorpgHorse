@@ -235,8 +235,8 @@
     crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.6,
     draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,   // vácuo: vale para todos
     rainSlow: 0.015, sunDrain: 1.04,
-    // clima: dono ×1,03 (×1,08 com skill de clima), penalizado ×0,97. O multiplicador m entra como soma
-    // fixa em n: n + (m − 1)·weatherAdd (o mesmo efeito do inicial em qualquer nível);
+    // clima: dono m = 1,03 (1,08 com skill de clima), penalizado 0,97. O m NÃO multiplica o status: entra como soma
+    // fixa em n: n + (m − 1)·weatherAdd, ou seja +1,5 ponto de status (com a skill de clima, +3,5 no rank I a +4,7 no rank V), o mesmo em qualquer nível (D3);
     // weatherVel: fração extra do desvio que vai direto na vMax
     weatherMult: 1.03, weatherMultDouble: 1.08, weatherVel: 0.10, weatherAdd: 0.5,
     // garra: a arrancada começa em garraZone − garraZoneK·(n − 0,5) da pista; chance e força crescem com n
