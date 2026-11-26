@@ -1,0 +1,8 @@
+{
+  "name": "galope-ferramentas",
+  "private": true,
+  "description": "Só as ferramentas de teste (wiki-test e ui-test). O jogo não tem dependências. Instalar: npm ci --prefix prototype/tools",
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}

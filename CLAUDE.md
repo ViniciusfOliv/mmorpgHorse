@@ -46,6 +46,7 @@ lançamento: `docs/cronograma.md`.
 | Teste de interface em paralelo (o que o `check.sh` usa; não grava capturas) | `node prototype/tools/ui-test-paralelo.mjs` | ~11 min |
 | Teste de interface num processo só + capturas em `prototype/screens/` (`UI_SO=bloco` roda só um; `--blocos` lista) | `node prototype/tools/ui-test.mjs` | ~20 min |
 | **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~12 min |
+| Playwright dos testes, uma vez por máquina (versão fixa só das ferramentas; o jogo não tem dependências) | `npm ci --prefix prototype/tools` | ~5 s |
 
 Mudou número de regra (status, skill, pista, peça, Poder, ginásio)? Rode também o `balance.js` completo: as metas
 M6, M9, P1, S1 e A1 só contam nele (no `--quick`, que o `check.sh` usa, são só informação), e as dos ginásios G1, G2,
