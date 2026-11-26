@@ -34,5 +34,7 @@ Code mudam: na dúvida, vale a documentação oficial (https://code.claude.com/d
   gaste créditos.
 
 ## Teste de interface
-`prototype/tools/ui-test.mjs` usa o Playwright com Chromium. O projeto não tem `package.json`: o
-Playwright precisa estar instalado no ambiente (nas sessões na nuvem já vem instalado).
+`prototype/tools/ui-test.mjs` e `wiki-test.mjs` usam o Playwright com Chromium, em versão fixa no
+`prototype/tools/package.json` (só ferramentas; o jogo continua sem dependências). Instalar uma vez:
+`npm ci --prefix prototype/tools` (o `node_modules/` fica fora do Git). Nas sessões na nuvem ele já vem instalado no
+ambiente e também serve.

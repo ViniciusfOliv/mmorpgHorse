@@ -46,6 +46,9 @@ node prototype/tools/arte-check.mjs > "$SHOTS_DIR/arte.txt" || { cat "$SHOTS_DIR
 tail -n 1 "$SHOTS_DIR/arte.txt"
 
 step "6/8 Wiki"
+# wiki-test e ui-test usam o Playwright das ferramentas (prototype/tools/package.json) ou o do ambiente (nuvem).
+node -e "require('module').createRequire('$ROOT/prototype/tools/ui-test.mjs').resolve('playwright')" 2>/dev/null || {
+  echo "Falta o Playwright dos testes: rode  npm ci --prefix prototype/tools  (o Chromium: npx --prefix prototype/tools playwright install chromium)"; exit 1; }
 node prototype/tools/wiki-test.mjs > "$SHOTS_DIR/wiki.txt" 2>&1 || { cat "$SHOTS_DIR/wiki.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/wiki.txt"
 
