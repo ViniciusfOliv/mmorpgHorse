@@ -2281,7 +2281,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   };
   var DOIS_PI = Math.PI * 2;
   // um animador por cavalo e estado (a semente das marcas, a pose e o molde); quem some da tela sai no limpar do cache
-  var idleRegistro = new Map();
+  var idleRegistro = new Map(), IDLE_REGISTRO_MAX = 16;
   var ccCena = new WeakMap();   // opções da cena -> chave das cores (moldeIdle)
   function moldeIdle(nome, estado, o) {
     var M = moldes[nome], sem = (o.semente >>> 0) || 0, k = nome + '|' + estado + '|' + sem + '|' + (o.anima === 'cena' ? 'c' : '');
@@ -2300,9 +2300,11 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
       // pintados: os quadros do idle já pintados (a respiração e as orelhas voltam aos mesmos estados; repintar custava
       // ~1 ms a cada troca na cena do desafio)
       r = { anim: new IdleMolde(M, estado, sem * 2654435761 + estado.length, gestos), chave: '', canvas: null, pintados: new Map() };
-      if (idleRegistro.size > 48) idleRegistro.clear();
+      // os menus não limpam mais este registro a cada troca de tela (só a corrida limpa): sai o animador usado há mais
+      // tempo, um por vez (cada um guarda até 96 quadros pintados; 16 animadores ≈ 10 MB no pior caso — a largada tem 8)
+      while (idleRegistro.size >= IDLE_REGISTRO_MAX) idleRegistro.delete(idleRegistro.keys().next().value);
       idleRegistro.set(k, r);
-    }
+    } else if (idleRegistro.size > 1) { idleRegistro.delete(k); idleRegistro.set(k, r); }   // usado agora: vai para o fim da fila
     var t = Number(o.t) || 0;
     // sem marcas nas vistas de frente e de costas (decisão do Vinicius para a v1 da cena de desafio nova)
     var oP = IDLE_GESTOS_ESTADO[estado] ? Object.assign({}, o, { marcas: null }) : o;
@@ -2310,16 +2312,25 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     var cc = o.anima === 'cena' ? ccCena.get(o) : null, vista = estado === 'frente' || estado === 'costas';
     if (cc == null) { cc = '#' + chaveCores(o); if (o.anima === 'cena') ccCena.set(o, cc); }
     if (o.anima === 'cena' && !r.aquecido) {
-      // as cenas (poucos cavalos): os estados dos próximos segundos pintados já na montagem, por um animador à parte com a
+      // as cenas (poucos cavalos): os estados dos próximos segundos pintados adiantado, por um animador à parte com a
       // mesma semente (os eventos saem da RNG cosmética e do t: os mesmos do animador de verdade) — sem isso, o 1º ciclo
-      // pintava um estado novo a cada troca (~0,5 ms cada)
+      // pintava um estado novo a cada troca (~0,5 ms cada). No navegador vão em fatias de até 4 estados por tarefa, depois
+      // do 1º desenho (pintar os ~20 a 60 de uma vez, dentro do 1º desenho da cena, segurava a troca de tela: fluidez,
+      // 2026-11-25); o quadro de agora é pintado na hora, como sempre. Sem temporizador (testes no Node), tudo de uma vez.
       r.aquecido = true;
-      var aq = new IdleMolde(M, estado, sem * 2654435761 + estado.length, null), fim = t + aq.respira + 0.5;
-      for (var ta = t; ta < fim && r.pintados.size < 64; ta += 1 / 14) {
-        aq.agenda(ta);
-        var ka = aq.monta(ta) + cc;
-        if (!r.pintados.has(ka)) r.pintados.set(ka, pintaMolde(M, aq.mapa, M.ancoras[estado], oP, vista));
-      }
+      var aq = new IdleMolde(M, estado, sem * 2654435761 + estado.length, null), fim = t + aq.respira + 0.5, ta = t;
+      var fatia = function (max) {
+        for (var n = 0; ta < fim && r.pintados.size < 64 && n < max; ta += 1 / 14) {
+          aq.agenda(ta);
+          var ka = aq.monta(ta) + cc;
+          if (!r.pintados.has(ka)) { r.pintados.set(ka, pintaMolde(M, aq.mapa, M.ancoras[estado], oP, vista)); n++; }
+        }
+        return ta < fim && r.pintados.size < 64;
+      };
+      if (typeof window !== 'undefined' && typeof window.setTimeout === 'function' && typeof document !== 'undefined') {
+        var passo = function () { if (idleRegistro.get(k) === r && moldes && moldes[nome] === M && fatia(4)) window.setTimeout(passo, 0); };
+        window.setTimeout(passo, 30);
+      } else fatia(Infinity);
     }
     r.anim.agenda(t);
     // a chave primeiro (barata); o mapa só é montado para um quadro que ainda não foi pintado

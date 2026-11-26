@@ -181,3 +181,15 @@ todos os outros da corrida e as mesmas skills, supostamente eu ganharia. Faça u
   hoje?
 - **P3 —** Posso propor a integração do `youthful-maxwell` à `main` (avanço direto, só texto e capturas) como o primeiro
   passo depois da P1? Isso seria um push na `main`, então só com o seu "sim" explícito.
+
+## Estado em 2026-11-26 (D6, Vinicius: "Integrar" e "Confirmo")
+
+Conferido com `git fetch --prune` contra a `main` (801cebe1):
+
+| Ramo | Commits fora da `main` | Destino |
+|---|---|---|
+| `claude/fluidez` | 5 (25/11: trocas de tela mais rápidas, `fluidez.mjs`, bloco `fluidez` no `ui-test`) | **Integrado** por merge no ramo `feat/integra-fluidez` (4 conflitos de "manter os dois": `game.js`, `CLAUDE.md`, `ESTADO.md`, `decisoes.md`; `dist/` regenerado) |
+| `claude/salas-economia` | 1 (spec `2026-11-25-salas-economia-design.md` e a medição `salas-medida*.js`) | **Referência**: a D9 foi feita a partir dele (spec da D9, linha 60); nada entra por merge |
+| `claude/nifty-newton-e8u133` | 22 (18–19/11) | **Guardado** (D6c): arte paga do PixelLab que só existe nele; referência da D4 |
+| `claude/youthful-maxwell-zh7h58` | 0 | Já na `main` (D6a) |
+| Os outros 21 `claude/*` | 0 | Já na `main`; **não apagados** (D6d: apagar no GitHub não tem volta pelo site) |

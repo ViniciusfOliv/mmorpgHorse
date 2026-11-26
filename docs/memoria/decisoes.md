@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-26 — D6: fluidez integrada; os outros ramos ficam (Vinicius: "Integrar" e "Confirmo")
+- `claude/fluidez` entrou por merge (4 conflitos de "manter os dois"; `dist/` regenerado). Medição `fluidez.mjs` (CPU 4×
+  mais lenta), main → integrado, em ms: Expedição 601 → 55; viagem ao ginásio 504 → 41; Haras 378 → 104; Desafiar 171 → 96;
+  Estábulo 134 → 70; voltar da ficha 132 → 68; voltar do Perfil 128 → 63. `check.sh` com 85 blocos (+ `fluidez`).
+- `salas-economia` fica como referência (a D9 saiu dele); `nifty-newton` guardado (arte paga); os 21 integrados não são
+  apagados. Estado de cada ramo em `docs/auditoria/recuperacao-ramos.md`.
+
 ## 2026-11-26 — Texto de Gemas/VIP aplicado no CLAUDE.md §1 e §8 (Vinicius: "Sim, aplique")
 - Sai "Gemas nunca viram Ouro, direta ou indiretamente" e "Gema nunca acelera o que paga Ouro"; entra: **o Ouro nunca é
   vendido**, por dinheiro nem por Gemas; vantagens pagas (VIP e Gemas) só as listadas na spec da loja, com teto em
@@ -1508,3 +1515,12 @@ Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, 
   linhagem; álbum; limite diário só como bônus dos primeiros pódios, nunca cortando o pote. Rank entre jogadores reais
   depende do servidor. Pergunta que ficou sem resposta: como é o dia do jogador (uma sentada de 10–15 min, várias
   visitas de 2 min ou sem limite).
+## 2026-11-25 · fluidez das trocas de tela (ramo `claude/fluidez`)
+- 2026-11-25 · A fluidez do ramo antigo (`claude/nifty-newton-e8u133`) foi reimplementada, não trazida por merge · o mapa antigo (as `<img>` reaproveitadas, o fundo da cena pintado uma vez) não existe mais; da ideia ficaram a ferramenta (`fluidez.mjs`), o bloco `fluidez` do `ui-test` e o desenho adiado dos retratos.
+- 2026-11-25 · O cache dos moldes recoloridos só é limpo ao entrar e ao sair da corrida (era a cada troca de tela) · repintar todos os cavalos a cada troca era a maior parte do tempo dela; os caches têm teto em bytes e o registro do idle passou a tirar só o animador mais antigo (teto de 16).
+- 2026-11-25 · O que cada tela monta uma vez (imagens, cena de cada aba, mapa-múndi, trilhas, arenas, idle dos cavalos do Haras) é montado adiantado, um passo por vez, em tempo ocioso depois da carga ("aquecimento") · caía inteiro no 1º toque (0,1 a 0,5 s no celular simples). Só nos menus; nunca na corrida, na sala, nos duelos ou no meio da viagem. Quem toca antes do passo monta na hora, como antes.
+- 2026-11-25 · O quadro do instante 0 da cena das abas, do mapa-múndi e das trilhas fica guardado e é só copiado no 1º desenho da tela · o 1º desenho sempre pediu o instante 0 (e o laço segue do relógio depois); a imagem é a mesma de antes, fora as partículas (fumaça, brasas), que no quadro guardado ficam como estavam quando ele foi feito.
+- 2026-11-25 · Mapa-múndi, trilha e cena de desafio em canvas na resolução de arte, ampliados pelo CSS (`image-rendering: pixelated`) · eles só copiam um buffer de arte inteiro; a cópia ampliada (256 × 384 → ~1000 × 1500) a cada quadro era metade do custo. Capturas iguais pixel a pixel em 4 densidades. A cena das abas NÃO: o cavalo dela (efeito de raridade, sombra) não sai igual desenhado a 1× e ampliado.
+- 2026-11-25 · Os estados do idle das cenas são pintados em fatias de 4 por tarefa depois do 1º desenho (eram até 64 de uma vez, dentro dele) · segurava a troca de tela do Haras e da cena de desafio.
+- 2026-11-25 · A medição de fluidez usa um "save de quem já joga" (8 montarias) e espera o aquecimento acabar; `--sem-aquecer` mede o toque logo depois da carga · o save DEV novo tem um cavalo só e escondia o custo dos retratos; a viagem ao ginásio é medida pelo pior intervalo entre quadros da animação, não pelo 2º quadro.
+- 2026-11-25 · Bloco `fluidez` no `check.sh` (pela fase em série do `ui-test-paralelo`), com teto por troca perto de 2× o medido · ~1 min a mais na verificação; pega a volta de qualquer um dos custos de antes (que eram de 2 a 9 vezes maiores).
