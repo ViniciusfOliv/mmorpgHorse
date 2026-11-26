@@ -377,14 +377,14 @@ try {
         s = await st()
         if (s.gold < 250) problems.push('reserva: gasto passou da entrada reservada (Ouro ' + s.gold + ')')
       }
-      // 3. vaga do estábulo (300) com 260: recusada mesmo forçando o clique
-      await rv.evaluate(() => { window.__galope.state.gold = 500 })
+      // 3. a 3ª vaga do estábulo (2.000, D1) com 2.200 e 250 reservados: recusada mesmo forçando o clique
+      await rv.evaluate(() => { window.__galope.state.gold = 2200 })
       await rv.locator('[data-acao="aba"][data-id="estabulo"]').click()
       await rv.waitForSelector('#t-estabulo')
-      if (!(await indisp(rv.locator('[data-acao="expandir"]')))) problems.push('reserva: expandir o estábulo habilitado com só 250 livres')
+      if (!(await indisp(rv.locator('[data-acao="expandir"]')))) problems.push('reserva: expandir o estábulo habilitado com só 1.950 livres')
       await rv.evaluate(() => { const b = document.querySelector('[data-acao="expandir"]'); b.disabled = false; b.removeAttribute('aria-disabled'); b.click() })
       s = await st()
-      if (s.gold !== 500 || s.stableSlots !== 3) problems.push('reserva: expandir com a entrada reservada ' + JSON.stringify({ gold: s.gold, slots: s.stableSlots }))
+      if (s.gold !== 2200 || s.stableSlots !== 2) problems.push('reserva: expandir com a entrada reservada ' + JSON.stringify({ gold: s.gold, slots: s.stableSlots }))
       await rv.evaluate(() => { window.__galope.state.gold = 260 })
       // 4. procurar de novo: a MESMA sala
       const salaB = await abrirSala(rv)
@@ -653,10 +653,10 @@ try {
       await av.waitForSelector('#t-estabulo')
       await abrirSala(av, 250)
       await av.getByRole('button', { name: /^Voltar/ }).click()
-      await av.evaluate(() => { window.__galope.state.gold = 500 })
+      await av.evaluate(() => { window.__galope.state.gold = 2200 })
       await av.locator('[data-acao="aba"][data-id="estabulo"]').click()
       await av.waitForSelector('#t-estabulo')
-      // vaga do estábulo (300) com só 250 livres: clique forçado, o aviso aparece
+      // a 3ª vaga do estábulo (2.000, D1) com só 1.950 livres: clique forçado, o aviso aparece
       await av.evaluate(() => { const b = document.querySelector('[data-acao="expandir"]'); b.disabled = false; b.removeAttribute('aria-disabled'); b.click() })
       if (!RES.test(await avisos())) problems.push('aviso: recusa da vaga sem o aviso de Ouro reservado: ' + await avisos())
       // redesenho passivo (o mesmo dos moldes chegando): mudar a largura da janela
@@ -11614,7 +11614,7 @@ try {
       await montaSave(pg, (raw) => {
         raw.activeId = 'm2'; raw.raceCounter = 4
         raw.pending = { counter: raw.raceCounter, training: false, fee: 100, pr: S.powerRating(raw.mounts[1]), alloc: JSON.parse(JSON.stringify(raw.mounts[1].alloc)), gear: [] }
-        raw.gold = 350   // a vaga custa 300: com 100 da entrada reservados, sobram 250 (o aviso da reserva fica na tela)
+        raw.gold = B.precoVaga(raw.stableSlots ?? 3) + 50   // a próxima vaga (D1): com 100 da entrada reservados, falta 50 (o aviso da reserva fica na tela)
       })
       await confere('Expandir com a entrada reservada', '[data-acao="expandir"]', /^100 de Ouro reservados para a entrada do páreo aberto\.$/, { alvo: true })
       if (await pg.locator('#tela [data-acao="ativar"]').count()) problems.push(`${label}: "Tornar ativa" na lista do Estábulo (páreo aberto)`)
@@ -13056,11 +13056,20 @@ try {
   if (!(await indisp(page.locator('[data-acao="liberar"][data-id="m1"]')))) problems.push('liberar da montaria ativa não está desabilitado')
   await page.locator('[data-acao="montaria-voltar"]').click()
   await page.waitForSelector('#t-estabulo')
-  await page.evaluate(() => { window.__galope.state.gold = 2000 })
+  // D1: save novo com 2 vagas; a 3ª custa 2.000, a 4ª 10.000 e a 5ª 50.000; no 5 o botão fica indisponível com o motivo
+  if ((await page.evaluate(() => window.__galope.state.stableSlots)) !== 2) problems.push('save novo sem 2 vagas: ' + await page.evaluate(() => window.__galope.state.stableSlots))
+  await page.evaluate(() => { window.__galope.state.gold = 62500 })
   await page.locator('[data-acao="aba"][data-id="estabulo"]').click()   // re-renderiza o estábulo
-  await page.locator('[data-acao="expandir"]').click()
-  const exp = await page.evaluate(() => ({ slots: window.__galope.state.stableSlots, gold: window.__galope.state.gold }))
-  if (exp.slots !== 4 || exp.gold !== 1700) problems.push('expandir estábulo: ' + JSON.stringify(exp))
+  for (const [preco, vagas, sobra] of [[2000, 3, 60500], [10000, 4, 50500], [50000, 5, 500]]) {
+    const rot = ((await page.locator('[data-acao="expandir"]').textContent()) || '').trim()
+    if (rot !== 'Expandir estábulo (' + preco.toLocaleString('pt-BR') + ')') problems.push('expandir estábulo: rótulo "' + rot + '" (esperado ' + preco + ')')
+    await page.locator('[data-acao="expandir"]').click()
+    const exp = await page.evaluate(() => ({ slots: window.__galope.state.stableSlots, gold: window.__galope.state.gold }))
+    if (exp.slots !== vagas || exp.gold !== sobra) problems.push('expandir estábulo: ' + JSON.stringify(exp) + ' (esperado ' + vagas + ' vagas e ' + sobra + ' de Ouro)')
+  }
+  const expMax = page.locator('[data-acao="expandir"]')
+  if (((await expMax.textContent()) || '').trim() !== 'Estábulo no máximo' || !(await indisp(expMax)) || (await expMax.getAttribute('data-motivo')) !== 'O estábulo já está no máximo de vagas pelo Ouro (5).') problems.push('estábulo no máximo: botão ou motivo errado')
+  await page.evaluate(() => { window.__galope.state.gold = 1700 })   // o Ouro com que o fluxo seguia antes da D1
 
   // sala de largada: voltar não re-sorteia, e nada de resultado antes de pagar
   await page.locator('[data-acao="aba"][data-id="correr"]').click()
@@ -13242,10 +13251,37 @@ try {
   await bad.waitForSelector('#t-estabulo')
   const migBad = await bad.evaluate(() => {
     const s = window.__galope.state
-    return { ok: s.mounts.length === 1 && s.activeId === 'm1' && s.gold === 555 && s.stableSlots === 3 && s.nextUid >= 2, save: JSON.stringify(s) }
+    return { ok: s.mounts.length === 1 && s.activeId === 'm1' && s.gold === 555 && s.stableSlots === 2 && s.nextUid >= 2, save: JSON.stringify(s) }
   })
   if (!migBad.ok) problems.push('save v3 corrompido não foi saneado: ' + migBad.save)
   await badCtx.close()
+
+  // D1: saves de antes (3 de início, até 8 a 300) ficam com as vagas: com 8 não compram mais (acima do teto 5); com 3
+  // a próxima custa 10.000 e grava; com 4 cavalos e 4 vagas ninguém perde vaga
+  for (const [vagas, cavalos, preco] of [[8, 1, null], [3, 1, 10000], [4, 4, 50000]]) {
+    const lab = 'vagas-legado-' + vagas
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
+    const pg = await ctx.newPage()
+    pg.on('pageerror', (e) => problems.push(`[${lab}] pageerror: ${e.message}`))
+    const raw = JSON.parse(BAD_V3)
+    raw.mounts = raw.mounts.filter((m) => m && m.uid === 'm1').slice(0, 1)
+    for (let i = 2; i <= cavalos; i++) raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(raw.mounts[0])), { uid: 'm' + i, name: 'C' + i }))
+    raw.activeId = 'm1'; raw.nextUid = cavalos + 1; raw.stableSlots = vagas; raw.gold = 60000
+    await pg.addInitScript((r) => { window.localStorage.setItem('galope-elemental:v1', r) }, JSON.stringify(raw))
+    await pg.goto(URL, { waitUntil: 'domcontentloaded' })
+    await pg.waitForSelector('#t-estabulo')
+    const s0 = await pg.evaluate(() => ({ vagas: window.__galope.state.stableSlots, n: window.__galope.state.mounts.length }))
+    if (s0.vagas !== vagas || s0.n !== cavalos) problems.push(`${lab}: carregou com ${s0.vagas} vagas e ${s0.n} cavalos`)
+    const bx = pg.locator('[data-acao="expandir"]')
+    if (preco == null) {
+      if (!(await indisp(bx)) || ((await bx.textContent()) || '').trim() !== 'Estábulo no máximo') problems.push(`${lab}: o save com 8 vagas ainda compra`)
+    } else {
+      await bx.click()
+      const s1 = await pg.evaluate(() => ({ vagas: window.__galope.state.stableSlots, gold: window.__galope.state.gold, salvo: JSON.parse(localStorage.getItem('galope-elemental:v1')).stableSlots }))
+      if (s1.vagas !== vagas + 1 || s1.gold !== 60000 - preco || s1.salvo !== vagas + 1) problems.push(`${lab}: compra da vaga ${JSON.stringify(s1)} (esperado ${preco})`)
+    }
+    await ctx.close()
+  }
 
   // fixtures de equipamento: v3 completo (todos os itens antigos) e v4 corrompido
   const openSave = async (label, raw) => {

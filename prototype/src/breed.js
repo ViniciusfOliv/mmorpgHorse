@@ -433,6 +433,15 @@
     };
   }
 
+  // D1: preço em Ouro da próxima vaga do estábulo para quem tem `vagas` vagas (inteiro): stableSlotPrices[vagas − início];
+  // null no máximo pelo Ouro ou acima dele (saves antigos com até 8), e com entrada inválida.
+  function precoVaga(vagas) {
+    var E = G.ECONOMY.breeding, n = vagas;
+    if (typeof n !== 'number' || !isFinite(n) || Math.floor(n) !== n || n >= E.stableSlotsMax) return null;
+    var p = E.stableSlotPrices[Math.max(0, n - E.stableSlotsStart)];
+    return typeof p === 'number' ? p : null;
+  }
+
   var Breed = {
     TUNING: TUNING,
     RARITY_IDS: RARITY_IDS,
@@ -446,6 +455,7 @@
     rollRarity: rollRarity,
     rollGrau: rollGrau,
     rentalPrice: rentalPrice,
+    precoVaga: precoVaga,
     isCorcel: isCorcel,
     skillCandidates: skillCandidates,
     hashChave: hashChave,

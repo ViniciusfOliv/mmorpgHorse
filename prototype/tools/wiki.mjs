@@ -976,7 +976,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       `**Cruzar duas suas:** registro de ${num(BR.ownRegistration)} de Ouro; as duas precisam ter cruzas restantes e cada uma gasta 1.`,
       `**Troca:** duas montarias suas de sexos opostos, com qualquer número de cruzas, viram um potro por ${num(BR.exchange)} de Ouro. Os dois pais deixam o estábulo.`,
       `**Cruzas restantes ao nascer:** ${Object.keys(G.BREED_LEFT).map((s) => `${s === 'm' ? 'macho' : 'fêmea'} ${G.BREED_LEFT[s]}`).join(', ')}. Cada cruza gasta 1 da sua montaria.`,
-      `**Estábulo:** cruzar exige vaga livre (o potro ocupa uma). Vagas: ${BR.stableSlotsStart} no começo, até ${BR.stableSlotsMax}, a ${num(BR.stableSlotPrice)} de Ouro cada.`,
+      `**Estábulo:** cruzar exige vaga livre (o potro ocupa uma). Vagas: ${BR.stableSlotsStart} no começo, até ${BR.stableSlotsMax} pelo Ouro; a próxima vaga custa ${lista(BR.stableSlotPrices.map((p, i) => `${num(p)} (${BR.stableSlotsStart + i + 1}ª)`))} de Ouro. Saves de antes de 2026-11-26 ficam com as vagas que já tinham (até ${BR.stableSlotsLegado}).`,
       'Não dá para cruzar com um páreo aberto (sala paga ou não).'
     ] },
     { t: 'tabela', rotulo: 'Aluguel', titulo: 'Preço do aluguel (base × estrelas)', cab: ['Raridade', ...BR.grauMult.map((w, i) => estrelas(i + 1))], linhas: Object.keys(BR.rentalBase).map((r) => [rarCel(r), ...BR.grauMult.map((w, i) => ouroCel(B.rentalPrice({ rarity: r, grau: i + 1 })))]) },
@@ -1076,7 +1076,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `Treino (quando o Ouro não cobre ${num(minE)}): sem entrada, ${lista(F.treinoOuro.map((x, i) => `${ordinal(i + 1)} ${x}`))} de Ouro.` },
     { t: 'h3', txt: 'Outros preços' },
     { t: 'dl', itens: [
-      ['Vaga extra no estábulo', `${num(BR.stableSlotPrice)} de Ouro (de ${BR.stableSlotsStart} até ${BR.stableSlotsMax} vagas)`],
+      ['Vaga extra no estábulo', `${BR.stableSlotPrices.map((p) => num(p)).join(' · ')} de Ouro (de ${BR.stableSlotsStart} até ${BR.stableSlotsMax} vagas)`],
       ['Pedra Negra', `${num(EG.stonePrice)} de Ouro (pacote de ${EG.stoneBundle}: ${num(EG.stonePrice * EG.stoneBundle)})`],
       ['Peças', `${gearRar.filter((r) => gearIds.some((id) => peca(id).rarity === r && peca(id).shop)).map((r) => `${nomeRar(r)} ${num(EG.price[r])}`).join(' · ')}; venda a ${pct(EG.sellRate, 0)}`],
       ['Cruza', `aluguel ${num(Math.min(...alugaveis.map((h) => B.rentalPrice(h))))} a ${num(Math.max(...alugaveis.map((h) => B.rentalPrice(h))))}; registro ${num(BR.ownRegistration)}; Troca ${num(BR.exchange)}`]

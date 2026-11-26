@@ -913,7 +913,8 @@
   function sanitize(s) {
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
-    var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
+    // saves de antes da D1 ficam com as vagas que tinham: até 8 (o máximo antigo) e, sem o campo (v1/v2), as 3 de início de então
+    var start = BR.stableSlotsStart, max = BR.stableSlotsLegado, inicioAntigo = 3;
     var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= 6, v7 = Number(s.v) >= 7, v8 = Number(s.v) >= 8, v10 = Number(s.v) >= 10;
     var seedBase = num(s.seedBase, null, 0, 4294967295);
     if (seedBase == null) seedBase = freshSeedBase(0);
@@ -927,7 +928,7 @@
       m1.xp = num(s.xp, 0, 0, 1e7);
       m1.skills = validSkills(s.skills, m1);
       m1.skillRanks = IT.sanearRanks(m1.skills, null);
-      mounts = [m1]; activeId = 'm1'; nextUid = 2; stableSlots = start; breedCounter = 0;
+      mounts = [m1]; activeId = 'm1'; nextUid = 2; stableSlots = inicioAntigo; breedCounter = 0;
     } else {
       // v3+: mounts que não é array vira [] (recria o inicial e mantém o Ouro)
       mounts = [];
@@ -944,7 +945,7 @@
       activeId = mounts.some(function (m) { return m.uid === s.activeId; }) ? s.activeId : mounts[0].uid;
       nextUid = Math.max(num(s.nextUid, 0, 0, 1e9), maxUid + 1);
       // perfil DEV: o painel cria cavalos sem limite de vagas (o estábulo cresce junto)
-      stableSlots = clamp(num(s.stableSlots, start, 0, 1e9), Math.max(start, mounts.length), DEV_MODE ? Math.max(max, mounts.length) : max);
+      stableSlots = clamp(num(s.stableSlots, inicioAntigo, 0, 1e9), Math.max(start, mounts.length), DEV_MODE ? Math.max(max, mounts.length) : max);
       breedCounter = num(s.breedCounter, 0, 0, 1e9);
     }
     var base = newState(GD.STARTERS[0].id);
@@ -2845,7 +2846,8 @@
   // aviso da reserva (Loja, Estábulo), só quando há Ouro reservado
   function reservaHtml() { return ouroReservado() ? '<p class="nota nota--reserva">' + esc(reservaTxt()) + '.</p>' : ''; }
 
-  var SLOT_PRICE = BR.stableSlotPrice;
+  // preço da próxima vaga do estábulo (D1): cresce a cada compra; null no máximo pelo Ouro
+  function precoVaga() { return BRD.precoVaga(state.stableSlots); }
   function uidNum(uid) { return String(uid).replace(/\D+/g, ''); }
 
   // por que "Tornar ativa" está indisponível ('' quando pode). A ficha da ativa nem mostra o botão (3b §5)
@@ -2901,14 +2903,14 @@
   }
 
   function montariasHtml() {
-    var maxed = state.stableSlots >= BR.stableSlotsMax;
-    var canExpand = !maxed && podeGastar(SLOT_PRICE);
-    var reservaBloqueia = !maxed && state.gold >= SLOT_PRICE && !canExpand;
-    var motivoExp = canExpand ? '' : maxed ? 'O estábulo já está no máximo.'
+    var preco = precoVaga(), maxed = preco == null;
+    var canExpand = !maxed && podeGastar(preco);
+    var reservaBloqueia = !maxed && state.gold >= preco && !canExpand;
+    var motivoExp = canExpand ? '' : maxed ? 'O estábulo já está no máximo de vagas pelo Ouro (' + BR.stableSlotsMax + ').'
       : reservaBloqueia ? reservaTxt() + '.' : 'Falta Ouro para expandir o estábulo.';
     return '<section class="caixa" aria-label="Suas montarias"><ul class="montarias">' + state.mounts.map(function (m) { return '<li>' + mountRowHtml(m, m.uid === state.activeId) + '</li>'; }).join('') + '</ul>' +
       '<div class="acoes"><button type="button" data-acao="expandir" class="btn"' + indisponivel(motivoExp) + '>' +
-        (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div>' +
+        (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(preco) + ')') + '</button></div>' +
       (reservaBloqueia ? reservaHtml() : '') + '</section>';
   }
 
@@ -8574,12 +8576,13 @@
         if (ui.screen === 'montaria') go(ui.tab); else rerenderKeepScroll();
         break;
       case 'expandir':
-        if (state.stableSlots >= BR.stableSlotsMax || !podeGastar(SLOT_PRICE)) {
-          if (state.gold >= SLOT_PRICE) ui.notice = reservaTxt() + '.';
+        var precoE = precoVaga();
+        if (precoE == null || !podeGastar(precoE)) {
+          if (precoE != null && state.gold >= precoE) ui.notice = reservaTxt() + '.';
           rerenderKeepScroll(); break;
         }
         var sE = state, antesE = clone(state);
-        state.gold -= SLOT_PRICE; state.stableSlots += 1;
+        state.gold -= precoE; state.stableSlots += 1;
         var gE = gravaGasto(sE, antesE);
         if (gE === 'outra-aba') break;
         if (gE === 'falhou') ui.notice = FALHA_SALVAR;

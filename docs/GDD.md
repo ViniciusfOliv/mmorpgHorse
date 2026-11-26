@@ -145,7 +145,7 @@ cada faixa de distância). No nível 25 caem na Prata (Poder 782–791).
 
 Spec completa e algoritmo: `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (o código é `prototype/src/breed.js`). Números reais: `docs/wiki.md` (Cruzamento); potros de exemplo em `docs/exemplos.md` §4.
 
-**Estábulo:** começa com 3 vagas; +1 vaga por 300 Ouro, até 8. Cada montaria tem nome, raridade + estrelas, tipo, sexo, nível e cruzamentos restantes (♂ 2 / ♀ 1). O selo da montaria mostra os pontos que ainda dá para distribuir. Uma delas é a ativa (a que corre). Liberar não devolve Ouro; a ativa e a última montaria não podem ser liberadas.
+**Estábulo (D1, 2026-11-26):** começa com 2 vagas; compra com Ouro até 5 — a 3ª por 2.000, a 4ª por 10.000 e a 5ª por 50.000 (ajustáveis depois de simular o farm). As 2 vagas por Gemas e a 1 do VIP (total 8) vêm com a loja. Saves de antes ficam com as vagas que já tinham (até 8). Cada montaria tem nome, raridade + estrelas, tipo, sexo, nível e cruzamentos restantes (♂ 2 / ♀ 1). O selo da montaria mostra os pontos que ainda dá para distribuir. Uma delas é a ativa (a que corre). Liberar não devolve Ouro; a ativa e a última montaria não podem ser liberadas.
 
 **Estrelas (★/★★/★★★):** saem do cruzamento (regra abaixo), sobem com a Estrela de treino (8.2) e multiplicam os pontos por nível do potro (§3). O status do potro sai só da genética e da raridade; as estrelas não mexem nele.
 

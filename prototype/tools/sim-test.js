@@ -890,7 +890,8 @@ test('nomes de potro e economia do cruzamento', function () {
   assert.ok(G.FOAL_NAMES.length >= 30); G.FOAL_NAMES.forEach(function (n) { assert.ok(n.length >= 2 && n.length <= 12, n); });
   var B = G.ECONOMY.breeding;
   assert.deepStrictEqual(B.rentalBase, { comum: 100, magico: 250, raro: 600, lendario: 1500 });
-  assert.deepStrictEqual(B.grauMult, [1, 1.25, 1.5]); assert.strictEqual(B.stableSlotsStart, 3); assert.strictEqual(B.stableSlotsMax, 8);
+  assert.deepStrictEqual(B.grauMult, [1, 1.25, 1.5]); assert.strictEqual(B.stableSlotsStart, 2); assert.strictEqual(B.stableSlotsMax, 5); assert.strictEqual(B.stableSlotsLegado, 8);
+  assert.deepStrictEqual(B.stableSlotPrices, [2000, 10000, 50000]);   // D1
   assert.strictEqual(B.levelSaturation, 30); assert.strictEqual(B.mareWeight, 0.6); assert.deepStrictEqual(G.BREED_LEFT, { m: 2, f: 1 });
 });
 
@@ -975,6 +976,11 @@ test('D8: o Dado Viciado não soma Poder (peso do gatilho dice 0)', function () 
   assert.strictEqual(S.SKILL_TRIGGER_WEIGHT.dice, 0); assert.strictEqual(S.skillWeight('dado-viciado'), 0);
   var h = mk2({ skills: ['sprint'] }), d = mk2({ skills: ['sprint', 'dado-viciado'] }); d.skillRanks = { 'dado-viciado': 5 };
   assert.strictEqual(S.powerRating(d), S.powerRating(h));
+});
+test('D1: precoVaga — 2 vagas → 2.000, 3 → 10.000, 4 → 50.000; 5 ou mais (saves antigos até 8) e lixo → null', function () {
+  assert.strictEqual(B.precoVaga(2), 2000); assert.strictEqual(B.precoVaga(3), 10000); assert.strictEqual(B.precoVaga(4), 50000);
+  [5, 6, 8, 9, 2.5, NaN, 'x', null, undefined, Infinity].forEach(function (v) { assert.strictEqual(B.precoVaga(v), null, String(v)); });
+  assert.strictEqual(B.precoVaga(1), 2000, 'abaixo do início (não acontece no jogo) paga a primeira');
 });
 test('rentalPrice e isCorcel', function () {
   assert.strictEqual(B.rentalPrice(mk2({ rarity: 'comum', grau: 2 })), 125); assert.strictEqual(B.rentalPrice(mk2({ rarity: 'lendario', grau: 3 })), 2250);

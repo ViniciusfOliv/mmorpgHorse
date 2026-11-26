@@ -2233,7 +2233,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       rentalBase: { comum: 100, magico: 250, raro: 600, lendario: 1500 },
       grauMult: [1, 1.25, 1.5],
       ownRegistration: 50, exchange: 50,
-      stableSlotPrice: 300, stableSlotsStart: 3, stableSlotsMax: 8,
+      // Vagas do estábulo (D1, 2026-11-26): 2 de início e até 5 pelo Ouro; o preço da vaga n+1 é stableSlotPrices[n − início]
+      // (Breed.precoVaga). As 3 vagas de Gemas e VIP ainda não existem. Saves de antes (3 de início, até 8 a 300 cada)
+      // ficam com as vagas que têm: o saneamento aceita até stableSlotsLegado.
+      stableSlotPrices: [2000, 10000, 50000], stableSlotsStart: 2, stableSlotsMax: 5, stableSlotsLegado: 8,
       levelSaturation: 30, mareWeight: 0.6,
       // D8: com Sorte genética 31 nos dois pais, sortePP pontos percentuais passam de "1 abaixo" para "1 acima" na
       // raridade e de "desce" para "sobe" nas estrelas (Breed.sorteShift)
@@ -4555,6 +4558,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     };
   }
 
+  // D1: preço em Ouro da próxima vaga do estábulo para quem tem `vagas` vagas (inteiro): stableSlotPrices[vagas − início];
+  // null no máximo pelo Ouro ou acima dele (saves antigos com até 8), e com entrada inválida.
+  function precoVaga(vagas) {
+    var E = G.ECONOMY.breeding, n = vagas;
+    if (typeof n !== 'number' || !isFinite(n) || Math.floor(n) !== n || n >= E.stableSlotsMax) return null;
+    var p = E.stableSlotPrices[Math.max(0, n - E.stableSlotsStart)];
+    return typeof p === 'number' ? p : null;
+  }
+
   var Breed = {
     TUNING: TUNING,
     RARITY_IDS: RARITY_IDS,
@@ -4568,6 +4580,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     rollRarity: rollRarity,
     rollGrau: rollGrau,
     rentalPrice: rentalPrice,
+    precoVaga: precoVaga,
     isCorcel: isCorcel,
     skillCandidates: skillCandidates,
     hashChave: hashChave,
@@ -17252,7 +17265,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   function sanitize(s) {
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
-    var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
+    // saves de antes da D1 ficam com as vagas que tinham: até 8 (o máximo antigo) e, sem o campo (v1/v2), as 3 de início de então
+    var start = BR.stableSlotsStart, max = BR.stableSlotsLegado, inicioAntigo = 3;
     var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= 6, v7 = Number(s.v) >= 7, v8 = Number(s.v) >= 8, v10 = Number(s.v) >= 10;
     var seedBase = num(s.seedBase, null, 0, 4294967295);
     if (seedBase == null) seedBase = freshSeedBase(0);
@@ -17266,7 +17280,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       m1.xp = num(s.xp, 0, 0, 1e7);
       m1.skills = validSkills(s.skills, m1);
       m1.skillRanks = IT.sanearRanks(m1.skills, null);
-      mounts = [m1]; activeId = 'm1'; nextUid = 2; stableSlots = start; breedCounter = 0;
+      mounts = [m1]; activeId = 'm1'; nextUid = 2; stableSlots = inicioAntigo; breedCounter = 0;
     } else {
       // v3+: mounts que não é array vira [] (recria o inicial e mantém o Ouro)
       mounts = [];
@@ -17283,7 +17297,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       activeId = mounts.some(function (m) { return m.uid === s.activeId; }) ? s.activeId : mounts[0].uid;
       nextUid = Math.max(num(s.nextUid, 0, 0, 1e9), maxUid + 1);
       // perfil DEV: o painel cria cavalos sem limite de vagas (o estábulo cresce junto)
-      stableSlots = clamp(num(s.stableSlots, start, 0, 1e9), Math.max(start, mounts.length), DEV_MODE ? Math.max(max, mounts.length) : max);
+      stableSlots = clamp(num(s.stableSlots, inicioAntigo, 0, 1e9), Math.max(start, mounts.length), DEV_MODE ? Math.max(max, mounts.length) : max);
       breedCounter = num(s.breedCounter, 0, 0, 1e9);
     }
     var base = newState(GD.STARTERS[0].id);
@@ -18520,7 +18534,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // aviso da reserva (Loja, Estábulo), só quando há Ouro reservado
   function reservaHtml() { return ouroReservado() ? '<p class="nota nota--reserva">' + esc(reservaTxt()) + '.</p>' : ''; }
 
-  var SLOT_PRICE = BR.stableSlotPrice;
+  // preço da próxima vaga do estábulo (D1): cresce a cada compra; null no máximo pelo Ouro
+  function precoVaga() { return BRD.precoVaga(state.stableSlots); }
   function uidNum(uid) { return String(uid).replace(/\D+/g, ''); }
 
   // por que "Tornar ativa" está indisponível ('' quando pode). A ficha da ativa nem mostra o botão (3b §5)
@@ -18576,14 +18591,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   }
 
   function montariasHtml() {
-    var maxed = state.stableSlots >= BR.stableSlotsMax;
-    var canExpand = !maxed && podeGastar(SLOT_PRICE);
-    var reservaBloqueia = !maxed && state.gold >= SLOT_PRICE && !canExpand;
-    var motivoExp = canExpand ? '' : maxed ? 'O estábulo já está no máximo.'
+    var preco = precoVaga(), maxed = preco == null;
+    var canExpand = !maxed && podeGastar(preco);
+    var reservaBloqueia = !maxed && state.gold >= preco && !canExpand;
+    var motivoExp = canExpand ? '' : maxed ? 'O estábulo já está no máximo de vagas pelo Ouro (' + BR.stableSlotsMax + ').'
       : reservaBloqueia ? reservaTxt() + '.' : 'Falta Ouro para expandir o estábulo.';
     return '<section class="caixa" aria-label="Suas montarias"><ul class="montarias">' + state.mounts.map(function (m) { return '<li>' + mountRowHtml(m, m.uid === state.activeId) + '</li>'; }).join('') + '</ul>' +
       '<div class="acoes"><button type="button" data-acao="expandir" class="btn"' + indisponivel(motivoExp) + '>' +
-        (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div>' +
+        (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(preco) + ')') + '</button></div>' +
       (reservaBloqueia ? reservaHtml() : '') + '</section>';
   }
 
@@ -24247,12 +24262,13 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         if (ui.screen === 'montaria') go(ui.tab); else rerenderKeepScroll();
         break;
       case 'expandir':
-        if (state.stableSlots >= BR.stableSlotsMax || !podeGastar(SLOT_PRICE)) {
-          if (state.gold >= SLOT_PRICE) ui.notice = reservaTxt() + '.';
+        var precoE = precoVaga();
+        if (precoE == null || !podeGastar(precoE)) {
+          if (precoE != null && state.gold >= precoE) ui.notice = reservaTxt() + '.';
           rerenderKeepScroll(); break;
         }
         var sE = state, antesE = clone(state);
-        state.gold -= SLOT_PRICE; state.stableSlots += 1;
+        state.gold -= precoE; state.stableSlots += 1;
         var gE = gravaGasto(sE, antesE);
         if (gE === 'outra-aba') break;
         if (gE === 'falhou') ui.notice = FALHA_SALVAR;

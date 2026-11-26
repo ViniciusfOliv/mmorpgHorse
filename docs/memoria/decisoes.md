@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-26 — D1 (vagas) implementada: 2 de início, até 5 pelo Ouro (Vinicius: "Pode implementar")
+Spec: `docs/superpowers/specs/2026-11-26-d1-vagas.md`. `ECONOMY.breeding`: `stableSlotsStart: 2`, `stableSlotsMax: 5`,
+`stableSlotPrices: [2000, 10000, 50000]` (regra em `Breed.precoVaga`), `stableSlotsLegado: 8`.
+- Preços altos de propósito: *"Como o ouro farmado AFK será maior a cada cavalo… Depois simulamos o farm e ajustamos"*.
+- Saves com mais vagas **ficam com elas** (até 8, o máximo antigo); save sem o campo (v1/v2) conta as 3 de antes.
+- As 2 vagas por Gemas e a do VIP ficam para quando a loja existir (texto do §8 sobre Gemas/VIP ainda pede o "sim").
+
 ## 2026-11-26 — D8 implementada: Sorte na cruza e no AFK, Dado Viciado fora do Poder (Vinicius: "Pode implementar")
 Spec: `docs/superpowers/specs/2026-11-26-d8-sorte.md`. A Sorte vira o status da criação e do PVE; na corrida segue só no Dado.
 - Conta a **genética** de Sorte (0–31), não o número: cada raridade tem o efeito inteiro, e um Comum serve de criador.

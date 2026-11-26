@@ -504,7 +504,10 @@
       rentalBase: { comum: 100, magico: 250, raro: 600, lendario: 1500 },
       grauMult: [1, 1.25, 1.5],
       ownRegistration: 50, exchange: 50,
-      stableSlotPrice: 300, stableSlotsStart: 3, stableSlotsMax: 8,
+      // Vagas do estábulo (D1, 2026-11-26): 2 de início e até 5 pelo Ouro; o preço da vaga n+1 é stableSlotPrices[n − início]
+      // (Breed.precoVaga). As 3 vagas de Gemas e VIP ainda não existem. Saves de antes (3 de início, até 8 a 300 cada)
+      // ficam com as vagas que têm: o saneamento aceita até stableSlotsLegado.
+      stableSlotPrices: [2000, 10000, 50000], stableSlotsStart: 2, stableSlotsMax: 5, stableSlotsLegado: 8,
       levelSaturation: 30, mareWeight: 0.6,
       // D8: com Sorte genética 31 nos dois pais, sortePP pontos percentuais passam de "1 abaixo" para "1 acima" na
       // raridade e de "desce" para "sobe" nas estrelas (Breed.sorteShift)

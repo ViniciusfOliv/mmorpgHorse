@@ -10,7 +10,7 @@
 
 | Id | Pergunta | Recomendação | Muda regra/número? | Urgência |
 |---|---|---|---|---|
-| D1 | Para que servem as Gemas | ✅ **Decidida pelo Vinicius:** cosméticos, VIP (+5% XP, +2% Ouro AFK, +1 vaga, cruza mais rápida) e Gemas; Ouro nunca vendido; estábulo 2 grátis + 3 por Ouro + 2 por Gemas + 1 VIP = 8 | Regra do §8 muda; estábulo muda | Antes do bloco 6 |
+| D1 | Para que servem as Gemas | ✅ **Vagas implementadas em 2026-11-26** (spec `2026-11-26-d1-vagas`: 2 de início, até 5 pelo Ouro). **Decidida pelo Vinicius:** cosméticos, VIP (+5% XP, +2% Ouro AFK, +1 vaga, cruza mais rápida) e Gemas; Ouro nunca vendido; estábulo 2 grátis + 3 por Ouro + 2 por Gemas + 1 VIP = 8 | Regra do §8 muda; estábulo muda | Antes do bloco 6 |
 | D2 | Estratégia antes da corrida | ✅ **Aprovada: A** — Preparação com relógio de 12 s, troca só para Poder ≤ o da sala, botão "Largar agora" | Sim (fluxo da sala) | **Alta**: é a pergunta do protótipo |
 | D3 | Clima: +3% ou +1,5 ponto | ✅ **Aprovada: A** — manter a soma fixa e corrigir o texto (T8) | Não (só texto) | Baixa |
 | D4 | Ginásios em sequência | ✅ **Aprovada: B, mais difícil** — mais oponentes, mais distância entre ginásios, raridade Comum → Mágico → Raro; depois da D9 | Sim (progressão, Ouro) | Média |
