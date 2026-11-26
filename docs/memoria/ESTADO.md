@@ -3,7 +3,9 @@
 **Auditoria e Fase 1 (2026-11-25, sessão local, que agora coordena):** auditoria da Fase 0 em `docs/auditoria/` e
 roadmap adaptado (proposta) em `docs/roadmap.md`. Decisões D1–D9 tomadas (`decisoes.md`). Na `main`: T1 (LF), T2
 (moldes-test no Windows) e T3 (Playwright em `prototype/tools`); o `check.sh` completo passa no Windows — instale uma
-vez com `npm ci --prefix prototype/tools`. **Próximo:** T15 (`sala.js`) → D9 (salas justas), depois D4, D2 e D8;
+vez com `npm ci --prefix prototype/tools`. Feitos também o T15 (a sala saiu do `game.js` para o `sala.js`) e a D9
+(salas justas e estreia: o inicial vence ~42% nas 10 primeiras salas e ~20% depois; metas ES1–ES3). **Próximo:** D4
+(ginásios em sequência), D2 (Preparação) e D8 (Sorte); as 2 vagas iniciais do estábulo (D1) num ticket próprio;
 tickets em `docs/auditoria/plano-fase-1.md`. Os ramos `claude/salas-economia` e `claude/fluidez` são do chat da nuvem e
 ainda não foram revisados.
 

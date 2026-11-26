@@ -6006,7 +6006,7 @@
       silks: PLAYER_SILKS, silkIdx: -1
     };
     var M = SL.montar({
-      seed: seed, pr: P.pr, cavalo: player.horse, nSedas: BOT_SILKS.length, rapido: RAPIDO,
+      seed: seed, contador: counter, pr: P.pr, cavalo: player.horse, nSedas: BOT_SILKS.length, rapido: RAPIDO,
       donos: state.mounts.map(function (m) { return m.templateId; }),
       ajustaCond: dv && dv.cond && devHooks ? function (cond, sd) { return devHooks.condicoes(dv.cond, cond, sd); } : null
     });

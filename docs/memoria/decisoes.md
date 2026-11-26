@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-25 — D9 implementada: salas justas e estreia (Vinicius: "Aprovo, implemente")
+Spec: `docs/superpowers/specs/2026-11-25-d9-salas-justas.md`. Regra em `sala.js` (`faixaDaSala`), números em
+`ECONOMY.sala`. Estreia nas salas 1–10 (4–5 corredores, alvo 93–100,5%, teto = alvo × 1,005), rampa até a 20ª, normal
+93,5–104,5% depois. O teto vale sobre o alvo do rival, como a medição da nuvem simulou (e não sobre o Poder do jogador,
+como a 1ª versão da spec dizia). Metas novas ES1–ES3 no `balance.js` (carreira do inicial com o `Sala.montar` de
+verdade); a referência das 200 salas foi regravada de propósito, com mais casos nas 25 primeiras salas.
+
 ## 2026-11-25 — Auditoria da Fase 0 e decisões D1–D9 (Vinicius, uma a uma, na sessão local)
 Detalhe, alternativas e impactos: `docs/auditoria/decisoes-produto.md`. Nada disso está implementado ainda.
 - **Coordenação:** a sessão local coordena ("Esta sessão coordena"); o chat da coordenação na nuvem deixa de decidir.

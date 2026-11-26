@@ -482,6 +482,15 @@
     startingGold: 500,
     minRacers: 4,
     maxRacers: 8,
+    // Faixa dos rivais da sala pelo número da sala (D9, spec 2026-11-25-d9-salas-justas; regra em sala.js faixaDaSala):
+    // lo/hi = o alvo do rival em fração do Poder do jogador; teto = o rival nunca passa do alvo × teto (perde pontos,
+    // depois genética; o catálogo não tem rival mais fraco que o inicial nível 1). Estreia nas salas 1..ate; da ate+1 até
+    // rampaAte tudo vai em linha reta até a normal (o teto até 1,2, que já não corta ninguém).
+    sala: {
+      estreia: { ate: 10, nMin: 4, nMax: 5, lo: 0.93, hi: 1.005, teto: 1.005 },
+      rampaAte: 20,
+      normal: { nMin: 4, nMax: 8, lo: 0.935, hi: 1.045 }
+    },
     maxLevel: 50,
     // XP por colocação (1º..8º).
     xpPerPlace: [100, 70, 50, 35, 25, 20, 15, 10],

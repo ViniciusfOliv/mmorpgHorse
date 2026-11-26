@@ -48,7 +48,7 @@ function montarCaso(c) {
   const seed = c.devSeed != null ? c.devSeed >>> 0 : S.hash2(c.seedBase, c.counter)
   const sala = c.modo === 'rapido' ? TESTADORES.SL : SL
   return sala.montar({
-    seed, pr: c.pr, cavalo, nSedas: NSEDAS, rapido: c.modo === 'rapido' ? RAPIDO : null,
+    seed, contador: c.counter, pr: c.pr, cavalo, nSedas: NSEDAS, rapido: c.modo === 'rapido' ? RAPIDO : null,
     donos: [c.modelo].concat(c.donos), ajustaCond: c.devCond ? devCondicoes(c.devCond) : null
   })
 }
@@ -70,7 +70,7 @@ const test = (nome, f) => {
 const igual = (a, b, msg) => { if (a !== b) throw new Error(msg + ': ' + a + ' ≠ ' + b) }
 
 const lista = casos()
-test('as ' + lista.length + ' salas do módulo batem com a referência gravada com o jogo de antes do T15', () => {
+test('as ' + lista.length + ' salas do módulo batem com a referência gravada pelo jogo no navegador', () => {
   const dif = lista.filter((c) => !REF[c.id] || hash(recorte(montarCaso(c))) !== REF[c.id].recorte).map((c) => c.id)
   igual(dif.length, 0, 'salas diferentes (' + dif.slice(0, 6).join(', ') + ')')
 })
@@ -91,10 +91,34 @@ test('nenhum rival corre com um modelo que o jogador tem', () => {
     for (const r of montarCaso(c).rivais) if (donos.has(r.horse.id.replace(/-b\d+$/, ''))) throw new Error(c.id + ': ' + r.horse.id)
   }
 })
-test('fora do build dos testadores, o Poder de cada rival fica perto da faixa 91,5–111,5% (folga de 6% e do nível inteiro)', () => {
+test('faixa pela sala (D9): estreia 1–10, rampa até a 20ª, normal depois; sem número, a normal', () => {
+  const F = G.ECONOMY.sala, f = SL.faixaDaSala
+  for (const k of [1, 5, 10]) igual(JSON.stringify(f(k)), JSON.stringify({ nMin: 4, nMax: 5, lo: F.estreia.lo, hi: F.estreia.hi, teto: F.estreia.teto }), 'sala ' + k)
+  const normal = JSON.stringify({ nMin: 4, nMax: 8, lo: F.normal.lo, hi: F.normal.hi, teto: null })
+  for (const k of [21, 22, 100, null, undefined, 0, -3, NaN]) igual(JSON.stringify(f(k)), normal, 'sala ' + k)
+  let ant = f(10)
+  for (let k = 11; k <= 20; k++) {   // a rampa só sobe
+    const x = f(k)
+    if (!(x.lo >= ant.lo && x.hi >= ant.hi && x.nMax >= ant.nMax && x.teto >= ant.teto)) throw new Error('a rampa desceu na sala ' + k)
+    ant = x
+  }
+})
+test('estreia: 4 ou 5 corredores e nenhum rival acima do alvo + 0,5% (alvo até 100,5% do jogador)', () => {
+  const c0 = lista.find((x) => x.modo === 'normal')
+  for (let k = 1; k <= 10; k++) {
+    for (let s = 0; s < 6; s++) {
+      const c = { ...c0, counter: k, seedBase: c0.seedBase + s * 7919 }
+      const M = montarCaso(c)
+      if (M.n < 4 || M.n > 5) throw new Error('sala ' + k + ': ' + M.n + ' corredores')
+      for (const r of M.rivais) if (r.rating > c.pr * G.ECONOMY.sala.estreia.hi * G.ECONOMY.sala.estreia.teto + 1e-9) throw new Error('sala ' + k + ': rival ' + r.rating + ' > teto (pr ' + c.pr + ')')
+    }
+  }
+})
+test('fora do build dos testadores, o Poder de cada rival fica perto da faixa da sala (folga de 6% e do nível inteiro)', () => {
   let fora = 0, total = 0
   for (const c of lista.filter((x) => x.modo !== 'rapido')) {
-    for (const r of montarCaso(c).rivais) { total++; if (r.rating < c.pr * 0.915 * 0.9 || r.rating > c.pr * 1.115 * 1.1) fora++ }
+    const f = SL.faixaDaSala(c.counter)
+    for (const r of montarCaso(c).rivais) { total++; if (r.rating < c.pr * f.lo * 0.9 || r.rating > c.pr * f.hi * 1.1) fora++ }
   }
   // sem modelo na faixa o rival é o mais perto em qualquer nível (o Mítico nv 50 não acha par): tolera poucos
   if (fora > total * 0.1) throw new Error(fora + ' de ' + total + ' rivais longe da faixa')

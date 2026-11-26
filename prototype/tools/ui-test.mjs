@@ -212,6 +212,9 @@ async function devArmar(page, opts = {}) {
   await page.fill('#dev-seed', opts.seed != null ? String(opts.seed) : '')
   await page.locator('[data-acao="dev-armar"]').click()
   await devFechar(page)
+  // Seed forçada = cenário fixo de corrida: a sala sai da faixa normal (D9), não da estreia das 20 primeiras salas do
+  // save, como antes da D9 (mesmo nº de corredores e as mesmas raias). opts.estreia: true mantém o contador do save.
+  if (opts.seed != null && !opts.estreia) await page.evaluate(() => { const st = window.__galope.state; if (st && !st.pending && st.raceCounter < 20) st.raceCounter = 20 })
 }
 
 // A tela de desafio do ginásio (2026-11-18): antes de cada duelo; "Começar duelo" leva ao duelo
@@ -6306,7 +6309,8 @@ try {
   // máximo a cada 250 ms (a linha dos vizinhos a cada 500 ms) e tem altura fixa; em tela baixa (< 700 px) fica com a
   // linha dos corredores só, e a narração com 1 frase em 1 linha. Seeds: 16 (7 corredores; dois Faísca, então a Garra de um rival sai com o dono), 4242 (8), 5 (6) e 1 (4).
   {   // corrida (e as partes corrida-*, cada uma na sua página): as ajudas abaixo valem para todas
-    const SEED7 = 16, SEED8 = 4242, SEED4 = 1, SEED6 = 5
+    // 2026-11-25 (D9: as salas de seed forçada saem da faixa normal, não da estreia): SEED7 era 16 (passou a dar 3º; a 2691 mantém 7 corredores, raia 4, 5º e a Garra de rival com dono)
+    const SEED7 = 2691, SEED8 = 4242, SEED4 = 1, SEED6 = 5
     // arma a seed, abre a sala (onde a faixa não existe) e larga; devolve o n da sala
     // antesDeLargar(pg): roda na sala, antes do "Largar" (a simulação sai no Largar, com a sala como estiver)
     const abreCorrida = async (pg, label, seed, antesDeLargar) => {
@@ -6847,7 +6851,7 @@ try {
         }
         await checkOverflow(pg, label + ' chegada')
         // por último (a tela vai para o resultado quando a faixa some): a faixa do lugar (o jogador chega em 5º de 7 na
-        // seed 16: um lugar fora do pódio; 2026-11-20, sim 4.1.0: era 7º) e as plaquinhas dos rivais
+        // seed 2691: um lugar fora do pódio, raia 4 e a Garra de um rival com dono; 2026-11-20, sim 4.1.0: era 7º; 2026-11-25, D9: a seed era 16) e as plaquinhas dos rivais
         await confereLugar(pg, label, '5º LUGAR')
         const bv = await pg.evaluate(() => window.__baloesVigia)
         notes[label + '-baloes'] = bv
@@ -7213,20 +7217,20 @@ try {
     // faixa do lugar: vitória (seed 3, jogador em 1º), pódio (seed 51, 3º; com o jogador na raia 2 a 360x640 a faixa vai
     // para o pé) e Ruling 14 com o jogador na raia 1 (seed 202, 8º): a faixa não cruza o cavalo dele em nenhum quadro, a
     // 360x780 e a 360x640
-    if (quer('corrida-faixa-lugar')) for (const [seed, esperado, vp] of [[3, 'VITÓRIA!', { width: 360, height: 780 }], [51, '3º LUGAR', { width: 360, height: 640 }],
-      [202, '8º LUGAR', { width: 360, height: 780 }], [202, '8º LUGAR', { width: 360, height: 640 }]]) {   // seeds de 2026-11-19 (sim 4.0.0): eram 12 e 102; 2026-11-20 (sim 4.1.0): eram 9 e 249
+    if (quer('corrida-faixa-lugar')) for (const [seed, esperado, vp] of [[7, 'VITÓRIA!', { width: 360, height: 780 }], [129, '3º LUGAR', { width: 360, height: 640 }],
+      [84, '8º LUGAR', { width: 360, height: 780 }], [84, '8º LUGAR', { width: 360, height: 640 }]]) {   // seeds de 2026-11-19 (sim 4.0.0): eram 12 e 102; 2026-11-20 (sim 4.1.0): eram 9 e 249; 2026-11-25 (D9, faixa nova): eram 3, 51 e 202
       const label = `corrida-faixa-lugar-${seed}-${vp.width}x${vp.height}`
       const pg = await newPage(browser, vp, label, { query: '?dev=1' })
       try {
         await abreCorrida(pg, label, seed)
         const me = await pg.evaluate(() => window.__galope.ui.lobby.playerIdx)
-        if (seed === 202 && me !== 0) problems.push(`[${label}] a seed 202 pôs o jogador na raia ${me + 1} (o teste conta com a raia 1)`)
-        if (seed === 51 && me !== 1) problems.push(`[${label}] a seed 51 pôs o jogador na raia ${me + 1} (o teste conta com a raia 2)`)
+        if (seed === 84 && me !== 0) problems.push(`[${label}] a seed 84 pôs o jogador na raia ${me + 1} (o teste conta com a raia 1)`)
+        if (seed === 129 && me !== 1) problems.push(`[${label}] a seed 129 pôs o jogador na raia ${me + 1} (o teste conta com a raia 2)`)
         await vigiaLugar(pg)
         await pg.getByRole('button', { name: 'x2' }).click()
         const w = await confereLugar(pg, label, esperado)
         // com o jogador na raia 1, a faixa em cima cruzaria o cavalo dele: fica no pé da pista
-        if (seed === 202 && w.caixas.length && JSON.parse(w.caixas[0]).y < w.artH / 2) problems.push(`[${label}] Ruling 14: com o jogador na raia 1 a faixa do lugar ficou em cima (${w.caixas[0]})`)
+        if (seed === 84 && w.caixas.length && JSON.parse(w.caixas[0]).y < w.artH / 2) problems.push(`[${label}] Ruling 14: com o jogador na raia 1 a faixa do lugar ficou em cima (${w.caixas[0]})`)
         // em cima, logo abaixo da etiqueta "FOTO DE CHEGADA"; no pé, encostada na borda de baixo (sem Dado na chegada)
         const cx = w.caixas.length ? JSON.parse(w.caixas[0]) : null
         if (cx && (cx.y < w.artH / 2 ? cx.y !== w.hudH + 15 : cx.y + cx.h !== w.artH - 2)) problems.push(`[${label}] faixa do lugar fora das duas posições (${w.caixas[0]}; hudH ${w.hudH}, artH ${w.artH})`)
@@ -7302,7 +7306,7 @@ try {
         await pg.getByRole('button', { name: 'x2' }).click()
         await confereVigiaDado(pg, label)
         // com movimento reduzido, o mesmo texto (aparece e some sem animação: drawPlaceBanner é parado)
-        await confereLugar(pg, label, '5º LUGAR')   // 2026-11-20, sim 4.1.0: era 7º (a seed 16 agora dá 5º de 7)
+        await confereLugar(pg, label, '5º LUGAR')   // 2026-11-20, sim 4.1.0: era 7º (a seed 16 dava 5º de 7; desde a D9 é a 2691)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -7315,7 +7319,7 @@ try {
   if (quer('resultado')) {
     // seeds DEV (perfil DEV novo): 16 = 7 corredores, o jogador em 5º, sem subir de nível; 26 = vitória (7 corredores);
     // 1 = 4 corredores com o jogador em 3º (pódio sem prêmio)
-    const SEED7 = 16, SEED_VITORIA = 26, SEED_SEM_PREMIO = 1   // 2026-11-19 (skills sem sorteio, sim 4.0.0): eram 70 e 12; 2026-11-20 (sim 4.1.0): eram 74 e 9
+    const SEED7 = 23, SEED_VITORIA = 70, SEED_SEM_PREMIO = 1   // 2026-11-19 (skills sem sorteio, sim 4.0.0): eram 70 e 12; 2026-11-20 (sim 4.1.0): eram 74 e 9; 2026-11-25 (D9): a da vitória era 26 e a SEED7, 16
     // seedBase do perfil DEV fixo (Ruling 21): o perfil novo sorteia o dele (crypto.getRandomValues), e a skill que o
     // cavalo aprende ao subir de nível sai de hash2(seedBase, …). Com uma skill aprendida na vitória, o Poder sobe, a sala
     // da seed 12 vem com rivais mais fortes e o resultado deixa de ser o pódio sem prêmio (falhava ~1 em 10)
@@ -12175,7 +12179,8 @@ try {
         if (salaA.blocks !== JSON.stringify(S.randomConditions(salaA.seed).blocks)) problems.push(`${label}: o mapa da sala não é o da seed`)
         const rng = S.mulberry32(S.hash2(salaA.seed, 0xA11CE))
         rng()   // o nome da pista
-        const n = G.ECONOMY.minRacers + Math.floor(rng() * (G.ECONOMY.maxRacers - G.ECONOMY.minRacers + 1))
+        const fx = require('../src/sala.js').faixaDaSala(salaA.counter)   // D9: a sala 4 é da estreia (4–5 corredores)
+        const n = fx.nMin + Math.floor(rng() * (fx.nMax - fx.nMin + 1))
         const nomes = G.BOT_NAMES.slice()
         for (let i = nomes.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = nomes[i]; nomes[i] = nomes[j]; nomes[j] = t }
         if (salaA.nomes !== nomes.slice(0, n - 1).sort().join('|')) problems.push(`${label}: rivais ${salaA.nomes} (da seed: ${nomes.slice(0, n - 1).sort().join('|')})`)
@@ -12846,7 +12851,7 @@ try {
   })
   botGear.bots.forEach((b) => { b.league = S.leagueFor(b.rating).id })
   notes.botGear = botGear
-  const alvoMax = S.leagueFor(botGear.pr * 1.115).id
+  const alvoMax = S.leagueFor(botGear.pr * G.ECONOMY.sala.normal.hi).id
   if (!GEAR_PVP) { if (botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: bot com peças (as peças não valem no PVP) ' + JSON.stringify(botGear)) }
   else if (alvoMax === 'bronze' ? botGear.bots.some((b) => b.pieces !== 0) : !botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: equipamento dos bots fora da liga do alvo (' + alvoMax + ') ' + JSON.stringify(botGear))
   await page.getByRole('button', { name: /^Voltar/ }).click()
@@ -14300,10 +14305,10 @@ try {
       const pg = await newPage(browser, vp, label, { query: '?dev=1' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
-        // seed 4250 (2026-11-20, sim 4.1.0: era 4247): tempo firme até o meio da 1ª curva (a chuva de uma virada de clima
+        // seed 4253 (2026-11-25, D9: era 4250, que passou a ter o pelotão em cima da cerca; 2026-11-20, sim 4.1.0: era 4247): tempo firme até o meio da 1ª curva (a chuva de uma virada de clima
         // esconde o trilho branco que a medida procura) e, no quadro medido, o pelotão não cobre a cerca no meio da tela
         // (na 4247 os cavalos das raias de cima passaram a cobrir 2 das 8 colunas do meio no celular deitado)
-        await devArmar(pg, { clima: 'sol', vento: 'calmo', tracado: 'curvas', distancia: 1600, seed: 4250 })
+        await devArmar(pg, { clima: 'sol', vento: 'calmo', tracado: 'curvas', distancia: 1600, seed: 4253 })
         await pg.locator('[data-acao="aba"][data-id="correr"]').click()
         await pg.waitForSelector('#t-correr')
         await pg.getByRole('button', { name: 'Procurar corrida' }).click()
@@ -14765,13 +14770,15 @@ try {
     init: () => { Object.defineProperty(window, '__MOLDES', { configurable: true, get: () => ({}), set: () => {} }) }
   })
   {
-    // corrida de 8: a 1ª sala do save sai de hash2(seedBase, 1); o nº de corredores é o 2º sorteio do rng da sala
-    // (o 1º escolhe o nome da pista). Conferido no navegador abaixo (L.n === 8).
+    // corrida de 8: o save vai para a sala 21 (fora da estreia da D9, que tem 4–5 corredores), que sai de
+    // hash2(seedBase, 21); o nº de corredores é o 2º sorteio do rng da sala (o 1º escolhe o nome da pista), na faixa
+    // normal. Conferido no navegador abaixo (L.n === 8).
+    const SALA8 = 21, F8 = G.ECONOMY.sala.normal
     let SEED8 = 0
     for (let sd = 1; sd <= 500 && !SEED8; sd++) {
-      const rng = S.mulberry32(S.hash2(S.hash2(sd, 1), 0xA11CE))
+      const rng = S.mulberry32(S.hash2(S.hash2(sd, SALA8), 0xA11CE))
       rng()
-      if (4 + Math.floor(rng() * 5) === 8) SEED8 = sd
+      if (F8.nMin + Math.floor(rng() * (F8.nMax - F8.nMin + 1)) === 8) SEED8 = sd
     }
     const mc = await newPage(browser, { width: 390, height: 844 }, 'moldes-cache')
     try {
@@ -14852,7 +14859,7 @@ try {
       sil.erros.forEach((e) => problems.push('contorno da skill: ' + e))
       await mc.getByRole('button', { name: 'Escolher Ipê' }).click()
       await mc.waitForSelector('#t-estabulo')
-      await mc.evaluate((sd) => { window.__galope.state.seedBase = sd }, SEED8)
+      await mc.evaluate(([sd, sala]) => { window.__galope.state.seedBase = sd; window.__galope.state.raceCounter = sala - 1 }, [SEED8, SALA8])
       await mc.locator('[data-acao="aba"][data-id="correr"]').click()
       await mc.waitForSelector('#t-correr')
       await mc.getByRole('button', { name: 'Procurar corrida' }).click()

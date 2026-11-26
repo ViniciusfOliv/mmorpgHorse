@@ -32,6 +32,8 @@ var S = require('../src/sim.js');
 var GR = require('../src/gear.js');
 var GY = require('../src/ginasio.js');
 var AF = require('../src/afk.js');
+var IT = require('../src/itens.js');
+var SL = require('../src/sala.js');
 var WT = require('worker_threads');
 
 var args = process.argv.slice(2);
@@ -334,21 +336,22 @@ function tRank(P, a, b) {
   return o;
 }
 // Salas como o jogo monta (M8, P1, P2): jogador sintético sorteado (raridade, nível 1–50, estrelas),
-// bots de Poder 91,5%–111,5% do jogador com o nível ajustado ao alvo; todos com a build de bot.
-// Rank das skills: o do jogador é sorteado de 1 a 5 pela seed da sala (fluxo próprio: não desloca os outros
-// sorteios) e vale para todas as skills dele; os bots usam S.botRank(jogador), antes do Poder, como no jogo.
+// bots na faixa normal da sala (ECONOMY.sala.normal, D9: 93,5%–104,5% do jogador) com o nível ajustado ao alvo; todos
+// com a build de bot. Rank das skills: o do jogador é sorteado de 1 a 5 pela seed da sala (fluxo próprio: não desloca
+// os outros sorteios) e vale para todas as skills dele; os bots usam S.botRank(jogador), antes do Poder, como no jogo.
+// A carreira com o pareamento de verdade (catálogo, estreia) é a tCarreira, logo abaixo.
 function tLobby(P, a, b) {
-  var o = { n: 0, fav: 0, lead13: 0, close: 0, recs: [] };
+  var o = { n: 0, fav: 0, lead13: 0, close: 0, recs: [] }, FN = G.ECONOMY.sala.normal;
   function catOf(h) { return h.element + '|' + h.rarity + '|' + h.grau; }
   for (var k = a; k < b; k++) {
     var seed = S.hash2(P.seed, k), rng = rngOf(seed, 81), cond = S.randomConditions(seed);
-    var nR = 4 + Math.floor(rng() * 5);
+    var nR = FN.nMin + Math.floor(rng() * (FN.nMax - FN.nMin + 1));
     var pl = build({ rarity: pickRar(rng), level: 1 + Math.floor(rng() * 50), grau: 1 + Math.floor(rng() * 3), policy: 'bot' }, rng, {}, 'P').h;
     pl = S.withRanks(pl, 1 + Math.floor(rngOf(seed, 83)() * G.SKILL_RANKS.max));
     var rkBot = S.botRank(pl);
     var pr = S.powerRating(pl, null), hs = [pl];
     for (var q = 1; q < nR; q++) {
-      var target = pr * (0.915 + 0.2 * rng()), best = null;
+      var target = pr * (FN.lo + (FN.hi - FN.lo) * rng()), best = null;
       for (var tries = 0; tries < 12 && !best; tries++) {
         var spec = { rarity: pickRar(rng), grau: 1 + Math.floor(rng() * 3), policy: 'bot', level: 1 };
         var bh = build(spec, rng, {}, 'B' + q), cand = null, cd = Infinity;
@@ -380,6 +383,52 @@ function tLobby(P, a, b) {
     var P2 = res.frames[fw].pos.slice().sort(function (x, y) { return y - x; });
     if (D - P2[1] < 1) o.close++;
     for (i = 0; i < nR; i++) for (j = i + 1; j < nR; j++) o.recs.push([catOf(hs[i]), catOf(hs[j]), rt[i] - rt[j], place[i] < place[j] ? 1 : 0]);
+  }
+  return o;
+}
+// Carreira do cavalo inicial com o pareamento DO JOGO (Sala.montar, com a estreia da D9), trazida da medição da nuvem
+// (salas-medida.js, ramo claude/salas-economia): Comum ★★ nível 1, "Distribuir sugerido" antes de cada sala, entrada
+// 50, 500 de Ouro no começo; sem Ouro para a entrada, a sala vira treino (TRAINING_GOLD do game.js, metade do XP);
+// recompensa diária a cada 30 salas; XP e skills aprendidas como o applyXp. Uma carreira por k (inicial = k % 3).
+// Devolve somas por sala (1..P.salas): win, pod, treino (sem entrada), ouro (no fim da sala), n.
+var TREINO_OURO = (function () {
+  var m = require('fs').readFileSync(require('path').join(__dirname, '../src/game.js'), 'utf8').match(/var TRAINING_GOLD = (\[[^\]]*\]);/);
+  if (!m) throw new Error('balance: TRAINING_GOLD não encontrado no game.js');
+  return JSON.parse(m[1]);
+})();
+function tCarreira(P, a, b) {
+  var NSa = P.salas, E = G.ECONOMY, fee = 50, SALAS_DIA = 30;
+  var o = { win: [], pod: [], treino: [], ouro: [], n: [] };
+  for (var s = 0; s < NSa; s++) { o.win.push(0); o.pod.push(0); o.treino.push(0); o.ouro.push(0); o.n.push(0); }
+  for (var c = a; c < b; c++) {
+    var tpl = STARTERS[c % STARTERS.length], seedBase = S.hash2(P.seed, c), gold = E.startingGold, dia = 0;
+    var m = { templateId: tpl.id, id: tpl.id, element: tpl.element, rarity: tpl.rarity, grau: tpl.grau || 2, level: 1, xp: 0,
+      skills: tpl.skills.slice(), skillRanks: IT.sanearRanks(tpl.skills, tpl.skillRanks), potential: copy(tpl.potential) };
+    for (var k = 1; k <= NSa; k++) {
+      m.alloc = S.botAlloc(m);
+      var M = SL.montar({ seed: S.hash2(seedBase, k), contador: k, pr: S.powerRating(m), cavalo: m, donos: [tpl.id], nSedas: 7 });
+      var racers = M.ordem.map(function (i) { return { horse: i === 0 ? m : M.rivais[i - 1].horse, gear: null }; });
+      var res = S.simulate({ seed: M.seed, conditions: M.cond, racers: racers });
+      var me = M.ordem.indexOf(0), place = res.finishOrder.indexOf(me) + 1;
+      if ((k - 1) % SALAS_DIA === 0) { gold += G.DAILY.dias[dia % 7].ouro || 0; dia++; }
+      var treino = gold < fee;
+      if (treino) gold += TREINO_OURO[place - 1];
+      else {
+        var mine = S.payouts(fee, M.n, res.finishOrder).prizes.filter(function (p) { return p.racer === me; })[0];
+        gold += (mine ? mine.amount : 0) - fee;
+      }
+      var i0 = k - 1;
+      o.n[i0]++; o.win[i0] += place === 1 ? 1 : 0; o.pod[i0] += place <= 3 ? 1 : 0; o.treino[i0] += treino ? 1 : 0; o.ouro[i0] += gold;
+      var xp = E.xpPerPlace[place - 1] || 10;
+      if (treino) xp = Math.round(xp / 2);
+      m.xp += xp;
+      var lv0 = m.level;
+      while (m.level < E.maxLevel && m.xp >= E.xpToLevel(m.level)) { m.xp -= E.xpToLevel(m.level); m.level++; }
+      for (var q = lv0 + 1; q <= m.level; q++) {
+        var sid = S.learnSkill({ id: m.templateId, element: m.element, rarity: m.rarity, skills: m.skills }, S.mulberry32(S.hash2(seedBase, k * 100 + q)), 0);
+        if (sid) { m.skills.push(sid); m.skillRanks = IT.sanearRanks(m.skills, m.skillRanks); }
+      }
+    }
   }
   return o;
 }
@@ -582,7 +631,7 @@ function afkValorEsperado(f) {
   return { vitoria: v, derrota: Math.round(xp * K.derrota.xp) * AFK_REF.xp + md / nq * AFK_REF.material, ouro: K.ouro[f.etapa] * f.mult };
 }
 var TASKS = { afkFase: tAfkFase, afkMedida: tAfkMedida, starters: tStarters, duel: tDuel, catDuel: tCatDuel, spec: tSpec, typeGain: tTypeGain, audit: tAudit, rank: tRank,
-  lobby: tLobby, m9: tM9, robin: tRobin, pvp8: tPvp8, flips: tFlips, skillObs: tSkillObs, gym: tGym, gymPista: tGymPista, gymPrimeiro: tGymPrimeiro };
+  lobby: tLobby, carreira: tCarreira, m9: tM9, robin: tRobin, pvp8: tPvp8, flips: tFlips, skillObs: tSkillObs, gym: tGym, gymPista: tGymPista, gymPrimeiro: tGymPrimeiro };
 
 if (!WT.isMainThread) {
   WT.parentPort.on('message', function (m) { WT.parentPort.postMessage({ id: m.id, data: TASKS[m.task](m.params, m.a, m.b) }); });
@@ -678,6 +727,8 @@ job('audit', 'audit', { seed: 15 }, N_AUD, 32);
 if (!QUICK) [['comum', 1], ['raro', 30], ['lendario', 50]].forEach(function (c) { job('m9-' + c[0], 'm9', { rarity: c[0], level: c[1], seed: 17 }, N_M9, 12); });
 [['comum', 1], ['raro', 30], ['lendario', 50]].forEach(function (c) { job('m2-' + c[0], 'typeGain', { rarity: c[0], level: c[1], seed: 99 }, N_M2, 8); });
 job('lobby', 'lobby', { seed: 16 }, N_LOBBY, 16);
+// ES (D9): carreiras do inicial com o pareamento do jogo (quick: metade das carreiras)
+job('carreira', 'carreira', { seed: 0xC0FFEE, salas: 60 }, NN(240, 120), 12);
 job('rank', 'rank', { seed: 15 }, N_RANK, 32);
 // M6: rodízio das builds realistas (POLICIES) e das "tudo num status" (POLICIES_ALL, só informação), Raro ★★
 var M6_LV = [11, 30, 50], M6_B = POLICIES.concat(POLICIES_ALL);
@@ -1247,7 +1298,7 @@ function report(R) {
     ['el:' + ca[0], 'rar:' + ca[1], 'est:' + ca[2]].forEach(function (c) { addR(c, x[3] - pi); });
     ['el:' + cb[0], 'rar:' + cb[1], 'est:' + cb[2]].forEach(function (c) { addR(c, (1 - x[3]) - (1 - pi)); });
   });
-  log('P1/P2/M8: ' + L.n + ' salas de 4–8 corredores sintéticos (jogador com raridade, nível 1–50 e estrelas sorteados; bots de Poder 91,5%–111,5% do jogador, nível ajustado ao alvo; todos com a build de bot, sem equipamento), mapa aleatório, Dado ligado. ' +
+  log('P1/P2/M8: ' + L.n + ' salas de 4–8 corredores sintéticos (jogador com raridade, nível 1–50 e estrelas sorteados; bots de Poder ' + f1(100 * G.ECONOMY.sala.normal.lo) + '%–' + f1(100 * G.ECONOMY.sala.normal.hi) + '% do jogador (a faixa normal da sala), nível ajustado ao alvo; todos com a build de bot, sem equipamento), mapa aleatório, Dado ligado. ' +
     'P1 compara cada par da sala (' + L.recs.length + ' pares) com a curva empírica "maior Poder à frente" por diferença de Poder (faixas de 20) e soma o resíduo por categoria.' +
     (QUICK ? ' **P1 só conta como meta no modo completo**: com ' + L.n + ' salas o IC do resíduo é largo demais para a faixa ±5; a tabela abaixo é só informativa.' : ''));
   log('');
@@ -1271,6 +1322,33 @@ function report(R) {
   log('| P2: favorito do Poder vence | **' + f1(vFav) + '%** | 35–55% |');
   log('| M8: líder em 1/3 da pista vence | **' + f1(vLead) + '%** | ≤ 55% |');
   log('| M8: margem do 1º para o 2º abaixo de 1 m | **' + f1(vClose) + '%** | ≥ 5% |');
+  log('');
+
+  // ES (D9, spec 2026-11-25-d9-salas-justas): a carreira do inicial com o pareamento do jogo (Sala.montar)
+  var CR = R.carreira;
+  function faixaCr(campo, de, ate) { var s = 0, nn = 0; for (var i = de - 1; i < ate; i++) { s += CR[campo][i]; nn += CR.n[i]; } return pct(s, nn); }
+  var es1v = faixaCr('win', 1, 10), es1p = faixaCr('pod', 1, 10), es2v = faixaCr('win', 41, 60);
+  var ouroMin = Infinity, salaMin = 0;
+  for (var si = 0; si < 30; si++) { var om = CR.ouro[si] / CR.n[si]; if (om < ouroMin) { ouroMin = om; salaMin = si + 1; } }
+  check('ES1', 'Estreia (salas 1–10): o inicial vence', es1v, 32, 46);
+  check('ES1', 'Estreia (salas 1–10): o inicial sobe ao pódio', es1p, 75, 100);
+  check('ES2', 'Faixa normal (salas 41–60): o inicial vence', es2v, 14, 22);
+  check('ES3', 'Ouro médio da carreira nas salas 1–30 nunca abaixo da entrada (50)', ouroMin, 50, Infinity, ' de Ouro');
+  log('### ES. Carreira do inicial com o pareamento do jogo (D9): ' + CR.n[0] + ' carreiras de ' + CR.n.length + ' salas');
+  log('');
+  log('| Salas | Vence | Pódio | Sem entrada (treino) | Ouro médio no fim |');
+  log('|---|---|---|---|---|');
+  [[1, 10], [11, 20], [21, 40], [41, 60]].forEach(function (fx) {
+    log('| ' + fx[0] + '–' + fx[1] + ' | ' + f1(faixaCr('win', fx[0], fx[1])) + '% | ' + f1(faixaCr('pod', fx[0], fx[1])) + '% | ' +
+      f1(faixaCr('treino', fx[0], fx[1])) + '% | ' + Math.round(CR.ouro[fx[1] - 1] / CR.n[fx[1] - 1]) + ' |');
+  });
+  log('');
+  log('| Meta | Valor | Faixa |');
+  log('|---|---|---|');
+  log('| ES1: estreia, o inicial vence | **' + f1(es1v) + '%** | 32–46% |');
+  log('| ES1: estreia, pódio | **' + f1(es1p) + '%** | ≥ 75% |');
+  log('| ES2: normal (salas 41–60), o inicial vence | **' + f1(es2v) + '%** | 14–22% |');
+  log('| ES3: menor Ouro médio nas salas 1–30 (sala ' + salaMin + ') | **' + Math.round(ouroMin) + '** | ≥ 50 |');
   log('');
 
   // -------------------------------------------------------------------------

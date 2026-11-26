@@ -86,7 +86,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       console.log(dif.length ? `DIFERENTE: ${dif.length} de ${lista.length} salas (${dif.slice(0, 8).join(', ')}…)` : `OK: ${lista.length} salas iguais à referência`)
       process.exitCode = dif.length ? 1 : 0
     } else {
-      await writeFile(ARQ, JSON.stringify({ sobre: 'hash de cada sala de sala-casos.mjs montada pelo jogo (buildLobby) antes do T15', salas: h }, null, 1) + '\n')
+      await writeFile(ARQ, JSON.stringify({ sobre: 'hash de cada sala de sala-casos.mjs montada pelo jogo (buildLobby); regravada de propósito quando a regra da sala muda (D9: 2026-11-25)', salas: h }, null, 1) + '\n')
       console.log(`gravada: ${lista.length} salas em ${ARQ}`)
     }
   } finally { await browser.close(); srv.close() }

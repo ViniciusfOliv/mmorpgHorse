@@ -29,7 +29,8 @@ export function casos() {
       const c = {
         id: modo + '-' + i, modo,
         seedBase: Math.floor(rng() * 0xFFFFFFFF) >>> 0,
-        counter: 1 + Math.floor(rng() * 400),
+        // um terço nas 25 primeiras salas: a estreia e a rampa da D9
+        counter: rng() < 1 / 3 ? 1 + Math.floor(rng() * 25) : 1 + Math.floor(rng() * 400),
         modelo: de(modelos), nivel: 1 + Math.floor(rng() * 50), rank: 1 + Math.floor(rng() * 5),
         training: rng() < 0.2,
         donos: []
