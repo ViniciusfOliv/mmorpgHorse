@@ -1,5 +1,12 @@
 # Estado do projeto
 
+**Auditoria e Fase 1 (2026-11-25, sessão local, que agora coordena):** auditoria da Fase 0 em `docs/auditoria/` e
+roadmap adaptado (proposta) em `docs/roadmap.md`. Decisões D1–D9 tomadas (`decisoes.md`). Na `main`: T1 (LF), T2
+(moldes-test no Windows) e T3 (Playwright em `prototype/tools`); o `check.sh` completo passa no Windows — instale uma
+vez com `npm ci --prefix prototype/tools`. **Próximo:** T15 (`sala.js`) → D9 (salas justas), depois D4, D2 e D8;
+tickets em `docs/auditoria/plano-fase-1.md`. Os ramos `claude/salas-economia` e `claude/fluidez` são do chat da nuvem e
+ainda não foram revisados.
+
 **Atualização geral de 2026-11-25 (pedido do Vinicius, para trabalhar numa pasta local):** a `main` recebeu a memória da
 coordenação, o README com o passo a passo de clonar, jogar, gerar o build e enviar (capa corrigida) e as capturas oficiais
 de `prototype/screens/` refeitas com a animação e o mapa. **Branch esquecido:** `claude/nifty-newton-e8u133` tem 21 commits

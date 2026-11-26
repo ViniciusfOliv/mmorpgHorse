@@ -3,6 +3,25 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-25 — Auditoria da Fase 0 e decisões D1–D9 (Vinicius, uma a uma, na sessão local)
+Detalhe, alternativas e impactos: `docs/auditoria/decisoes-produto.md`. Nada disso está implementado ainda.
+- **Coordenação:** a sessão local coordena ("Esta sessão coordena"); o chat da coordenação na nuvem deixa de decidir.
+- **D1 Loja:** cosméticos, VIP e Gemas; **o Ouro nunca é vendido**. VIP (comprável com muito Ouro ou com Gemas): +5% de XP,
+  +2% de Ouro no AFK, +1 vaga, cruza mais rápida ("Vip vai ser da forma que falei"). Estábulo: **2 vagas grátis + 3 por
+  Ouro + 2 por Gemas + 1 do VIP = 8**. Muda a regra "Gemas nunca viram Ouro" do `CLAUDE.md` §8 — texto novo proposto no
+  documento, a aplicar com o "sim" dele. Saves com mais vagas ficam com elas.
+- **D2 Preparação** (GDD §8.1): relógio de 12 s, troca só para Poder ≤ o da sala, botão "Largar agora" ("Aprovo assim").
+- **D3 Clima:** fica a soma fixa (+1,5 em cada status); só o texto muda ("Sim, só o texto").
+- **D4 Ginásios em sequência** Capoeira → Remanso → Fornalha, **mais difíceis** (mais oponentes, mais distância de nível,
+  raridade Comum → Mágico → Raro). Substitui o "não trazer" da entrada de 2026-11-25 sobre o branch esquecido.
+- **D5 Insígnias:** hoje "não entra no cálculo da corrida"; antes do online, bônus só no PVE.
+- **D6 Ramos:** `youthful-maxwell` na `main` (feito); `salas-economia` é a base da D9; `nifty-newton` guardado (arte paga).
+- **D7 Playwright:** `prototype/tools/package.json`, 1.64.1 fixo (feito no T3).
+- **D8 Sorte:** melhora a cruza e os drops do AFK (pela seed, com teto); continua nas viradas de clima; Dado Viciado sai do Poder.
+- **D9 Salas justas:** primeiro `sala.js` sem mudar comportamento (T15), depois estreia D + faixa 93,5–104,5%.
+- **Feito:** T1 (texto em LF, `.gitattributes`), T2 (caminhos com "/" no `pixellab-portes.mjs`) e T3 na `main`
+  (`5a15a684`), com o `check.sh` completo OK no Windows (8 etapas, 17 min).
+
 ## 2026-11-24 — Animação ambiente (etapas 4 e 5) e mapa dos ginásios (blocos A e B) aprovados (Vinicius: "Aprovados")
 - Aprovados: as regiões vivas na corrida (etapa 5), as trilhas animadas (etapa 4), o mapa-múndi com a viagem e a trilha
   que se pinta (bloco A) e a cena de desafio com as vistas Meshy (bloco B). A junção dos dois ramos é feita no ramo da
