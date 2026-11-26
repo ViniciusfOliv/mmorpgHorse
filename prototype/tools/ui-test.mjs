@@ -1263,7 +1263,7 @@ try {
       if (JSON.stringify(d1.afk.bau) !== JSON.stringify(s1.afk.bau) || d1.afk.vagas[0].contador !== s1.afk.vagas[0].contador) problems.push(`${label}: o disco não tem a corrida (contador e baú gravados juntos)`)
       if (!(s1.afk.vagas[0].inicioMin > antes.afk.vagas[0].inicioMin)) problems.push(`${label}: o relógio da vaga não foi para o fim da corrida`)
       const cartao = (await afkTxt(pg, '.afk-vaga[data-vaga="0"]'))[0] || ''
-      if (!/Brasa/.test(cartao) || !/Contra Recruta Broto · Capoeira · Normal/.test(cartao) || !/em curso: faltam/.test(cartao) || !/(Medindo a chance|Chance de vitória)/.test(cartao)) problems.push(`${label}: cartão da vaga "${cartao}"`)
+      if (!/Brasa/.test(cartao) || !/Contra Recruta Broto · Grama · Normal/.test(cartao) || !/em curso: faltam/.test(cartao) || !/(Medindo a chance|Chance de vitória)/.test(cartao)) problems.push(`${label}: cartão da vaga "${cartao}"`)
       // recarregar no meio da corrida não repete a seed nem dá a corrida de novo
       await pg.reload(); await pg.waitForSelector('#t-estabulo')
       if ((await afkEst(pg)).afk.vagas[0].contador !== s1.afk.vagas[0].contador) problems.push(`${label}: recarregar mudou o contador da vaga`)
@@ -1533,7 +1533,7 @@ try {
       const estoque = (await afkTxt(pg, '.forja-estoque'))[0] || ''
       for (const t of ['100 Fibras', '60 Resinas', '14 Seivas antigas', '3 troféus', '2 Selos do campeão']) if (!estoque.includes(t)) problems.push(`${label}: o estoque não diz "${t}": ${estoque}`)
       let r = await receita('raro')
-      if (!r || r.off || !/Custa 60 materiais \(Fibra \+ Resina\), 10 Seivas antigas, 1 troféu da Capoeira e 800 de Ouro\./.test(r.txt) || !/Sai: Ferraduras da Névoa \(Raro\), com 2 linhas de farm sorteadas/.test(r.txt)) problems.push(`${label}: receita Rara ${JSON.stringify(r)}`)
+      if (!r || r.off || !/Custa 60 materiais \(Fibra \+ Resina\), 10 Seivas antigas, 1 troféu da Grama e 800 de Ouro\./.test(r.txt) || !/Sai: Ferraduras da Névoa \(Raro\), com 2 linhas de farm sorteadas/.test(r.txt)) problems.push(`${label}: receita Rara ${JSON.stringify(r)}`)
       r = await receita('lendario')
       if (!r || !r.off || r.motivo !== 'Falta Seiva antiga (precisa de 20, tem 14)') problems.push(`${label}: a Lendária deveria estar apagada por faltar Seiva ${JSON.stringify(r)}`)
       await checkOverflow(pg, label + ' receitas')
@@ -1686,7 +1686,7 @@ try {
       await checkOverflow(pg, label)
       await pg.locator('[data-acao="bestiario-gym"][data-id="agua"]').click()
       const t2 = (await afkTxt(pg, '#t-best-ops'))[0] || ''
-      if (!/Ginásio do Remanso/.test(t2) || (await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-id'))) !== 'agua') problems.push(`${label}: troca de ginásio "${t2}"`)
+      if (!/Ginásio da Água/.test(t2) || (await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-id'))) !== 'agua') problems.push(`${label}: troca de ginásio "${t2}"`)
       // uma vitória no treino marca o oponente: a contagem do bestiário anda com a corrida gravada
       await pg.locator('[data-acao="bestiario-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
       if ((await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-acao'))) !== 'bestiario-abrir') problems.push(`${label}: o Voltar não devolveu o foco ao cartão do Bestiário`)
@@ -4498,7 +4498,7 @@ try {
         ginConfereCartao(label, a.cartoes.find((c) => c.id === 'grama'), 'grama', 0, false)
         ginConfereCartao(label, a.cartoes.find((c) => c.id === 'agua'), 'agua', 0, false, true)
         ginConfereCartao(label, a.cartoes.find((c) => c.id === 'fogo'), 'fogo', 0, false, true)
-        if (ginFechadoTxt('agua') !== 'Abre quando você vencer o líder do Ginásio da Capoeira.' || ginFechadoTxt('fogo') !== 'Abre quando você vencer o líder do Ginásio do Remanso.') problems.push(`${label}: os motivos do catálogo mudaram (${ginFechadoTxt('agua')} / ${ginFechadoTxt('fogo')})`)
+        if (ginFechadoTxt('agua') !== 'Abre quando você vencer o líder do Ginásio da Grama.' || ginFechadoTxt('fogo') !== 'Abre quando você vencer o líder do Ginásio da Água.') problems.push(`${label}: os motivos do catálogo mudaram (${ginFechadoTxt('agua')} / ${ginFechadoTxt('fogo')})`)
         const aria = await pg.waitForSelector('canvas[data-mapa-mundo]', { timeout: 4000 }).then((c) => c.getAttribute('aria-label'), () => null)
         if (!aria || !aria.includes(`${G.GYMS.grama.name}: 0 de 5 vencidos`) || !aria.includes(`${G.GYMS.agua.name}: fechado`) || !aria.includes(`${G.GYMS.fogo.name}: fechado`)) problems.push(`${label}: a descrição do mapa-múndi "${aria}"`)
         // o toque no cartão fechado: só o motivo, nada abre, nada é cobrado nem gravado

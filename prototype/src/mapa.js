@@ -21,7 +21,7 @@
   // a ilha B (terreno-s9901): o chão de cada ginásio (centro do objeto de 64 × 64), a cratera do vulcão e as faixas das
   // regiões (y onde o fogo acaba e onde a água acaba) para a névoa; a lava só existe acima de lavaAte
   var ILHA = { cratera: [87, 41], pos: { fogo: [180, 112], agua: [118, 184], grama: [130, 284] }, reg: [146, 214], lavaAte: 160 };
-  var NOMES = { fogo: 'Fornalha', agua: 'Remanso', grama: 'Capoeira' };
+  var NOMES = { fogo: 'Fogo', agua: 'Água', grama: 'Grama' };
   var COR_EL = { fogo: ['6e2727', 'e83b3b', 'fb6b1d', 'f9c22b'], agua: ['323353', '4d65b4', '4d9be6', '8fd3ff'], grama: ['165a4c', '239063', '1ebc73', '91db69'] };
   var MARCA = { ex: -10, base: -18, placa: 24 };   // o estandarte e a placa em volta do ginásio (pixels de arte)
   var DENS = [0.78, 0.64, 0.5, 0.38, 0.27];          // a névoa pelo número de etapas vencidas (5 = insígnia: some)

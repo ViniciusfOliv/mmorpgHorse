@@ -668,20 +668,20 @@
   }
   var GYMS = {   // na ordem da sequência (GYM_ORDER)
     // Capoeira: grama, uma subida de 800 m e a curva da chegada
-    grama: gym('grama', 'Ginásio da Capoeira', 'Dona Capineira', 'fogo',
+    grama: gym('grama', 'Ginásio da Grama', 'Dona Capineira', 'fogo',
       pistaGym('grama', [['subida', 800], ['reta', 50], ['curva', 350]]), 'ipe',
       ['Recruta Broto', 'Cabo Carrapicho', 'Sargento Juazeiro', 'Tenente Aroeira'],
-      'Insígnia da Capoeira'),
+      'Insígnia da Grama'),
     // Remanso: areia, com uma reta no meio e a subida mais longa no fim
-    agua: gym('agua', 'Ginásio do Remanso', 'Mestre Aguaceiro', 'grama',
+    agua: gym('agua', 'Ginásio da Água', 'Mestre Aguaceiro', 'grama',
       pistaGym('areia', [['curva', 100], ['subida', 250], ['reta', 250], ['curva', 200], ['subida', 400]]), 'mare',
       ['Recruta Orvalho', 'Cabo Goteira', 'Sargento Correnteza', 'Tenente Cacimba'],
-      'Insígnia do Remanso'),
+      'Insígnia da Água'),
     // Fornalha: terra, uma subida longa até a curva e outra subida na chegada
-    fogo: gym('fogo', 'Ginásio da Fornalha', 'Capitã Labareda', 'agua',
+    fogo: gym('fogo', 'Ginásio do Fogo', 'Capitã Labareda', 'agua',
       pistaGym('terra', [['subida', 650], ['curva', 350], ['subida', 200]]), 'brasa',
       ['Recruta Fagulha', 'Cabo Tocha', 'Sargento Candeeiro', 'Tenente Coivara'],
-      'Insígnia da Fornalha')
+      'Insígnia do Fogo')
   };
 
   // ---------------------------------------------------------------------------------------------
@@ -758,7 +758,7 @@
       Object.keys(extra || {}).forEach(function (k) { it[k] = extra[k]; });
       ITEMS[id] = it;
     }
-    var LUGAR = { fogo: 'da Fornalha', agua: 'do Remanso', grama: 'da Capoeira' };
+    var LUGAR = { fogo: 'do Fogo', agua: 'da Água', grama: 'da Grama' };
     var NOMES = {
       carvao: ['Carvão', 'Carvões'], 'ferro-bruto': ['Ferro bruto', 'Ferros brutos'], junco: ['Junco', 'Juncos'], concha: ['Concha', 'Conchas'],
       fibra: ['Fibra', 'Fibras'], resina: ['Resina', 'Resinas'],

@@ -81,7 +81,7 @@ jogador, e os oponentes dos ginásios têm rank fixo por etapa. Spec:
 skill por rank estão no wiki (Skills, "Rank das skills"), gerados do código.
 
 A cada nível ganho há 8% de chance de **aprender** uma skill nova, se
-houver vaga (11% com a Insígnia da Capoeira, 8.6). Cada montaria também tem **sexo** (macho/fêmea), para o cruzamento.
+houver vaga (11% com a Insígnia da Grama, 8.6). Cada montaria também tem **sexo** (macho/fêmea), para o cruzamento.
 
 ## 4. Tipos, clima e Dado da Sorte
 
@@ -207,8 +207,8 @@ raro, troféu, Ouro do treino; sem repetir na mesma peça) e o **valor** dentro 
 farm do cavalo é a soma das linhas das peças equipadas e soma ao bônus do bestiário. Peças de antes das linhas ganharam
 as suas pela seed do save e pelo número da peça (sempre as mesmas).
 
-Peças Comum e Mágica são soltas; Raro e Lendário vêm em **conjuntos** (Sol, Chuva, Névoa), um por ginásio (Fornalha:
-Sol · Remanso: Chuva · Capoeira: Névoa). Conta-se o maior número de peças equipadas do mesmo conjunto; os bônus acumulam:
+Peças Comum e Mágica são soltas; Raro e Lendário vêm em **conjuntos** (Sol, Chuva, Névoa), um por ginásio (Fogo:
+Sol · Água: Chuva · Grama: Névoa). Conta-se o maior número de peças equipadas do mesmo conjunto; os bônus acumulam:
 
 | Peças | Bônus (só no treino AFK) |
 |---|---|
@@ -303,7 +303,7 @@ volta. Os números ficam juntos em `GameData.ITEMS` (`prototype/src/data.js`), p
   e custo de cada rank: wiki (Skills, "Rank das skills").
 - **Cupom e Manual** não se usam no cavalo ativo com a sala aberta, e o sorteio sai da seed do save (recarregar a
   página não muda o resultado). A skill de tipo nunca troca. A skill que entra fica no rank I; no Cupom, o rank da que
-  sai é perdido (a confirmação avisa). O aprendizado por nível continua com 8% por nível (11% com a Insígnia da Capoeira, 8.6).
+  sai é perdido (a confirmação avisa). O aprendizado por nível continua com 8% por nível (11% com a Insígnia da Grama, 8.6).
 
 Gemas também caem de graça, em pouca quantidade, por missões.
 
@@ -407,8 +407,8 @@ Spec aprovada pelo Vinicius: `docs/superpowers/specs/2026-11-17-ginasios-design.
 números ficam em `GameData.GYM` e `GameData.GYMS` (`prototype/src/data.js`) e as regras em `prototype/src/ginasio.js`; as
 tabelas completas estão no wiki ("Ginásios da Expedição"). Os números saíram de simulação (metas G1 a G9 do `balance.js`):
 ninguém jogou ainda.
-- **Três ginásios em sequência (D4, 2026-11-26; spec `docs/superpowers/specs/2026-11-26-d4-ginasios-sequencia.md`):** Capoeira
-  (Grama; líder Dona Capineira) → Remanso (Água; líder Mestre Aguaceiro) → Fornalha (Fogo; líder Capitã Labareda). Cada um só
+- **Três ginásios em sequência (D4, 2026-11-26; spec `docs/superpowers/specs/2026-11-26-d4-ginasios-sequencia.md`):** Grama
+  (líder Dona Capineira) → Água (líder Mestre Aguaceiro) → Fogo (líder Capitã Labareda). Cada um só
   abre depois de vencer o líder do anterior (quem já venceu alguma etapa de um ginásio continua com ele aberto); fechado, o
   cartão e o mapa mostram o cadeado e o motivo, e o desafio é recusado antes de pagar.
 - **Trilha:** 4 soldados e o líder, de baixo para cima. As etapas abrem em ordem; etapa vencida fica marcada e não se
@@ -416,9 +416,9 @@ ninguém jogou ainda.
 
   | Ginásio | Oponentes | Cavalos por etapa | Níveis | Entradas | Ouro da 1ª vitória |
   |---|---|---|---|---|---|
-  | 1º Capoeira | Comuns | 1 · 1 · 2 · 2 · 3 | 2 · 4 · 6 · 8 · 10 | 10 · 15 · 20 · 25 · 50 | 50 · 75 · 100 · 125 · 250 |
-  | 2º Remanso | Mágicos | 1 · 2 · 2 · 3 · 3 | 14 · 17 · 20 · 23 · 26 | 25 · 35 · 45 · 55 · 110 | 100 · 140 · 180 · 220 · 450 |
-  | 3º Fornalha | Mágicos | 2 · 2 · 3 · 3 · 3 | 30 · 33 · 36 · 39 · 42 | 40 · 55 · 70 · 85 · 170 | 160 · 220 · 280 · 340 · 700 |
+  | 1º Grama | Comuns | 1 · 1 · 2 · 2 · 3 | 2 · 4 · 6 · 8 · 10 | 10 · 15 · 20 · 25 · 50 | 50 · 75 · 100 · 125 · 250 |
+  | 2º Água | Mágicos | 1 · 2 · 2 · 3 · 3 | 14 · 17 · 20 · 23 · 26 | 25 · 35 · 45 · 55 · 110 | 100 · 140 · 180 · 220 · 450 |
+  | 3º Fogo | Mágicos | 2 · 2 · 3 · 3 · 3 | 30 · 33 · 36 · 39 · 42 | 40 · 55 · 70 · 85 · 170 | 160 · 220 · 280 · 340 · 700 |
 
   Itens da 1ª vitória iguais nos três: Torrão de açúcar no Soldado 2, Manual de doma no Soldado 4, Rédea nova e Cupom de
   troca de skill no líder (com a insígnia). As três trilhas vencidas de primeira dão +2.630 de Ouro líquido. As etapas do Soldado 2, do Soldado 4
@@ -426,10 +426,10 @@ ninguém jogou ainda.
   oponentes têm rank fixo por etapa, sem sorteio (hoje os cavalos-base deles não têm skill de vaga).
 - **Os cavalos do adversário** são fixos e não acompanham o jogador: a genética do cavalo inicial do elemento (Brasa, Maré
   ou Ipê) com a raridade da casa, 2 estrelas, no nível da etapa, com os pontos distribuídos como os dos bots. Medido: a
-  raridade pesa mais que o nível — um time de Comuns no nível do líder vence 48% na Capoeira, 6% no Remanso e 1% na
-  Fornalha (meta GS do `balance.js`); um time de Mágicos no nível do líder vence ~49% no Remanso e na Fornalha.
-- **Pista da casa** (1.200 m, a mesma em todas as etapas do ginásio): Fornalha em terra (subida 650 m, curva 350 m,
-  subida 200 m); Remanso em areia (curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m); Capoeira em grama
+  raridade pesa mais que o nível — um time de Comuns no nível do líder vence 48% na Grama, 6% na Água e 1% no
+  Fogo (meta GS do `balance.js`); um time de Mágicos no nível do líder vence ~49% na Água e no Fogo.
+- **Pista da casa** (1.200 m, a mesma em todas as etapas do ginásio): Fogo em terra (subida 650 m, curva 350 m,
+  subida 200 m); Água em areia (curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m); Grama em grama
   (subida 800 m, reta 50 m, curva 350 m). O duelo começa Nublado; o Dado da Sorte é o de sempre e pode virar o clima.
 - **O time:** no máximo o tamanho do time do adversário (1, 1, 2, 2 e 3 cavalos), na ordem que o jogador escolhe; pode
   levar menos. Com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica fora do time.
@@ -440,7 +440,7 @@ ninguém jogou ainda.
   Perde o lado que ficar sem cavalos. Antes de cada duelo, uma **tela de desafio** (desde 2026-11-18, no estilo de
   apresentação de batalha): o oponente (arte do PixelLab, um por etapa) e o cavalo dele em cima, à direita, virados para o
   seu cavalo, embaixo, à esquerda, com as placas (nome, cavalo, nível e tipo), o fundo do ginásio (tijolo e tochas na
-  Fornalha, pedra e água no Remanso, tábuas e cipó na Capoeira) e a vantagem de elemento; "Começar duelo" leva ao duelo.
+  Fogo, pedra e água na Água, tábuas e cipó na Grama) e a vantagem de elemento; "Começar duelo" leva ao duelo.
   Cada duelo passa na tela de corrida, com 2 raias; entre um duelo e outro, um cartão diz quem saiu, quem entra e o fôlego
   de quem ficou; "Pular tudo" (no desafio, no duelo ou no cartão) vai direto ao resumo. A tela de desafio só mostra o que
   já se sabe do duelo seguinte, nunca o resultado nem quantos duelos faltam.
@@ -465,10 +465,10 @@ ninguém jogou ainda.
   no dia em que a insígnia é conquistada. Relógio para trás não libera; dia estragado no save conta como "já tentou hoje".
   O ponto na aba Expedição avisa quando há revanche livre.
 - **Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida:
-  - Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo; o prêmio do ginásio não
+  - Insígnia do Fogo: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo; o prêmio do ginásio não
     leva esse bônus);
-  - Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado);
-  - Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de nível (de 8% para 11%).
+  - Insígnia da Água: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado);
+  - Insígnia da Grama: +3 pontos na chance de aprender skill ao subir de nível (de 8% para 11%).
 
   A insígnia ganha num desafio vale dali em diante. As insígnias aparecem na aba Expedição e no Perfil.
 - **O que a simulação mediu** (3.000 desafios por caso; o time do jogador é o cavalo inicial do elemento, repetido até o

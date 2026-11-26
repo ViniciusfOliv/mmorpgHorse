@@ -42,10 +42,10 @@
 
 - **Estábulo:** o cartão da recompensa do dia, no topo; suas montarias (3 vagas no começo, até 8), status, skills (com o rank de cada uma) e equipamento; escolher a ativa.
 - **Correr:** escolher a entrada (50, 100 ou 250 de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.
-- **Expedição:** os 3 ginásios (Ginásio da Capoeira, Ginásio do Remanso e Ginásio da Fornalha), cada um com quantas etapas já venceu ("N de 5 vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa) ou "Revanche amanhã" depois de tentada a de hoje. Em cima, o mapa da ilha com os três ginásios no lugar deles, vivo (água, lava, nuvens, fumaça do vulcão), com névoa sobre o que ainda não tem a insígnia (só visual) e, em cada ginásio, o estandarte do líder, as etapas vencidas, a insígnia e "!" na revanche livre; tocar num ginásio do mapa é o mesmo que tocar no cartão dele, e a ida e a volta são uma viagem curta (aproximação e íris; direta com movimento reduzido). Tocar no ginásio abre a trilha: as 5 etapas de baixo para cima (Soldado 1, Soldado 2, Soldado 3, Soldado 4 e o Líder), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: Fogo vence Grama"); ao abrir, a trilha rola o mínimo para a etapa que se pode tocar aparecer inteira. No mapa da trilha, a pista de terra está pintada até a etapa da vez e o seu cavalo ativo espera ao lado dela; depois de uma vitória, ao voltar para a trilha, a pista se pinta até a etapa nova e o cavalo trota até lá. **Preparo:** a etapa próxima mostra os cavalos do adversário (nível, estrelas, elemento e Poder), a pista da casa, a entrada e o prêmio da 1ª vitória; em "Seu time" você toca nos seus cavalos na ordem em que vão correr, até o tamanho do time do adversário (tocar de novo tira). Cada linha diz "Vantagem" ou "Desvantagem" contra o elemento do ginásio; com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica de fora, com o motivo escrito. **Pagar:** "Desafiar (N de Ouro)" cobra a entrada e só então o desafio é simulado; sem time, sem Ouro (o reservado para a sala aberta não conta) ou com a mochila cheia do item do prêmio, o botão fica apagado com o motivo. **Duelos:** cada duelo passa na tela de corrida, com 2 raias: a placa diz "Duelo N" (nunca quantos serão), e uma linha diz a vantagem de elemento e o fôlego de quem larga cansado; "Pular" termina o duelo (depois da chegada ele diz "Continuar") e "Pular tudo" vai direto ao resumo. Entre um duelo e outro, um cartão diz como foi o seu cavalo e por quantos metros, quem saiu e quem entra, a faixa do cansaço com o fôlego de quem ficou ("Vitória apertada (menos de 1 m): … larga com 75% do fôlego") e a vantagem do próximo duelo, com "Próximo duelo" e "Pular tudo". Os metros são truncados para baixo (7,6 m aparece como 7 m); abaixo de 1 m, "menos de 1 m". **Resumo:** cada duelo com "Você venceu" ou "Você perdeu", os metros e o fôlego de quem seguiu; a entrada, o prêmio e os itens; o XP de cada cavalo (os níveis e as skills que aprendeu, ou "não correu"); a insígnia e a etapa liberada. Perdendo, "Tentar de novo" volta ao preparo com o mesmo time; sempre há "Voltar à trilha". **Revanche:** depois da insígnia, a etapa do líder vira a revanche, uma vez por dia: "Revanche hoje", com a entrada de 50 de Ouro e o prêmio de hoje do rodízio; tentada a de hoje, a etapa diz "Feita hoje" e "Revanche de hoje feita. Volte amanhã.", e a revanche perdida não tem "Tentar de novo". **Treino AFK:** na trilha, cada oponente já vencido tem "Treinar (AFK)", que abre a escolha do treino (oponente, dificuldade, vaga e cavalo). O cartão "Treino AFK" da aba abre as vagas (o cavalo, o oponente, a chance de vitória medida, a corrida em curso e a última; Assistir, Trocar e Tirar; "Abrir vaga" com o preço) e o baú ("Coletar tudo"); o cartão "Bestiário" abre as páginas dos ginásios (ver Corrida AFK). Embaixo, a vitrine de 6 cavalos selvagens (a captura ainda não existe no protótipo).
+- **Expedição:** os 3 ginásios (Ginásio da Grama, Ginásio da Água e Ginásio do Fogo), cada um com quantas etapas já venceu ("N de 5 vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa) ou "Revanche amanhã" depois de tentada a de hoje. Em cima, o mapa da ilha com os três ginásios no lugar deles, vivo (água, lava, nuvens, fumaça do vulcão), com névoa sobre o que ainda não tem a insígnia (só visual) e, em cada ginásio, o estandarte do líder, as etapas vencidas, a insígnia e "!" na revanche livre; tocar num ginásio do mapa é o mesmo que tocar no cartão dele, e a ida e a volta são uma viagem curta (aproximação e íris; direta com movimento reduzido). Tocar no ginásio abre a trilha: as 5 etapas de baixo para cima (Soldado 1, Soldado 2, Soldado 3, Soldado 4 e o Líder), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: Fogo vence Grama"); ao abrir, a trilha rola o mínimo para a etapa que se pode tocar aparecer inteira. No mapa da trilha, a pista de terra está pintada até a etapa da vez e o seu cavalo ativo espera ao lado dela; depois de uma vitória, ao voltar para a trilha, a pista se pinta até a etapa nova e o cavalo trota até lá. **Preparo:** a etapa próxima mostra os cavalos do adversário (nível, estrelas, elemento e Poder), a pista da casa, a entrada e o prêmio da 1ª vitória; em "Seu time" você toca nos seus cavalos na ordem em que vão correr, até o tamanho do time do adversário (tocar de novo tira). Cada linha diz "Vantagem" ou "Desvantagem" contra o elemento do ginásio; com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica de fora, com o motivo escrito. **Pagar:** "Desafiar (N de Ouro)" cobra a entrada e só então o desafio é simulado; sem time, sem Ouro (o reservado para a sala aberta não conta) ou com a mochila cheia do item do prêmio, o botão fica apagado com o motivo. **Duelos:** cada duelo passa na tela de corrida, com 2 raias: a placa diz "Duelo N" (nunca quantos serão), e uma linha diz a vantagem de elemento e o fôlego de quem larga cansado; "Pular" termina o duelo (depois da chegada ele diz "Continuar") e "Pular tudo" vai direto ao resumo. Entre um duelo e outro, um cartão diz como foi o seu cavalo e por quantos metros, quem saiu e quem entra, a faixa do cansaço com o fôlego de quem ficou ("Vitória apertada (menos de 1 m): … larga com 75% do fôlego") e a vantagem do próximo duelo, com "Próximo duelo" e "Pular tudo". Os metros são truncados para baixo (7,6 m aparece como 7 m); abaixo de 1 m, "menos de 1 m". **Resumo:** cada duelo com "Você venceu" ou "Você perdeu", os metros e o fôlego de quem seguiu; a entrada, o prêmio e os itens; o XP de cada cavalo (os níveis e as skills que aprendeu, ou "não correu"); a insígnia e a etapa liberada. Perdendo, "Tentar de novo" volta ao preparo com o mesmo time; sempre há "Voltar à trilha". **Revanche:** depois da insígnia, a etapa do líder vira a revanche, uma vez por dia: "Revanche hoje", com a entrada de 50 de Ouro e o prêmio de hoje do rodízio; tentada a de hoje, a etapa diz "Feita hoje" e "Revanche de hoje feita. Volte amanhã.", e a revanche perdida não tem "Tentar de novo". **Treino AFK:** na trilha, cada oponente já vencido tem "Treinar (AFK)", que abre a escolha do treino (oponente, dificuldade, vaga e cavalo). O cartão "Treino AFK" da aba abre as vagas (o cavalo, o oponente, a chance de vitória medida, a corrida em curso e a última; Assistir, Trocar e Tirar; "Abrir vaga" com o preço) e o baú ("Coletar tudo"); o cartão "Bestiário" abre as páginas dos ginásios (ver Corrida AFK). Embaixo, a vitrine de 6 cavalos selvagens (a captura ainda não existe no protótipo).
 - **Haras:** cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.
 - **Loja:** em **Comprar**, os itens de uso (Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os 6 itens, quantos você tem de cada e o botão Usar (o Pergaminho de técnica não tem Usar: é gasto ao subir rank, na aba Skills do cavalo) e, embaixo, os itens do treino AFK por grupo (comidas, com o Usar e a escolha do cavalo; materiais; Pergaminho de reforja; troféus); também peças de equipamento (menos as de raridade Lendário) e Pedras Negras.
-- **Perfil (o botão do cabeçalho):** as estatísticas (corridas, vitórias, pódios e prêmios), o Ouro e quantas montarias você tem; as insígnias dos ginásios ("Insígnias (N de 3)", as 3 na ordem Insígnia da Capoeira, Insígnia do Remanso e Insígnia da Fornalha: a conquistada com o ícone, o nome e o bônus; a que falta apagada, com "Vença o líder do …"); o seu jóquei (seda e capacete); as animações; e "Recomeçar com outro inicial".
+- **Perfil (o botão do cabeçalho):** as estatísticas (corridas, vitórias, pódios e prêmios), o Ouro e quantas montarias você tem; as insígnias dos ginásios ("Insígnias (N de 3)", as 3 na ordem Insígnia da Grama, Insígnia da Água e Insígnia do Fogo: a conquistada com o ícone, o nome e o bônus; a que falta apagada, com "Vença o líder do …"); o seu jóquei (seda e capacete); as animações; e "Recomeçar com outro inicial".
 
 > Ainda não existem no protótipo: Gemas, passe, ovos, contas, servidor, as expedições fora os ginásios e a captura. A única moeda é o Ouro; as Pedras Negras são material de melhoria.
 
@@ -139,7 +139,7 @@ Level máximo: **50**. Para subir do level L para L + 1 são 50 + 25 × L de XP.
 
 **Treino gratuito:** aparece quando seu Ouro não cobre a menor entrada (50). Não cobra entrada, rende 1/2 do XP e de 10 a 30 de Ouro pela colocação, e não dá Pedra Negra nem Pergaminho de técnica.
 
-**Duelos de ginásio:** cada cavalo do time ganha 50 de XP por duelo vencido e 15 por duelo perdido (ver Ginásios da Expedição). Com a Insígnia do Remanso, todo XP somado a um cavalo (corridas, treino e duelos) ganha +3%, arredondado.
+**Duelos de ginásio:** cada cavalo do time ganha 50 de XP por duelo vencido e 15 por duelo perdido (ver Ginásios da Expedição). Com a Insígnia da Água, todo XP somado a um cavalo (corridas, treino e duelos) ganha +3%, arredondado.
 
 ### XP necessário por level
 
@@ -223,7 +223,7 @@ Exemplo: Brasa (Comum ★★) no Nv 50 tem 213 pontos. Com a build dos bots (a m
 
 ### Aprender skill ao subir de level
 
-A cada level ganho há 8% de chance de aprender uma skill nova (11% com a Insígnia da Capoeira, ver Ginásios; sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida. A skill aprendida entra no rank I (ver Skills, Rank das skills).
+A cada level ganho há 8% de chance de aprender uma skill nova (11% com a Insígnia da Grama, ver Ginásios; sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida. A skill aprendida entra no rank I (ver Skills, Rank das skills).
 
 ### Exemplo: as iniciais por level (build dos bots)
 
@@ -1296,11 +1296,11 @@ São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com
 
 | Ginásio | Elemento | Líder | Ponto fraco | Pista da casa | Insígnia |
 | --- | --- | --- | --- | --- | --- |
-| **Ginásio da Capoeira** | Grama | Dona Capineira | Fogo | 1.200 m, grama: subida 800 m, reta 50 m, curva 350 m | ![](../prototype/assets/arte/icones/ins-grama.png) Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%) |
-| **Ginásio do Remanso** | Água | Mestre Aguaceiro | Grama | 1.200 m, areia: curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m | ![](../prototype/assets/arte/icones/ins-agua.png) Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado) |
-| **Ginásio da Fornalha** | Fogo | Capitã Labareda | Água | 1.200 m, terra: subida 650 m, curva 350 m, subida 200 m | ![](../prototype/assets/arte/icones/ins-fogo.png) Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo) |
+| **Ginásio da Grama** | Grama | Dona Capineira | Fogo | 1.200 m, grama: subida 800 m, reta 50 m, curva 350 m | ![](../prototype/assets/arte/icones/ins-grama.png) Insígnia da Grama: +3 pontos na chance de aprender skill ao subir de level (8% → 11%) |
+| **Ginásio da Água** | Água | Mestre Aguaceiro | Grama | 1.200 m, areia: curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m | ![](../prototype/assets/arte/icones/ins-agua.png) Insígnia da Água: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado) |
+| **Ginásio do Fogo** | Fogo | Capitã Labareda | Água | 1.200 m, terra: subida 650 m, curva 350 m, subida 200 m | ![](../prototype/assets/arte/icones/ins-fogo.png) Insígnia do Fogo: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo) |
 
-### Trilha do Ginásio da Capoeira
+### Trilha do Ginásio da Grama
 
 | Etapa | Adversário | Cavalos (na ordem) | Rank das skills | Entrada | Prêmio da 1ª vitória |
 | ---: | --- | --- | ---: | --- | --- |
@@ -1308,9 +1308,9 @@ São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com
 | Soldado 2 | Cabo Carrapicho | Ipê (Nv 4, ★★, Comum) | I | 15 | 75 de Ouro, 1 Torrão de açúcar, 1 Pergaminho de técnica |
 | Soldado 3 | Sargento Juazeiro | Ipê (Nv 6, ★★, Comum) · Ipê (Nv 6, ★★, Comum) | I | 20 | 100 de Ouro |
 | Soldado 4 | Tenente Aroeira | Ipê (Nv 8, ★★, Comum) · Ipê (Nv 8, ★★, Comum) | II | 25 | 125 de Ouro, 1 Manual de doma, 1 Pergaminho de técnica |
-| Líder | Dona Capineira | Ipê (Nv 10, ★★, Comum) · Ipê (Nv 10, ★★, Comum) · Ipê (Nv 10, ★★, Comum) | II | 50 | 250 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill, 3 Pergaminhos de técnica e a Insígnia da Capoeira |
+| Líder | Dona Capineira | Ipê (Nv 10, ★★, Comum) · Ipê (Nv 10, ★★, Comum) · Ipê (Nv 10, ★★, Comum) | II | 50 | 250 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill, 3 Pergaminhos de técnica e a Insígnia da Grama |
 
-### Trilha do Ginásio do Remanso
+### Trilha do Ginásio da Água
 
 | Etapa | Adversário | Cavalos (na ordem) | Rank das skills | Entrada | Prêmio da 1ª vitória |
 | ---: | --- | --- | ---: | --- | --- |
@@ -1318,9 +1318,9 @@ São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com
 | Soldado 2 | Cabo Goteira | Maré (Nv 17, ★★, Comum) · Maré (Nv 17, ★★, Comum) | I | 35 | 140 de Ouro, 1 Torrão de açúcar, 1 Pergaminho de técnica |
 | Soldado 3 | Sargento Correnteza | Maré (Nv 20, ★★, Comum) · Maré (Nv 20, ★★, Comum) | I | 45 | 180 de Ouro |
 | Soldado 4 | Tenente Cacimba | Maré (Nv 23, ★★, Comum) · Maré (Nv 23, ★★, Comum) · Maré (Nv 23, ★★, Comum) | II | 55 | 220 de Ouro, 1 Manual de doma, 1 Pergaminho de técnica |
-| Líder | Mestre Aguaceiro | Maré (Nv 26, ★★, Comum) · Maré (Nv 26, ★★, Comum) · Maré (Nv 26, ★★, Comum) | II | 110 | 450 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill, 3 Pergaminhos de técnica e a Insígnia do Remanso |
+| Líder | Mestre Aguaceiro | Maré (Nv 26, ★★, Comum) · Maré (Nv 26, ★★, Comum) · Maré (Nv 26, ★★, Comum) | II | 110 | 450 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill, 3 Pergaminhos de técnica e a Insígnia da Água |
 
-### Trilha do Ginásio da Fornalha
+### Trilha do Ginásio do Fogo
 
 | Etapa | Adversário | Cavalos (na ordem) | Rank das skills | Entrada | Prêmio da 1ª vitória |
 | ---: | --- | --- | ---: | --- | --- |
@@ -1328,7 +1328,7 @@ São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com
 | Soldado 2 | Cabo Tocha | Brasa (Nv 33, ★★, Comum) · Brasa (Nv 33, ★★, Comum) | I | 55 | 220 de Ouro, 1 Torrão de açúcar, 1 Pergaminho de técnica |
 | Soldado 3 | Sargento Candeeiro | Brasa (Nv 36, ★★, Comum) · Brasa (Nv 36, ★★, Comum) · Brasa (Nv 36, ★★, Comum) | I | 70 | 280 de Ouro |
 | Soldado 4 | Tenente Coivara | Brasa (Nv 39, ★★, Comum) · Brasa (Nv 39, ★★, Comum) · Brasa (Nv 39, ★★, Comum) | II | 85 | 340 de Ouro, 1 Manual de doma, 1 Pergaminho de técnica |
-| Líder | Capitã Labareda | Brasa (Nv 42, ★★, Comum) · Brasa (Nv 42, ★★, Comum) · Brasa (Nv 42, ★★, Comum) | II | 170 | 700 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill, 3 Pergaminhos de técnica e a Insígnia da Fornalha |
+| Líder | Capitã Labareda | Brasa (Nv 42, ★★, Comum) · Brasa (Nv 42, ★★, Comum) · Brasa (Nv 42, ★★, Comum) | II | 170 | 700 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill, 3 Pergaminhos de técnica e a Insígnia do Fogo |
 
 **Rank das skills:** o rank de todas as skills de vaga dos cavalos da etapa (ver Skills, Rank das skills). Hoje as montarias-base dos ginásios (Ipê, Maré e Brasa) não têm skill de vaga, então ele ainda não muda nada na prática. **Pergaminhos de técnica:** vêm só no prêmio da 1ª vitória; com a mochila sem espaço para eles (o máximo é 99), o desafio não começa.
 
@@ -1348,7 +1348,7 @@ O time do jogador tem no máximo o tamanho do time do adversário (pode levar me
 
 **Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de 50 de Ouro. O prêmio de cada vitória segue um rodízio fixo, sem sorteio, contado por ginásio: 100 de Ouro · 1 Torrão de açúcar · 100 de Ouro · 1 Manual de doma · 100 de Ouro · 1 Cupom de troca de skill, e recomeça. A revanche não dá Pergaminhos de técnica. Os cavalos do líder correm com o mesmo rank de skills da etapa dele. Com o relógio para trás não libera; dia estragado no save conta como "já tentou hoje".
 
-**Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida. Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%); Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado); Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo). O Perfil mostra as 3 ("Insígnias (N de 3)"): a conquistada com o bônus, a que falta apagada, com o líder a vencer.
+**Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida. Insígnia da Grama: +3 pontos na chance de aprender skill ao subir de level (8% → 11%); Insígnia da Água: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado); Insígnia do Fogo: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo). O Perfil mostra as 3 ("Insígnias (N de 3)"): a conquistada com o bônus, a que falta apagada, com o líder a vencer.
 
 <a id="afk"></a>
 
@@ -1376,7 +1376,7 @@ Os cavalos treinam sozinhos nas fases dos ginásios: cada corrida AFK é um duel
 | Pergaminho de reforja | 1,5% | 3% | 6% |
 | Troféu do oponente | 0,5% | 1% | 2% |
 
-Todo drop sai da seed da corrida. Os materiais e o incomum de cada ginásio só caem nele; a peça Raro ou Lendário que cai é do conjunto do ginásio (Ginásio da Capoeira: Névoa; Ginásio do Remanso: Chuva; Ginásio da Fornalha: Sol).
+Todo drop sai da seed da corrida. Os materiais e o incomum de cada ginásio só caem nele; a peça Raro ou Lendário que cai é do conjunto do ginásio (Ginásio da Grama: Névoa; Ginásio da Água: Chuva; Ginásio do Fogo: Sol).
 
 ### Baú, ao vivo e offline
 
@@ -1403,36 +1403,36 @@ Uma página por ginásio: os oponentes (marcos de 10, 100 e 1.000 vitórias no t
 
 | Item | Tipo | Para que serve | Teto na mochila | De onde vem |
 | --- | --- | --- | ---: | --- |
-| **Fibra** | Material do ginásio | Material de forja da Capoeira. | 999 | Cai em toda vitória no treino AFK da Capoeira. |
-| **Resina** | Material do ginásio | Material de forja da Capoeira. | 999 | Cai em toda vitória no treino AFK da Capoeira. |
-| **Junco** | Material do ginásio | Material de forja do Remanso. | 999 | Cai em toda vitória no treino AFK do Remanso. |
-| **Concha** | Material do ginásio | Material de forja do Remanso. | 999 | Cai em toda vitória no treino AFK do Remanso. |
-| **Carvão** | Material do ginásio | Material de forja da Fornalha. | 999 | Cai em toda vitória no treino AFK da Fornalha. |
-| **Ferro bruto** | Material do ginásio | Material de forja da Fornalha. | 999 | Cai em toda vitória no treino AFK da Fornalha. |
-| **Seiva antiga** | Material incomum | Material incomum da Capoeira, para forjar peças melhores. | 999 | Cai às vezes nas vitórias do treino AFK da Capoeira. |
-| **Pérola de rio** | Material incomum | Material incomum do Remanso, para forjar peças melhores. | 999 | Cai às vezes nas vitórias do treino AFK do Remanso. |
-| **Brasa viva** | Material incomum | Material incomum da Fornalha, para forjar peças melhores. | 999 | Cai às vezes nas vitórias do treino AFK da Fornalha. |
+| **Fibra** | Material do ginásio | Material de forja da Grama. | 999 | Cai em toda vitória no treino AFK da Grama. |
+| **Resina** | Material do ginásio | Material de forja da Grama. | 999 | Cai em toda vitória no treino AFK da Grama. |
+| **Junco** | Material do ginásio | Material de forja da Água. | 999 | Cai em toda vitória no treino AFK da Água. |
+| **Concha** | Material do ginásio | Material de forja da Água. | 999 | Cai em toda vitória no treino AFK da Água. |
+| **Carvão** | Material do ginásio | Material de forja do Fogo. | 999 | Cai em toda vitória no treino AFK do Fogo. |
+| **Ferro bruto** | Material do ginásio | Material de forja do Fogo. | 999 | Cai em toda vitória no treino AFK do Fogo. |
+| **Seiva antiga** | Material incomum | Material incomum da Grama, para forjar peças melhores. | 999 | Cai às vezes nas vitórias do treino AFK da Grama. |
+| **Pérola de rio** | Material incomum | Material incomum da Água, para forjar peças melhores. | 999 | Cai às vezes nas vitórias do treino AFK da Água. |
+| **Brasa viva** | Material incomum | Material incomum do Fogo, para forjar peças melhores. | 999 | Cai às vezes nas vitórias do treino AFK do Fogo. |
 | **Feno** | Comida | Dá 200 de XP a um cavalo. | 999 | Cai às vezes nas vitórias do treino AFK. |
 | **Cenoura** | Comida | Dá 500 de XP a um cavalo. | 999 | Cai às vezes nas vitórias do treino AFK. |
 | **Maçã** | Comida | Dá 1.200 de XP a um cavalo. | 999 | Cai às vezes nas vitórias do treino AFK. |
 | **Aveia dourada** | Comida | O próximo período fora rende 1 hora a mais no treino AFK. | 999 | Cai às vezes nas vitórias do treino AFK. |
 | **Selo do campeão** | Selo | Prova de vitória no PVP. Entra na forja das peças Lendárias de conjunto. | 99 | Cai às vezes para o 1º lugar das corridas valendo; não está à venda. |
 | **Pergaminho de reforja** | Reforja | Sorteia de novo uma linha de uma peça de equipamento, junto com Ouro. | 99 | Cai às vezes nas vitórias do treino AFK ou sai da forja. |
-| **Regador do Recruta Broto** | Troféu | Troféu de Recruta Broto. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Recruta Broto no treino AFK. |
-| **Escova do Cabo Carrapicho** | Troféu | Troféu de Cabo Carrapicho. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Cabo Carrapicho no treino AFK. |
-| **Cajado do Sargento Juazeiro** | Troféu | Troféu de Sargento Juazeiro. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Sargento Juazeiro no treino AFK. |
-| **Facão do Tenente Aroeira** | Troféu | Troféu de Tenente Aroeira. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Tenente Aroeira no treino AFK. |
-| **Foice da Dona Capineira** | Troféu | Troféu de Dona Capineira. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Dona Capineira no treino AFK. |
-| **Cantil do Recruta Orvalho** | Troféu | Troféu de Recruta Orvalho. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Recruta Orvalho no treino AFK. |
-| **Balde do Cabo Goteira** | Troféu | Troféu de Cabo Goteira. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Cabo Goteira no treino AFK. |
-| **Remo do Sargento Correnteza** | Troféu | Troféu de Sargento Correnteza. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Sargento Correnteza no treino AFK. |
-| **Moringa do Tenente Cacimba** | Troféu | Troféu de Tenente Cacimba. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Tenente Cacimba no treino AFK. |
-| **Capa do Mestre Aguaceiro** | Troféu | Troféu de Mestre Aguaceiro. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Mestre Aguaceiro no treino AFK. |
-| **Pederneira do Recruta Fagulha** | Troféu | Troféu de Recruta Fagulha. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Recruta Fagulha no treino AFK. |
-| **Archote do Cabo Tocha** | Troféu | Troféu de Cabo Tocha. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Cabo Tocha no treino AFK. |
-| **Lanterna do Sargento Candeeiro** | Troféu | Troféu de Sargento Candeeiro. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Sargento Candeeiro no treino AFK. |
-| **Braseiro do Tenente Coivara** | Troféu | Troféu de Tenente Coivara. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Tenente Coivara no treino AFK. |
-| **Elmo da Capitã Labareda** | Troféu | Troféu de Capitã Labareda. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Capitã Labareda no treino AFK. |
+| **Regador do Recruta Broto** | Troféu | Troféu de Recruta Broto. Conta no bestiário e entra na forja das peças de conjunto da Grama. | 99 | Cai raramente ao vencer Recruta Broto no treino AFK. |
+| **Escova do Cabo Carrapicho** | Troféu | Troféu de Cabo Carrapicho. Conta no bestiário e entra na forja das peças de conjunto da Grama. | 99 | Cai raramente ao vencer Cabo Carrapicho no treino AFK. |
+| **Cajado do Sargento Juazeiro** | Troféu | Troféu de Sargento Juazeiro. Conta no bestiário e entra na forja das peças de conjunto da Grama. | 99 | Cai raramente ao vencer Sargento Juazeiro no treino AFK. |
+| **Facão do Tenente Aroeira** | Troféu | Troféu de Tenente Aroeira. Conta no bestiário e entra na forja das peças de conjunto da Grama. | 99 | Cai raramente ao vencer Tenente Aroeira no treino AFK. |
+| **Foice da Dona Capineira** | Troféu | Troféu de Dona Capineira. Conta no bestiário e entra na forja das peças de conjunto da Grama. | 99 | Cai raramente ao vencer Dona Capineira no treino AFK. |
+| **Cantil do Recruta Orvalho** | Troféu | Troféu de Recruta Orvalho. Conta no bestiário e entra na forja das peças de conjunto da Água. | 99 | Cai raramente ao vencer Recruta Orvalho no treino AFK. |
+| **Balde do Cabo Goteira** | Troféu | Troféu de Cabo Goteira. Conta no bestiário e entra na forja das peças de conjunto da Água. | 99 | Cai raramente ao vencer Cabo Goteira no treino AFK. |
+| **Remo do Sargento Correnteza** | Troféu | Troféu de Sargento Correnteza. Conta no bestiário e entra na forja das peças de conjunto da Água. | 99 | Cai raramente ao vencer Sargento Correnteza no treino AFK. |
+| **Moringa do Tenente Cacimba** | Troféu | Troféu de Tenente Cacimba. Conta no bestiário e entra na forja das peças de conjunto da Água. | 99 | Cai raramente ao vencer Tenente Cacimba no treino AFK. |
+| **Capa do Mestre Aguaceiro** | Troféu | Troféu de Mestre Aguaceiro. Conta no bestiário e entra na forja das peças de conjunto da Água. | 99 | Cai raramente ao vencer Mestre Aguaceiro no treino AFK. |
+| **Pederneira do Recruta Fagulha** | Troféu | Troféu de Recruta Fagulha. Conta no bestiário e entra na forja das peças de conjunto do Fogo. | 99 | Cai raramente ao vencer Recruta Fagulha no treino AFK. |
+| **Archote do Cabo Tocha** | Troféu | Troféu de Cabo Tocha. Conta no bestiário e entra na forja das peças de conjunto do Fogo. | 99 | Cai raramente ao vencer Cabo Tocha no treino AFK. |
+| **Lanterna do Sargento Candeeiro** | Troféu | Troféu de Sargento Candeeiro. Conta no bestiário e entra na forja das peças de conjunto do Fogo. | 99 | Cai raramente ao vencer Sargento Candeeiro no treino AFK. |
+| **Braseiro do Tenente Coivara** | Troféu | Troféu de Tenente Coivara. Conta no bestiário e entra na forja das peças de conjunto do Fogo. | 99 | Cai raramente ao vencer Tenente Coivara no treino AFK. |
+| **Elmo da Capitã Labareda** | Troféu | Troféu de Capitã Labareda. Conta no bestiário e entra na forja das peças de conjunto do Fogo. | 99 | Cai raramente ao vencer Capitã Labareda no treino AFK. |
 
 <a id="icones-reservados"></a>
 

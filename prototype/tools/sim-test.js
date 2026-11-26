@@ -2418,7 +2418,7 @@ test('ginásio: catálogo (três ginásios, cinco etapas, times, elementos, base
     fogo: { raridade: 'magico', times: [2, 2, 3, 3, 3], level: [30, 33, 36, 39, 42], entrada: [40, 55, 70, 85, 170], ouro: [160, 220, 280, 340, 700] }
   };
   var itensD4 = [[], ['torrao'], [], ['manual'], ['redea', 'cupom']], pergD4 = [0, 1, 0, 1, 3], ultimoNivel = 0;
-  var nomes = { fogo: ['Fornalha', 'Capitã Labareda'], agua: ['Remanso', 'Mestre Aguaceiro'], grama: ['Capoeira', 'Dona Capineira'] };
+  var nomes = { fogo: ['Fogo', 'Capitã Labareda'], agua: ['Água', 'Mestre Aguaceiro'], grama: ['Grama', 'Dona Capineira'] };
   var fracoEsperado = { fogo: 'agua', agua: 'grama', grama: 'fogo' };
   var patentes = ['Recruta', 'Cabo', 'Sargento', 'Tenente'];
   G.GYM_ORDER.forEach(function (id) {

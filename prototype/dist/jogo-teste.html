@@ -2455,20 +2455,20 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   }
   var GYMS = {   // na ordem da sequência (GYM_ORDER)
     // Capoeira: grama, uma subida de 800 m e a curva da chegada
-    grama: gym('grama', 'Ginásio da Capoeira', 'Dona Capineira', 'fogo',
+    grama: gym('grama', 'Ginásio da Grama', 'Dona Capineira', 'fogo',
       pistaGym('grama', [['subida', 800], ['reta', 50], ['curva', 350]]), 'ipe',
       ['Recruta Broto', 'Cabo Carrapicho', 'Sargento Juazeiro', 'Tenente Aroeira'],
-      'Insígnia da Capoeira'),
+      'Insígnia da Grama'),
     // Remanso: areia, com uma reta no meio e a subida mais longa no fim
-    agua: gym('agua', 'Ginásio do Remanso', 'Mestre Aguaceiro', 'grama',
+    agua: gym('agua', 'Ginásio da Água', 'Mestre Aguaceiro', 'grama',
       pistaGym('areia', [['curva', 100], ['subida', 250], ['reta', 250], ['curva', 200], ['subida', 400]]), 'mare',
       ['Recruta Orvalho', 'Cabo Goteira', 'Sargento Correnteza', 'Tenente Cacimba'],
-      'Insígnia do Remanso'),
+      'Insígnia da Água'),
     // Fornalha: terra, uma subida longa até a curva e outra subida na chegada
-    fogo: gym('fogo', 'Ginásio da Fornalha', 'Capitã Labareda', 'agua',
+    fogo: gym('fogo', 'Ginásio do Fogo', 'Capitã Labareda', 'agua',
       pistaGym('terra', [['subida', 650], ['curva', 350], ['subida', 200]]), 'brasa',
       ['Recruta Fagulha', 'Cabo Tocha', 'Sargento Candeeiro', 'Tenente Coivara'],
-      'Insígnia da Fornalha')
+      'Insígnia do Fogo')
   };
 
   // ---------------------------------------------------------------------------------------------
@@ -2545,7 +2545,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       Object.keys(extra || {}).forEach(function (k) { it[k] = extra[k]; });
       ITEMS[id] = it;
     }
-    var LUGAR = { fogo: 'da Fornalha', agua: 'do Remanso', grama: 'da Capoeira' };
+    var LUGAR = { fogo: 'do Fogo', agua: 'da Água', grama: 'da Grama' };
     var NOMES = {
       carvao: ['Carvão', 'Carvões'], 'ferro-bruto': ['Ferro bruto', 'Ferros brutos'], junco: ['Junco', 'Juncos'], concha: ['Concha', 'Conchas'],
       fibra: ['Fibra', 'Fibras'], resina: ['Resina', 'Resinas'],
@@ -13537,7 +13537,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // a ilha B (terreno-s9901): o chão de cada ginásio (centro do objeto de 64 × 64), a cratera do vulcão e as faixas das
   // regiões (y onde o fogo acaba e onde a água acaba) para a névoa; a lava só existe acima de lavaAte
   var ILHA = { cratera: [87, 41], pos: { fogo: [180, 112], agua: [118, 184], grama: [130, 284] }, reg: [146, 214], lavaAte: 160 };
-  var NOMES = { fogo: 'Fornalha', agua: 'Remanso', grama: 'Capoeira' };
+  var NOMES = { fogo: 'Fogo', agua: 'Água', grama: 'Grama' };
   var COR_EL = { fogo: ['6e2727', 'e83b3b', 'fb6b1d', 'f9c22b'], agua: ['323353', '4d65b4', '4d9be6', '8fd3ff'], grama: ['165a4c', '239063', '1ebc73', '91db69'] };
   var MARCA = { ex: -10, base: -18, placa: 24 };   // o estandarte e a placa em volta do ginásio (pixels de arte)
   var DENS = [0.78, 0.64, 0.5, 0.38, 0.27];          // a névoa pelo número de etapas vencidas (5 = insígnia: some)

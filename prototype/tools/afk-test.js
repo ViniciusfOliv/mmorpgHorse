@@ -871,7 +871,7 @@ test('sem troféu: motivo; troféu de outro ginásio não serve', function () {
   var m = { carvao: 200, 'ferro-bruto': 200, 'brasa-viva': 50, 'trofeu-agua-0': 3 };
   var p = FJ.pode('raro', 'sela', 'fogo', m, 99999);
   assert.strictEqual(p.ok, false);
-  assert.strictEqual(p.motivo, 'Falta troféu da Fornalha (precisa de 1, tem 0)');
+  assert.strictEqual(p.motivo, 'Falta troféu do Fogo (precisa de 1, tem 0)');
 });
 test('Ouro reservado da sala não conta: com o Ouro livre abaixo do custo, motivo; forjar não confere o Ouro', function () {
   assert.strictEqual(FJ.pode('raro', 'sela', 'fogo', MOCH_FOGO, 799).motivo, 'Falta Ouro (precisa de 800)');

@@ -108,7 +108,7 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
   (`prototype/src/itens.js`); a loja de itens só aceita Ouro e a Rédea nova nunca é vendida.
 - Desafio de ginásio só é sorteado depois de a entrada (Ouro) ser paga, pela RNG da seed, e é gravado inteiro numa
   gravação só (`prototype/src/ginasio.js`); a tela só anima o que foi gravado. Revanche do líder: uma por dia em cada
-  ginásio. Ginásios em sequência (Capoeira → Remanso → Fornalha): cada um abre com a insígnia do
+  ginásio. Ginásios em sequência (Grama → Água → Fogo): cada um abre com a insígnia do
   anterior, regra do módulo (`Ginasio.aberto`); fechado, o desafio é recusado antes de pagar. Bônus de insígnia é da conta e nunca entra na simulação da corrida.
 - Item comprado com Gema nunca tem resultado sorteado, e Gema nunca acelera o que paga Ouro. O Ouro
   nunca é vendido por Gemas. Todo sorteio novo (troca de skill, genética do potro, circuito) sai da seed.
