@@ -3,6 +3,15 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-26 — D2 implementada: preparação com relógio (Vinicius: "Pode implementar")
+Spec: `docs/superpowers/specs/2026-11-26-d2-preparacao.md`. 12 s (`ECONOMY.preparacaoS`) para trocar de cavalo na sala,
+só para Poder ≤ o da sala; "Largar!" larga na hora; no zero larga sozinha.
+- O relógio **sempre corre** (fora da sala e com o jogo fechado): no servidor a sala larga para todos no mesmo instante.
+- O **treino também** tem relógio: é onde se aprende a trocar sem perder Ouro.
+- Sala aberta em save antigo ganha os **12 s cheios** ao reaparecer: nenhum save perde a sala.
+- O páreo guarda o rank dos bots e os donos (`P.rank`, `P.donos`): sem isso, trocar de cavalo mudaria os rivais.
+- Também em 2026-11-26: ginásios renomeados para **Grama, Água e Fogo** (Vinicius: "Nome dos ginásios").
+
 ## 2026-11-26 — D4 implementada: ginásios em sequência e mais difíceis (Vinicius: "Pode implementar")
 Spec: `docs/superpowers/specs/2026-11-26-d4-ginasios-sequencia.md`. Regra em `ginasio.js` (`aberto`, `anterior`,
 `'ginasio-fechado'`), números em `GYM_NUMEROS` (`data.js`).

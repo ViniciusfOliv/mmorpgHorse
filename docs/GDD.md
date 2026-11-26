@@ -270,8 +270,11 @@ jogadores · cosméticos por Gemas · desmanche · transferência de peças entr
 > as seções 3 a 7 e o `docs/wiki.md` descrevem. Os números saem de simulação e ficam na spec de cada bloco.
 
 ### 8.1 Preparação (bloco 2)
-- **Preparação com relógio:** a sala abre, a pista aparece e o jogador tem 12 segundos (ajustável) para
-  trocar de cavalo e de ferradura com um toque. No zero a corrida larga sozinha; fechar o jogo não segura a sala.
+- **Preparação com relógio (no jogo desde a D2, 2026-11-26; spec `docs/superpowers/specs/2026-11-26-d2-preparacao.md`):**
+  a sala abre, a pista aparece e o jogador tem 12 segundos (`ECONOMY.preparacaoS`) para trocar de cavalo com um toque, na
+  própria sala. No zero a corrida larga sozinha; o relógio corre fora da sala e com o jogo fechado (ao voltar, o aviso
+  traz a colocação e a corrida fica na aba Correr). O treino também tem relógio. Trocar de ferradura fica de fora: o
+  equipamento não vale no PVP.
 - **Limite:** o cavalo escolhido não pode ter Poder acima do que a sala viu. Nada é re-sorteado.
 - **Ferradura de tração:** família nova, reduz a perda em terra e areia.
 

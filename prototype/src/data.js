@@ -491,6 +491,9 @@
       rampaAte: 20,
       normal: { nMin: 4, nMax: 8, lo: 0.935, hi: 1.045 }
     },
+    // Preparação (D2, spec 2026-11-26-d2-preparacao): segundos entre abrir a sala e a largada automática, para trocar
+    // de cavalo (só para um com Poder até o da sala)
+    preparacaoS: 12,
     maxLevel: 50,
     // XP por colocação (1º..8º).
     xpPerPlace: [100, 70, 50, 35, 25, 20, 15, 10],

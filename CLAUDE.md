@@ -97,7 +97,8 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
   cliente só anima). O `balance.js` verifica.
 - Resultado nunca é calculado/mostrado antes de a entrada ser paga; sala não pode ser re-sorteada
   de graça; com páreo aberto, peça ou ponto que suba o Poder do cavalo ativo acima do que a sala viu
-  não entra (o `ui-test.mjs` verifica).
+  não entra (o `ui-test.mjs` verifica). Na preparação (12 s) só troca para cavalo com Poder ≤ o da sala, e a troca
+  não muda a sala (o páreo guarda o rank dos bots e os donos); no zero larga sozinha, com o jogo aberto ou não.
 - Dado da Sorte e viradas de clima só com a RNG da seed (nada de `Math.random`).
 - Potro gerado só pela RNG da seed (`prototype/src/breed.js`); Mítico nunca nasce de cruzamento.
 - Melhoria de peça e Pedra Negra do pódio só pela RNG da seed (`prototype/src/gear.js`); Lendário nunca à venda.

@@ -5,8 +5,9 @@ roadmap adaptado (proposta) em `docs/roadmap.md`. Decisões D1–D9 tomadas (`de
 (moldes-test no Windows) e T3 (Playwright em `prototype/tools`); o `check.sh` completo passa no Windows — instale uma
 vez com `npm ci --prefix prototype/tools`. Feitos também o T15 (a sala saiu do `game.js` para o `sala.js`) e a D9
 (salas justas e estreia: o inicial vence ~42% nas 10 primeiras salas e ~20% depois; metas ES1–ES3) e a D4 (ginásios
-em sequência Capoeira → Remanso → Fornalha, Comuns → Mágicos → Mágicos mais altos, times maiores; o AFK segue a fase).
-**Próximo:** D2 (Preparação) e D8 (Sorte); as 2 vagas iniciais do estábulo (D1) num ticket próprio;
+em sequência Grama → Água → Fogo, Comuns → Mágicos → Mágicos mais altos, times maiores; o AFK segue a fase) e a D2
+(preparação: 12 s na sala para trocar de cavalo até o Poder da sala; no zero larga sozinha).
+**Próximo:** D8 (Sorte); as 2 vagas iniciais do estábulo (D1) num ticket próprio;
 tickets em `docs/auditoria/plano-fase-1.md`. Os ramos `claude/salas-economia` e `claude/fluidez` são do chat da nuvem e
 ainda não foram revisados.
 

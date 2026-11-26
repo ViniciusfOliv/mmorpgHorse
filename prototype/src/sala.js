@@ -11,6 +11,8 @@
  *   e.contador   número da sala no save (P.counter): escolhe a faixa (faixaDaSala); ausente = a faixa normal
  *   e.pr         Poder do cavalo do jogador quando a sala abriu (o páreo guarda esse valor)
  *   e.cavalo     o cavalo do jogador (só para o rank dos bots, RaceSim.botRank)
+ *   e.rankBots   o rank dos bots guardado no páreo quando a sala abriu (D2: trocar de cavalo não muda os rivais);
+ *                ausente = RaceSim.botRank(e.cavalo)
  *   e.donos      ids dos modelos do catálogo que o jogador tem: nenhum rival corre com eles
  *   e.nSedas     quantas sedas de bot existem (a seda do rival é um índice de 0 a nSedas − 1)
  *   e.rapido     null ou { alvo: [lo, hi] }: build dos testadores (1º rival Raro, os outros Mágicos, abaixo do jogador)
@@ -131,7 +133,7 @@
     for (var s = 0; s < e.nSedas; s++) sedas.push(s);
     var silkOrder = shuffle(sedas, rng);
     // rank das skills dos bots: a média (arredondada) dos ranks das skills de vaga do jogador, sem sorteio
-    var rankBots = S.botRank(e.cavalo);
+    var rankBots = e.rankBots != null ? e.rankBots : S.botRank(e.cavalo);
     var rivais = [];
     for (var b = 0; b < n - 1; b++) {
       // alvo do rival na faixa da sala (fração do Poder do jogador)

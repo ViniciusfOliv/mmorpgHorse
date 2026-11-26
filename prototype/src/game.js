@@ -31,6 +31,11 @@
   // variáveis ficam como abaixo e devHooks continua null. Fora dos blocos, nada chama código de dentro deles
   // a não ser por devHooks.
   var DV = null, DEV_MODE = false, DEV_BUILD = false, devHooks = null;
+  // Preparação (D2): relógio parado = a sala nunca larga sozinha (os testes de interface; o jogo de produção nunca para)
+  var relogioParado = false;
+  /*@teste:inicio*/
+  relogioParado = window.__GALOPE_SEM_RELOGIO === true;
+  /*@teste:fim*/
   // ?quadro=<segundos>: o relógio da animação ambiente parado nesse instante (cenas das abas, arena do desafio, cavalos
   // parados), para as capturas oficiais saírem iguais a cada vez; a corrida não muda. Só apresentação (vale também no jogo de produção: a captura do jogo.html).
   var QUADRO_FIXO = (function () { var m = /[?&]quadro=([0-9]+(?:\.[0-9]+)?)(&|$)/.exec(window.location.search); return m ? Number(m[1]) : null; }());
@@ -342,7 +347,7 @@
     return ' aria-disabled="true" data-motivo="' + esc(motivo) + '" title="' + esc(motivo) + '"';
   }
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
-  var MOTIVO_ONDE = [['.ginasios > li', 'in'], ['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
+  var MOTIVO_ONDE = [['.ginasios > li', 'in'], ['.prep-troca > li', 'in'], ['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
     ['.montaria-acoes', 'after'], ['.acoes', 'after'], ['.item-linha', 'in'], ['.diaria', 'in']];
   // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
   // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
@@ -956,6 +961,12 @@
         base.pending.gear = validGearSnapshot(p.gear);   // null: save de antes do retrato, ou retrato inválido
         // retrato dos pontos: saneado abaixo, quando a montaria ativa já está pronta (null: sala de antes dele)
         base.pending.alloc = p.alloc && typeof p.alloc === 'object' && !Array.isArray(p.alloc) ? p.alloc : null;
+        // preparação (D2): prazo da largada (ms do relógio), o cavalo com que a sala abriu, o rank dos bots e os donos.
+        // Ausentes (sala de antes da D2): nascem na próxima vez que a sala aparece (prepCompleta), com os 12 s cheios
+        if (typeof p.prazo === 'number' && isFinite(p.prazo) && p.prazo > 0) base.pending.prazo = p.prazo;
+        if (typeof p.uid === 'string') base.pending.uid = p.uid;
+        if (typeof p.rank === 'number') base.pending.rank = num(p.rank, 1, 1, GD.SKILL_RANKS.max);
+        if (Array.isArray(p.donos)) base.pending.donos = p.donos.filter(function (x) { return typeof x === 'string'; }).slice(0, 200);
       }
     }
     base.races = num(s.races, 0, 0, 1e9);
@@ -1016,10 +1027,12 @@
     // Poder da sala (rivais mais fortes: só atrapalha quem adulterou). Pelas travas da tela o Poder da ativa nunca
     // passa do da sala, então o max só corrige um retrato adulterado para baixo.
     if (base.pending) {
-      var act = null;
-      base.mounts.forEach(function (m) { if (m.uid === base.activeId) act = m; });
-      base.pending.alloc = RS.validAlloc(act, v6 ? (base.pending.alloc || act.alloc) : null);
-      var retrato = clone(act);
+      var act = null, orig = null;
+      base.mounts.forEach(function (m) { if (m.uid === base.activeId) act = m; if (m.uid === base.pending.uid) orig = m; });
+      // o retrato dos pontos é do cavalo com que a sala abriu (D2: a ativa pode ter sido trocada na preparação)
+      if (!orig) { delete base.pending.uid; orig = act; }
+      base.pending.alloc = RS.validAlloc(orig, v6 ? (base.pending.alloc || orig.alloc) : null);
+      var retrato = clone(orig);
       retrato.alloc = base.pending.alloc;
       base.pending.pr = Math.max(RS.powerRating(retrato), RS.powerRating(act));
     }
@@ -2617,6 +2630,7 @@
     }
     if (devHooks) devHooks.render();
     afkLaco();   // o laço do treino AFK (só nas telas dele) e a medição da chance
+    prepLaco();   // o relógio da preparação (D2), com o páreo aberto
     acordaLaco();
   }
 
@@ -2638,7 +2652,7 @@
       var ativa = ui.tab === a.id;
       // o ponto: na aba Correr com o páreo aberto; na aba Estábulo com a recompensa do dia para resgatar; na Expedição com a
       // revanche de algum líder livre hoje (o dia é lido agora)
-      var ponto = a.id === 'correr' ? !!state.pending : a.id === 'estabulo' ? IT.diariaEstado(state.diaria, hojeDia()).pode : a.id === 'expedicao' && ginAlgumaRevanche();
+      var ponto = a.id === 'correr' ? !!state.pending || !!ui.pareoPronto : a.id === 'estabulo' ? IT.diariaEstado(state.diaria, hojeDia()).pode : a.id === 'expedicao' && ginAlgumaRevanche();
       var cls = 'app-aba' + (ativa ? ' app-aba--ativa' : '') + (ponto ? ' app-aba--ponto' : '');
       return '<button type="button" class="' + cls + '" data-acao="aba" data-id="' + esc(a.id) + '"' + (ativa ? ' aria-current="page"' : '') + '>' +
         '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 32) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
@@ -2836,7 +2850,7 @@
 
   // por que "Tornar ativa" está indisponível ('' quando pode). A ficha da ativa nem mostra o botão (3b §5)
   function motivoAtivar(P) {
-    return P ? 'Páreo aberto: corra a sala antes de trocar a montaria ativa.' : '';
+    return P ? 'Páreo aberto: troque de cavalo na sala de largada (só até o Poder da sala).' : '';
   }
   // por que a montaria não pode ser liberada ('' quando pode)
   function motivoLiberar(m) {
@@ -5976,6 +5990,13 @@
       if (gR === 'falhou') ui.notice = FALHA_SALVAR;
       if (gR !== 'ok') return null;
     }
+    if (P && !P.prazo) {
+      var sP = state, antesP = clone(state);
+      prepCompleta(P);
+      var gP = gravaGasto(sP, antesP);
+      if (gP === 'falhou') ui.notice = FALHA_SALVAR;
+      if (gP !== 'ok') return null;
+    }
     if (!P) {
       afkAcerto();   // o treino AFK do cavalo ativo conta até aqui; com a sala aberta a vaga dele fica parada
       if (!state) return null;
@@ -5990,6 +6011,7 @@
         gear: gearSnapshot(playerGear()),   // retrato do equipamento: guardado, sem efeito com o equipamento suspenso
         alloc: RS.validAlloc(activeMount(), activeMount().alloc)   // retrato dos pontos (R16): o sanitize limita pr por ele
       };
+      prepCompleta(P);
       state.pending = P;
       // a sala só abre se ficou gravada: sem isso, recarregar a sortearia de novo
       var g = gravaGasto(s0, antes);
@@ -5997,6 +6019,83 @@
       if (g !== 'ok') return null;
     }
     return buildLobby(P);
+  }
+
+  // ---- Preparação (D2, spec 2026-11-26-d2-preparacao): o relógio da sala e a troca de cavalo ----
+  // O páreo guarda o prazo (hora do relógio), o cavalo com que abriu, o rank dos bots e os donos: trocar de cavalo não
+  // muda a sala. O relógio corre sempre (fechar o jogo não segura a sala); no zero a sala larga com o cavalo escolhido.
+  var PREP_MS = E.preparacaoS * 1000, prepTimer = 0, prepDepois = 0;
+  function donosAgora() { return state.mounts.map(function (m) { return m.templateId; }); }
+  function prepCompleta(P) {
+    P.prazo = Date.now() + PREP_MS;
+    if (!P.uid) P.uid = state.activeId;
+    if (P.rank == null) P.rank = RS.botRank(playerHorse());
+    if (!P.donos) P.donos = donosAgora();
+  }
+  function prepVenceu() { var P = state && state.pending; return !!(P && P.prazo && !relogioParado && Date.now() >= P.prazo); }
+  // segundos que faltam (com o relógio parado, o tempo cheio: a tela fica igual a cada vez)
+  function prepRestante() {
+    var P = state.pending;
+    if (!P || !P.prazo || relogioParado) return E.preparacaoS;
+    return Math.max(0, Math.ceil((P.prazo - Date.now()) / 1000));
+  }
+  // por que o cavalo m não pode entrar na sala ('' quando pode)
+  function prepMotivo(m) {
+    var P = state.pending;
+    if (!P) return 'Sem páreo aberto.';
+    if (prepVenceu()) return 'O relógio zerou: a sala já largou.';
+    var pr = RS.powerRating(clone(m));
+    return pr > P.pr ? 'Poder ' + pr + ' acima do da sala (' + P.pr + ').' : '';
+  }
+  function prepLaco() {
+    var quer = !!state && !saveBloqueado && !!state.pending && !!state.pending.prazo && !relogioParado;
+    if (quer && !prepTimer) prepTimer = window.setInterval(prepTick, 250);
+    else if (!quer && prepTimer) { window.clearInterval(prepTimer); prepTimer = 0; }
+  }
+  function prepTick() {
+    if (!state || saveBloqueado || !state.pending || !state.pending.prazo || relogioParado) { prepLaco(); return; }
+    if (prepVenceu()) { if (Date.now() >= prepDepois) prepVence(); return; }
+    if (ui.screen !== 'largada') return;
+    var n = prepRestante(), el = telaEl.querySelector('[data-prep-s]');
+    if (el && el.textContent !== String(n)) {
+      el.textContent = String(n);
+      if (n <= 5) motivoVivo('Larga em ' + n + (n === 1 ? ' segundo' : ' segundos'));   // leitor de tela: só nos 5 s finais
+    }
+  }
+  // O relógio zerou: na sala, larga como o botão; nas telas de corrida (ginásio, AFK, um resultado), espera sair delas; nas
+  // outras, larga em segundo plano e avisa (a corrida fica para ver na aba Correr). Nada é sorteado aqui: a seed é da sala.
+  function prepVence() {
+    if (ui.screen === 'largada' && ui.lobby && !ui.lobby.sim) { largar(ui.lobby, false); return; }
+    if (ui.screen === 'corrida' || ui.screen === 'desafio' || ui.screen === 'entreduelos' || ui.screen === 'resultado' || ui.screen === 'largada') return;
+    largar(buildLobby(state.pending), true);
+  }
+  // A corrida trocada para outro cavalo: o tempo do treino AFK conta até agora, a vaga da antiga ativa volta a contar e a
+  // nova fica parada (como toda ativa com o páreo aberto). Grava como um gasto: se não gravar, nada muda.
+  function prepTrocar(uid) {
+    var m = mountByUid(uid);
+    if (!state.pending || !m || uid === state.activeId || prepMotivo(m)) return;
+    afkAcerto();
+    if (!state || !state.pending) return;
+    var s0 = state, antes = clone(state), antiga = state.activeId;
+    state.afk.vagas.forEach(function (v) { if (v.uid === antiga) v.inicioMin = Math.max(v.inicioMin, agoraMin()); });
+    state.activeId = uid;
+    var g = gravaGasto(s0, antes);
+    if (g === 'outra-aba') return;
+    if (g === 'falhou') ui.notice = FALHA_SALVAR;
+    rerenderKeepScroll();
+    focusAction('prep-trocar', antiga);
+  }
+  function prepTrocaHtml() {
+    var P = state.pending, outros = state.mounts.filter(function (m) { return m.uid !== state.activeId; });
+    if (!P || !outros.length) return '';
+    return '<div class="tela-cabeca"><span class="rotulo">Trocar de cavalo</span><ul class="prep-troca">' + outros.map(function (m) {
+      return '<li><button type="button" class="btn btn--pequeno" data-acao="prep-trocar" data-id="' + esc(m.uid) + '"' + indisponivel(prepMotivo(m)) + '>' +
+        esc(m.name) + ' · Poder ' + RS.powerRating(clone(m)) + '</button></li>';
+    }).join('') + '</ul><p class="nota">' + esc('Só entram cavalos com Poder até o da sala (' + P.pr + '). Rivais, pista e clima não mudam.') + '</p></div>';
+  }
+  function prepRelogioHtml() {
+    if (!state.pending || !state.pending.prazo) return '';
+    return '<p class="prep-relogio">Larga sozinha em <b data-prep-s>' + prepRestante() + '</b> s</p>';
   }
 
   // A sala sai do módulo puro Sala (prototype/src/sala.js, T15): aqui só entram o que é da tela (o jogador, as sedas de
@@ -6013,7 +6112,7 @@
     };
     var M = SL.montar({
       seed: seed, contador: counter, pr: P.pr, cavalo: player.horse, nSedas: BOT_SILKS.length, rapido: RAPIDO,
-      donos: state.mounts.map(function (m) { return m.templateId; }),
+      rankBots: P.rank, donos: P.donos || donosAgora(),
       ajustaCond: dv && dv.cond && devHooks ? function (cond, sd) { return devHooks.condicoes(dv.cond, cond, sd); } : null
     });
     var corredores = [player].concat(M.rivais.map(function (r) {
@@ -6150,7 +6249,7 @@
         '<div class="cavalo-cabeca">' + portraitHtml(eu.horse, { selo: true }) +
           '<div class="cavalo-info"><b class="cavalo-nome">' + esc(eu.horse.name) + '</b>' +
           '<div class="linha-meta">' + rarityHtml(eu.horse.rarity) + elementHtml(eu.horse.element) +
-            '<span>Poder <b>' + RS.powerRating(eu.horse) + '</b></span></div></div></div>' +
+            '<span>Poder <b>' + RS.powerRating(eu.horse) + '</b></span></div></div></div>' + prepTrocaHtml() +
         (GEAR_PVP ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div>' +
           (state.pending ? '<p class="nota">' + esc('Com o páreo aberto, só trocas que não passem do Poder da sala (' + state.pending.pr + ').') + '</p>' : '') +
@@ -6158,7 +6257,7 @@
       '<section class="caixa" aria-labelledby="t-corredores"><h2 class="titulo" id="t-corredores">Corredores<span class="nota">' + L.n + ' na raia</span></h2>' +
         '<ol class="programa">' + L.racers.map(racerRow).join('') + '</ol></section>' +
       pote +
-      '<div class="barra-acao"><button type="button" class="btn btn--ouro btn--grande" data-acao="largar">' + esc(label) + '</button></div>' +
+      '<div class="barra-acao">' + prepRelogioHtml() + '<button type="button" class="btn btn--ouro btn--grande" data-acao="largar">' + esc(label) + '</button></div>' +
       '</section>';
   }
 
@@ -7600,13 +7699,53 @@
   // ===========================================================================
   // Ações
   // ===========================================================================
+  // "Largar!" (o botão, ou o relógio zerado na sala) e a largada em segundo plano (fundo: o relógio zerou fora da sala;
+  // a corrida fica pronta para ver na aba Correr). Paga, simula com a seed da sala e grava numa gravação só.
+  function largar(L, fundo) {
+    if (!L || L.sim) { if (!fundo) go('correr'); return; }
+    var s1 = state;
+    persist();                    // sincroniza com outras abas antes de debitar
+    if (state !== s1 || !state || !state.pending || (!fundo && ui.lobby !== L)) return;   // save mais novo adotado: adoptExternal já navegou
+    if (!L.training && state.gold < L.fee) {
+      // Ouro abaixo da entrada (outra aba, save adulterado): a mesma sala vira treino e a tela mostra isso
+      var LR = openLobby(false);
+      if (!LR) { if (ui.notice === FALHA_SALVAR) rerenderKeepScroll(); prepDepois = Date.now() + 5000; return; }   // não gravou (ou outra aba)
+      if (!fundo) {
+        ui.lobby = LR;
+        ui.notice = 'Seu Ouro ficou abaixo da entrada: este páreo corre como treino, sem aposta.';
+        go('largada'); return;
+      }
+      L = LR;
+    }
+    var sAntes = state, antesL = clone(state), condAntes = L.cond;
+    var resL = settle(L);
+    var gL = gravaGasto(sAntes, antesL);
+    if (gL === 'outra-aba') { ui.result = null; return; } // conflito no meio da liquidação: descarta o resultado misto
+    if (gL === 'falhou') {   // sem gravar o débito, nada de resultado: a sala continua aberta como estava
+      L.sim = null; L.cond = condAntes;
+      ui.notice = FALHA_SALVAR;
+      prepDepois = Date.now() + 5000;   // o relógio tenta de novo daqui a pouco, sem repetir o aviso a cada passo
+      rerenderKeepScroll(); return;
+    }
+    if (DEV_MODE) ui.devNext = null;
+    ui.result = resL;
+    ui.resultAba = 'chegada';   // cada resultado novo abre na aba Chegada
+    ui.lobby = L;
+    if (fundo) {
+      ui.pareoPronto = true;
+      ui.notice = 'O relógio zerou e o Páreo nº ' + L.counter + ' largou: você chegou em ' + resL.place + 'º. Veja a corrida na aba Correr.';
+      rerenderKeepScroll(); return;
+    }
+    go('corrida');
+  }
+
   function startLobby(training) {
     var s = state;
     var lobby = openLobby(training);
     // sem sala: não gravou (o aviso está em ui.notice) ou outra aba gravou um save mais novo (adoptExternal já navegou)
     if (!lobby) { if (ui.notice === FALHA_SALVAR) rerenderKeepScroll(); return; }
     if (state !== s) return;
-    ui.lobby = lobby;
+    ui.lobby = lobby; ui.pareoPronto = false;
     go('largada');
   }
 
@@ -7634,6 +7773,7 @@
     if (!GEAR_ON && hasOwn(ACOES_EQUIP, acaoClicada)) return;
     switch (acaoClicada) {
       case 'aba':
+        if (state && id === 'correr' && ui.pareoPronto && ui.lobby && ui.lobby.sim && ui.result) { ui.pareoPronto = false; ui.tab = 'correr'; go('corrida'); break; }
         if (state && hasOwn(SCREEN_KIND, id) && SCREEN_KIND[id] === 'aba' && abaVisivel(id)) go(id);
         break;
       case 'perfil':
@@ -8223,34 +8363,11 @@
         startLobby(true); break;
       case 'voltar':
         go('correr'); break;
-      case 'largar': {
-        var L = ui.lobby;
-        if (!L || L.sim) { go('correr'); break; }
-        persist();                    // sincroniza com outras abas antes de debitar
-        if (ui.lobby !== L) break;    // save mais novo adotado: adoptExternal já navegou para um ponto seguro
-        if (!L.training && state.gold < L.fee) {
-          // Ouro abaixo da entrada (outra aba, save adulterado): a mesma sala vira treino e a tela mostra isso
-          var LR = openLobby(false);
-          if (!LR) { if (ui.notice === FALHA_SALVAR) rerenderKeepScroll(); break; }   // não gravou (ou outra aba)
-          ui.lobby = LR;
-          ui.notice = 'Seu Ouro ficou abaixo da entrada: este páreo corre como treino, sem aposta.';
-          go('largada'); break;
-        }
-        var sAntes = state, antesL = clone(state), condAntes = L.cond;
-        var resL = settle(L);
-        var gL = gravaGasto(sAntes, antesL);
-        if (gL === 'outra-aba') { ui.result = null; break; } // conflito no meio da liquidação: descarta o resultado misto
-        if (gL === 'falhou') {   // sem gravar o débito, nada de resultado: a sala continua aberta como estava
-          L.sim = null; L.cond = condAntes;
-          ui.notice = FALHA_SALVAR;
-          rerenderKeepScroll(); break;
-        }
-        if (DEV_MODE) ui.devNext = null;
-        ui.result = resL;
-        ui.resultAba = 'chegada';   // cada resultado novo abre na aba Chegada
-        go('corrida');
+      case 'largar':
+        largar(ui.lobby, false); break;
+      case 'prep-trocar':
+        if (ui.screen === 'largada') prepTrocar(id);
         break;
-      }
       case 'vel':
         if (raceView) raceView.setSpeed(Number(id));
         Array.prototype.forEach.call(telaEl.querySelectorAll('[data-acao="vel"]'), function (x) {
@@ -8729,6 +8846,7 @@
     } catch (e) { /* opcional */ }
     aplicaGrade();
     render();   // liga o laço de animação se a tela tiver o que animar
+    if (state && !saveBloqueado) prepTick();   // o relógio zerou com o jogo fechado: o páreo larga agora e o aviso aparece
     if (foraAfk) syncHistory('afk');   // subtela aberta direto: o voltar do aparelho leva à Expedição
     // só a largura (ou a densidade) muda o layout fora da corrida: a barra de endereço do celular
     // mudando a altura não reconstrói a tela no meio da rolagem
@@ -8762,7 +8880,7 @@
     // a aba voltou a ficar visível (o jogo ficou aberto de um dia para o outro): se o dia virou, a tela é desenhada de novo
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'visible' && diaVirou()) redesenhaDia();
-      if (document.visibilityState === 'visible') { afkVoltou(); afkTick(); }   // o treino AFK: o tempo com a aba escondida é acertado na volta
+      if (document.visibilityState === 'visible') { afkVoltou(); afkTick(); prepTick(); }   // o treino AFK: o tempo com a aba escondida é acertado na volta
     });
     /*@teste:inicio*/
     // ganchos para testes automatizados (fora do jogo de produção)
@@ -8774,6 +8892,9 @@
       agoraMin: function () { return agoraMin(); },
       afkTick: function () { afkTick(); },
       afkVoltou: function () { afkVoltou(); },
+      // relógio da preparação (D2): liga (true) ou para (false) e dá um passo dele
+      relogio: function (on) { relogioParado = !on; prepLaco(); prepTick(); },
+      prepTick: function () { prepTick(); },
       bonusConta: function () { return bonusConta(); },
       // custo das cenas animadas (etapa 3): por desenho e o equivalente por quadro a 60 q/s (ms gastos por segundo ÷ 60)
       ambienteMs: function () {

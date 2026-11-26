@@ -39,7 +39,7 @@ const G_ELS = Object.keys(G.ELEMENTS)
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
-const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
+const BLOCOS = ['reserva', 'gravacao2', 'treino', 'preparacao', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
   'corrompido', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-camera', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
@@ -116,13 +116,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // extra.bloquear: padrões de URL abortados (ctx.route) antes do goto;
 // extra.relogio: Date em que o relógio do navegador começa (page.clock.install, antes do goto; o tempo segue andando e
 // page.clock.setSystemTime muda o dia) — use com timezoneId para o dia local não depender da máquina;
+// extra.prepRelogio (padrão false): o relógio da preparação (D2) andando desde a carga; sem ele a sala nunca larga
+// sozinha (window.__GALOPE_SEM_RELOGIO), e os blocos que abrem salas não dependem do tempo. O gancho relogio(true) o liga.
 // extra.moldes (padrão true): espera os moldes do PixelLab carregarem (Sprites.moldsReady === true) — o jogo
 // re-renderiza a tela quando eles chegam, e esperar evita clicar num botão que está sendo trocado.
 // Nas capturas oficiais (prototype/screens/), a página abre com ?quadro=3: a animação ambiente parada no mesmo instante,
 // e a captura sai igual a cada vez (plano da animação ambiente, etapa 6); extra.vivo = true abre sem (o bloco ambiente).
 const QUADRO_CAPTURAS = 3
 async function newPage(browser, viewport, label, extra = {}) {
-  const { pagina = 'preview.html', vivo = false, init = null, moldes = true, bloquear = [], relogio = null, ...ctxExtra } = extra
+  const { pagina = 'preview.html', vivo = false, init = null, moldes = true, bloquear = [], relogio = null, prepRelogio = false, ...ctxExtra } = extra
   let { query = '' } = extra
   delete ctxExtra.query
   if (SHOTS_SAO_OFICIAIS && !vivo && !/[?&]quadro=/.test(query)) query += (query.includes('?') ? '&' : '?') + 'quadro=' + QUADRO_CAPTURAS
@@ -131,6 +133,7 @@ async function newPage(browser, viewport, label, extra = {}) {
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}` + (process.env.UI_PILHA ? ' ' + e.stack : '')))
   for (const padrao of bloquear) await ctx.route(padrao, (r) => r.abort())   // sem rede para esses endereços
+  if (!prepRelogio) await page.addInitScript({ content: 'window.__GALOPE_SEM_RELOGIO = true' })
   if (init) await page.addInitScript(init)
   if (relogio) await page.clock.install({ time: relogio })
   await page.goto(BASE + pagina + query, { waitUntil: 'domcontentloaded' })
@@ -536,6 +539,108 @@ try {
       problems.push('treino: ' + e.message)
     }
     await tr.context().close()
+  }
+
+  // ---------------- preparação (D2, spec 2026-11-26-d2-preparacao): relógio de 12 s, troca de cavalo e largada sozinha ----
+  // Estábulo: Brasa (m1), o gêmeo dela (m2, mesmo Poder: pode entrar) e um forte (m3, nível 10: Poder acima da sala). Com o
+  // relógio parado: a troca para m2 muda o corredor e não muda rivais, raias, entrada nem Poder da sala; m3 só diz o motivo e
+  // não grava nada; recarregar mantém a troca e a sala. Com o relógio ligado e o prazo vencido, a sala larga sozinha com m2.
+  // Fora da sala (Estábulo), o zero larga em segundo plano: aviso, ponto na aba Correr e a corrida ao tocar nela. Sala de
+  // save antigo (sem prazo, rank nem donos) ganha os 12 s cheios ao reaparecer.
+  if (quer('preparacao')) {
+    const label = 'preparacao'
+    const pg = await newPage(browser, { width: 390, height: 844 }, label)
+    const st = () => pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const sala = () => pg.evaluate(() => { const L = window.__galope.ui.lobby; return L && { seed: L.seed, counter: L.counter, fee: L.fee, n: L.n,
+      rivais: L.racers.filter((r) => !r.isPlayer).map((r) => [r.name, r.rating, r.horse.name, r.horse.level]), eu: L.racers[L.playerIdx].horse.name, raia: L.playerIdx } })
+    const salvo = () => pg.evaluate(() => localStorage.getItem('galope-elemental:v1'))
+    const ate = async (fn, ms, o_que) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await pg.evaluate(fn)) return true; await sleep(150) } problems.push(`${label}: ${o_que} não aconteceu em ${ms} ms`); return false }
+    try {
+      await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await pg.waitForSelector('#t-estabulo')
+      await pg.evaluate(() => {
+        const s = window.__galope.state, b = s.mounts[0]
+        const gemeo = JSON.parse(JSON.stringify(b)); gemeo.uid = 'm2'; gemeo.name = 'Gêmeo'
+        const forte = JSON.parse(JSON.stringify(b)); forte.uid = 'm3'; forte.name = 'Forte'; forte.level = 10
+        s.mounts.push(gemeo, forte); s.nextUid = Math.max(s.nextUid, 4); s.stableSlots = Math.max(s.stableSlots, 3)
+      })
+      await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+      await pg.locator('[data-acao="procurar"]').click()
+      await pg.waitForSelector('#t-largada')
+      let S = await st()
+      const P = S.pending
+      if (!(P.prazo > Date.now() - 60000) || P.uid !== 'm1' || P.rank !== 1 || (P.donos || []).length !== 3) problems.push(`${label}: o páreo não guardou prazo, cavalo, rank e donos ${JSON.stringify(P)}`)
+      const rel = (await pg.locator('.prep-relogio').textContent()).trim()
+      if (rel !== 'Larga sozinha em 12 s') problems.push(`${label}: relógio "${rel}"`)
+      const A = await sala()
+      // o forte: indisponível, com o motivo; o toque não troca nem grava
+      const bf = pg.locator('[data-acao="prep-trocar"][data-id="m3"]')
+      const mf = await bf.getAttribute('data-motivo')
+      if ((await bf.getAttribute('aria-disabled')) !== 'true' || !/^Poder \d+ acima do da sala \(\d+\)\.$/.test(mf || '')) problems.push(`${label}: o forte devia estar indisponível com o motivo (${mf})`)
+      const g0 = await salvo()
+      await bf.click({ force: true })
+      if ((await st()).activeId !== 'm1' || (await salvo()) !== g0) problems.push(`${label}: o toque no forte trocou ou gravou`)
+      // o gêmeo: troca, grava e a sala fica igual
+      await pg.locator('[data-acao="prep-trocar"][data-id="m2"]').click()
+      S = await st()
+      const B = await sala()
+      if (S.activeId !== 'm2' || JSON.parse(await salvo()).activeId !== 'm2') problems.push(`${label}: a troca para o gêmeo não ficou gravada`)
+      if (B.eu !== 'Gêmeo') problems.push(`${label}: o corredor na sala é ${B.eu}`)
+      if (JSON.stringify([A.seed, A.counter, A.fee, A.n, A.rivais, A.raia]) !== JSON.stringify([B.seed, B.counter, B.fee, B.n, B.rivais, B.raia]) || S.pending.pr !== P.pr) problems.push(`${label}: a troca mudou a sala ${JSON.stringify({ A, B })}`)
+      await checkOverflow(pg, label + ' sala')
+      // recarregar: a mesma sala com o gêmeo
+      await pg.reload({ waitUntil: 'domcontentloaded' })
+      await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+      await pg.locator('[data-acao="procurar"]').click()
+      await pg.waitForSelector('#t-largada')
+      const C = await sala()
+      if (JSON.stringify(C) !== JSON.stringify(B)) problems.push(`${label}: recarregar mudou a sala ${JSON.stringify({ B, C })}`)
+      // relógio ligado com o prazo vencido: larga sozinha, com o gêmeo, cobrando a entrada uma vez
+      const ouro0 = (await st()).gold, corridas0 = (await st()).races
+      await pg.evaluate(() => { window.__galope.state.pending.prazo = Date.now() - 1; window.__galope.relogio(true) })
+      if (await ate(() => window.__galope.ui.screen === 'corrida', 5000, 'a largada sozinha na sala')) {
+        S = await st()
+        const r = await pg.evaluate(() => window.__galope.ui.result)
+        if (S.pending || S.races !== corridas0 + 1 || S.gold !== ouro0 - C.fee + r.prize) problems.push(`${label}: a largada sozinha não liquidou uma vez ${JSON.stringify({ ouro0, ouro: S.gold, fee: C.fee, prize: r.prize, races: S.races })}`)
+        if ((await sala()).eu !== 'Gêmeo') problems.push(`${label}: largou com outro cavalo`)
+      }
+      // fora da sala: o zero larga em segundo plano
+      await pg.evaluate(() => window.__galope.relogio(false))
+      await pg.goto(BASE + 'preview.html', { waitUntil: 'domcontentloaded' })
+      await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+      await pg.locator('[data-acao="procurar"]').click()
+      await pg.waitForSelector('#t-largada')
+      await pg.getByRole('button', { name: /^Voltar/ }).click()
+      await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await pg.evaluate(() => { window.__galope.state.pending.prazo = Date.now() - 1; window.__galope.relogio(true) })
+      if (await ate(() => !window.__galope.state.pending, 5000, 'a largada em segundo plano')) {
+        const av = (await pg.locator('#tela .aviso').allTextContents()).join(' | ')
+        if (!/O relógio zerou e o Páreo n\S* \d+ largou: você chegou em \d+\S*\. Veja a corrida na aba Correr\./.test(av)) problems.push(`${label}: aviso da largada em segundo plano "${av}"`)
+        if (!/app-aba--ponto/.test(await pg.locator('[data-acao="aba"][data-id="correr"]').getAttribute('class'))) problems.push(`${label}: a aba Correr sem o ponto da corrida pronta`)
+        if ((await pg.evaluate(() => window.__galope.ui.screen)) !== 'estabulo') problems.push(`${label}: a largada em segundo plano saiu do Estábulo`)
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        if ((await pg.evaluate(() => window.__galope.ui.screen)) !== 'corrida') problems.push(`${label}: a aba Correr não mostrou a corrida pronta`)
+      }
+      // sala de save antigo (sem prazo, rank nem donos): os 12 s cheios ao reaparecer, e o rank e os donos de agora
+      await pg.evaluate(() => window.__galope.relogio(false))
+      await pg.goto(BASE + 'preview.html', { waitUntil: 'domcontentloaded' })
+      await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+      await pg.locator('[data-acao="procurar"]').click()
+      await pg.waitForSelector('#t-largada')
+      const D = await sala()
+      await pg.evaluate(() => { const k = 'galope-elemental:v1', r = JSON.parse(localStorage.getItem(k)); delete r.pending.prazo; delete r.pending.rank; delete r.pending.donos; delete r.pending.uid; localStorage.setItem(k, JSON.stringify(r)) })
+      await pg.reload({ waitUntil: 'domcontentloaded' })
+      if ((await st()).pending.prazo) problems.push(`${label}: a sala antiga ganhou prazo antes de aparecer`)
+      await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+      await pg.locator('[data-acao="procurar"]').click()
+      await pg.waitForSelector('#t-largada')
+      const P2 = (await st()).pending
+      if (!(P2.prazo > Date.now() + 9000) || P2.uid !== 'm2' || P2.rank !== 1 || (P2.donos || []).length !== 3) problems.push(`${label}: a sala antiga não ganhou os 12 s cheios ${JSON.stringify(P2)}`)
+      if (JSON.stringify(await sala()) !== JSON.stringify(D)) problems.push(`${label}: a sala antiga mudou ao ganhar o prazo`)
+    } catch (e) {
+      problems.push(label + ': ' + e.message)
+    }
+    await pg.context().close()
   }
 
   // ---------------- aviso sobrevive ao redesenho passivo (moldes carregando, largura mudando) ----------------
@@ -3563,7 +3668,10 @@ try {
         await pg.reload({ waitUntil: 'domcontentloaded' })
         await pg.waitForSelector('#t-estabulo')
         const r = await ginEstado(pg)
-        if (!ginIgual(semRev(r), semRev(e7)) || (await ginSimSala(pg)) !== simRef) problems.push(`${label}: recarregar o save migrado mudou o save ou a sala`)
+        // 2026-11-26 (D2): a sala apareceu (abrirSala) e ganhou a preparação (prazo, uid, rank, donos): fora isso, igual
+        const semPrep = (x) => { const c = semRev(x); if (c.pending) for (const k of ['prazo', 'uid', 'rank', 'donos']) delete c.pending[k]; return c }
+        if (!(r.pending && r.pending.prazo && r.pending.uid && r.pending.rank && r.pending.donos)) problems.push(`${label}: a sala antiga não ganhou a preparação ao aparecer ${JSON.stringify(r.pending)}`)
+        if (!ginIgual(semPrep(r), semPrep(e7)) || (await ginSimSala(pg)) !== simRef) problems.push(`${label}: recarregar o save migrado mudou o save ou a sala`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -9456,7 +9564,7 @@ try {
         if (!igual(disco.joquei, { padrao: 'xadrez', capacete: '#62b8ff' })) problems.push(`${label}: o save gravado tem joquei ${JSON.stringify(disco.joquei)}`)
         for (const m of disco.mounts) if (!igual(m.marcas, esperadas[m.uid])) problems.push(`${label}: ${m.uid} gravado com marcas ${JSON.stringify(m.marcas)} (esperado ${mStr(esperadas[m.uid])})`)
         const chaves = Object.keys(disco.pending || {}).sort().join(',')
-        if (chaves !== 'alloc,counter,fee,gear,pr,training') problems.push(`${label}: a sala gravada mudou de forma: ${chaves}`)
+        if (chaves !== 'alloc,counter,donos,fee,gear,pr,prazo,rank,training,uid') problems.push(`${label}: a sala gravada mudou de forma: ${chaves}`)   // 2026-11-26 (D2): + prazo, uid, rank e donos da preparação
       } catch (e) {
         problems.push(`${label}: ` + e.message)
       } finally {
@@ -9963,7 +10071,7 @@ try {
         if (disco.v !== SAVE_V) problems.push(`${label}: a versão do save mudou para ${disco.v}`)
         for (const m of disco.mounts) if (m.porte !== esperados[m.uid]) problems.push(`${label}: ${m.uid} gravado com porte ${JSON.stringify(m.porte)} (esperado ${esperados[m.uid]})`)
         const chaves = Object.keys(disco.pending || {}).sort().join(',')
-        if (chaves !== 'alloc,counter,fee,gear,pr,training') problems.push(`${label}: a sala gravada mudou de forma: ${chaves}`)
+        if (chaves !== 'alloc,counter,donos,fee,gear,pr,prazo,rank,training,uid') problems.push(`${label}: a sala gravada mudou de forma: ${chaves}`)   // 2026-11-26 (D2): + prazo, uid, rank e donos da preparação
         await pg.reload({ waitUntil: 'domcontentloaded' })
         await pg.waitForSelector('#t-estabulo')
         s = await estado(pg)
@@ -11508,7 +11616,7 @@ try {
       await confere('Expandir com a entrada reservada', '[data-acao="expandir"]', /^100 de Ouro reservados para a entrada do páreo aberto\.$/, { alvo: true })
       if (await pg.locator('#tela [data-acao="ativar"]').count()) problems.push(`${label}: "Tornar ativa" na lista do Estábulo (páreo aberto)`)
       await abreFicha('m1', 'ficha')
-      await confere('Tornar ativa na ficha (páreo aberto)', '.montaria-ficha [data-acao="ativar"]', /^Páreo aberto: corra a sala antes de trocar a montaria ativa\.$/)
+      await confere('Tornar ativa na ficha (páreo aberto)', '.montaria-ficha [data-acao="ativar"]', /^Páreo aberto: troque de cavalo na sala de largada \(só até o Poder da sala\)\.$/)
       await confere('Liberar com páreo aberto', '.montaria-ficha [data-acao="liberar"]', /^Páreo aberto: corra a sala antes de liberar uma montaria\.$/)
       await abreFicha('m2')
       const maisTrava = await pg.evaluate(() => { const x = Array.from(document.querySelectorAll('[data-acao="ponto-mais"][aria-disabled="true"]')).find((e) => /Páreo aberto: passaria do Poder/.test(e.getAttribute('data-motivo') || '')); return x ? [x.getAttribute('data-id'), x.getAttribute('data-n')] : null })
