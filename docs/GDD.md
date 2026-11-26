@@ -407,25 +407,27 @@ Spec aprovada pelo Vinicius: `docs/superpowers/specs/2026-11-17-ginasios-design.
 números ficam em `GameData.GYM` e `GameData.GYMS` (`prototype/src/data.js`) e as regras em `prototype/src/ginasio.js`; as
 tabelas completas estão no wiki ("Ginásios da Expedição"). Os números saíram de simulação (metas G1 a G9 do `balance.js`):
 ninguém jogou ainda.
-- **Três ginásios, um por elemento:** o da Fornalha (Fogo; líder Capitã Labareda), o do Remanso (Água; líder Mestre
-  Aguaceiro) e o da Capoeira (Grama; líder Dona Capineira). Dá para fazer as três trilhas em qualquer ordem.
+- **Três ginásios em sequência (D4, 2026-11-26; spec `docs/superpowers/specs/2026-11-26-d4-ginasios-sequencia.md`):** Capoeira
+  (Grama; líder Dona Capineira) → Remanso (Água; líder Mestre Aguaceiro) → Fornalha (Fogo; líder Capitã Labareda). Cada um só
+  abre depois de vencer o líder do anterior (quem já venceu alguma etapa de um ginásio continua com ele aberto); fechado, o
+  cartão e o mapa mostram o cadeado e o motivo, e o desafio é recusado antes de pagar.
 - **Trilha:** 4 soldados e o líder, de baixo para cima. As etapas abrem em ordem; etapa vencida fica marcada e não se
-  repete. Os três ginásios têm os mesmos níveis, entradas e prêmios:
+  repete. Cada ginásio é mais forte que o anterior (as cinco etapas, da 1ª ao líder):
 
-  | Etapa | Cavalos | Nível | Entrada | Prêmio da 1ª vitória |
-  |---|---|---|---|---|
-  | Soldado 1 | 1 | 4 | 20 de Ouro | 80 de Ouro |
-  | Soldado 2 | 1 | 8 | 30 de Ouro | 120 de Ouro e 1 Torrão de açúcar |
-  | Soldado 3 | 2 | 12 | 40 de Ouro | 160 de Ouro |
-  | Soldado 4 | 2 | 16 | 50 de Ouro | 200 de Ouro e 1 Manual de doma |
-  | Líder | 3 | 20 | 100 de Ouro | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a insígnia |
+  | Ginásio | Oponentes | Cavalos por etapa | Níveis | Entradas | Ouro da 1ª vitória |
+  |---|---|---|---|---|---|
+  | 1º Capoeira | Comuns | 1 · 1 · 2 · 2 · 3 | 2 · 4 · 6 · 8 · 10 | 10 · 15 · 20 · 25 · 50 | 50 · 75 · 100 · 125 · 250 |
+  | 2º Remanso | Mágicos | 1 · 2 · 2 · 3 · 3 | 14 · 17 · 20 · 23 · 26 | 25 · 35 · 45 · 55 · 110 | 100 · 140 · 180 · 220 · 450 |
+  | 3º Fornalha | Mágicos | 2 · 2 · 3 · 3 · 3 | 30 · 33 · 36 · 39 · 42 | 40 · 55 · 70 · 85 · 170 | 160 · 220 · 280 · 340 · 700 |
 
-  Uma trilha inteira dá 960 de Ouro e custa 240 de entrada, se vencida de primeira. As etapas do Soldado 2, do Soldado 4
+  Itens da 1ª vitória iguais nos três: Torrão de açúcar no Soldado 2, Manual de doma no Soldado 4, Rédea nova e Cupom de
+  troca de skill no líder (com a insígnia). As três trilhas vencidas de primeira dão +2.630 de Ouro líquido. As etapas do Soldado 2, do Soldado 4
   e do líder também dão **Pergaminhos de técnica** na 1ª vitória (quantos: wiki); a revanche não dá. As skills de vaga dos
   oponentes têm rank fixo por etapa, sem sorteio (hoje os cavalos-base deles não têm skill de vaga).
-- **Os cavalos do adversário** são fixos e não acompanham o jogador: todos são o cavalo inicial do elemento (Brasa, Maré
-  ou Ipê), Comuns de 2 estrelas, no nível da etapa, com os pontos distribuídos como os dos bots. No Remanso, um cavalo do
-  soldado 4 e o do meio do líder têm 3 estrelas: assim os três ginásios ficam igualmente difíceis.
+- **Os cavalos do adversário** são fixos e não acompanham o jogador: a genética do cavalo inicial do elemento (Brasa, Maré
+  ou Ipê) com a raridade da casa, 2 estrelas, no nível da etapa, com os pontos distribuídos como os dos bots. Medido: a
+  raridade pesa mais que o nível — um time de Comuns no nível do líder vence 48% na Capoeira, 6% no Remanso e 1% na
+  Fornalha (meta GS do `balance.js`); um time de Mágicos no nível do líder vence ~49% no Remanso e na Fornalha.
 - **Pista da casa** (1.200 m, a mesma em todas as etapas do ginásio): Fornalha em terra (subida 650 m, curva 350 m,
   subida 200 m); Remanso em areia (curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m); Capoeira em grama
   (subida 800 m, reta 50 m, curva 350 m). O duelo começa Nublado; o Dado da Sorte é o de sempre e pode virar o clima.

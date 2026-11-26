@@ -342,7 +342,7 @@
     return ' aria-disabled="true" data-motivo="' + esc(motivo) + '" title="' + esc(motivo) + '"';
   }
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
-  var MOTIVO_ONDE = [['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
+  var MOTIVO_ONDE = [['.ginasios > li', 'in'], ['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
     ['.montaria-acoes', 'after'], ['.acoes', 'after'], ['.item-linha', 'in'], ['.diaria', 'in']];
   // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
   // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
@@ -3078,11 +3078,15 @@
 
   // Cartão do ginásio na aba (um botão que abre a trilha): nome, elemento, "N de 5 vencidos", a insígnia conquistada e
   // "Revanche hoje" quando a revanche do líder está livre (ou "Revanche amanhã", sem destaque, com a de hoje já tentada)
+  // Ginásio fechado (D4, sequência): o cartão fica apagado com "Fechado" e o toque só diz o motivo (aria-disabled)
+  function ginAberto(id) { return GN.aberto(id, state.ginasios); }
+  function ginFechadoTxt(id) { var a = GN.anterior(id); return a ? 'Abre quando você vencer o líder do ' + GD.GYMS[a].name + '.' : ''; }
   function ginasioCartaoHtml(id) {
-    var g = GD.GYMS[id], ins = ginTemInsignia(id);
-    return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + '" data-acao="ginasio-abrir" data-id="' + esc(id) + '">' +
+    var g = GD.GYMS[id], ins = ginTemInsignia(id), aberto = ginAberto(id);
+    return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + (aberto ? '' : ' ginasio-cartao--fechado') + '" data-acao="ginasio-abrir" data-id="' + esc(id) + '"' +
+      (aberto ? '' : indisponivel(ginFechadoTxt(id))) + '>' +
       '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' +
-      '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">' + esc(ginProgressoTxt(id)) + '</span></span>' +
+      '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">' + esc(aberto ? ginProgressoTxt(id) : 'Fechado') + '</span></span>' +
       (ins ? '<span class="ginasio-cartao-meta ginasio-insignia">' + ginInsigniaIcone(id) + '<span>' + esc(g.insignia.name) + '</span></span>' : '') +
       (ginRevancheHoje(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche">Revanche hoje</span></span>'
         : ginRevancheFeita(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche-amanha">Revanche amanhã</span></span>' : '') +
@@ -3265,6 +3269,7 @@
       case 'time-grande': return 'O time passou do limite: até ' + ginCavalosTxt(ginLimite(id, i)) + '.';
       case 'vencida': return 'Esta etapa já foi vencida.';
       case 'revanche-hoje': return 'A revanche de hoje já foi feita. Volte amanhã.';
+      case 'ginasio-fechado': return ginFechadoTxt(id) || 'Este ginásio ainda não abriu.';
       default: return 'Esta etapa ainda não está aberta.';
     }
   }
@@ -3650,13 +3655,14 @@
   function mapaProgresso() {
     var out = {};
     GD.GYM_ORDER.forEach(function (id) {
-      out[GD.GYMS[id].element] = { vencidas: ginProgresso(id), insignia: ginTemInsignia(id), revanche: ginRevancheHoje(id) ? 'livre' : ginRevancheFeita(id) ? 'feita' : null };
+      out[GD.GYMS[id].element] = { vencidas: ginProgresso(id), insignia: ginTemInsignia(id), revanche: ginRevancheHoje(id) ? 'livre' : ginRevancheFeita(id) ? 'feita' : null,
+        fechado: !ginAberto(id) };
     });
     return out;
   }
   function mapaMundoTxt() {
     return 'Mapa da ilha dos ginásios. ' + GD.GYM_ORDER.map(function (id) {
-      return GD.GYMS[id].name + ': ' + ginProgressoTxt(id) + (ginRevancheHoje(id) ? ', revanche hoje' : '');
+      return GD.GYMS[id].name + ': ' + (ginAberto(id) ? ginProgressoTxt(id) : 'fechado') + (ginRevancheHoje(id) ? ', revanche hoje' : '');
     }).join('; ') + '.';
   }
   // ---- A viagem entre o mapa e a trilha (spec §3.2, plano A4): zoom e íris ao entrar num ginásio, o inverso ao voltar.
@@ -7958,7 +7964,7 @@
       }
       // ---- Ginásios (aba Expedição): abrir a trilha, abrir o detalhe da etapa próxima, voltar ----
       case 'ginasio-abrir': {
-        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || viagemSegura()) break;
+        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || !ginAberto(id) || viagemSegura()) break;
         var abreGin = function () { ui.gym = { id: id, etapa: null, time: [], res: null, msg: null }; go('ginasio'); };
         // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola o mínimo
         // para ela aparecer inteira (depois da viagem, se houver); o foco fica no título

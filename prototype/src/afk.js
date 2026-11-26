@@ -136,7 +136,7 @@
     var i = oponenteIdx(id, n);
     if (i < 0) return null;
     var f = fase(id), def = G.GYMS[f.gymId].etapas[f.etapa].cavalos[i];
-    return GY.cavalo({ base: def.base, level: f.nivel, grau: def.grau, rank: f.rank });
+    return GY.cavalo({ base: def.base, raridade: def.raridade, level: f.nivel, grau: def.grau, rank: f.rank });
   }
 
   // ---------------------------------------------------------------------------------------------

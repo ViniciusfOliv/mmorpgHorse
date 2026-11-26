@@ -928,6 +928,10 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 }
 .ginasio-cartao-meta { grid-column: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; }
 .ginasio-cartao-seta { grid-column: 2; grid-row: 1 / span 4; margin: 0 -2px 0 0; }
+/* ginásio que ainda não abriu na sequência (D4): apagado, sem a seta de abrir; o toque só mostra o motivo */
+.ginasio-cartao--fechado { opacity: 0.6; }
+.ginasio-cartao--fechado:hover { background: inherit; }
+.ginasio-cartao--fechado .ginasio-cartao-seta { visibility: hidden; }
 .ginasio-progresso { color: var(--texto-2); }
 .ginasio-insignia { display: flex; align-items: center; gap: 8px; margin: 0; }
 .ginasio-revanche { background: var(--ouro); color: var(--tinta); padding: 2px 6px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); }
@@ -2343,56 +2347,65 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     revanche: { entrada: 50, ciclo: [{ ouro: 100 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 100 }, { item: 'cupom' }] },
     insignias: { fogo: { tipo: 'ouro', valor: 0.03 }, agua: { tipo: 'xp', valor: 0.03 }, grama: { tipo: 'skill', valor: 0.03 } }
   };
-  var GYM_ORDER = ['fogo', 'agua', 'grama'];
+  // A sequência (D4, spec 2026-11-26-d4-ginasios-sequencia): cada ginásio só abre com a insígnia do anterior (regra em
+  // ginasio.js, aberto). É também a ordem do Perfil, da gaveta DEV, do wiki e das fases do treino AFK.
+  var GYM_ORDER = ['grama', 'agua', 'fogo'];
   // Pista da casa (1.200 m, uma por ginásio): blocos dados como [tipo, metros], em sequência a partir de 0.
   function pistaGym(surface, partes) {
     var at = 0, blocks = partes.map(function (p) { var b = { type: p[0], from: at, to: at + p[1] }; at += p[1]; return b; });
     return { distance: at, surface: surface, blocks: blocks };
   }
-  // As cinco etapas (mesmos níveis, entradas e prêmios nos três; spec §4).
+  // As cinco etapas: o que é igual nos três ginásios (id, líder, rank das skills e os itens da 1ª vitória; spec §4).
   // premio.pergaminhos: Pergaminhos de técnica a mais na 1ª vitória (a revanche não dá: o rodízio não muda).
   // rank: o rank de todas as skills de vaga dos cavalos da etapa (fixo, sem sorteio; a revanche usa o do líder).
   var GYM_ETAPAS = [
-    { id: 'soldado-1', lider: false, level: 4, rank: 1, entrada: 20, premio: { ouro: 80, itens: [] } },
-    { id: 'soldado-2', lider: false, level: 8, rank: 1, entrada: 30, premio: { ouro: 120, itens: ['torrao'], pergaminhos: 1 } },
-    { id: 'soldado-3', lider: false, level: 12, rank: 1, entrada: 40, premio: { ouro: 160, itens: [] } },
-    { id: 'soldado-4', lider: false, level: 16, rank: 2, entrada: 50, premio: { ouro: 200, itens: ['manual'], pergaminhos: 1 } },
-    { id: 'lider', lider: true, level: 20, rank: 2, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'], pergaminhos: 3 } }
+    { id: 'soldado-1', lider: false, rank: 1, itens: [] },
+    { id: 'soldado-2', lider: false, rank: 1, itens: ['torrao'], pergaminhos: 1 },
+    { id: 'soldado-3', lider: false, rank: 1, itens: [] },
+    { id: 'soldado-4', lider: false, rank: 2, itens: ['manual'], pergaminhos: 1 },
+    { id: 'lider', lider: true, rank: 2, itens: ['redea', 'cupom'], pergaminhos: 3 }
   ];
-  // Os cavalos de todas as etapas têm a genética do inicial do elemento (base); graus: as estrelas de cada cavalo,
-  // por etapa (o tamanho de cada lista é o tamanho do time).
-  function gym(id, name, lider, fraco, pista, base, graus, soldados, insignia) {
+  // E o que muda por ginásio (D4): cada um mais forte que o anterior na sequência. level/entrada/ouro: por etapa;
+  // raridade: a dos oponentes (a genética continua a do inicial do elemento, com os pontos e as vagas da raridade);
+  // graus: as estrelas de cada cavalo, por etapa (o tamanho de cada lista é o tamanho do time).
+  var GYM_NUMEROS = {
+    grama: { raridade: 'comum', level: [2, 4, 6, 8, 10], entrada: [10, 15, 20, 25, 50], ouro: [50, 75, 100, 125, 250],
+      graus: [[2], [2], [2, 2], [2, 2], [2, 2, 2]] },
+    agua: { raridade: 'magico', level: [14, 17, 20, 23, 26], entrada: [25, 35, 45, 55, 110], ouro: [100, 140, 180, 220, 450],
+      graus: [[2], [2, 2], [2, 2], [2, 2, 2], [2, 2, 2]] },
+    fogo: { raridade: 'magico', level: [30, 33, 36, 39, 42], entrada: [40, 55, 70, 85, 170], ouro: [160, 220, 280, 340, 700],
+      graus: [[2, 2], [2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]] }
+  };
+  function gym(id, name, lider, fraco, pista, base, soldados, insignia) {
+    var n = GYM_NUMEROS[id];
     return {
-      id: id, element: id, name: name, lider: lider, fraco: fraco, pista: pista,
+      id: id, element: id, name: name, lider: lider, fraco: fraco, pista: pista, raridade: n.raridade,
       etapas: GYM_ETAPAS.map(function (e, i) {
         return {
           id: e.id, nome: e.lider ? lider : soldados[i], lider: e.lider,
-          cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr, rank: e.rank }; }),
-          entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice(), pergaminhos: e.premio.pergaminhos || 0 }
+          cavalos: n.graus[i].map(function (gr) { return { base: base, raridade: n.raridade, level: n.level[i], grau: gr, rank: e.rank }; }),
+          entrada: n.entrada[i], premio: { ouro: n.ouro[i], itens: e.itens.slice(), pergaminhos: e.pergaminhos || 0 }
         };
       }),
       insignia: { icone: 'ins-' + id, name: insignia }
     };
   }
-  var GYMS = {
-    // Fornalha: terra, uma subida longa até a curva e outra subida na chegada
-    fogo: gym('fogo', 'Ginásio da Fornalha', 'Capitã Labareda', 'agua',
-      pistaGym('terra', [['subida', 650], ['curva', 350], ['subida', 200]]), 'brasa',
-      [[2], [2], [2, 2], [2, 2], [2, 2, 2]],
-      ['Recruta Fagulha', 'Cabo Tocha', 'Sargento Candeeiro', 'Tenente Coivara'],
-      'Insígnia da Fornalha'),
-    // Remanso: areia, com uma reta no meio e a subida mais longa no fim
-    agua: gym('agua', 'Ginásio do Remanso', 'Mestre Aguaceiro', 'grama',
-      pistaGym('areia', [['curva', 100], ['subida', 250], ['reta', 250], ['curva', 200], ['subida', 400]]), 'mare',
-      [[2], [2], [2, 2], [2, 3], [2, 3, 2]],
-      ['Recruta Orvalho', 'Cabo Goteira', 'Sargento Correnteza', 'Tenente Cacimba'],
-      'Insígnia do Remanso'),
+  var GYMS = {   // na ordem da sequência (GYM_ORDER)
     // Capoeira: grama, uma subida de 800 m e a curva da chegada
     grama: gym('grama', 'Ginásio da Capoeira', 'Dona Capineira', 'fogo',
       pistaGym('grama', [['subida', 800], ['reta', 50], ['curva', 350]]), 'ipe',
-      [[2], [2], [2, 2], [2, 2], [2, 2, 2]],
       ['Recruta Broto', 'Cabo Carrapicho', 'Sargento Juazeiro', 'Tenente Aroeira'],
-      'Insígnia da Capoeira')
+      'Insígnia da Capoeira'),
+    // Remanso: areia, com uma reta no meio e a subida mais longa no fim
+    agua: gym('agua', 'Ginásio do Remanso', 'Mestre Aguaceiro', 'grama',
+      pistaGym('areia', [['curva', 100], ['subida', 250], ['reta', 250], ['curva', 200], ['subida', 400]]), 'mare',
+      ['Recruta Orvalho', 'Cabo Goteira', 'Sargento Correnteza', 'Tenente Cacimba'],
+      'Insígnia do Remanso'),
+    // Fornalha: terra, uma subida longa até a curva e outra subida na chegada
+    fogo: gym('fogo', 'Ginásio da Fornalha', 'Capitã Labareda', 'agua',
+      pistaGym('terra', [['subida', 650], ['curva', 350], ['subida', 200]]), 'brasa',
+      ['Recruta Fagulha', 'Cabo Tocha', 'Sargento Candeeiro', 'Tenente Coivara'],
+      'Insígnia da Fornalha')
   };
 
   // ---------------------------------------------------------------------------------------------
@@ -2409,7 +2422,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   var AFK = {
     difs: [
       { id: 'normal', name: 'Normal', nivel: 0, rank: null, mult: 1, pecas: null },
-      { id: 'dificil', name: 'Difícil', nivel: 12, rank: 3, mult: 2, pecas: { rar: 'magico', plus: 3 } },
+      // nivelMax 45 desde a D4 (2026-11-26): com a Fornalha nos níveis 30–42, +12 passava do nível máximo do jogo (50)
+      { id: 'dificil', name: 'Difícil', nivel: 12, nivelMax: 45, rank: 3, mult: 2, pecas: { rar: 'magico', plus: 3 } },
       { id: 'lendaria', name: 'Lendária', nivel: 25, nivelMax: 45, rank: 5, mult: 4, pecas: { rar: 'raro', plus: 5, doConjunto: true } }
     ],
     liberaApos: 50,
@@ -5581,6 +5595,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
  *   quem chama grava o contador novo junto com a entrada e o resultado. O mapa de todos os sais do save está no topo
  *   do itens.js (um só mapa); o deste módulo fica abaixo do SAL do itens.js, com folga de ~4 milhões de desafios.
  *
+ * SEQUÊNCIA (D4): aberto(gymId, progresso) -> o 1º de GYM_ORDER, o anterior com a insígnia ou ele mesmo com etapa
+ *   vencida (save antigo não perde nada); fechado, o podeDesafiar recusa ('ginasio-fechado') e o acerto devolve null.
  * ETAPA: nas funções, `etapa` é o índice 0–4 em GYMS[id].etapas (4 = o líder). PROGRESSO por ginásio:
  *   { etapa: 0–5 (etapas vencidas; a próxima a desafiar é a de índice `etapa`; 5 = insígnia),
  *     revDia: null (nunca) | dia da última revanche, revVitorias: revanches vencidas (o rodízio do prêmio) }.
@@ -5631,13 +5647,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return 0;
   }
   // O cavalo fixo da etapa: a base do catálogo (cópia) no nível e nas estrelas dados, com a build dos bots e as
-  // skills de vaga no rank da etapa.
+  // skills de vaga no rank da etapa. def.raridade (D4): a raridade do ginásio no lugar da do catálogo (a genética fica
+  // a da base; os pontos e as vagas passam a ser os da raridade).
   function cavalo(def) {
     if (!objeto(def)) return null;
     var lista = G.STARTERS.concat(G.WILD_HORSES), base = null;
     for (var i = 0; i < lista.length; i++) if (lista[i].id === def.base) { base = lista[i]; break; }
     if (!base) return null;
     var h = copia(base);
+    if (typeof def.raridade === 'string' && temChave(G.RARITIES, def.raridade)) h.rarity = def.raridade;
     h.level = def.level;
     h.grau = def.grau;
     h.alloc = S.botAlloc(h);
@@ -5755,13 +5773,31 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // Pode tentar a revanche hoje: só com hoje inteiro e se nunca tentou ou hoje passou do último dia.
   function revancheLivre(p, hoje) { return inteiro(hoje) && (p.revDia === null || hoje > p.revDia); }
 
+  // SEQUÊNCIA (D4): o ginásio antes de `id` em GYM_ORDER (null: o primeiro ou um id desconhecido).
+  function anterior(id) {
+    var i = G.GYM_ORDER.indexOf(id);
+    return i > 0 ? G.GYM_ORDER[i - 1] : null;
+  }
+  // Aberto: o primeiro da sequência, o anterior com a insígnia (etapa 5) ou ele mesmo com alguma etapa vencida (save de
+  // antes da regra: ninguém perde o que já fez). Id desconhecido: false. O progresso é saneado (o dia não importa).
+  function aberto(gymId, progresso) {
+    var gym = gymDe(gymId);
+    if (!gym) return false;
+    var ant = anterior(gym.id);
+    if (!ant) return true;
+    var p = sanear(progresso, 0);
+    return p[gym.id].etapa > 0 || p[ant].etapa === 5;
+  }
+
   // e = { gymId, etapa, progresso, hoje, ouroLivre (Ouro fora do reservado da sala aberta), cabe(id, n), timeLen }
-  // -> { ok: true, revanche } | { ok: false, motivo }. Na ordem: 'fechada', 'vencida', 'revanche-hoje', 'sem-ouro',
-  // 'cheia', 'sem-time', 'time-grande'.
+  // -> { ok: true, revanche } | { ok: false, motivo }. Na ordem: 'fechada' (ginásio ou etapa malformados),
+  // 'ginasio-fechado' (ainda não abriu na sequência), 'vencida', 'revanche-hoje', 'fechada' (etapa depois da próxima),
+  // 'sem-ouro', 'cheia', 'sem-time', 'time-grande'.
   function podeDesafiar(e) {
     if (!objeto(e)) return { ok: false, motivo: 'fechada' };
     var gym = gymDe(e.gymId);
     if (!gym || !etapaOk(e.etapa)) return { ok: false, motivo: 'fechada' };
+    if (!aberto(gym.id, e.progresso)) return { ok: false, motivo: 'ginasio-fechado' };
     var p = sanear(e.progresso, e.hoje)[gym.id];
     var revanche = false;
     if (p.etapa === 5) {
@@ -5810,6 +5846,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (!inteiro(e.timeLen) || e.timeLen < 1 || e.timeLen > et.cavalos.length) return null;
     if (!resultadoOk(e.resultado, et.cavalos.length, e.timeLen)) return null;
     if (!inteiro(e.hoje) || typeof e.revanche !== 'boolean') return null;
+    if (!aberto(gym.id, e.progresso)) return null;   // ginásio que ainda não abriu na sequência (D4)
     var revanche = e.revanche;
     var prog = sanear(e.progresso, e.hoje), p = prog[gym.id];
     if (revanche) {
@@ -5859,6 +5896,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     resolver: resolver,
     acerto: acerto,
     podeDesafiar: podeDesafiar,
+    anterior: anterior,
+    aberto: aberto,
     revanchePremio: revanchePremio,
     bonus: bonus,
     sanear: sanear
@@ -6008,7 +6047,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var i = oponenteIdx(id, n);
     if (i < 0) return null;
     var f = fase(id), def = G.GYMS[f.gymId].etapas[f.etapa].cavalos[i];
-    return GY.cavalo({ base: def.base, level: f.nivel, grau: def.grau, rank: f.rank });
+    return GY.cavalo({ base: def.base, raridade: def.raridade, level: f.nivel, grau: def.grau, rank: f.rank });
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -13503,7 +13542,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var out = {};
     ORDEM.forEach(function (el) {
       var p = progresso && progresso[el], v = vencidasDe(p), conq = !!(p && p.insignia) || v >= 5;
-      out[el] = { conquistado: conq, vencidas: v, revanche: conq && p && p.revanche === 'livre', revancheFeita: conq && p && p.revanche === 'feita' };
+      out[el] = { conquistado: conq, vencidas: v, revanche: conq && p && p.revanche === 'livre', revancheFeita: conq && p && p.revanche === 'feita',
+        fechado: !!(p && p.fechado) };   // ainda não abriu na sequência (D4): cadeado e placa apagada
     });
     return out;
   }
@@ -13788,11 +13828,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // a placa (nome e as 5 etapas) e a sombra do mastro mudam só com o progresso: pré-assadas, 1 desenho cada por quadro
     var placas = {}, sombrasMastro = {};
     function placa(el, mk) {
-      var kk = el + (mk.conquistado ? 'c' : '') + mk.vencidas; if (placas[kk]) return placas[kk];
+      var kk = el + (mk.conquistado ? 'c' : '') + (mk.fechado ? 'f' : '') + mk.vencidas; if (placas[kk]) return placas[kk];
       var nome = NOMES[el], lw = SP && SP.measureText ? SP.measureText(nome, 1, 'g7') : nome.length * 5, pw = Math.max(lw + 6, 33);
       var c = tela(pw + 2, 15), q = c.getContext('2d'), r = function (x, y, w, h, cor) { q.fillStyle = cor; q.fillRect(x, y, w, h); };
       r(0, 0, pw + 2, 15, '#2e222f'); r(1, 1, pw, 13, '#3e3546'); r(1, 1, pw, 1, '#484a77');
-      if (SP && SP.drawText) SP.drawText(q, nome, Math.round((pw + 2) / 2), 3, { fonte: 'g7', scale: 1, color: mk.conquistado ? '#f9c22b' : '#ffffff', shadow: '#2e222f', align: 'center' });
+      if (SP && SP.drawText) SP.drawText(q, nome, Math.round((pw + 2) / 2), 3, { fonte: 'g7', scale: 1, color: mk.conquistado ? '#f9c22b' : mk.fechado ? '#9babb2' : '#ffffff', shadow: '#2e222f', align: 'center' });
       var cx = Math.round((pw + 2) / 2);
       for (var e = 0; e < 5; e++) r(cx - 12 + e * 5, 11, 3, 2, e < mk.vencidas ? '#f9c22b' : '#625565');
       return (placas[kk] = c);
@@ -13809,8 +13849,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       D(estandarte(el, fase, mk.conquistado), bx - 1, by - 33);
       if (mk.conquistado) { var br = mod(t * 9, 30); if (br < 6) R(bx + 9 + Math.floor(br / 2), by - 5 + (Math.floor(br) % 3), 1, 1, '#ffffff'); }
       if (mk.revanche) balao(bx - 4, by - 30, t, '#f79617');
-      var pl = placa(el, mk);
-      D(pl, pp[0] - Math.round(pl.width / 2), pp[1] + MARCA.placa + (el === 'agua' ? 0 : 1) - 1);
+      var pl = placa(el, mk), py = pp[1] + MARCA.placa + (el === 'agua' ? 0 : 1) - 1;
+      D(pl, pp[0] - Math.round(pl.width / 2), py);
+      if (mk.fechado) cadeado(pp[0] - 3, py - 10);
+    }
+    // o cadeado do ginásio que ainda não abriu (7 × 8 px de arte, logo acima da placa)
+    function cadeado(x, y) {
+      var aro = '#c7dcd0', esc = '#2e222f';
+      R(x + 2, y, 3, 1, aro); R(x + 1, y + 1, 1, 2, aro); R(x + 5, y + 1, 1, 2, aro);
+      R(x, y + 3, 7, 5, esc); R(x + 1, y + 4, 5, 3, '#f9c22b'); R(x + 3, y + 5, 1, 1, esc);
     }
 
     // ---- o quadro inteiro, de baixo para cima
@@ -16593,7 +16640,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return ' aria-disabled="true" data-motivo="' + esc(motivo) + '" title="' + esc(motivo) + '"';
   }
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
-  var MOTIVO_ONDE = [['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
+  var MOTIVO_ONDE = [['.ginasios > li', 'in'], ['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
     ['.montaria-acoes', 'after'], ['.acoes', 'after'], ['.item-linha', 'in'], ['.diaria', 'in']];
   // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
   // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
@@ -18661,11 +18708,15 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
 
   // Cartão do ginásio na aba (um botão que abre a trilha): nome, elemento, "N de 5 vencidos", a insígnia conquistada e
   // "Revanche hoje" quando a revanche do líder está livre (ou "Revanche amanhã", sem destaque, com a de hoje já tentada)
+  // Ginásio fechado (D4, sequência): o cartão fica apagado com "Fechado" e o toque só diz o motivo (aria-disabled)
+  function ginAberto(id) { return GN.aberto(id, state.ginasios); }
+  function ginFechadoTxt(id) { var a = GN.anterior(id); return a ? 'Abre quando você vencer o líder do ' + GD.GYMS[a].name + '.' : ''; }
   function ginasioCartaoHtml(id) {
-    var g = GD.GYMS[id], ins = ginTemInsignia(id);
-    return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + '" data-acao="ginasio-abrir" data-id="' + esc(id) + '">' +
+    var g = GD.GYMS[id], ins = ginTemInsignia(id), aberto = ginAberto(id);
+    return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + (aberto ? '' : ' ginasio-cartao--fechado') + '" data-acao="ginasio-abrir" data-id="' + esc(id) + '"' +
+      (aberto ? '' : indisponivel(ginFechadoTxt(id))) + '>' +
       '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' +
-      '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">' + esc(ginProgressoTxt(id)) + '</span></span>' +
+      '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">' + esc(aberto ? ginProgressoTxt(id) : 'Fechado') + '</span></span>' +
       (ins ? '<span class="ginasio-cartao-meta ginasio-insignia">' + ginInsigniaIcone(id) + '<span>' + esc(g.insignia.name) + '</span></span>' : '') +
       (ginRevancheHoje(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche">Revanche hoje</span></span>'
         : ginRevancheFeita(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche-amanha">Revanche amanhã</span></span>' : '') +
@@ -18848,6 +18899,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       case 'time-grande': return 'O time passou do limite: até ' + ginCavalosTxt(ginLimite(id, i)) + '.';
       case 'vencida': return 'Esta etapa já foi vencida.';
       case 'revanche-hoje': return 'A revanche de hoje já foi feita. Volte amanhã.';
+      case 'ginasio-fechado': return ginFechadoTxt(id) || 'Este ginásio ainda não abriu.';
       default: return 'Esta etapa ainda não está aberta.';
     }
   }
@@ -19233,13 +19285,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   function mapaProgresso() {
     var out = {};
     GD.GYM_ORDER.forEach(function (id) {
-      out[GD.GYMS[id].element] = { vencidas: ginProgresso(id), insignia: ginTemInsignia(id), revanche: ginRevancheHoje(id) ? 'livre' : ginRevancheFeita(id) ? 'feita' : null };
+      out[GD.GYMS[id].element] = { vencidas: ginProgresso(id), insignia: ginTemInsignia(id), revanche: ginRevancheHoje(id) ? 'livre' : ginRevancheFeita(id) ? 'feita' : null,
+        fechado: !ginAberto(id) };
     });
     return out;
   }
   function mapaMundoTxt() {
     return 'Mapa da ilha dos ginásios. ' + GD.GYM_ORDER.map(function (id) {
-      return GD.GYMS[id].name + ': ' + ginProgressoTxt(id) + (ginRevancheHoje(id) ? ', revanche hoje' : '');
+      return GD.GYMS[id].name + ': ' + (ginAberto(id) ? ginProgressoTxt(id) : 'fechado') + (ginRevancheHoje(id) ? ', revanche hoje' : '');
     }).join('; ') + '.';
   }
   // ---- A viagem entre o mapa e a trilha (spec §3.2, plano A4): zoom e íris ao entrar num ginásio, o inverso ao voltar.
@@ -23539,7 +23592,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       }
       // ---- Ginásios (aba Expedição): abrir a trilha, abrir o detalhe da etapa próxima, voltar ----
       case 'ginasio-abrir': {
-        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || viagemSegura()) break;
+        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || !ginAberto(id) || viagemSegura()) break;
         var abreGin = function () { ui.gym = { id: id, etapa: null, time: [], res: null, msg: null }; go('ginasio'); };
         // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola o mínimo
         // para ela aparecer inteira (depois da viagem, se houver); o foco fica no título

@@ -49,23 +49,24 @@ test('faseId e fase: ida e volta nas 45 fases; id estragado devolve null', funct
 });
 test('Normal usa o nível e o rank da etapa; Difícil etapa + 12 e rank 3', function () {
   var f = A.fase('agua:3:normal');
-  assert.strictEqual(f.nivel, 16); assert.strictEqual(f.rank, 2); assert.strictEqual(f.pecas, null);
-  assert.strictEqual(A.fase('agua:0:normal').nivel, 4); assert.strictEqual(A.fase('agua:0:normal').rank, 1);
+  assert.strictEqual(f.nivel, 23); assert.strictEqual(f.rank, 2); assert.strictEqual(f.pecas, null);   // D4: o Remanso vai do nível 14 ao 26
+  assert.strictEqual(A.fase('agua:0:normal').nivel, 14); assert.strictEqual(A.fase('agua:0:normal').rank, 1);
   var d = A.fase('agua:3:dificil');
-  assert.strictEqual(d.nivel, 28); assert.strictEqual(d.rank, 3); assert.deepStrictEqual(d.pecas, { rar: 'magico', plus: 3 });
+  assert.strictEqual(d.nivel, 35); assert.strictEqual(d.rank, 3); assert.deepStrictEqual(d.pecas, { rar: 'magico', plus: 3 });
 });
 test('Lendária do líder tem nível 45 e rank 5', function () {
   var f = A.fase('fogo:4:lendaria');
   assert.strictEqual(f.nivel, 45); assert.strictEqual(f.rank, 5); assert.strictEqual(f.mult, 4);
 });
-test('Lendária do Soldado 1 tem nível 29', function () { assert.strictEqual(A.fase('grama:0:lendaria').nivel, 29); });
+test('Lendária do Soldado 1 tem nível 27', function () { assert.strictEqual(A.fase('grama:0:lendaria').nivel, 27); });   // D4: o Recruta da Capoeira é nível 2
+test('Difícil da Fornalha para no nível 45 (D4)', function () { assert.strictEqual(A.fase('fogo:4:dificil').nivel, 45); assert.strictEqual(A.fase('fogo:0:dificil').nivel, 42); });
 test('nenhuma fase passa do nível 45 nem do nível máximo do jogo', function () {
-  A.fases().forEach(function (id) { var f = A.fase(id); assert.ok(f.nivel >= 4 && f.nivel <= 45 && f.nivel <= G.ECONOMY.maxLevel, id + ' ' + f.nivel); });
+  A.fases().forEach(function (id) { var f = A.fase(id); assert.ok(f.nivel >= 2 && f.nivel <= 45 && f.nivel <= G.ECONOMY.maxLevel, id + ' ' + f.nivel); });
 });
 test('etapa não vencida no ginásio não libera', function () {
   assert.deepStrictEqual(A.liberadas(progCom({}), {}), []);
   assert.deepStrictEqual(A.liberadas(progCom({ fogo: 2 }), {}), ['fogo:0:normal', 'fogo:1:normal']);
-  assert.deepStrictEqual(A.liberadas(progCom({ fogo: 5, grama: 1 }), {}), ['fogo:0:normal', 'fogo:1:normal', 'fogo:2:normal', 'fogo:3:normal', 'fogo:4:normal', 'grama:0:normal']);
+  assert.deepStrictEqual(A.liberadas(progCom({ fogo: 5, grama: 1 }), {}), ['grama:0:normal', 'fogo:0:normal', 'fogo:1:normal', 'fogo:2:normal', 'fogo:3:normal', 'fogo:4:normal']);   // na ordem da sequência (D4)
   // vitórias AFK numa etapa não vencida no ginásio não liberam nada
   assert.deepStrictEqual(A.liberadas(progCom({}), { 'fogo:0:normal': 99, 'fogo:0:dificil': 99 }), []);
   assert.deepStrictEqual(A.liberadas(null, null), []); assert.deepStrictEqual(A.liberadas('x', 7), []);
@@ -84,17 +85,17 @@ test('Difícil só com 50 vitórias na Normal; Lendária só com 50 na Difícil'
 });
 test('oponente: o cavalo da etapa no nível e no rank da dificuldade, com as estrelas da etapa', function () {
   var o = A.oponente('agua:4:lendaria', 1), def = G.GYMS.agua.etapas[4].cavalos[1];
-  assert.deepStrictEqual(o, GY.cavalo({ base: def.base, level: 45, grau: def.grau, rank: 5 }));
-  assert.strictEqual(o.level, 45); assert.strictEqual(o.grau, 3); assert.strictEqual(o.element, 'agua');
+  assert.deepStrictEqual(o, GY.cavalo({ base: def.base, raridade: def.raridade, level: 45, grau: def.grau, rank: 5 }));
+  assert.strictEqual(o.level, 45); assert.strictEqual(o.grau, def.grau); assert.strictEqual(o.rarity, 'magico'); assert.strictEqual(o.element, 'agua');
   assert.deepStrictEqual(A.oponente('fogo:0:normal', 0), GY.cavalo(G.GYMS.fogo.etapas[0].cavalos[0]));
   assert.strictEqual(A.oponente('lixo', 0), null); assert.strictEqual(A.oponente('fogo:0:normal', -1), null); assert.strictEqual(A.oponente('fogo:0:normal', 1.5), null);
 });
 test('rodízio do Soldado 3 alterna os 2 cavalos; o do líder roda os 3', function () {
-  assert.deepStrictEqual([0, 1, 2, 3, 4].map(function (n) { return A.oponenteIdx('fogo:2:normal', n); }), [0, 1, 0, 1, 0]);
+  assert.deepStrictEqual([0, 1, 2, 3, 4].map(function (n) { return A.oponenteIdx('grama:2:normal', n); }), [0, 1, 0, 1, 0]);
   assert.deepStrictEqual([0, 1, 2, 3, 4, 5].map(function (n) { return A.oponenteIdx('agua:4:dificil', n); }), [0, 1, 2, 0, 1, 2]);
   assert.deepStrictEqual([0, 1, 2].map(function (n) { return A.oponenteIdx('grama:0:normal', n); }), [0, 0, 0]);
-  // no Remanso, o Soldado 4 tem um cavalo de 2 e um de 3 estrelas: o rodízio alterna de verdade
-  assert.strictEqual(A.oponente('agua:3:normal', 0).grau, 2); assert.strictEqual(A.oponente('agua:3:normal', 1).grau, 3); assert.strictEqual(A.oponente('agua:3:normal', 2).grau, 2);
+  // D4: a Fornalha tem time de 3 já no Soldado 3
+  assert.deepStrictEqual([0, 1, 2, 3].map(function (n) { return A.oponenteIdx('fogo:2:normal', n); }), [0, 1, 2, 0]);
 });
 test('vaga 2 custa 1000 e respeita o ouroLivre', function () {
   assert.deepStrictEqual(A.podeComprarVaga(1, 1000), { ok: true, preco: 1000 });
@@ -133,8 +134,8 @@ function perto(v, alvo, tol, msg) { assert.ok(Math.abs(v - alvo) <= tol, msg + '
 test('itens novos do AFK no catálogo: 6 materiais, 3 incomuns, 4 comidas, 15 troféus e o Pergaminho de reforja, sem preço', function () {
   var I = G.ITEMS, por = {};
   Object.keys(I).forEach(function (id) { if (I[id].grupo) (por[I[id].grupo] = por[I[id].grupo] || []).push(id); });
-  assert.deepStrictEqual(por.material, ['carvao', 'ferro-bruto', 'junco', 'concha', 'fibra', 'resina']);
-  assert.deepStrictEqual(por.incomum, ['brasa-viva', 'perola-de-rio', 'seiva-antiga']);
+  assert.deepStrictEqual(por.material, ['fibra', 'resina', 'junco', 'concha', 'carvao', 'ferro-bruto']);   // na ordem da sequência (D4)
+  assert.deepStrictEqual(por.incomum, ['seiva-antiga', 'perola-de-rio', 'brasa-viva']);
   assert.deepStrictEqual(por.comida, ['feno', 'cenoura', 'maca', 'aveia-dourada']);
   assert.deepStrictEqual(por.reforja, ['pergaminho-reforja']);
   assert.strictEqual(por.trofeu.length, 15);
@@ -148,7 +149,7 @@ test('itens novos do AFK no catálogo: 6 materiais, 3 incomuns, 4 comidas, 15 tr
     M.comuns.concat([M.incomum]).forEach(function (id) { assert.strictEqual(I[id].gymId, g, id); });
     assert.ok(G.GEAR_SETS[M.conjunto], g + ': conjunto');
   });
-  assert.deepStrictEqual(G.GYM_ORDER.map(function (g) { return G.AFK.materiais[g].conjunto; }), ['sol', 'chuva', 'nevoa']);
+  assert.deepStrictEqual(G.GYM_ORDER.map(function (g) { return G.AFK.materiais[g].conjunto; }), ['nevoa', 'chuva', 'sol']);
   por.material.concat(por.incomum, por.comida).forEach(function (id) { assert.strictEqual(I[id].cap, 999, id); });
   assert.strictEqual(I['pergaminho-reforja'].cap, 99);
   Object.keys(por).forEach(function (g) { por[g].forEach(function (id) {
@@ -443,11 +444,11 @@ test('offline de 8 h com p de 0,5 roda em menos de 200 ms no Node; o de 12 h com
 });
 test('offline rende, em média, o mesmo que ao vivo com o mesmo p (o ganho esperado é o mesmo nos dois modos)', function () {
   // 40 períodos de 8 h com p medido contra as corridas de verdade do mesmo cavalo (800 ao vivo)
-  var h = cav('mare', 22), f = 'fogo:4:normal', m = A.medida(medir(h, f));
+  var h = cav('mare', 22), f = 'grama:4:normal', m = A.medida(medir(h, f));   // D4: era a Fornalha nível 20, hoje é a 30–42
   var vivoXp = 0, vivoMat = 0, n = 800;
-  for (var c = 0; c < n; c++) { var r = A.correr(h, f, 2024, c, BONUS0); vivoXp += r.xp; vivoMat += (r.itens.carvao || 0) + (r.itens['ferro-bruto'] || 0); }
+  for (var c = 0; c < n; c++) { var r = A.correr(h, f, 2024, c, BONUS0); vivoXp += r.xp; vivoMat += (r.itens.fibra || 0) + (r.itens.resina || 0); }
   var offXp = 0, offMat = 0, offN = 0;
-  for (var k = 0; k < 40; k++) { var o = A.offline(vagaDe({ faseId: f, contador: 0 }), 1480, m, 9000 + k, BONUS0, 480, 0); offXp += o.xp; offMat += (o.itens.carvao || 0) + (o.itens['ferro-bruto'] || 0); offN += o.corridas; }
+  for (var k = 0; k < 40; k++) { var o = A.offline(vagaDe({ faseId: f, contador: 0 }), 1480, m, 9000 + k, BONUS0, 480, 0); offXp += o.xp; offMat += (o.itens.fibra || 0) + (o.itens.resina || 0); offN += o.corridas; }
   assert.ok(Math.abs(offXp / offN - vivoXp / n) / (vivoXp / n) < 0.05, 'XP por corrida: offline ' + (offXp / offN).toFixed(1) + ' × ao vivo ' + (vivoXp / n).toFixed(1));
   assert.ok(Math.abs(offMat / offN - vivoMat / n) / (vivoMat / n) < 0.06, 'material por corrida: offline ' + (offMat / offN).toFixed(2) + ' × ao vivo ' + (vivoMat / n).toFixed(2));
 });
@@ -810,7 +811,7 @@ test('o cavalo corre com o principal das peças (statAdd) e o oponente com as da
   assert.strictEqual(A.correr(h, 'fogo:4:lendaria', 5, 0, BONUS0).cfg.racers[0].statAdd, undefined);
   // as peças mudam a corrida
   var com = 0, sem = 0;
-  for (var c = 0; c < 300; c++) { com += A.correr(hp, 'fogo:4:lendaria', 9, c, BONUS0).venceu ? 1 : 0; sem += A.correr(h, 'fogo:4:lendaria', 9, c, BONUS0).venceu ? 1 : 0; }
+  for (var c = 0; c < 300; c++) { com += A.correr(hp, 'grama:4:lendaria', 9, c, BONUS0).venceu ? 1 : 0; sem += A.correr(h, 'grama:4:lendaria', 9, c, BONUS0).venceu ? 1 : 0; }
   assert.ok(com > sem + 15, 'com 5 Raras +7 vence mais: ' + com + ' × ' + sem);
 });
 test('trocar uma peça muda a chaveConfig e invalida a medida; as linhas de farm (que não mexem na corrida) não mudam', function () {

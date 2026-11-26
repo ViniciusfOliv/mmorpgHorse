@@ -812,9 +812,10 @@ try {
   const conferirMigrado = (s, rotulo) => {
     const out = []
     if (s.v !== SAVE_V) out.push(`${rotulo}: versão ${s.v}`)
-    // ginásios (save v8): o save antigo chega com os três zerados e o contador de desafios em 0
+    // ginásios (save v8): o save antigo chega com os três zerados e o contador de desafios em 0 (2026-11-26, D4: as chaves
+    // na ordem da sequência, GYM_ORDER; era fogo, agua, grama)
     const ginZero = { etapa: 0, revDia: null, revVitorias: 0 }
-    if (JSON.stringify(s.ginasios) !== JSON.stringify({ fogo: ginZero, agua: ginZero, grama: ginZero }) || s.gymCounter !== 0) out.push(`${rotulo}: ginásios ${JSON.stringify(s.ginasios)}, gymCounter ${s.gymCounter}`)
+    if (JSON.stringify(s.ginasios) !== JSON.stringify({ grama: ginZero, agua: ginZero, fogo: ginZero }) || s.gymCounter !== 0) out.push(`${rotulo}: ginásios ${JSON.stringify(s.ginasios)}, gymCounter ${s.gymCounter}`)
     if (s.redeas !== 0 || s.avisoV6 !== false) out.push(`${rotulo}: redeas ${s.redeas}, avisoV6 ${s.avisoV6}`)
     if (s.mounts.length !== 3) out.push(`${rotulo}: ${s.mounts.length} montarias (eram 3)`)
     for (const m of s.mounts) {
@@ -1203,7 +1204,9 @@ try {
   // ---------------- treino AFK (spec 2026-11-23-afk-drops; plano, tarefa A7) ----------------
   // No build de teste (save DEV), com o relógio do treino adiantado pelo state.devMin (o mesmo da gaveta DEV).
   const AFK_DEVK = 'galope-elemental:dev'
-  // abre o jogo, monta o perfil (ginásios, cavalos fortes, Ouro) pelo save e recarrega
+  // abre o jogo, monta o perfil (ginásios, cavalos fortes, Ouro) pelo save e recarrega. 2026-11-26 (D4): o perfil tem 2 etapas
+  // vencidas na Capoeira, o 1º ginásio da sequência (era a Fornalha, que agora tem Mágicos dos níveis 30–42 e só abre com a
+  // insígnia do Remanso); os blocos que precisam da Fornalha a montam no `monta`
   const afkAbrePerfil = async (label, monta) => {
     const pg = await newPage(browser, { width: 360, height: 780 }, label, { pagina: 'jogo-dev.html' })
     await pg.waitForSelector('#t-estabulo')
@@ -1211,7 +1214,7 @@ try {
       const g = JSON.parse(JSON.stringify(window.__galope.state)), RS = window.RaceSim
       const m2 = JSON.parse(JSON.stringify(g.mounts[0])); m2.uid = 'm2'; m2.name = 'Dois'; g.mounts.push(m2); g.nextUid = 3
       g.mounts.forEach((m) => { m.level = 30; m.alloc = RS.botAlloc(m) })
-      g.ginasios.fogo.etapa = 2; g.gold = 5000
+      g.ginasios.grama.etapa = 2; g.gold = 5000
       new Function('g', fn)(g)
       g.rev += 1
       localStorage.setItem(chave, JSON.stringify(g))
@@ -1236,16 +1239,16 @@ try {
     const pg = await afkAbrePerfil(label)
     try {
       // 1. na trilha, só os oponentes vencidos mostram "Treinar (AFK)"
-      await afkVaiTrilha(pg, 'fogo')
+      await afkVaiTrilha(pg, 'grama')
       const tr = await pg.evaluate(() => [...document.querySelectorAll('#tela .etapa')].map((li) => ({ e: li.getAttribute('data-etapa'), estado: li.getAttribute('data-estado'), treinar: !!li.querySelector('[data-acao="afk-treinar"]') })))
       if (JSON.stringify(tr.map((x) => x.treinar)) !== JSON.stringify([true, true, false, false, false])) problems.push(`${label}: "Treinar (AFK)" na trilha ${JSON.stringify(tr)} (esperado só nas 2 vencidas)`)
       await checkOverflow(pg, label + ' trilha')
       // 2. a escolha: o oponente tocado vem marcado, a Difícil apagada com o que falta, a vaga 1 livre; começar põe o cavalo
-      await pg.locator('[data-acao="afk-treinar"][data-id="fogo:0"]').click(); await pg.waitForSelector('#t-afk-escolha')
+      await pg.locator('[data-acao="afk-treinar"][data-id="grama:0"]').click(); await pg.waitForSelector('#t-afk-escolha')
       const esc = await pg.evaluate(() => ({ fase: [...document.querySelectorAll('[data-acao="afk-esc-fase"][aria-pressed="true"]')].map((b) => b.getAttribute('data-id')),
         fases: document.querySelectorAll('[data-acao="afk-esc-fase"]').length, dif: document.querySelector('[data-acao="afk-esc-dif"][aria-pressed="true"]').getAttribute('data-id'),
         dificil: document.querySelector('[data-acao="afk-esc-dif"][data-id="dificil"]').getAttribute('data-motivo'), foco: document.activeElement && document.activeElement.id }))
-      if (esc.fase.join() !== 'fogo:0' || esc.fases !== 2 || esc.dif !== 'normal' || !/Faltam 50 vitórias na Normal/.test(esc.dificil || '') || esc.foco !== 't-afk-escolha') problems.push(`${label}: escolha ${JSON.stringify(esc)}`)
+      if (esc.fase.join() !== 'grama:0' || esc.fases !== 2 || esc.dif !== 'normal' || !/Faltam 50 vitórias na Normal/.test(esc.dificil || '') || esc.foco !== 't-afk-escolha') problems.push(`${label}: escolha ${JSON.stringify(esc)}`)
       await pg.locator('[data-acao="afk-esc-dif"][data-id="dificil"]').click({ force: true })   // apagada: só diz o porquê
       await pg.evaluate(() => { const b = document.querySelector('[data-acao="afk-esc-dif"][data-id="dificil"]'); b.removeAttribute('aria-disabled'); b.click() })   // e nem o botão forçado escolhe
       if ((await pg.evaluate(() => window.__galope.ui.afk.escolha.dif)) !== 'normal') problems.push(`${label}: a Difícil sem as 50 vitórias foi escolhida`)
@@ -1255,12 +1258,12 @@ try {
       // 3. uma corrida ao vivo larga logo: o contador e o ganho gravados antes de aparecer; o baú enche
       await pg.waitForFunction(() => window.__galope.state.afk.vagas[0].contador >= 1, null, { timeout: 5000 }).catch(() => problems.push(`${label}: a 1ª corrida ao vivo não largou`))
       const s1 = await afkEst(pg), d1 = await afkDisco(pg)
-      if (s1.afk.vagas[0].uid !== 'm1' || s1.afk.vagas[0].faseId !== 'fogo:0:normal') problems.push(`${label}: vaga 1 ${JSON.stringify(s1.afk.vagas[0])}`)
+      if (s1.afk.vagas[0].uid !== 'm1' || s1.afk.vagas[0].faseId !== 'grama:0:normal') problems.push(`${label}: vaga 1 ${JSON.stringify(s1.afk.vagas[0])}`)
       if (!(s1.afk.bau.xp.m1 > 0)) problems.push(`${label}: o baú não recebeu o XP da corrida ao vivo ${JSON.stringify(s1.afk.bau)}`)
       if (JSON.stringify(d1.afk.bau) !== JSON.stringify(s1.afk.bau) || d1.afk.vagas[0].contador !== s1.afk.vagas[0].contador) problems.push(`${label}: o disco não tem a corrida (contador e baú gravados juntos)`)
       if (!(s1.afk.vagas[0].inicioMin > antes.afk.vagas[0].inicioMin)) problems.push(`${label}: o relógio da vaga não foi para o fim da corrida`)
       const cartao = (await afkTxt(pg, '.afk-vaga[data-vaga="0"]'))[0] || ''
-      if (!/Brasa/.test(cartao) || !/Contra Recruta Fagulha · Fornalha · Normal/.test(cartao) || !/em curso: faltam/.test(cartao) || !/(Medindo a chance|Chance de vitória)/.test(cartao)) problems.push(`${label}: cartão da vaga "${cartao}"`)
+      if (!/Brasa/.test(cartao) || !/Contra Recruta Broto · Capoeira · Normal/.test(cartao) || !/em curso: faltam/.test(cartao) || !/(Medindo a chance|Chance de vitória)/.test(cartao)) problems.push(`${label}: cartão da vaga "${cartao}"`)
       // recarregar no meio da corrida não repete a seed nem dá a corrida de novo
       await pg.reload(); await pg.waitForSelector('#t-estabulo')
       if ((await afkEst(pg)).afk.vagas[0].contador !== s1.afk.vagas[0].contador) problems.push(`${label}: recarregar mudou o contador da vaga`)
@@ -1275,11 +1278,11 @@ try {
       const s2 = await afkEst(pg)
       if (s2.afk.vagas.length !== 2 || s2.gold !== g0 - G.AFK.vagaPreco[1]) problems.push(`${label}: compra da vaga ${JSON.stringify({ vagas: s2.afk.vagas.length, gold: s2.gold, antes: g0 })}`)
       await pg.locator('[data-acao="afk-escolher"][data-id="1"]').click(); await pg.waitForSelector('#t-afk-escolha')
-      await pg.locator('[data-acao="afk-esc-fase"][data-id="fogo:1"]').click()
+      await pg.locator('[data-acao="afk-esc-fase"][data-id="grama:1"]').click()
       await pg.locator('[data-acao="afk-esc-cavalo"][data-id="m2"]').click()
       await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
       const s3 = await afkEst(pg)
-      if (s3.afk.vagas[1].uid !== 'm2' || s3.afk.vagas[1].faseId !== 'fogo:1:normal' || s3.afk.vagas[0].uid !== 'm1') problems.push(`${label}: 2ª vaga ${JSON.stringify(s3.afk.vagas.map((v) => [v.uid, v.faseId]))}`)
+      if (s3.afk.vagas[1].uid !== 'm2' || s3.afk.vagas[1].faseId !== 'grama:1:normal' || s3.afk.vagas[0].uid !== 'm1') problems.push(`${label}: 2ª vaga ${JSON.stringify(s3.afk.vagas.map((v) => [v.uid, v.faseId]))}`)
       await checkOverflow(pg, label + ' vagas')
       // 5. coletar o baú: o XP vai para os cavalos, o baú esvazia, o aviso diz o que veio
       await afkEsperaMedida(pg, 0); await afkEsperaMedida(pg, 1)
@@ -1299,7 +1302,7 @@ try {
       const corr = s5.afk.vagas[0].contador - antesFora.afk.vagas[0].contador, dur = antesFora.afk.vagas[0].ultima.duracaoS
       if (!(corr >= Math.floor(118 * 60 / dur) - 1 && corr <= Math.floor(120 * 60 / dur) + 1)) problems.push(`${label}: 2 h fora deram ${corr} corridas na vaga 1 (duração média ${dur} s)`)
       if (!/Em (1 h 5\d min|2 h), 2 vagas correram/.test(resumo) || !/No baú:/.test(resumo)) problems.push(`${label}: resumo "${resumo}"`)
-      if (!(s5.afk.vitorias['fogo:0:normal'] > 30)) problems.push(`${label}: vitórias depois de 2 h ${JSON.stringify(s5.afk.vitorias)}`)
+      if (!(s5.afk.vitorias['grama:0:normal'] > 30)) problems.push(`${label}: vitórias depois de 2 h ${JSON.stringify(s5.afk.vitorias)}`)
       await checkOverflow(pg, label + ' resumo')
       await pg.locator('[data-acao="afk-resumo-ok"]').click()
       if (await pg.locator('#t-afk-fora').count()) problems.push(`${label}: o resumo não saiu com o "Entendi"`)
@@ -1312,7 +1315,7 @@ try {
       await pg.waitForFunction(() => !!window.__galope.ui.afk.vivo[0], null, { timeout: 5000 }).catch(() => {})
       await pg.locator('[data-acao="afk-assistir"][data-id="0"]').click(); await pg.waitForSelector('#t-corrida')
       const cab = await pg.evaluate(() => ({ t: document.getElementById('t-corrida').textContent, linha: (document.getElementById('corrida-duelo') || {}).textContent, pular: document.getElementById('btn-pular').textContent, outra: !!document.querySelector('[data-acao="afk-outra"]') }))
-      if (cab.t !== 'Treino: Recruta Fagulha' || !/^Normal · corrida \d+ · /.test(cab.linha || '') || cab.pular !== 'Voltar ao treino' || !cab.outra) problems.push(`${label}: tela de assistir ${JSON.stringify(cab)}`)
+      if (cab.t !== 'Treino: Recruta Broto' || !/^Normal · corrida \d+ · /.test(cab.linha || '') || cab.pular !== 'Voltar ao treino' || !cab.outra) problems.push(`${label}: tela de assistir ${JSON.stringify(cab)}`)
       const cAss = (await afkEst(pg)).afk.vagas[0].contador
       await pg.locator('#btn-pular').click(); await pg.waitForSelector('#t-afk')
       if ((await afkEst(pg)).afk.vagas[0].contador !== cAss) problems.push(`${label}: sair de assistir mudou o contador (pular não pode adiantar o treino)`)
@@ -1398,7 +1401,7 @@ try {
       problems.push(`[${label}-cheia] ` + e.message)
     } finally { await pg2.context().close() }
     // 11. o jogo abre na tela do treino com o resumo depois de horas fechado (até o limite de 8 h), e save de antes do AFK migra
-    const pg3 = await afkAbrePerfil(label + '-abrir', `g.afk.vagas[0] = { uid: 'm1', faseId: 'fogo:0:normal', inicioMin: Date.now() / 60000 - 3 * 24 * 60, contador: 7, medida: null, ultima: { p: 0.9, duracaoS: 80 } };`)
+    const pg3 = await afkAbrePerfil(label + '-abrir', `g.afk.vagas[0] = { uid: 'm1', faseId: 'grama:0:normal', inicioMin: Date.now() / 60000 - 3 * 24 * 60, contador: 7, medida: null, ultima: { p: 0.9, duracaoS: 80 } };`)
     try {
       await pg3.waitForSelector('#t-afk-fora', { timeout: 5000 }).catch(() => problems.push(`${label}-abrir: o jogo não abriu no resumo do treino`))
       const b1 = await afkEst(pg3), r3 = (await afkTxt(pg3, '.afk-resumo'))[0] || ''
@@ -1426,8 +1429,11 @@ try {
   }
   if (quer('equipamento')) {
     const label = 'equipamento'
-    // Brasa no nível 5 contra o Cabo Tocha (Normal): sem peças ~39% de vitória, com 5 Raras +5 do Sol ~73%
-    const pg = await afkAbrePerfil(label, `var m = g.mounts[0]; m.level = 5; m.xp = 0; m.alloc = window.RaceSim.botAlloc(m);
+    // Brasa no nível 40 contra o Cabo Tocha (Normal): sem peças ~40% de vitória, com 5 Raras +5 do Sol ~66% (2026-11-26, D4:
+    // era o nível 5, ~39% e ~73%; o Cabo Tocha passou a ser Mágico no nível 33). A Fornalha aberta pela sequência: as
+    // insígnias da Capoeira e do Remanso e 2 etapas vencidas nela
+    const pg = await afkAbrePerfil(label, `var m = g.mounts[0]; m.level = 40; m.xp = 0; m.alloc = window.RaceSim.botAlloc(m);
+      g.ginasios.grama.etapa = 5; g.ginasios.agua.etapa = 5; g.ginasios.fogo.etapa = 2;
       m.equip = { ferraduras: null, sela: null, estribos: null, testeira: null, armadura: null };
       g.items = ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'].map(function (sl, i) { return { uid: 'i' + (11 + i), id: sl + '-sol-raro', plus: 5, rerolls: 0, linhas: [{ tipo: 'material', valor: 8 }, { tipo: 'xp', valor: 7 }] }; })
         .concat([{ uid: 'i20', id: 'sela-magico', plus: 0, rerolls: 0, linhas: [{ tipo: 'ouro', valor: 3 }], origem: 'afk' }]);
@@ -1509,7 +1515,9 @@ try {
   // ---------------- forja: receitas fixas, confirmação antes de sortear as linhas, a peça no inventário ----------------
   if (quer('forja')) {
     const label = 'forja'
-    const pg = await afkAbrePerfil(label, `g.mochila.carvao = 100; g.mochila['ferro-bruto'] = 60; g.mochila['brasa-viva'] = 14; g.mochila['trofeu-fogo-0'] = 1; g.mochila['trofeu-fogo-1'] = 2;
+    // 2026-11-26 (D4): os materiais da Capoeira, o 1º ginásio da sequência e o que a Forja abre (eram os da Fornalha: Carvão,
+    // Ferro bruto, Brasa viva, conjunto do Sol)
+    const pg = await afkAbrePerfil(label, `g.mochila.fibra = 100; g.mochila.resina = 60; g.mochila['seiva-antiga'] = 14; g.mochila['trofeu-grama-0'] = 1; g.mochila['trofeu-grama-1'] = 2;
       g.mochila.selo = 2; g.pedras = 0; g.gold = 5000;`)
     const receita = (rec) => pg.evaluate((r) => {
       const li = document.querySelector('.forja-receita[data-receita="' + r + '"]'), b = li && li.querySelector('[data-acao="forja-fazer"], [data-acao="forja-confirmar"]')
@@ -1523,18 +1531,18 @@ try {
       const nomes = await afkTxt(pg, '.forja-receita .forja-nome')
       if (JSON.stringify(nomes) !== JSON.stringify(['Peça Comum', 'Peça Mágica', 'Peça Rara de conjunto', 'Peça Lendária de conjunto', 'Pedra Negra', 'Pergaminho de reforja'])) problems.push(`${label}: receitas ${JSON.stringify(nomes)}`)
       const estoque = (await afkTxt(pg, '.forja-estoque'))[0] || ''
-      for (const t of ['100 Carvões', '60 Ferros brutos', '14 Brasas vivas', '3 troféus', '2 Selos do campeão']) if (!estoque.includes(t)) problems.push(`${label}: o estoque não diz "${t}": ${estoque}`)
+      for (const t of ['100 Fibras', '60 Resinas', '14 Seivas antigas', '3 troféus', '2 Selos do campeão']) if (!estoque.includes(t)) problems.push(`${label}: o estoque não diz "${t}": ${estoque}`)
       let r = await receita('raro')
-      if (!r || r.off || !/Custa 60 materiais \(Carvão \+ Ferro bruto\), 10 Brasas vivas, 1 troféu da Fornalha e 800 de Ouro\./.test(r.txt) || !/Sai: Ferraduras do Sol \(Raro\), com 2 linhas de farm sorteadas/.test(r.txt)) problems.push(`${label}: receita Rara ${JSON.stringify(r)}`)
+      if (!r || r.off || !/Custa 60 materiais \(Fibra \+ Resina\), 10 Seivas antigas, 1 troféu da Capoeira e 800 de Ouro\./.test(r.txt) || !/Sai: Ferraduras da Névoa \(Raro\), com 2 linhas de farm sorteadas/.test(r.txt)) problems.push(`${label}: receita Rara ${JSON.stringify(r)}`)
       r = await receita('lendario')
-      if (!r || !r.off || r.motivo !== 'Falta Brasa viva (precisa de 20, tem 14)') problems.push(`${label}: a Lendária deveria estar apagada por faltar Brasa ${JSON.stringify(r)}`)
+      if (!r || !r.off || r.motivo !== 'Falta Seiva antiga (precisa de 20, tem 14)') problems.push(`${label}: a Lendária deveria estar apagada por faltar Seiva ${JSON.stringify(r)}`)
       await checkOverflow(pg, label + ' receitas')
       // 2. forjar a Sela Rara: pede confirmação; antes de confirmar nada muda; ao confirmar, gasta e sorteia as linhas pela seed
       await pg.locator('[data-acao="forja-slot"][data-id="sela"]').click()
       const s0 = await pveEst(pg)
       await pg.locator('[data-acao="forja-fazer"][data-id="raro"]').click()
       const conf = (await afkTxt(pg, '.forja-confirma'))[0] || ''
-      if (!/Forjar Sela do Sol \(Raro\)\?/.test(conf) || !/As 2 linhas de farm são sorteadas ao confirmar/.test(conf)) problems.push(`${label}: confirmação "${conf}"`)
+      if (!/Forjar Sela da Névoa \(Raro\)\?/.test(conf) || !/As 2 linhas de farm são sorteadas ao confirmar/.test(conf)) problems.push(`${label}: confirmação "${conf}"`)
       let s = await pveEst(pg)
       if (JSON.stringify([s.gold, s.mochila, s.items, s.forjaCounter]) !== JSON.stringify([s0.gold, s0.mochila, s0.items, s0.forjaCounter])) problems.push(`${label}: abrir a confirmação já gastou ou sorteou`)
       await pg.locator('[data-acao="forja-cancelar"][data-id="raro"]').click()
@@ -1542,17 +1550,17 @@ try {
       await pg.locator('[data-acao="forja-fazer"][data-id="raro"]').click()
       await pg.locator('[data-acao="forja-confirmar"][data-id="raro"]').click()
       s = await pveEst(pg)
-      const esp = FORJA.forjar('raro', 'sela', 'fogo', s0.mochila, s0.seedBase, s0.forjaCounter), nova = s.items[s.items.length - 1]
-      if (s.items.length !== s0.items.length + 1 || nova.id !== 'sela-sol-raro' || nova.origem !== 'forja' || nova.plus !== 0 || nova.rerolls !== 0 || JSON.stringify(nova.linhas) !== JSON.stringify(esp.peca.linhas)) problems.push(`${label}: peça forjada ${JSON.stringify(nova)} (regra: ${JSON.stringify(esp.peca)})`)
-      if (s.gold !== s0.gold - 800 || s.forjaCounter !== s0.forjaCounter + 1 || s.mochila.carvao !== 70 || s.mochila['ferro-bruto'] !== 30 || s.mochila['brasa-viva'] !== 4 || s.mochila['trofeu-fogo-1'] !== 1 || s.mochila['trofeu-fogo-0'] !== 1) problems.push(`${label}: gasto da Rara ${JSON.stringify({ gold: [s0.gold, s.gold], c: s.forjaCounter, mochila: s.mochila })}`)
+      const esp = FORJA.forjar('raro', 'sela', 'grama', s0.mochila, s0.seedBase, s0.forjaCounter), nova = s.items[s.items.length - 1]
+      if (s.items.length !== s0.items.length + 1 || nova.id !== 'sela-nevoa-raro' || nova.origem !== 'forja' || nova.plus !== 0 || nova.rerolls !== 0 || JSON.stringify(nova.linhas) !== JSON.stringify(esp.peca.linhas)) problems.push(`${label}: peça forjada ${JSON.stringify(nova)} (regra: ${JSON.stringify(esp.peca)})`)
+      if (s.gold !== s0.gold - 800 || s.forjaCounter !== s0.forjaCounter + 1 || s.mochila.fibra !== 70 || s.mochila.resina !== 30 || s.mochila['seiva-antiga'] !== 4 || s.mochila['trofeu-grama-1'] !== 1 || s.mochila['trofeu-grama-0'] !== 1) problems.push(`${label}: gasto da Rara ${JSON.stringify({ gold: [s0.gold, s.gold], c: s.forjaCounter, mochila: s.mochila })}`)
       const d = await afkDisco(pg)
       if (JSON.stringify(d.items) !== JSON.stringify(s.items) || d.gold !== s.gold || d.forjaCounter !== s.forjaCounter) problems.push(`${label}: a forja não foi gravada numa gravação só`)
       const msg = (await afkTxt(pg, '.forja-msg'))[0] || ''
-      if (!/^Forjou Sela do Sol \(Raro\): \+\d+% .+, \+\d+% .+\. Está no inventário/.test(msg)) problems.push(`${label}: aviso da forja "${msg}"`)
-      if (!s.afk.bestiario.obtidos['sela-sol-raro']) problems.push(`${label}: a peça forjada não entrou no bestiário como obtida`)
+      if (!/^Forjou Sela da Névoa \(Raro\): \+\d+% .+, \+\d+% .+\. Está no inventário/.test(msg)) problems.push(`${label}: aviso da forja "${msg}"`)
+      if (!s.afk.bestiario.obtidos['sela-nevoa-raro']) problems.push(`${label}: a peça forjada não entrou no bestiário como obtida`)
       // 3. sem material: a Rara de novo fica apagada com o motivo, e o botão forçado não forja
       r = await receita('raro')
-      if (!r.off || r.motivo !== 'Falta Brasa viva (precisa de 10, tem 4)') problems.push(`${label}: a 2ª Rara deveria faltar Brasa ${JSON.stringify(r)}`)
+      if (!r.off || r.motivo !== 'Falta Seiva antiga (precisa de 10, tem 4)') problems.push(`${label}: a 2ª Rara deveria faltar Seiva ${JSON.stringify(r)}`)
       await pg.evaluate(() => { const b = document.querySelector('[data-acao="forja-fazer"][data-id="raro"]'); b.removeAttribute('aria-disabled'); b.click() })
       await pg.evaluate(() => { const b = document.createElement('button'); b.setAttribute('data-acao', 'forja-confirmar'); b.setAttribute('data-id', 'raro'); document.getElementById('tela').appendChild(b); b.click(); b.remove() })
       const s1 = await pveEst(pg)
@@ -1561,7 +1569,7 @@ try {
       await pg.locator('[data-acao="forja-fazer"][data-id="pedra"]').click()
       await pg.locator('[data-acao="forja-fazer"][data-id="reforja"]').click()
       s = await pveEst(pg)
-      if (s.pedras !== 1 || s.mochila['pergaminho-reforja'] !== 1 || s.gold !== s1.gold - 30 - 150 || s.forjaCounter !== s1.forjaCounter || s.mochila['brasa-viva'] !== 3) problems.push(`${label}: Pedra e Pergaminho ${JSON.stringify({ pedras: s.pedras, perg: s.mochila['pergaminho-reforja'], gold: [s1.gold, s.gold], c: s.forjaCounter, brasa: s.mochila['brasa-viva'] })}`)
+      if (s.pedras !== 1 || s.mochila['pergaminho-reforja'] !== 1 || s.gold !== s1.gold - 30 - 150 || s.forjaCounter !== s1.forjaCounter || s.mochila['seiva-antiga'] !== 3) problems.push(`${label}: Pedra e Pergaminho ${JSON.stringify({ pedras: s.pedras, perg: s.mochila['pergaminho-reforja'], gold: [s1.gold, s.gold], c: s.forjaCounter, seiva: s.mochila['seiva-antiga'] })}`)
       // 5. outro ginásio: os materiais são os dele (nenhum aqui), a receita fica apagada
       await pg.locator('[data-acao="forja-gym"][data-id="agua"]').click()
       r = await receita('comum')
@@ -1571,7 +1579,7 @@ try {
       await pg.locator('[data-acao="forja-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
       await pveAbrePecas(pg, 'm1', 'sela')
       const linha = ((await pg.locator(`.peca[data-peca="${nova.uid}"]`).textContent()) || '').replace(/\s+/g, ' ')
-      if (!/Sela do Sol \+0/.test(linha) || !/Descartar/.test(linha) || esp.peca.linhas.some((l) => !linha.includes('+' + l.valor + '%'))) problems.push(`${label}: a peça forjada no inventário "${linha}"`)
+      if (!/Sela da Névoa \+0/.test(linha) || !/Descartar/.test(linha) || esp.peca.linhas.some((l) => !linha.includes('+' + l.valor + '%'))) problems.push(`${label}: a peça forjada no inventário "${linha}"`)
       await pg.reload(); await pg.waitForSelector('#t-estabulo')
       if (JSON.stringify((await pveEst(pg)).items.find((x) => x.uid === nova.uid).linhas) !== JSON.stringify(esp.peca.linhas)) problems.push(`${label}: recarregar mudou as linhas da peça forjada`)
     } catch (e) {
@@ -1662,7 +1670,9 @@ try {
 
   if (quer('bestiario')) {
     const label = 'bestiario'
-    const pg = await afkAbrePerfil(label, `g.afk.bestiario = { vitorias: { 'fogo:0': 120, 'fogo:1': 3 }, vistos: { carvao: true, 'trofeu-fogo-0': true }, obtidos: { carvao: true, 'trofeu-fogo-0': true } };`)
+    // 2026-11-26 (D4): na Capoeira, o 1º ginásio da sequência e a página que o bestiário abre (era a Fornalha: Carvão,
+    // Pederneira do Recruta Fagulha, Cabo Tocha)
+    const pg = await afkAbrePerfil(label, `g.afk.bestiario = { vitorias: { 'grama:0': 120, 'grama:1': 3 }, vistos: { fibra: true, 'trofeu-grama-0': true }, obtidos: { fibra: true, 'trofeu-grama-0': true } };`)
     try {
       await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
       const cart = (await afkTxt(pg, '[data-acao="bestiario-abrir"]'))[0] || ''
@@ -1671,8 +1681,8 @@ try {
       const b = await pg.evaluate(() => ({ foco: document.activeElement && document.activeElement.id,
         ops: [...document.querySelectorAll('.afk-best-op')].map((li) => ({ txt: li.textContent.replace(/\s+/g, ' ').trim(), feitos: li.querySelectorAll('.afk-marco--feito').length })),
         itens: [...document.querySelectorAll('.afk-best-item')].map((li) => li.className.replace('afk-best-item ', '') + ':' + li.querySelector('.afk-best-nome').textContent) }))
-      if (b.foco !== 't-bestiario' || b.ops.length !== 5 || b.ops[0].feitos !== 2 || b.ops[1].feitos !== 0 || !/Recruta Fagulha ?120 vitórias no treino/.test(b.ops[0].txt)) problems.push(`${label}: oponentes ${JSON.stringify(b.ops.slice(0, 2))}`)
-      if (b.itens.length !== 18 || b.itens[0] !== 'afk-best-item--obtido:Carvão' || b.itens[1] !== 'afk-best-item--oculto:???' || !b.itens.includes('afk-best-item--obtido:Pederneira do Recruta Fagulha')) problems.push(`${label}: coleção ${JSON.stringify(b.itens)}`)
+      if (b.foco !== 't-bestiario' || b.ops.length !== 5 || b.ops[0].feitos !== 2 || b.ops[1].feitos !== 0 || !/Recruta Broto ?120 vitórias no treino/.test(b.ops[0].txt)) problems.push(`${label}: oponentes ${JSON.stringify(b.ops.slice(0, 2))}`)
+      if (b.itens.length !== 18 || b.itens[0] !== 'afk-best-item--obtido:Fibra' || b.itens[1] !== 'afk-best-item--oculto:???' || !b.itens.includes('afk-best-item--obtido:Regador do Recruta Broto')) problems.push(`${label}: coleção ${JSON.stringify(b.itens)}`)
       await checkOverflow(pg, label)
       await pg.locator('[data-acao="bestiario-gym"][data-id="agua"]').click()
       const t2 = (await afkTxt(pg, '#t-best-ops'))[0] || ''
@@ -1680,16 +1690,16 @@ try {
       // uma vitória no treino marca o oponente: a contagem do bestiário anda com a corrida gravada
       await pg.locator('[data-acao="bestiario-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
       if ((await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-acao'))) !== 'bestiario-abrir') problems.push(`${label}: o Voltar não devolveu o foco ao cartão do Bestiário`)
-      await afkVaiTrilha(pg, 'fogo')
-      await pg.locator('[data-acao="afk-treinar"][data-id="fogo:1"]').click(); await pg.waitForSelector('#t-afk-escolha')
+      await afkVaiTrilha(pg, 'grama')
+      await pg.locator('[data-acao="afk-treinar"][data-id="grama:1"]').click(); await pg.waitForSelector('#t-afk-escolha')
       await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
       await afkEsperaMedida(pg, 0)
       await afkAvanca(pg, 60)
       const s = await afkEst(pg)
-      if (!(s.afk.bestiario.vitorias['fogo:1'] > 3 + 20) || s.afk.bestiario.vitorias['fogo:1'] - 3 !== s.afk.vitorias['fogo:1:normal']) problems.push(`${label}: vitórias no bestiário ${JSON.stringify([s.afk.bestiario.vitorias, s.afk.vitorias])}`)
+      if (!(s.afk.bestiario.vitorias['grama:1'] > 3 + 20) || s.afk.bestiario.vitorias['grama:1'] - 3 !== s.afk.vitorias['grama:1:normal']) problems.push(`${label}: vitórias no bestiário ${JSON.stringify([s.afk.bestiario.vitorias, s.afk.vitorias])}`)
       await pg.locator('[data-acao="bestiario-abrir"]').click(); await pg.waitForSelector('#t-bestiario')
       const op1 = (await afkTxt(pg, '.afk-best-op'))[1] || ''
-      if (!new RegExp(`Cabo Tocha ?${s.afk.bestiario.vitorias["fogo:1"]} vitórias no treino`).test(op1)) problems.push(`${label}: o oponente vencido não aparece marcado "${op1}"`)
+      if (!new RegExp(`Cabo Carrapicho ?${s.afk.bestiario.vitorias["grama:1"]} vitórias no treino`).test(op1)) problems.push(`${label}: o oponente vencido não aparece marcado "${op1}"`)
       await pg.goBack(); await pg.waitForSelector('#t-expedicao', { timeout: 3000 }).catch(() => problems.push(`${label}: o voltar do aparelho não levou à Expedição`))
     } catch (e) {
       problems.push(`[${label}] ` + e.message)
@@ -1769,8 +1779,9 @@ try {
         const ls = await pd.evaluate(() => ({ dev: localStorage.getItem('galope-elemental:dev'), real: localStorage.getItem('galope-elemental:v1') }))
         if (ls.dev !== null || !ls.real) problems.push(`[${label}] produção deveria gravar só o save real ` + JSON.stringify({ dev: ls.dev, real: !!ls.real }))
         // save v8 com os ginásios (zerados; o bônus das insígnias é da conta, não do modo DEV) e nada da gaveta "Ginásios"
+        // (2026-11-26, D4: as chaves na ordem da sequência, GYM_ORDER; era fogo, agua, grama)
         const sv = JSON.parse(ls.real), gz = { etapa: 0, revDia: null, revVitorias: 0 }
-        if (sv.v !== SAVE_V || JSON.stringify(sv.ginasios) !== JSON.stringify({ fogo: gz, agua: gz, grama: gz }) || sv.gymCounter !== 0) problems.push(`[${label}] save da produção sem os ginásios ` + JSON.stringify({ v: sv.v, ginasios: sv.ginasios, gymCounter: sv.gymCounter }))
+        if (sv.v !== SAVE_V || JSON.stringify(sv.ginasios) !== JSON.stringify({ grama: gz, agua: gz, fogo: gz }) || sv.gymCounter !== 0) problems.push(`[${label}] save da produção sem os ginásios ` + JSON.stringify({ v: sv.v, ginasios: sv.ginasios, gymCounter: sv.gymCounter }))
         if (/dev-gin-|Zerar ginásios|Liberar revanche/.test(await pd.evaluate(() => document.documentElement.outerHTML))) problems.push(`[${label}] produção com a gaveta DEV "Ginásios"`)
         await pd.getByRole('button', { name: 'Correr de novo' }).click()
         await pd.waitForSelector('#t-largada')
@@ -3488,14 +3499,21 @@ try {
     return { m, levels, learned }
   }
   const ginIgual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-  // Tarefa 6 (blocos ginasio e ginasio-corrida): seed 354 (2026-11-20, sim 4.1.0: era 157), Sargento Candeeiro (2 Brasas, nível 12) contra Maré 13 (m2, com
-  // vantagem) e Brasa 12 (m1), nessa ordem. Duelo 1: a Maré vence por menos de 1 m (apertada) e larga o 2º com 75%; duelo
-  // 2: a Maré perde (a Brasa do Sargento larga o 3º cansada); duelo 3: Brasa contra Brasa e o jogador vence. Conferido nos
-  // testes: se o pareamento mudar, o teste diz qual condição deixou de valer.
-  const GIN_T6 = { id: 'fogo', i: 2, uids: ['m2', 'm1'] }
-  const ginT6Save = (o = {}) => ginSave(Object.assign({ seedBase: 354,
-    mounts: [ginCav(ginBrasa, { uid: 'm1', level: 12 }), ginCav(ginMare, { uid: 'm2', level: 13 })],
-    ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 } }) }, o))
+  // Tarefa 6 (blocos ginasio e ginasio-corrida): seed 1154 (2026-11-26, D4: era 354, e antes 157 até a sim 4.1.0), Cabo
+  // Tocha (Fornalha, etapa 1: 2 Brasas Mágicas, nível 33) contra Maré 34 (m2, com vantagem) e Brasa 33 (m1), nessa ordem,
+  // com os pontos distribuídos como os dos bots (botAlloc). Duelo 1: a Maré vence por menos de 1 m (apertada, 0,6 m) e
+  // larga o 2º com 75%; duelo 2: a Maré perde (a Brasa do Cabo larga o 3º cansada); duelo 3: Brasa contra Brasa e o
+  // jogador vence (normal, 6,3 m). Conferido nos testes: se o pareamento mudar, o teste diz qual condição deixou de valer.
+  // 2026-11-26 (D4): era o Sargento Candeeiro (etapa 2: 2 Brasas Comuns, nível 12) contra Maré 13 e Brasa 12 sem pontos,
+  // com a Fornalha aberta sem a insígnia do Remanso. Com a sequência, a etapa 2 da Fornalha passou a ter 3 Mágicos no
+  // nível 36; a etapa 1 é a que tem um time de 2 (o mesmo padrão de três duelos), e os cavalos do jogador sobem de nível
+  // e ganham os pontos para enfrentar Mágicos. A Fornalha abre pela regra nova: as insígnias da Capoeira e do Remanso.
+  const GIN_T6 = { id: 'fogo', i: 1, uids: ['m2', 'm1'] }
+  const ginT6Cav = (tpl, o) => { const m = ginCav(tpl, o); m.alloc = S.botAlloc(m); return m }
+  const ginT6Mounts = () => [ginT6Cav(ginBrasa, { uid: 'm1', level: 33 }), ginT6Cav(ginMare, { uid: 'm2', level: 34 })]
+  const ginT6Progresso = (o = {}) => Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { grama: { etapa: 5, revDia: null, revVitorias: 0 },
+    agua: { etapa: 5, revDia: null, revVitorias: 0 }, fogo: { etapa: GIN_T6.i, revDia: null, revVitorias: 0 } }, o)
+  const ginT6Save = (o = {}) => ginSave(Object.assign({ seedBase: 1154, mounts: ginT6Mounts(), ginasios: ginT6Progresso() }, o))
   if (quer('ginasio')) {
     const VP = { width: 360, height: 780 }
     // 1. save novo (jogo real e build de teste): versão 8, ginásios zerados, contador 0, na memória e no disco
@@ -3602,8 +3620,9 @@ try {
         const fix = GN.sanear(casos[7][0], hoje), fix2 = GN.sanear(casos[8][0], hoje)
         if (fix.fogo.etapa !== 0 || fix.agua.etapa !== 5 || fix.agua.revDia !== hoje || fix.agua.revVitorias !== 0 || fix.grama.etapa !== 4 || 'insignia' in fix.grama) problems.push(`${label}: casos fixos ` + JSON.stringify(fix))
         if (!ginIgual(GN.bonus(fix), { ouro: 0, xp: 0.03, skill: 0 }) || !ginIgual(GN.bonus(fix2), { ouro: 0.03, xp: 0.03, skill: 0.03 }) || fix2.fogo.revDia !== hoje || fix2.agua.revDia !== hoje || fix2.grama.revDia !== null) problems.push(`${label}: casos fixos (bônus) ` + JSON.stringify(fix2))
-        // um save v8 bom (dia da revanche válido e null) não é regravado ao abrir
-        const bom = JSON.stringify(ginSave({ rev: 500, gymCounter: 4, ginasios: { fogo: { etapa: 5, revDia: hoje - 1, revVitorias: 3 }, agua: { etapa: 2, revDia: null, revVitorias: 0 }, grama: { etapa: 0, revDia: null, revVitorias: 0 } } }))
+        // um save v8 bom (dia da revanche válido e null) não é regravado ao abrir (2026-11-26, D4: as chaves na ordem da
+        // sequência, a do save saneado; era fogo, agua, grama)
+        const bom = JSON.stringify(ginSave({ rev: 500, gymCounter: 4, ginasios: { grama: { etapa: 0, revDia: null, revVitorias: 0 }, agua: { etapa: 2, revDia: null, revVitorias: 0 }, fogo: { etapa: 5, revDia: hoje - 1, revVitorias: 3 } } }))
         await pg.evaluate(([k, r]) => localStorage.setItem(k, r), [GIN_REAL, bom])
         await pg.reload({ waitUntil: 'domcontentloaded' })
         await pg.waitForSelector('#t-estabulo')
@@ -3827,6 +3846,7 @@ try {
       const r = (e) => e.getBoundingClientRect()
       const cartoes = [...document.querySelectorAll('#tela .ginasio-cartao')].map((b) => ({
         tag: b.tagName, acao: b.getAttribute('data-acao'), id: b.getAttribute('data-id'), txt: b.textContent.replace(/\s+/g, ' ').trim(),
+        dis: b.getAttribute('aria-disabled'), motivo: b.getAttribute('data-motivo'), fechado: b.classList.contains('ginasio-cartao--fechado'),
         h: r(b).height, w: r(b).width, top: r(b).top + window.scrollY, ins: [...b.querySelectorAll('img.icone')].map((i) => i.className) }))
       const sel = document.getElementById('t-selvagens')
       const selB = sel && sel.querySelector('button')
@@ -3855,12 +3875,18 @@ try {
       await pg.waitForFunction((n) => { const h = document.getElementById('t-ginasio'); return !!h && h.textContent.includes(n) }, G.GYMS[id].name, { timeout: 4000 })
     }
     // o cartão do ginásio: nome, elemento, "N de 5 vencidos", a insígnia (ícone e nome) só com as cinco, "Revanche hoje"
-    // só quando a revanche está livre; é um botão de 44 px ou mais que abre a trilha
-    const ginConfereCartao = (label, c, id, etapa, revanche) => {
+    // só quando a revanche está livre; é um botão de 44 px ou mais que abre a trilha.
+    // 2026-11-26 (D4, sequência): fechado = true para o ginásio que ainda não abriu: o mesmo botão, apagado (aria-disabled,
+    // .ginasio-cartao--fechado) com o motivo (o líder do anterior) e "Fechado" no lugar de "N de 5 vencidos"
+    const ginFechadoTxt = (id) => `Abre quando você vencer o líder do ${G.GYMS[GN.anterior(id)].name}.`
+    const ginConfereCartao = (label, c, id, etapa, revanche, fechado = false) => {
       const g = G.GYMS[id]
       if (!c) { problems.push(`${label}: sem o cartão de ${id}`); return }
       if (c.tag !== 'BUTTON' || c.acao !== 'ginasio-abrir' || c.h < 44) problems.push(`${label}: o cartão de ${id} não é um botão de 44 px que abre a trilha ${JSON.stringify(c)}`)
-      for (const t of [g.name, G.ELEMENTS[g.element].name, `${etapa} de ${ginTotal(id)} vencidos`]) if (!c.txt.includes(t)) problems.push(`${label}: o cartão de ${id} sem "${t}": ${c.txt}`)
+      if (fechado) {
+        if (c.dis !== 'true' || !c.fechado || c.motivo !== ginFechadoTxt(id) || !c.txt.includes('Fechado') || / de \d+ vencidos/.test(c.txt)) problems.push(`${label}: o cartão de ${id} devia estar fechado com "${ginFechadoTxt(id)}" ${JSON.stringify(c)}`)
+      } else if (c.dis !== null || c.fechado || c.motivo !== null || c.txt.includes('Fechado')) problems.push(`${label}: o cartão de ${id} devia estar aberto ${JSON.stringify(c)}`)
+      for (const t of [g.name, G.ELEMENTS[g.element].name, ...(fechado ? [] : [`${etapa} de ${ginTotal(id)} vencidos`])]) if (!c.txt.includes(t)) problems.push(`${label}: o cartão de ${id} sem "${t}": ${c.txt}`)
       const temIns = etapa === ginTotal(id)
       if (temIns !== c.txt.includes(g.insignia.name) || temIns !== c.ins.some((k) => k.includes('icone--' + g.insignia.icone))) problems.push(`${label}: a insígnia de ${id} (etapa ${etapa}) ${JSON.stringify(c)}`)
       if (revanche !== c.txt.includes('Revanche hoje')) problems.push(`${label}: "Revanche hoje" no cartão de ${id} devia ser ${revanche}: ${c.txt}`)
@@ -3931,9 +3957,11 @@ try {
       if (d.botoes.some((a) => !a) || d.botoes.filter((a) => /desafiar/i.test(a)).join() !== 'ginasio-desafiar') problems.push(`${label}: botão sem ação no detalhe, ou sem um "Desafiar" só ${d.botoes.join(',')}`)
     }
 
-    // 7. save novo, a 360×780 e a 1280: os três cartões com "0 de 5 vencidos", sem insígnia nem ponto; a vitrine abaixo; a
-    //    trilha com só a 1ª aberta; tocar numa fechada só diz o motivo; o detalhe da 1ª; o "Voltar" do aparelho fecha o
-    //    detalhe (volta à trilha, com o foco na etapa) e depois a trilha; o botão "Voltar" faz o mesmo
+    // 7. save novo, a 360×780 e a 1280: os três cartões, sem insígnia nem ponto (2026-11-26, D4: a Capoeira com "0 de 5
+    //    vencidos" e o Remanso e a Fornalha fechados; eram os três com "0 de 5" e as três trilhas abertas); a vitrine abaixo; a
+    //    trilha da Capoeira com só a 1ª aberta; tocar numa fechada só diz o motivo; o detalhe da 1ª; o "Voltar" do aparelho
+    //    fecha o detalhe (volta à trilha, com o foco na etapa) e depois a trilha; o botão "Voltar" faz o mesmo. O toque no
+    //    cartão fechado fica no 9b
     for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }, { width: 360, height: 640 }]) {
       const label = 'ginasio-aba-' + vp.width + 'x' + vp.height
       const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV, vp })
@@ -3942,7 +3970,8 @@ try {
         await checkOverflow(pg, label + ' aba')
         const a = await ginAba(pg)
         if (a.cartoes.map((c) => c.id).join() !== G.GYM_ORDER.join()) problems.push(`${label}: cartões ${a.cartoes.map((c) => c.id).join()} (esperado ${G.GYM_ORDER.join()})`)
-        G.GYM_ORDER.forEach((id) => ginConfereCartao(label, a.cartoes.find((c) => c.id === id), id, 0, false))
+        G.GYM_ORDER.forEach((id) => ginConfereCartao(label, a.cartoes.find((c) => c.id === id), id, 0, false, !GN.aberto(id, GIN_ZERO)))
+        if (G.GYM_ORDER.filter((id) => GN.aberto(id, GIN_ZERO)).join() !== 'grama') problems.push(`${label}: num save novo só a Capoeira devia estar aberta`)
         if (a.ponto) problems.push(`${label}: ponto na aba Expedição num save novo`)
         // os cavalos selvagens (ajustes 1, 2026-11-23): abaixo dos ginásios, só o título num bloco recolhido e desativado,
         // com o selo "em breve"; nenhum retrato na tela, e o toque não abre nada
@@ -3954,11 +3983,11 @@ try {
         const a2 = await ginAba(pg)
         if (a2.selvagens !== 0 || !a2.selvagensBtn || a2.selvagensBtn.exp !== 'false' || a2.selvagensBtn.h !== a.selvagensBtn.h) problems.push(`${label}: o toque no bloco dos selvagens mudou a tela ${JSON.stringify(a2.selvagensBtn)}`)
         if (/Em breve/.test(a.abertura) || !/ginásio/i.test(a.abertura)) problems.push(`${label}: a abertura da aba não fala dos ginásios ou ainda diz "Em breve": ${a.abertura}`)
-        for (const id of G.GYM_ORDER) {
+        for (const id of G.GYM_ORDER.filter((x) => GN.aberto(x, GIN_ZERO))) {
           await ginAbreTrilha(pg, id)
           await checkOverflow(pg, label + ' trilha ' + id)
           ginConfereTrilha(label + ' ' + id, await ginTrilha(pg), id, 0)
-          if (id === 'fogo') {
+          if (id === G.GYM_ORDER[0]) {   // 2026-11-26 (D4): era a Fornalha; num save novo só o 1º da sequência abre
             // tocar numa etapa fechada: fica na trilha e diz o motivo (região viva); nada abre
             await pg.locator('[data-acao="ginasio-etapa"][data-id="2"]').click({ force: true })   // o toque real (aria-disabled: o Playwright não clica sem force)
             await pg.waitForFunction(() => (document.getElementById('motivo-vivo') || {}).textContent === 'Vença a etapa anterior', null, { timeout: 2000 })
@@ -4192,12 +4221,13 @@ try {
     }
     {
       // 1280×800, 0 vencidas: medido nesta tela, no topo a etapa próxima NÃO cabe (a base dela fica em ~1.028 px numa
-      // janela de 800), então vale a regra das 360: inteira na tela, com a rolagem mínima (base rente ao fim da janela)
+      // janela de 800), então vale a regra das 360: inteira na tela, com a rolagem mínima (base rente ao fim da janela).
+      // 2026-11-26 (D4): a Capoeira, a única aberta num save novo (era a Fornalha)
       const label = 'ginasio-rola-1280x800'
       const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV, vp: { width: 1280, height: 800 } })
       try {
         await ginAbreAba(pg)
-        await ginAbreTrilha(pg, 'fogo')
+        await ginAbreTrilha(pg, 'grama')
         const v = await ginVisivel(pg)
         if (!(v.r.bottom + v.y > v.base)) problems.push(`${label}: a etapa próxima já caberia sem rolar; reveja o caso ${JSON.stringify(v)}`)
         if (!v.ok || Math.abs(v.r.bottom - v.base) > 1) problems.push(`${label}: a etapa próxima não ficou inteira com a rolagem mínima ${JSON.stringify(v)}`)
@@ -4446,21 +4476,98 @@ try {
       await ginVivo(pg, R.venceu ? 'Vitória!' : 'Derrota', label)
     }
 
+    // 9b. 2026-11-26 (D4): a sequência Capoeira → Remanso → Fornalha (Ginasio.aberto). Save novo: o Remanso e a Fornalha com
+    //     o cartão fechado (aria-disabled, "Fechado" e o motivo: o líder do anterior), e o mapa-múndi diz "fechado"; o toque
+    //     no cartão fechado (o real e o forçado) só diz o motivo: não abre a trilha, não cobra, não sorteia e não grava nada; o
+    //     "Desafiar" forçado de um ginásio fechado (o preparo posto à mão) recusa antes de pagar. Com a insígnia da Capoeira
+    //     (gaveta DEV), o Remanso abre (a trilha com a 1ª etapa próxima) e a Fornalha continua fechada, agora pelo Remanso
+    {
+      const label = 'ginasio-sequencia'
+      const pg = await ginAbre(label, { save: ginSave({ gold: 1000 }), chave: GIN_DEV })
+      try {
+        // a regra no node (o módulo que vai para o servidor): fechado recusa antes de pagar e o acerto não acerta
+        const pd = GN.podeDesafiar({ gymId: 'agua', etapa: 0, progresso: GIN_ZERO, hoje: 100, ouroLivre: 1e6, cabe: () => true, timeLen: 1 })
+        const ac = GN.acerto({ gymId: 'agua', etapa: 0, revanche: false, progresso: GIN_ZERO, resultado: { venceu: true, duelos: [] }, hoje: 100, timeLen: 1 })
+        if (pd.ok || pd.motivo !== 'ginasio-fechado' || ac !== null) problems.push(`${label}: no módulo, o Remanso fechado devia recusar ('ginasio-fechado') e o acerto devolver null ${JSON.stringify({ pd, ac })}`)
+        if (GN.anterior('agua') !== 'grama' || GN.anterior('fogo') !== 'agua' || GN.anterior('grama') !== null) problems.push(`${label}: a ordem da sequência no módulo`)
+        await ginOuroInf(pg, false)
+        await ginAbreAba(pg)
+        await checkOverflow(pg, label + ' aba')
+        let a = await ginAba(pg)
+        if (a.cartoes.map((c) => c.id).join() !== 'grama,agua,fogo') problems.push(`${label}: cartões ${a.cartoes.map((c) => c.id).join()} (esperado a ordem da sequência)`)
+        ginConfereCartao(label, a.cartoes.find((c) => c.id === 'grama'), 'grama', 0, false)
+        ginConfereCartao(label, a.cartoes.find((c) => c.id === 'agua'), 'agua', 0, false, true)
+        ginConfereCartao(label, a.cartoes.find((c) => c.id === 'fogo'), 'fogo', 0, false, true)
+        if (ginFechadoTxt('agua') !== 'Abre quando você vencer o líder do Ginásio da Capoeira.' || ginFechadoTxt('fogo') !== 'Abre quando você vencer o líder do Ginásio do Remanso.') problems.push(`${label}: os motivos do catálogo mudaram (${ginFechadoTxt('agua')} / ${ginFechadoTxt('fogo')})`)
+        const aria = await pg.waitForSelector('canvas[data-mapa-mundo]', { timeout: 4000 }).then((c) => c.getAttribute('aria-label'), () => null)
+        if (!aria || !aria.includes(`${G.GYMS.grama.name}: 0 de 5 vencidos`) || !aria.includes(`${G.GYMS.agua.name}: fechado`) || !aria.includes(`${G.GYMS.fogo.name}: fechado`)) problems.push(`${label}: a descrição do mapa-múndi "${aria}"`)
+        // o toque no cartão fechado: só o motivo, nada abre, nada é cobrado nem gravado
+        const st0 = await ginEstado(pg), d0 = await ginDisco(pg)
+        await ginEspiaSorteio(pg)
+        for (const id of ['agua', 'fogo']) {
+          await pg.locator(`#tela [data-acao="ginasio-abrir"][data-id="${id}"]`).click({ force: true })   // o toque real (aria-disabled: o Playwright só clica com force)
+          await ginVivo(pg, ginFechadoTxt(id), `${label} toque em ${id}`)
+          await sleep(300)
+          const abriu = async () => (await pg.locator('#t-ginasio').count()) > 0 || !(await pg.locator('#t-expedicao').count()) || !(await pg.evaluate(() => window.__galope.ui.gym === null))
+          if (await abriu()) problems.push(`${label}: tocar no cartão fechado de ${id} abriu a trilha`)
+          if (!(await ginForca(pg, `#tela [data-acao="ginasio-abrir"][data-id="${id}"]`))) problems.push(`${label}: sem o cartão de ${id} para o toque forçado`)
+          await sleep(300)
+          if (await abriu()) problems.push(`${label}: o toque forçado no cartão fechado de ${id} abriu a trilha`)
+        }
+        await ginNadaCobrado(label + ' toques', pg, st0, d0)
+        if ((await ginDisco(pg)) !== d0) problems.push(`${label}: tocar nos cartões fechados gravou o save`)
+        if ((await ginSorteios(pg)) !== 0) problems.push(`${label}: tocar nos cartões fechados sorteou duelos`)
+        // o "Desafiar" forçado do Remanso fechado: o preparo da Capoeira com o ginásio trocado à mão
+        await ginPreparo(pg, 'grama', 0)
+        await ginToca(pg, 'm2')
+        await ginEsperaTime(pg, ['m2'], label)
+        const st1 = await ginEstado(pg), d1 = await ginDisco(pg)
+        await pg.evaluate(() => {
+          const g = window.__galope.ui.gym; g.id = 'agua'; g.etapa = 0; g.time = ['m2']; g.res = null
+          const b = document.createElement('button'); b.setAttribute('data-acao', 'ginasio-desafiar'); b.id = 'forcado'; document.querySelector('#tela .tela').appendChild(b)
+        })
+        await pg.locator('#forcado').click()
+        await ginVivo(pg, ginFechadoTxt('agua'), label + ' desafiar forçado')
+        await ginNadaCobrado(label + ' desafiar forçado', pg, st1, d1)
+        if ((await ginSorteios(pg)) !== 0) problems.push(`${label}: o desafio forçado do ginásio fechado sorteou os duelos`)
+        if (!(await pg.evaluate(() => !window.__galope.ui.gym || window.__galope.ui.gym.res === null))) problems.push(`${label}: o desafio forçado do ginásio fechado guardou um resumo`)
+        // com a insígnia da Capoeira: o Remanso abre; a Fornalha continua fechada, agora pelo líder do Remanso
+        await ginAbreAba(pg)
+        await ginDevEtapas(pg, { grama: 5 })
+        a = await ginAba(pg)
+        ginConfereCartao(label + ' com a insígnia', a.cartoes.find((c) => c.id === 'grama'), 'grama', 5, true)
+        ginConfereCartao(label + ' com a insígnia', a.cartoes.find((c) => c.id === 'agua'), 'agua', 0, false)
+        ginConfereCartao(label + ' com a insígnia', a.cartoes.find((c) => c.id === 'fogo'), 'fogo', 0, false, true)
+        await ginAbreTrilha(pg, 'agua')
+        await checkOverflow(pg, label + ' trilha do Remanso')
+        ginConfereTrilha(label + ' trilha do Remanso', await ginTrilha(pg), 'agua', 0)
+        await pg.locator('[data-acao="ginasio-etapa"][data-id="0"]').click()
+        await pg.waitForSelector('#t-etapa')
+        await ginConfereDetalhe(label + ' Remanso', pg, 'agua', 0)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
     // 10. o preparo (decisões 1–5, 8, 22, 25), a 360×780, 360×640 e 1280: o adversário, a pista, a entrada e o prêmio
     //     continuam; "Seu time (até 2 cavalos)" com cada cavalo (nome, elemento, Poder e, por escrito, a vantagem); o time
     //     começa vazio e o "Desafiar" apagado com o motivo; a ordem é a dos toques; o time cheio apaga os de fora com o
     //     motivo; nada calculado antes de pagar
     for (const vp of [{ width: 360, height: 780 }, { width: 360, height: 640 }, { width: 1280, height: 800 }]) {
       const label = 'ginasio-preparo-' + vp.width + 'x' + vp.height
+      // 2026-11-26 (D4): a Fornalha na etapa 0 (Recruta Fagulha, 2 Mágicos, entrada 40), aberta pelas insígnias da Capoeira e
+      // do Remanso (era a etapa 2, com o Remanso e a Capoeira do zero: a etapa 2 passou a ter 3 cavalos e outra entrada)
       const mounts = [ginCav(ginBrasa, { uid: 'm1', level: 10 }), ginCav(ginMare, { uid: 'm2', level: 4 }), ginCav(ginIpe, { uid: 'm3', level: 6 })]
-      const pg = await ginAbre(label, { save: ginSave({ mounts, nextUid: 4, ginasios: ginComProgresso({ fogo: { etapa: 2, revDia: null, revVitorias: 0 } }) }), vp })
+      const pg = await ginAbre(label, { save: ginSave({ mounts, nextUid: 4, ginasios: ginT6Progresso({ fogo: { etapa: 0, revDia: null, revVitorias: 0 } }) }), vp })
       try {
         await ginOuroInf(pg, false)
         const st0 = await ginEstado(pg), d0 = await ginDisco(pg)
         await ginEspiaSorteio(pg)
-        await ginPreparo(pg, 'fogo', 2)
+        await ginPreparo(pg, 'fogo', 0)
         await checkOverflow(pg, label)
-        await ginConfereDetalhe(label, pg, 'fogo', 2)
+        await ginConfereDetalhe(label, pg, 'fogo', 0)
         let t = await ginTimeDom(pg)
         if (t.titulo !== 'Seu time (até 2 cavalos)') problems.push(`${label}: título do time "${t.titulo}"`)
         if (t.linhas.map((l) => l.uid).join() !== 'm1,m2,m3') problems.push(`${label}: linhas do time ${t.linhas.map((l) => l.uid).join()}`)
@@ -4552,36 +4659,39 @@ try {
       }
     }
 
-    // 11. vencer uma etapa (seed 70; 2026-11-20, sim 4.1.0: era 94: a Maré vence o Cabo Tocha, sobe 1 nível e aprende uma skill): Ouro (− entrada +
+    // 11. vencer uma etapa (seed 70: a Brasa vence o Cabo Carrapicho, sobe 1 nível e aprende uma skill; 2026-11-26, D4: era a
+    //     Maré contra o Cabo Tocha, com a Fornalha aberta sem a sequência, entrada 30 e prêmio 120, e a mesma seed 70; 2026-11-20,
+    //     sim 4.1.0: era 94): Ouro (− entrada +
     //     prêmio), o XP, o item na mochila, a etapa marcada, a seguinte aberta, gymCounter + 1, igual no disco; o resumo; o
     //     voltar do aparelho leva à trilha (a etapa vencida não se toca de novo); o desafio forçado da etapa vencida recusa;
     //     recarregar mostra a trilha já atualizada
     {
       const label = 'ginasio-vence'
-      const mounts = [ginCav(ginBrasa, { uid: 'm1', level: 10 }), ginCav(ginMare, { uid: 'm2', level: 20, xp: G.ECONOMY.xpToLevel(20) - 10 })]
-      const pg = await ginAbre(label, { save: ginSave({ seedBase: 70, gold: 1000, mounts, mochila: { torrao: 3, estrela: 0, cupom: 0, manual: 0 }, ginasios: ginComProgresso({ fogo: { etapa: 1, revDia: null, revVitorias: 0 } }) }) })
+      const mounts = [ginCav(ginMare, { uid: 'm1', level: 10 }), ginCav(ginBrasa, { uid: 'm2', level: 20, xp: G.ECONOMY.xpToLevel(20) - 10 })]
+      const pg = await ginAbre(label, { save: ginSave({ seedBase: 70, gold: 1000, mounts, mochila: { torrao: 3, estrela: 0, cupom: 0, manual: 0 }, ginasios: ginComProgresso({ grama: { etapa: 1, revDia: null, revVitorias: 0 } }) }) })
       try {
         await ginOuroInf(pg, false)
-        await ginPreparo(pg, 'fogo', 1)
+        await ginPreparo(pg, 'grama', 1)
         await ginToca(pg, 'm2')
         await ginEsperaTime(pg, ['m2'], label)
         const st0 = await ginEstado(pg), d0 = await ginDisco(pg), hoje = await ginHoje(pg)
-        const esp = ginEsperado(st0, 'fogo', 1, ['m2'], hoje)
+        const esp = ginEsperado(st0, 'grama', 1, ['m2'], hoje)
         if (!esp.res.venceu || esp.cavalos[0].levels !== 1 || esp.cavalos[0].learned.length !== 1 || esp.ac.itens.join() !== 'torrao') problems.push(`${label}: o cenário precisa de uma vitória com 1 nível, 1 skill e o Torrão (troque a seedBase) ${JSON.stringify({ v: esp.res.venceu, c: esp.cavalos[0], it: esp.ac.itens })}`)
         if (esp.res.duelos[0].cfg.seed !== S.hash2(70, GN.SAL + 0)) problems.push(`${label}: a seed do duelo não é a do contador 0`)
         await ginNadaAntes(label, pg, st0, d0)
         await ginDesafia(pg)
         const s1 = await ginEstado(pg), disco = JSON.parse(await ginDisco(pg))
-        if (!ginIgual(ginSemRev(s1), esp.depois)) problems.push(`${label}: o state depois do desafio difere do esperado ` + JSON.stringify({ gold: s1.gold, mochila: s1.mochila, gin: s1.ginasios.fogo, c: s1.gymCounter, m2: s1.mounts[1] }))
+        if (!ginIgual(ginSemRev(s1), esp.depois)) problems.push(`${label}: o state depois do desafio difere do esperado ` + JSON.stringify({ gold: s1.gold, mochila: s1.mochila, gin: s1.ginasios.grama, c: s1.gymCounter, m2: s1.mounts[1] }))
         if (!ginIgual(ginSemRev(disco), ginSemRev(s1)) || !(disco.rev > JSON.parse(d0).rev)) problems.push(`${label}: o disco difere da memória depois do desafio`)
-        // e os números fixos do catálogo (não só "o mesmo que o módulo")
-        if (s1.gold !== 1000 - 30 + 120 || s1.mochila.torrao !== 4 || s1.ginasios.fogo.etapa !== 2 || s1.gymCounter !== 1 || s1.mounts[1].level !== 21) problems.push(`${label}: Ouro, Torrão, etapa, contador ou nível ${JSON.stringify({ gold: s1.gold, t: s1.mochila.torrao, e: s1.ginasios.fogo.etapa, c: s1.gymCounter, n: s1.mounts[1].level })}`)
-        await ginConfereResumo(label, pg, esp, 'fogo', 1)
+        // e os números fixos do catálogo (não só "o mesmo que o módulo"; 2026-11-26, D4: a entrada e o prêmio da Capoeira na
+        // etapa 1, 15 e 75; eram 30 e 120 da Fornalha)
+        if (s1.gold !== 1000 - 15 + 75 || s1.mochila.torrao !== 4 || s1.ginasios.grama.etapa !== 2 || s1.gymCounter !== 1 || s1.mounts[1].level !== 21) problems.push(`${label}: Ouro, Torrão, etapa, contador ou nível ${JSON.stringify({ gold: s1.gold, t: s1.mochila.torrao, e: s1.ginasios.grama.etapa, c: s1.gymCounter, n: s1.mounts[1].level })}`)
+        await ginConfereResumo(label, pg, esp, 'grama', 1)
         await checkOverflow(pg, label + ' resumo')
         // o voltar do aparelho no resumo: a trilha, com a etapa vencida e a seguinte aberta
         await pg.goBack()
         await pg.waitForSelector('#t-ginasio')
-        ginConfereTrilha(label + ' trilha', await ginTrilha(pg), 'fogo', 2)
+        ginConfereTrilha(label + ' trilha', await ginTrilha(pg), 'grama', 2)
         if (await pg.locator('#t-resumo').count()) problems.push(`${label}: o resumo continuou depois do voltar`)
         // vencer de novo não existe: o desafio forçado da etapa vencida recusa sem cobrar
         const s2 = await ginEstado(pg), d2 = await ginDisco(pg)
@@ -4597,9 +4707,9 @@ try {
         await pg.waitForSelector('#t-estabulo')
         if (!ginIgual(ginSemRev(await ginEstado(pg)), ginSemRev(s1))) problems.push(`${label}: recarregar mudou o save`)
         await ginAbreAba(pg)
-        ginConfereCartao(label + ' recarregado', (await ginAba(pg)).cartoes.find((c) => c.id === 'fogo'), 'fogo', 2, false)
-        await ginAbreTrilha(pg, 'fogo')
-        ginConfereTrilha(label + ' recarregado', await ginTrilha(pg), 'fogo', 2)
+        ginConfereCartao(label + ' recarregado', (await ginAba(pg)).cartoes.find((c) => c.id === 'grama'), 'grama', 2, false)
+        await ginAbreTrilha(pg, 'grama')
+        ginConfereTrilha(label + ' recarregado', await ginTrilha(pg), 'grama', 2)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -4607,7 +4717,8 @@ try {
       }
     }
 
-    // 12. perder (Ipê nível 1 contra o Recruta Fagulha, seed 2; 2026-11-20, sim 4.1.0: era a 79, a GIN_SEED, em que o Ipê
+    // 12. perder (Ipê nível 1 contra o Recruta Broto, seed 2; 2026-11-26, D4: era contra o Recruta Fagulha, com a Fornalha
+    //     aberta num save novo e entrada 20, e a mesma seed 2; 2026-11-20, sim 4.1.0: era a 79, a GIN_SEED, em que o Ipê
     //     agora vence): só a entrada e o XP; "Tentar de novo" volta ao preparo
     //     com o mesmo time, e o desafio seguinte usa o contador seguinte (a seed do duelo é outra)
     {
@@ -4616,30 +4727,31 @@ try {
       const pg = await ginAbre(label, { save: ginSave({ seedBase: GIN_SEED_PERDE, mounts, gold: 300 }) })
       try {
         await ginOuroInf(pg, false)
-        await ginPreparo(pg, 'fogo', 0)
+        await ginPreparo(pg, 'grama', 0)
         await ginToca(pg, 'm2')
         await ginEsperaTime(pg, ['m2'], label)
         const st0 = await ginEstado(pg), hoje = await ginHoje(pg)
-        const esp = ginEsperado(st0, 'fogo', 0, ['m2'], hoje)
+        const esp = ginEsperado(st0, 'grama', 0, ['m2'], hoje)
         if (esp.res.venceu) problems.push(`${label}: o cenário precisa de uma derrota (troque o cavalo)`)
         await ginDesafia(pg)
         const s1 = await ginEstado(pg)
-        if (!ginIgual(ginSemRev(s1), esp.depois)) problems.push(`${label}: o state depois da derrota difere do esperado ` + JSON.stringify({ gold: s1.gold, gin: s1.ginasios.fogo, c: s1.gymCounter }))
-        if (s1.gold !== 300 - 20 || s1.ginasios.fogo.etapa !== 0 || s1.gymCounter !== 1 || esp.cavalos[0].xp !== G.GYM.xp.perde) problems.push(`${label}: derrota devia custar só a entrada e dar o XP de quem perde ${JSON.stringify({ gold: s1.gold, e: s1.ginasios.fogo.etapa, c: s1.gymCounter, xp: esp.cavalos[0].xp })}`)
+        if (!ginIgual(ginSemRev(s1), esp.depois)) problems.push(`${label}: o state depois da derrota difere do esperado ` + JSON.stringify({ gold: s1.gold, gin: s1.ginasios.grama, c: s1.gymCounter }))
+        // 2026-11-26 (D4): a entrada da Capoeira na etapa 0 é 10 (era 20, a da Fornalha)
+        if (s1.gold !== 300 - 10 || s1.ginasios.grama.etapa !== 0 || s1.gymCounter !== 1 || esp.cavalos[0].xp !== G.GYM.xp.perde) problems.push(`${label}: derrota devia custar só a entrada e dar o XP de quem perde ${JSON.stringify({ gold: s1.gold, e: s1.ginasios.grama.etapa, c: s1.gymCounter, xp: esp.cavalos[0].xp })}`)
         if (!ginIgual(ginSemRev(JSON.parse(await ginDisco(pg))), ginSemRev(s1))) problems.push(`${label}: o disco difere da memória depois da derrota`)
-        await ginConfereResumo(label, pg, esp, 'fogo', 0)
+        await ginConfereResumo(label, pg, esp, 'grama', 0)
         await pg.locator('#tela [data-acao="ginasio-resumo"][data-id="denovo"]').click()
         await pg.waitForSelector('#t-etapa')
         await ginEsperaTime(pg, ['m2'], label + ' tentar de novo')
         if (!(await pg.evaluate(() => window.__galope.ui.gym.res === null))) problems.push(`${label}: "Tentar de novo" deixou o resumo guardado`)
         const st1 = await ginEstado(pg), d1 = await ginDisco(pg)
         await ginNadaAntes(label + ' de novo', pg, st1, d1)
-        const esp2 = ginEsperado(st1, 'fogo', 0, ['m2'], hoje)
+        const esp2 = ginEsperado(st1, 'grama', 0, ['m2'], hoje)
         if (esp2.res.duelos[0].cfg.seed !== S.hash2(GIN_SEED_PERDE, GN.SAL + 1 * 8) || esp2.res.duelos[0].cfg.seed === esp.res.duelos[0].cfg.seed) problems.push(`${label}: a 2ª tentativa devia usar o contador 1`)
         await ginDesafia(pg)
         const s2 = await ginEstado(pg)
-        if (!ginIgual(ginSemRev(s2), esp2.depois) || s2.gymCounter !== 2) problems.push(`${label}: a 2ª tentativa difere do esperado ` + JSON.stringify({ gold: s2.gold, gin: s2.ginasios.fogo, c: s2.gymCounter }))
-        await ginConfereResumo(label + ' 2ª', pg, esp2, 'fogo', 0)
+        if (!ginIgual(ginSemRev(s2), esp2.depois) || s2.gymCounter !== 2) problems.push(`${label}: a 2ª tentativa difere do esperado ` + JSON.stringify({ gold: s2.gold, gin: s2.ginasios.grama, c: s2.gymCounter }))
+        await ginConfereResumo(label + ' 2ª', pg, esp2, 'grama', 0)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -4648,13 +4760,15 @@ try {
     }
 
     // 13. Review Focus 1: a gravação que falha (nada muda, o aviso, nenhum resumo; o contador não anda: a próxima tentativa
-    //     é a mesma); duas abas, com a velha sem o evento storage: o toque nela não cobra nem sorteia de novo
+    //     é a mesma); duas abas, com a velha sem o evento storage: o toque nela não cobra nem sorteia de novo. 2026-11-26 (D4):
+    //     até o 15, os desafios de save novo são na Capoeira, a única aberta (eram na Fornalha; a etapa 0 de uma tem 1 cavalo
+    //     como a da outra tinha, e a 2 tem 2)
     {
       const label = 'ginasio-falha'
       const pg = await ginAbre(label, { save: ginSave() })
       try {
         await ginOuroInf(pg, false)
-        await ginPreparo(pg, 'fogo', 0)
+        await ginPreparo(pg, 'grama', 0)
         await ginToca(pg, 'm1')
         await ginEsperaTime(pg, ['m1'], label)
         const st0 = await ginEstado(pg), d0 = await ginDisco(pg), hoje = await ginHoje(pg)
@@ -4665,7 +4779,7 @@ try {
         await ginNadaCobrado(label, pg, st0, d0)
         if (!(await pg.evaluate(() => window.__galope.ui.gym.res === null)) || !(await pg.locator('#t-etapa').count())) problems.push(`${label}: a falha deixou um resumo ou saiu do preparo`)
         await pg.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
-        const esp = ginEsperado(st0, 'fogo', 0, ['m1'], hoje)
+        const esp = ginEsperado(st0, 'grama', 0, ['m1'], hoje)
         await ginDesafia(pg)
         if (!ginIgual(ginSemRev(await ginEstado(pg)), esp.depois)) problems.push(`${label}: depois da falha o desafio não foi o do contador 0`)
         if (/Não foi possível salvar/.test(await pg.locator('#tela').textContent())) problems.push(`${label}: o aviso da falha ficou no resumo`)
@@ -4687,12 +4801,12 @@ try {
         await pb.waitForSelector('#t-estabulo')
         for (const p of [pa, pb]) {
           await ginOuroInf(p, false)
-          await ginPreparo(p, 'fogo', 0)
+          await ginPreparo(p, 'grama', 0)
           await ginToca(p, 'm1')
           await ginEsperaTime(p, ['m1'], label)
         }
         const st0 = await ginEstado(pa), hoje = await ginHoje(pa)
-        const esp = ginEsperado(st0, 'fogo', 0, ['m1'], hoje)
+        const esp = ginEsperado(st0, 'grama', 0, ['m1'], hoje)
         await ginDesafia(pa)
         const dA = await ginDisco(pa)
         if (!ginIgual(ginSemRev(JSON.parse(dA)), esp.depois)) problems.push(`${label}: a aba A não gravou o desafio esperado`)
@@ -4714,7 +4828,7 @@ try {
       }
     }
     // 13b. revisão final, item 1: a aba A falha 2 vezes ao gravar (a gravação que falha não pode deixar a revisão da memória
-    //      à frente do disco); a aba B paga o Recruta com o Ipê e perde; A, sem o evento storage, toca em "Desafiar" com a
+    //      à frente do disco); a aba B paga o Recruta (da Capoeira desde a D4) com o Ipê e perde; A, sem o evento storage, toca em "Desafiar" com a
     //      Maré: responde "outra aba", nada é cobrado, nenhum sorteio, o disco fica como B deixou e o aviso da falha some
     {
       const label = 'ginasio-falha-outra-aba'
@@ -4730,7 +4844,7 @@ try {
         await ginOuroInf(pa, false)
         await ginOuroInf(pb, false)
         // A: o preparo com a Maré; duas gravações falhadas
-        await ginPreparo(pa, 'fogo', 0)
+        await ginPreparo(pa, 'grama', 0)
         await ginToca(pa, 'm2')
         await ginEsperaTime(pa, ['m2'], label + ' A')
         const d0 = await ginDisco(pa)
@@ -4747,10 +4861,10 @@ try {
         if ((await ginDisco(pa)) !== d0) problems.push(`${label}: a gravação que falha mudou o disco`)
         if (!(await pa.locator('#tela').textContent()).includes(GIN_FALHA)) problems.push(`${label}: a aba A não mostra o aviso da falha (o teste não prova nada)`)
         // B: paga o Recruta com o Ipê e perde
-        await ginPreparo(pb, 'fogo', 0)
+        await ginPreparo(pb, 'grama', 0)
         await ginToca(pb, 'm3')
         await ginEsperaTime(pb, ['m3'], label + ' B')
-        const stB = await ginEstado(pb), esp = ginEsperado(stB, 'fogo', 0, ['m3'], await ginHoje(pb))
+        const stB = await ginEstado(pb), esp = ginEsperado(stB, 'grama', 0, ['m3'], await ginHoje(pb))
         if (esp.res.venceu || stB.gymCounter !== 0) problems.push(`${label}: o cenário precisa de B perdendo o 1º desafio (troque o nível do Ipê) ${JSON.stringify({ v: esp.res.venceu, c: stB.gymCounter })}`)
         await ginDesafia(pb)
         const dB = await ginDisco(pb)
@@ -4762,7 +4876,7 @@ try {
         await pa.locator('#tela [data-acao="ginasio-desafiar"]').click()
         await pa.waitForFunction(() => /outra aba/.test(document.getElementById('tela').textContent), null, { timeout: 3000 }).catch(() => problems.push(`${label}: a aba A não avisa que o jogo mudou em outra aba`))
         const dA = await ginDisco(pa), sa = await ginEstado(pa), dBo = JSON.parse(dB), dAo = JSON.parse(dA)
-        if (dA !== dB) problems.push(`${label}: a aba A gravou por cima do save de B ${JSON.stringify({ gold: dAo.gold, c: dAo.gymCounter, etapa: dAo.ginasios.fogo.etapa, xpIpe: dAo.mounts[2].xp, xpMare: dAo.mounts[1].xp })} (B deixou ${JSON.stringify({ gold: dBo.gold, c: dBo.gymCounter, etapa: dBo.ginasios.fogo.etapa, xpIpe: dBo.mounts[2].xp })})`)
+        if (dA !== dB) problems.push(`${label}: a aba A gravou por cima do save de B ${JSON.stringify({ gold: dAo.gold, c: dAo.gymCounter, etapa: dAo.ginasios.grama.etapa, xpIpe: dAo.mounts[2].xp, xpMare: dAo.mounts[1].xp })} (B deixou ${JSON.stringify({ gold: dBo.gold, c: dBo.gymCounter, etapa: dBo.ginasios.grama.etapa, xpIpe: dBo.mounts[2].xp })})`)
         if (!ginIgual(ginSemRev(sa), ginSemRev(dBo)) || sa.rev !== dBo.rev) problems.push(`${label}: a aba A não adotou o save de B ${JSON.stringify({ gold: sa.gold, c: sa.gymCounter, rev: sa.rev, revB: dBo.rev })}`)
         if ((await ginSorteios(pa)) !== 0) problems.push(`${label}: a aba A sorteou os duelos (${await ginSorteios(pa)} vezes)`)
         if ((await pa.locator('#t-resumo, #t-cartao, #t-desafio, .tela--corrida').count()) || !(await pa.evaluate(() => !window.__galope.ui.gym || window.__galope.ui.gym.res === null))) problems.push(`${label}: a aba A mostrou um resumo (ou um duelo)`)
@@ -4782,13 +4896,14 @@ try {
     for (const [nome, etapa, src, motivo, uidsDepois] of [
       ['some', 0, "s.mounts = s.mounts.filter(function (m) { return m.uid !== 'm2' })", 'Escolha pelo menos 1 cavalo.', []],
       ['sala', 0, ginSalaSrc('m2'), `Maré está na sala aberta. ${GIN_CORRA_TXT}`, ['m2']],
-      ['ouro', 0, 's.gold = 60; ' + ginSalaSrc('m1'), 'Falta Ouro: a entrada custa 20 de Ouro. 50 de Ouro reservados para a entrada do páreo aberto: sobram 10 para gastar.', ['m2']],
+      // 2026-11-26 (D4): a entrada da Capoeira é 10, então o Ouro vai a 55 para sobrarem 5 (era 60, sobrando 10 da entrada 20)
+      ['ouro', 0, 's.gold = 55; ' + ginSalaSrc('m1'), 'Falta Ouro: a entrada custa 10 de Ouro. 50 de Ouro reservados para a entrada do páreo aberto: sobram 5 para gastar.', ['m2']],
       ['mochila', 1, 's.mochila.torrao = 99', `Você já tem ${ginFmt(G.BAG_MAX)} ${G.ITEMS.torrao.plural}, o máximo da mochila. Use antes de desafiar.`, ['m2']]]) {
       const label = 'ginasio-rf2-' + nome
-      const pg = await ginAbre(label, { save: ginSave({ ginasios: ginComProgresso({ fogo: { etapa, revDia: null, revVitorias: 0 } }) }) })
+      const pg = await ginAbre(label, { save: ginSave({ ginasios: ginComProgresso({ grama: { etapa, revDia: null, revVitorias: 0 } }) }) })
       try {
         await ginOuroInf(pg, false)
-        await ginPreparo(pg, 'fogo', etapa)
+        await ginPreparo(pg, 'grama', etapa)
         await ginToca(pg, 'm2')
         await ginEsperaTime(pg, ['m2'], label)
         if ((await ginTimeDom(pg)).desafiar.dis !== null) problems.push(`${label}: o Desafiar já estava apagado antes da outra aba`)
@@ -4828,10 +4943,10 @@ try {
       ['fechada', "g.etapa = 3; g.time = ['m2']", 'Esta etapa ainda não está aberta.']]) {
       const label = 'ginasio-confere-' + nome
       const mounts = [ginCav(ginBrasa, { uid: 'm1', level: 10 }), ginCav(ginMare, { uid: 'm2', level: 4 }), ginCav(ginIpe, { uid: 'm3', level: 6 })]
-      const pg = await ginAbre(label, { save: ginSave({ mounts, nextUid: 4, ginasios: ginComProgresso({ fogo: { etapa: 2, revDia: null, revVitorias: 0 } }) }) })
+      const pg = await ginAbre(label, { save: ginSave({ mounts, nextUid: 4, ginasios: ginComProgresso({ grama: { etapa: 2, revDia: null, revVitorias: 0 } }) }) })
       try {
         await ginOuroInf(pg, false)
-        await ginPreparo(pg, 'fogo', 2)
+        await ginPreparo(pg, 'grama', 2)
         await ginToca(pg, 'm2')
         await ginEsperaTime(pg, ['m2'], label)
         const sRef = await ginEstado(pg), dRef = await ginDisco(pg)
@@ -4857,7 +4972,7 @@ try {
         await pg.reload({ waitUntil: 'domcontentloaded' })
         await pg.waitForSelector('#t-estabulo')
         await ginOuroInf(pg, false)
-        await ginPreparo(pg, 'fogo', 0)
+        await ginPreparo(pg, 'grama', 0)
         await ginToca(pg, 'm2')
         await ginEsperaTime(pg, ['m2'], label)
         const raw = await ginOutraAba(pg, ginSalaSrc('m2'), false)
@@ -4884,8 +4999,8 @@ try {
     //     escrito, nada cobrado, nenhum erro. 16. A sala aberta: o ativo apagado com o motivo; o desafio com outro cavalo
     //     deixa state.pending e a corrida simulada da sala idênticos
     for (const [nome, o, id, etapa, motivo] of [
-      ['sem-livre', { mounts: [ginCav(ginBrasa, { uid: 'm1', level: 10 })], nextUid: 2, raceCounter: 3, pending: ginPend }, 'fogo', 0, ginSoUmTxt],
-      ['mochila-99', { mochila: { torrao: G.BAG_MAX, estrela: 0, cupom: 0, manual: 0 }, ginasios: ginComProgresso({ fogo: { etapa: 1, revDia: null, revVitorias: 0 } }) }, 'fogo', 1, `Você já tem ${ginFmt(G.BAG_MAX)} ${G.ITEMS.torrao.plural}, o máximo da mochila. Use antes de desafiar.`],
+      ['sem-livre', { mounts: [ginCav(ginBrasa, { uid: 'm1', level: 10 })], nextUid: 2, raceCounter: 3, pending: ginPend }, 'grama', 0, ginSoUmTxt],
+      ['mochila-99', { mochila: { torrao: G.BAG_MAX, estrela: 0, cupom: 0, manual: 0 }, ginasios: ginComProgresso({ grama: { etapa: 1, revDia: null, revVitorias: 0 } }) }, 'grama', 1, `Você já tem ${ginFmt(G.BAG_MAX)} ${G.ITEMS.torrao.plural}, o máximo da mochila. Use antes de desafiar.`],
       ['redeas-999', { redeas: 999, ginasios: ginComProgresso({ agua: { etapa: 4, revDia: null, revVitorias: 0 } }) }, 'agua', 4, `Você já tem ${ginFmt(999)} ${G.ITEMS.redea.plural}, o máximo. Use antes de desafiar.`]]) {
       const label = 'ginasio-limite-' + nome
       const pg = await ginAbre(label, { save: ginSave(o) })
@@ -4914,14 +5029,14 @@ try {
       }
     }
     // Ruling 21 (revisão final, item 3): com a sala de treino aberta o ativo também fica fora do time, e o Ouro não fica
-    // reservado (a entrada de 20 é paga com 30 de Ouro)
+    // reservado (a entrada de 10 é paga com 30 de Ouro; 2026-11-26, D4: a da Capoeira; era a de 20 da Fornalha)
     for (const [label, o] of [['ginasio-sala-aberta', { raceCounter: 3, pending: ginPend }],
       ['ginasio-sala-treino', { raceCounter: 3, gold: 30, pending: { ...ginPend, training: true, fee: 0 } }]]) {
       const pg = await ginAbre(label, { save: ginSave(o) })
       try {
         await ginOuroInf(pg, false)
         const pend0 = JSON.stringify((await ginEstado(pg)).pending), sim0 = await ginSimSala(pg)
-        await ginPreparo(pg, 'fogo', 0)
+        await ginPreparo(pg, 'grama', 0)
         let t = await ginTimeDom(pg)
         const l1 = t.linhas.find((l) => l.uid === 'm1')
         if (!l1 || l1.dis !== 'true' || l1.motivo !== ginSalaTxt || l1.nota !== ginSalaTxt) problems.push(`${label}: o ativo da sala devia estar apagado com o motivo ${JSON.stringify(l1)}`)
@@ -4930,11 +5045,12 @@ try {
         if (JSON.stringify((await ginTimeDom(pg)).time) !== '[]') problems.push(`${label}: o toque forçado pôs o ativo da sala no time`)
         await ginToca(pg, 'm2')
         await ginEsperaTime(pg, ['m2'], label)
-        const st0 = await ginEstado(pg), esp = ginEsperado(st0, 'fogo', 0, ['m2'], await ginHoje(pg))
+        const st0 = await ginEstado(pg), esp = ginEsperado(st0, 'grama', 0, ['m2'], await ginHoje(pg))
         if (o.pending.training) {
-          // nada reservado: com 30 de Ouro, a entrada de 20 pode ser paga (o "Desafiar" livre, sem motivo)
+          // nada reservado: com 30 de Ouro, a entrada de 10 pode ser paga (o "Desafiar" livre, sem motivo); reservando os 50 da
+          // sala valendo, não poderia
           const dz = (await ginTimeDom(pg)).desafiar
-          if (st0.gold !== 30 || esp.entrada !== 20 || !st0.pending.training) problems.push(`${label}: o cenário precisa de 30 de Ouro, entrada 20 e a sala de treino ${JSON.stringify({ gold: st0.gold, entrada: esp.entrada })}`)
+          if (st0.gold !== 30 || esp.entrada !== 10 || !st0.pending.training) problems.push(`${label}: o cenário precisa de 30 de Ouro, entrada 10 e a sala de treino ${JSON.stringify({ gold: st0.gold, entrada: esp.entrada })}`)
           if (!dz || dz.dis !== null || dz.motivo !== null) problems.push(`${label}: com a sala de treino o "Desafiar" devia estar livre (nada reservado) ${JSON.stringify(dz)}`)
         }
         await ginDesafia(pg)
@@ -4957,16 +5073,16 @@ try {
       const pg = await ginAbre(label, { save: ginSave({ mounts: [ginCav(ginBrasa, { uid: 'm1', level: 10 }), ginForte(ginMare, 'm2', teto - 10)] }) })
       try {
         await ginOuroInf(pg, false)
-        await ginPreparo(pg, 'fogo', 0)
+        await ginPreparo(pg, 'grama', 0)
         await ginToca(pg, 'm2')
         await ginEsperaTime(pg, ['m2'], label)
-        const st0 = await ginEstado(pg), esp = ginEsperado(st0, 'fogo', 0, ['m2'], await ginHoje(pg))
+        const st0 = await ginEstado(pg), esp = ginEsperado(st0, 'grama', 0, ['m2'], await ginHoje(pg))
         if (!(esp.cavalos[0].xp > 10)) problems.push(`${label}: o cenário precisa de XP que passe do teto`)
         await ginDesafia(pg)
         const s1 = await ginEstado(pg), m2 = s1.mounts[1]
         if (!ginIgual(ginSemRev(s1), esp.depois)) problems.push(`${label}: o state difere do esperado`)
         if (m2.level !== G.ECONOMY.maxLevel || m2.xp !== teto) problems.push(`${label}: o cavalo no nível máximo ${JSON.stringify({ level: m2.level, xp: m2.xp, teto })}`)
-        await ginConfereResumo(label, pg, esp, 'fogo', 0)
+        await ginConfereResumo(label, pg, esp, 'grama', 0)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -4995,7 +5111,8 @@ try {
         if (!ginIgual(ginSemRev(s1), esp.depois)) problems.push(`${label}: o state depois do líder difere do esperado`)
         // o XP é o cru (sem a insígnia de Água que acabou de sair)
         if (s1.mounts[0].xp !== st0.mounts[0].xp + esp.ac.xp[0]) problems.push(`${label}: o XP do desafio levou o bônus da insígnia ganha nele ${JSON.stringify({ xp: s1.mounts[0].xp, cru: esp.ac.xp[0] })}`)
-        if (s1.ginasios.agua.etapa !== 5 || s1.redeas !== 1 || s1.mochila.cupom !== 1 || s1.gold !== 5000 - 100 + 400) problems.push(`${label}: insígnia, Rédea, Cupom ou Ouro ${JSON.stringify({ e: s1.ginasios.agua, r: s1.redeas, c: s1.mochila.cupom, g: s1.gold })}`)
+        // 2026-11-26 (D4): a entrada e o prêmio do líder do Remanso são 110 e 450 (eram 100 e 400, iguais nos três ginásios)
+        if (s1.ginasios.agua.etapa !== 5 || s1.redeas !== 1 || s1.mochila.cupom !== 1 || s1.gold !== 5000 - 110 + 450) problems.push(`${label}: insígnia, Rédea, Cupom ou Ouro ${JSON.stringify({ e: s1.ginasios.agua, r: s1.redeas, c: s1.mochila.cupom, g: s1.gold })}`)
         if (!ginIgual(await ginBonus(pg), { ouro: 0, xp: 0.03, skill: 0 })) problems.push(`${label}: o bônus da insígnia de Água não ligou`)
         await ginConfereResumo(label, pg, esp, 'agua', 4)
         if (!(await pg.locator('#tela').textContent()).includes(G.GYMS.agua.insignia.name)) problems.push(`${label}: sem o nome da insígnia`)
@@ -5023,7 +5140,7 @@ try {
       const label = 'ginasio-desafio-forcado'
       const pg = await ginAbre(label, { save: ginSave(), forcedColors: 'active' })
       try {
-        await ginPreparo(pg, 'fogo', 0)
+        await ginPreparo(pg, 'grama', 0)
         await ginToca(pg, 'm1')
         await ginEsperaTime(pg, ['m1'], label)
         const borda = (sel) => pg.evaluate((s) => {
@@ -5056,7 +5173,7 @@ try {
         if (!r.n || r.anim || r.css.length) problems.push(`[${label}] ${tag}: algo se move ${JSON.stringify(r)}`)
       }
       try {
-        await ginPreparo(pg, 'fogo', 0)
+        await ginPreparo(pg, 'grama', 0)
         await ginToca(pg, 'm1')
         await ginEsperaTime(pg, ['m1'], label)
         await parado('preparo')
@@ -5207,7 +5324,7 @@ try {
       await ginConfereDesafio(label, pg, esp, id, i, k)
       await pg.locator('#tela [data-acao="ginasio-comecar"]').click()
     }
-    // do preparo do Sargento ao 1º duelo (pago), com o esperado no node e o disco logo depois de pagar; passa pela tela de
+    // do preparo do Cabo Tocha ao 1º duelo (pago), com o esperado no node e o disco logo depois de pagar; passa pela tela de
     // desafio (conferida), a não ser com parar = true (fica nela)
     const ginT6Paga = async (label, pg, parar = false) => {
       await ginOuroInf(pg, false)
@@ -5216,7 +5333,7 @@ try {
       const st0 = await ginEstado(pg), esp = ginEsperado(st0, GIN_T6.id, GIN_T6.i, GIN_T6.uids, await ginHoje(pg))
       const D = esp.res.duelos
       if (!esp.res.venceu || D.length !== 3 || D[0].vencedor !== 'jogador' || !(D[0].metros < 1) || D[0].vantagem !== 1 || D[1].vencedor !== 'adversario' || D[1].folegoA !== 0.75 ||
-        D[2].vencedor !== 'jogador' || D[2].folegoB === 1) problems.push(`${label}: o cenário mudou (seed 354): ${JSON.stringify(D.map((d) => [d.a, d.b, d.vencedor, d.metros, d.folegoA, d.folegoB, d.vantagem]))}`)
+        D[2].vencedor !== 'jogador' || D[2].folegoB === 1) problems.push(`${label}: o cenário mudou (seed 1154): ${JSON.stringify(D.map((d) => [d.a, d.b, d.vencedor, d.metros, d.folegoA, d.folegoB, d.vantagem]))}`)
       await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
       if (parar) { await ginConfereDesafio(label, pg, esp, GIN_T6.id, GIN_T6.i, 0); return { st0, esp, disco: await ginDisco(pg) } }
       await ginPassaDesafio(label, pg, esp, GIN_T6.id, GIN_T6.i, 0)
@@ -5424,18 +5541,18 @@ try {
         const lob = () => pg.evaluate(() => JSON.stringify(window.__galope.ui.lobby))
         const lobby0 = await lob(), pend0 = JSON.stringify((await ginEstado(pg)).pending), sim0 = await ginSimSala(pg)
         if (lobby0 === 'null') problems.push(`${label}: o teste precisa da sala aberta em ui.lobby`)
-        await ginPreparo(pg, 'fogo', 2)
+        await ginPreparo(pg, GIN_T6.id, GIN_T6.i)
         await ginToca(pg, 'm2')
         await ginEsperaTime(pg, ['m2'], label)
-        const esp = ginEsperado(await ginEstado(pg), 'fogo', 2, ['m2'], await ginHoje(pg))
+        const esp = ginEsperado(await ginEstado(pg), GIN_T6.id, GIN_T6.i, ['m2'], await ginHoje(pg))
         await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
         // cada duelo do desafio (quantos o node diz) até o fim, com o cartão entre eles
         for (let k = 0; k < esp.res.duelos.length; k++) {
-          await ginConfereDuelo(label, pg, esp, 'fogo', 2, k)
+          await ginConfereDuelo(label, pg, esp, GIN_T6.id, GIN_T6.i, k)
           if ((await lob()) !== lobby0) problems.push(`${label}: o duelo ${k + 1} mudou o ui.lobby`)
           await pg.locator('#btn-pular').click()
           if (k === esp.res.duelos.length - 1) break
-          await ginConfereEntre(label, pg, esp, 'fogo', 2, k)
+          await ginConfereEntre(label, pg, esp, GIN_T6.id, GIN_T6.i, k)
           await pg.locator('#tela [data-acao="ginasio-proximo"]').click()
         }
         await pg.waitForSelector('#t-resumo', { timeout: 6000 })
@@ -6228,7 +6345,8 @@ try {
     const quadros = async (pg, sel, n = 10) => { const hs = new Set(); for (let i = 0; i < n; i++) { await pg.waitForTimeout(200); hs.add(await hashCv(pg, sel)) } return hs.size }
     const abreDesafio = async (pg) => {
       await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
-      await pg.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click()
+      // 2026-11-26 (D4): a Capoeira, o único ginásio aberto num save novo (era a Fornalha, que agora abre só na sequência)
+      await pg.locator('[data-acao="ginasio-abrir"][data-id="grama"]').click()
       await pg.waitForFunction(() => !!document.getElementById('t-ginasio'), null, { timeout: 4000 })
       await pg.locator('[data-acao="ginasio-etapa"]').first().click(); await pg.waitForSelector('#t-etapa')
       for (const u of await pg.evaluate(() => [...document.querySelectorAll('#tela [data-acao="ginasio-time"]')].map((x) => x.getAttribute('data-id')).slice(0, 3))) await pg.locator(`#tela [data-acao="ginasio-time"][data-id="${u}"]`).click().catch(() => {})
@@ -10952,13 +11070,14 @@ try {
         } finally {
           await fo.context().close()
         }
-        // o jogo: Fornalha com 2 etapas vencidas, Remanso com a insígnia e a revanche livre, Capoeira do zero; no estábulo a Maré 13
-        // (vantagem contra o Fogo), a Brasa 12 e o Ipê 12 (desvantagem). O desafio do Sargento Candeeiro com Maré e Brasa é o da
-        // Tarefa 6 (seed 354): vitória da Maré, derrota da Maré, e os dois cartões entre os três duelos
+        // o jogo: Capoeira sem etapa vencida, Remanso com a insígnia e a revanche livre, Fornalha com a etapa da Tarefa 6
+        // vencida antes dela (a sequência deixa: o Remanso tem a insígnia); no estábulo a Maré (vantagem contra o Fogo), a
+        // Brasa (sem vantagem) e o Ipê (desvantagem), como na folha (tools/folha-interface.mjs, contra a Fornalha). O desafio
+        // é o da Tarefa 6 (ginT6Save: seed 1154, Cabo Tocha): vitória da Maré, derrota da Maré e a Brasa fecha, com os dois
+        // cartões entre os três duelos. 2026-11-26 (D4): era a Fornalha etapa 2 com a seed 354; só a ordem e o markup contam aqui
         const ginIpe = G.STARTERS.find((h) => h.id === 'ipe')
-        const save = ginT6Save({ nextUid: 4,
-          mounts: [ginCav(ginBrasa, { uid: 'm1', level: 12 }), ginCav(ginMare, { uid: 'm2', level: 13 }), ginCav(ginIpe, { uid: 'm3', level: 12 })],
-          ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 }, agua: { etapa: 5, revDia: null, revVitorias: 0 } }) })
+        const save = ginT6Save({ nextUid: 4, mounts: ginT6Mounts().concat([ginT6Cav(ginIpe, { uid: 'm3', level: 33 })]),
+          ginasios: ginT6Progresso({ grama: { etapa: 0, revDia: null, revVitorias: 0 } }) })
         const pg = await ginAbre(label, { save, chave: GIN_REAL, pagina: 'preview.html' })
         const junta = async (k, sel) => { for (const x of await sigs(pg, sel)) doJogo[k].add(x) }
         const trilha = async (id) => { await pg.locator(`[data-acao="ginasio-abrir"][data-id="${id}"]`).click(); await pg.waitForSelector('#t-ginasio'); await junta('etapa', '#tela .trilha > li') }
@@ -10970,8 +11089,8 @@ try {
           // a revanche de hoje feita (o dia do save; a tela lê o state ao desenhar): a trilha "feita" e o cartão "Revanche amanhã"
           await pg.evaluate(() => { const g = window.__galope; g.state.ginasios.agua.revDia = g.hojeDia() })
           await trilha('agua'); await aba()
-          await trilha('fogo')
-          await pg.locator('#tela [data-acao="ginasio-etapa"][data-id="2"]').click(); await pg.waitForSelector('#t-etapa')
+          await trilha(GIN_T6.id)
+          await pg.locator(`#tela [data-acao="ginasio-etapa"][data-id="${GIN_T6.i}"]`).click(); await pg.waitForSelector('#t-etapa')
           await junta('time', '#tela .gin-time > li')
           for (const uid of ['m2', 'm1']) {
             await pg.locator(`#tela [data-acao="ginasio-time"][data-id="${uid}"]`).click()
@@ -10997,8 +11116,8 @@ try {
         const ps = await ginAbre(label + '-sala', { save: Object.assign({}, save, { raceCounter: 3, pending: pend }), chave: GIN_REAL, pagina: 'preview.html' })
         try {
           await ps.locator('[data-acao="aba"][data-id="expedicao"]').click(); await ps.waitForSelector('#t-expedicao')
-          await ps.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click(); await ps.waitForSelector('#t-ginasio')
-          await ps.locator('#tela [data-acao="ginasio-etapa"][data-id="2"]').click(); await ps.waitForSelector('#t-etapa')
+          await ps.locator(`[data-acao="ginasio-abrir"][data-id="${GIN_T6.id}"]`).click(); await ps.waitForSelector('#t-ginasio')
+          await ps.locator(`#tela [data-acao="ginasio-etapa"][data-id="${GIN_T6.i}"]`).click(); await ps.waitForSelector('#t-etapa')
           for (const x of await sigs(ps, '#tela .gin-time > li')) doJogo.time.add(x)
         } catch (e) {
           problems.push(`${label} (sala aberta): ` + e.message)
@@ -14476,15 +14595,14 @@ try {
 
   // ---------------- capturas dos ginásios (spec dos ginásios §17): a aba Expedição com os três cartões, a trilha como ela abre (no topo: a etapa próxima já cabe na primeira tela),
   // o preparo com o time escolhido, um duelo no meio da corrida e o resumo. O jogo (preview.html, sem a faixa DEV) abre com o
-  // save posto antes de carregar: Fornalha com 2 etapas vencidas, Remanso com a insígnia e a revanche livre, Capoeira do zero;
-  // no estábulo a Brasa 12 (a ativa), a Maré 13 e o Ipê 12. O desafio do Sargento Candeeiro com Maré e Brasa é o da Tarefa 6
-  // (seed 354; 2026-11-20, sim 4.1.0: era 157): três duelos e vitória (conferido abaixo: se o pareamento mudar, o teste diz)
+  // save posto antes de carregar: o progresso da Tarefa 6 (Capoeira e Remanso com a insígnia e a revanche livre, Fornalha com
+  // 1 etapa vencida); no estábulo a Brasa 33 (a ativa), a Maré 34 e o Ipê 33. O desafio do Cabo Tocha com Maré e Brasa é o da
+  // Tarefa 6 (seed 1154; 2026-11-26, D4: era a 354 com o Sargento Candeeiro, Fornalha só com 2 etapas e Capoeira do zero;
+  // 2026-11-20, sim 4.1.0: era 157): três duelos e vitória (conferido abaixo: se o pareamento mudar, o teste diz)
   if (quer('fluxo-capturas-ginasio')) {
     const label = 'ginasio-capturas'
     const ginIpe = G.STARTERS.find((h) => h.id === 'ipe')
-    const save = ginT6Save({ nextUid: 4,
-      mounts: [ginCav(ginBrasa, { uid: 'm1', level: 12 }), ginCav(ginMare, { uid: 'm2', level: 13 }), ginCav(ginIpe, { uid: 'm3', level: 12 })],
-      ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 }, agua: { etapa: 5, revDia: null, revVitorias: 0 } }) })
+    const save = ginT6Save({ nextUid: 4, mounts: [...ginT6Mounts(), ginT6Cav(ginIpe, { uid: 'm3', level: 33 })] })
     const pg = await ginAbre(label, { save, chave: GIN_REAL, pagina: 'preview.html', vp: { width: 390, height: 844 } })
     try {
       await pg.locator('[data-acao="aba"][data-id="expedicao"]').click()
@@ -14494,18 +14612,18 @@ try {
       await pg.evaluate(() => window.scrollTo(0, 0)); await sleep(300)
       await checkOverflow(pg, label + '-expedicao')
       await pg.screenshot({ path: join(SHOTS, 'final-24-expedicao-ginasios.png') })
-      // a trilha da Fornalha como ela abre: a 390×844 a etapa próxima (Sargento Candeeiro) já cabe inteira, então fica no topo
+      // a trilha da Fornalha como ela abre: a 390×844 a etapa próxima (Cabo Tocha) já cabe inteira, então fica no topo
       await pg.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click()
       await pg.waitForSelector('#t-ginasio')
       // a ida é uma viagem (zoom e íris, plano do mapa A4): a captura espera ela terminar e a tela rolar até a etapa próxima
       await pg.waitForFunction(() => { const c = document.querySelector('canvas[data-mapa]'); return c && c.getAttribute('data-viagem') === '' }, null, { timeout: 3000 }).catch(() => {})
       await sleep(400)
       const prox = await pg.locator('#tela .etapa--proxima .etapa-nome').textContent()
-      if (prox !== G.GYMS.fogo.etapas[2].nome) problems.push(`${label}: a etapa próxima da trilha é "${prox}"`)
+      if (prox !== G.GYMS.fogo.etapas[GIN_T6.i].nome) problems.push(`${label}: a etapa próxima da trilha é "${prox}"`)
       await checkOverflow(pg, label + '-trilha')
       await pg.screenshot({ path: join(SHOTS, 'final-25-trilha.png') })
       // o preparo: Maré 1º (vantagem) e Brasa 2º; o Ipê apagado com o motivo do time cheio; a tela começa no "Seu time"
-      await pg.locator('#tela [data-acao="ginasio-etapa"][data-id="2"]').click()
+      await pg.locator(`#tela [data-acao="ginasio-etapa"][data-id="${GIN_T6.i}"]`).click()
       await pg.waitForSelector('#t-etapa')
       for (const uid of ['m2', 'm1']) {
         await pg.locator(`#tela [data-acao="ginasio-time"][data-id="${uid}"]`).click()
@@ -14517,10 +14635,10 @@ try {
       })
       await sleep(300)
       const des = await pg.locator('#tela [data-acao="ginasio-desafiar"]').evaluate((b) => ({ dis: b.getAttribute('aria-disabled'), txt: b.textContent }))
-      if (des.dis || des.txt !== `Desafiar (${G.GYMS.fogo.etapas[2].entrada} de Ouro)`) problems.push(`${label}: o "Desafiar" ${JSON.stringify(des)}`)
+      if (des.dis || des.txt !== `Desafiar (${G.GYMS.fogo.etapas[GIN_T6.i].entrada} de Ouro)`) problems.push(`${label}: o "Desafiar" ${JSON.stringify(des)}`)
       await checkOverflow(pg, label + '-preparo')
       await pg.screenshot({ path: join(SHOTS, 'final-26-desafio.png') })
-      // a tela de desafio (2026-11-18): o Sargento Candeeiro e a Brasa dele contra a Maré, com a arte do oponente na cena
+      // a tela de desafio (2026-11-18): o Cabo Tocha e a Brasa dele contra a Maré, com a arte do oponente na cena
       await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
       await pg.waitForSelector('#t-desafio', { timeout: 6000 })
       await pg.waitForFunction(GIN_CENA_CORES + ' > 12', null, { timeout: 3000 }).catch(() => problems.push(`${label}: a cena do desafio sem o oponente`))
@@ -14532,7 +14650,7 @@ try {
       console.log(`  ${label}: desenho da cena de desafio ${msCena.toFixed(3)} ms por quadro`)
       if (!(msCena < 1.2)) problems.push(`${label}: a cena de desafio custa ${msCena} ms por quadro (régua: 1,2 ms)`)
       await pg.screenshot({ path: join(SHOTS, 'final-26b-cena-desafio.png') })
-      // o 1º duelo (Maré com vantagem contra a Brasa do Sargento; a chegada é colada) no meio da corrida, em x2
+      // o 1º duelo (Maré com vantagem contra a Brasa do Cabo; a chegada é colada) no meio da corrida, em x2
       await pg.locator('#tela [data-acao="ginasio-comecar"]').click()
       await pg.waitForSelector('#tela .tela--corrida #btn-pular', { timeout: 6000 })
       await pg.getByRole('button', { name: 'x2' }).click()

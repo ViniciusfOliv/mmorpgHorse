@@ -10,6 +10,8 @@
  *   quem chama grava o contador novo junto com a entrada e o resultado. O mapa de todos os sais do save está no topo
  *   do itens.js (um só mapa); o deste módulo fica abaixo do SAL do itens.js, com folga de ~4 milhões de desafios.
  *
+ * SEQUÊNCIA (D4): aberto(gymId, progresso) -> o 1º de GYM_ORDER, o anterior com a insígnia ou ele mesmo com etapa
+ *   vencida (save antigo não perde nada); fechado, o podeDesafiar recusa ('ginasio-fechado') e o acerto devolve null.
  * ETAPA: nas funções, `etapa` é o índice 0–4 em GYMS[id].etapas (4 = o líder). PROGRESSO por ginásio:
  *   { etapa: 0–5 (etapas vencidas; a próxima a desafiar é a de índice `etapa`; 5 = insígnia),
  *     revDia: null (nunca) | dia da última revanche, revVitorias: revanches vencidas (o rodízio do prêmio) }.
@@ -60,13 +62,15 @@
     return 0;
   }
   // O cavalo fixo da etapa: a base do catálogo (cópia) no nível e nas estrelas dados, com a build dos bots e as
-  // skills de vaga no rank da etapa.
+  // skills de vaga no rank da etapa. def.raridade (D4): a raridade do ginásio no lugar da do catálogo (a genética fica
+  // a da base; os pontos e as vagas passam a ser os da raridade).
   function cavalo(def) {
     if (!objeto(def)) return null;
     var lista = G.STARTERS.concat(G.WILD_HORSES), base = null;
     for (var i = 0; i < lista.length; i++) if (lista[i].id === def.base) { base = lista[i]; break; }
     if (!base) return null;
     var h = copia(base);
+    if (typeof def.raridade === 'string' && temChave(G.RARITIES, def.raridade)) h.rarity = def.raridade;
     h.level = def.level;
     h.grau = def.grau;
     h.alloc = S.botAlloc(h);
@@ -184,13 +188,31 @@
   // Pode tentar a revanche hoje: só com hoje inteiro e se nunca tentou ou hoje passou do último dia.
   function revancheLivre(p, hoje) { return inteiro(hoje) && (p.revDia === null || hoje > p.revDia); }
 
+  // SEQUÊNCIA (D4): o ginásio antes de `id` em GYM_ORDER (null: o primeiro ou um id desconhecido).
+  function anterior(id) {
+    var i = G.GYM_ORDER.indexOf(id);
+    return i > 0 ? G.GYM_ORDER[i - 1] : null;
+  }
+  // Aberto: o primeiro da sequência, o anterior com a insígnia (etapa 5) ou ele mesmo com alguma etapa vencida (save de
+  // antes da regra: ninguém perde o que já fez). Id desconhecido: false. O progresso é saneado (o dia não importa).
+  function aberto(gymId, progresso) {
+    var gym = gymDe(gymId);
+    if (!gym) return false;
+    var ant = anterior(gym.id);
+    if (!ant) return true;
+    var p = sanear(progresso, 0);
+    return p[gym.id].etapa > 0 || p[ant].etapa === 5;
+  }
+
   // e = { gymId, etapa, progresso, hoje, ouroLivre (Ouro fora do reservado da sala aberta), cabe(id, n), timeLen }
-  // -> { ok: true, revanche } | { ok: false, motivo }. Na ordem: 'fechada', 'vencida', 'revanche-hoje', 'sem-ouro',
-  // 'cheia', 'sem-time', 'time-grande'.
+  // -> { ok: true, revanche } | { ok: false, motivo }. Na ordem: 'fechada' (ginásio ou etapa malformados),
+  // 'ginasio-fechado' (ainda não abriu na sequência), 'vencida', 'revanche-hoje', 'fechada' (etapa depois da próxima),
+  // 'sem-ouro', 'cheia', 'sem-time', 'time-grande'.
   function podeDesafiar(e) {
     if (!objeto(e)) return { ok: false, motivo: 'fechada' };
     var gym = gymDe(e.gymId);
     if (!gym || !etapaOk(e.etapa)) return { ok: false, motivo: 'fechada' };
+    if (!aberto(gym.id, e.progresso)) return { ok: false, motivo: 'ginasio-fechado' };
     var p = sanear(e.progresso, e.hoje)[gym.id];
     var revanche = false;
     if (p.etapa === 5) {
@@ -239,6 +261,7 @@
     if (!inteiro(e.timeLen) || e.timeLen < 1 || e.timeLen > et.cavalos.length) return null;
     if (!resultadoOk(e.resultado, et.cavalos.length, e.timeLen)) return null;
     if (!inteiro(e.hoje) || typeof e.revanche !== 'boolean') return null;
+    if (!aberto(gym.id, e.progresso)) return null;   // ginásio que ainda não abriu na sequência (D4)
     var revanche = e.revanche;
     var prog = sanear(e.progresso, e.hoje), p = prog[gym.id];
     if (revanche) {
@@ -288,6 +311,8 @@
     resolver: resolver,
     acerto: acerto,
     podeDesafiar: podeDesafiar,
+    anterior: anterior,
+    aberto: aberto,
     revanchePremio: revanchePremio,
     bonus: bonus,
     sanear: sanear

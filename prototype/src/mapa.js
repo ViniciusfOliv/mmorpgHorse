@@ -89,7 +89,8 @@
     var out = {};
     ORDEM.forEach(function (el) {
       var p = progresso && progresso[el], v = vencidasDe(p), conq = !!(p && p.insignia) || v >= 5;
-      out[el] = { conquistado: conq, vencidas: v, revanche: conq && p && p.revanche === 'livre', revancheFeita: conq && p && p.revanche === 'feita' };
+      out[el] = { conquistado: conq, vencidas: v, revanche: conq && p && p.revanche === 'livre', revancheFeita: conq && p && p.revanche === 'feita',
+        fechado: !!(p && p.fechado) };   // ainda não abriu na sequência (D4): cadeado e placa apagada
     });
     return out;
   }
@@ -374,11 +375,11 @@
     // a placa (nome e as 5 etapas) e a sombra do mastro mudam só com o progresso: pré-assadas, 1 desenho cada por quadro
     var placas = {}, sombrasMastro = {};
     function placa(el, mk) {
-      var kk = el + (mk.conquistado ? 'c' : '') + mk.vencidas; if (placas[kk]) return placas[kk];
+      var kk = el + (mk.conquistado ? 'c' : '') + (mk.fechado ? 'f' : '') + mk.vencidas; if (placas[kk]) return placas[kk];
       var nome = NOMES[el], lw = SP && SP.measureText ? SP.measureText(nome, 1, 'g7') : nome.length * 5, pw = Math.max(lw + 6, 33);
       var c = tela(pw + 2, 15), q = c.getContext('2d'), r = function (x, y, w, h, cor) { q.fillStyle = cor; q.fillRect(x, y, w, h); };
       r(0, 0, pw + 2, 15, '#2e222f'); r(1, 1, pw, 13, '#3e3546'); r(1, 1, pw, 1, '#484a77');
-      if (SP && SP.drawText) SP.drawText(q, nome, Math.round((pw + 2) / 2), 3, { fonte: 'g7', scale: 1, color: mk.conquistado ? '#f9c22b' : '#ffffff', shadow: '#2e222f', align: 'center' });
+      if (SP && SP.drawText) SP.drawText(q, nome, Math.round((pw + 2) / 2), 3, { fonte: 'g7', scale: 1, color: mk.conquistado ? '#f9c22b' : mk.fechado ? '#9babb2' : '#ffffff', shadow: '#2e222f', align: 'center' });
       var cx = Math.round((pw + 2) / 2);
       for (var e = 0; e < 5; e++) r(cx - 12 + e * 5, 11, 3, 2, e < mk.vencidas ? '#f9c22b' : '#625565');
       return (placas[kk] = c);
@@ -395,8 +396,15 @@
       D(estandarte(el, fase, mk.conquistado), bx - 1, by - 33);
       if (mk.conquistado) { var br = mod(t * 9, 30); if (br < 6) R(bx + 9 + Math.floor(br / 2), by - 5 + (Math.floor(br) % 3), 1, 1, '#ffffff'); }
       if (mk.revanche) balao(bx - 4, by - 30, t, '#f79617');
-      var pl = placa(el, mk);
-      D(pl, pp[0] - Math.round(pl.width / 2), pp[1] + MARCA.placa + (el === 'agua' ? 0 : 1) - 1);
+      var pl = placa(el, mk), py = pp[1] + MARCA.placa + (el === 'agua' ? 0 : 1) - 1;
+      D(pl, pp[0] - Math.round(pl.width / 2), py);
+      if (mk.fechado) cadeado(pp[0] - 3, py - 10);
+    }
+    // o cadeado do ginásio que ainda não abriu (7 × 8 px de arte, logo acima da placa)
+    function cadeado(x, y) {
+      var aro = '#c7dcd0', esc = '#2e222f';
+      R(x + 2, y, 3, 1, aro); R(x + 1, y + 1, 1, 2, aro); R(x + 5, y + 1, 1, 2, aro);
+      R(x, y + 3, 7, 5, esc); R(x + 1, y + 4, 5, 3, '#f9c22b'); R(x + 3, y + 5, 1, 1, esc);
     }
 
     // ---- o quadro inteiro, de baixo para cima

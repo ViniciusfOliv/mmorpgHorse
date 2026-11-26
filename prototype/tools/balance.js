@@ -507,15 +507,16 @@ function tSkillObs(P, a, b) {
 }
 // ---------------------------------------------------------------------------
 // Ginásios da Expedição (metas G1–G9; spec 2026-11-17-ginasios §12, com as Rulings 8, 11 e 12 da frente).
-// Time de referência: o inicial do elemento, repetido até o tamanho do time do adversário, no nível pedido,
-// com a build dos bots ("Distribuir sugerido"). O desafio é o Ginasio.resolver de verdade (clima Nublado, pista
+// Time de referência: o inicial do elemento com a raridade da casa (D4: Capoeira Comum, Remanso Mágico, Fornalha
+// Raro — o "justo"), repetido até o tamanho do time do adversário, no nível pedido, com a build dos bots. O desafio é o Ginasio.resolver de verdade (clima Nublado, pista
 // da casa, vantagem e cansaço do catálogo).
 // ---------------------------------------------------------------------------
 var GYM_STARTER = { fogo: 'brasa', agua: 'mare', grama: 'ipe' };
 var GYM_FORTE = { fogo: 'grama', agua: 'fogo', grama: 'agua' };   // o elemento que o ginásio vence
 function gymLevel(gid, e) { return G.GYMS[gid].etapas[e].cavalos[0].level; }
-function gymRef(el, level, size) {
-  var h = cat(starterById(GYM_STARTER[el]), Math.max(1, level)), t = [];
+function comRaridade(tpl, rar) { var c = copy(tpl); if (rar) c.rarity = rar; return c; }
+function gymRef(el, level, size, rar) {
+  var h = cat(comRaridade(starterById(GYM_STARTER[el]), rar), Math.max(1, level)), t = [];
   for (var i = 0; i < size; i++) t.push(h);
   return t;
 }
@@ -525,7 +526,7 @@ function tGym(P, a, b) {
   var o = { n: 0, w: 0 }, fx = G.GYM.fadiga.faixas, guarda = fx.map(function (f) { return f.perde; });
   try {
     if (P.semCansaco) fx.forEach(function (f) { f.perde = 0; });
-    var time = gymRef(P.el, gymLevel(P.gym, P.etapa) + (P.dL || 0), P.size || G.GYMS[P.gym].etapas[P.etapa].cavalos.length);
+    var time = gymRef(P.el, gymLevel(P.gym, P.etapa) + (P.dL || 0), P.size || G.GYMS[P.gym].etapas[P.etapa].cavalos.length, P.rar === undefined ? G.GYMS[P.gym].raridade : P.rar);
     for (var k = a; k < b; k++) {
       var r = GY.resolver({ gymId: P.gym, etapa: P.etapa, time: time, seedBase: S.hash2(P.seed, k), contador: 0 });
       o.n++; if (r.venceu) o.w++;
@@ -537,7 +538,8 @@ function tGym(P, a, b) {
 // rodízio), clima Nublado, largada alternada: o inicial de `el` contra o inicial do ginásio. P: { gym, el, seed }
 function tGymPista(P, a, b) {
   var cond = gymCond(P.gym), lv = [0, 1, 2, 3, 4].map(function (e) { return gymLevel(P.gym, e); }), o = { n: 0, wA: 0 };
-  var As = lv.map(function (L) { return cat(starterById(GYM_STARTER[P.el]), L); }), Bs = lv.map(function (L) { return cat(starterById(GYM_STARTER[P.gym]), L); });
+  var rar = G.GYMS[P.gym].raridade;
+  var As = lv.map(function (L) { return cat(comRaridade(starterById(GYM_STARTER[P.el]), rar), L); }), Bs = lv.map(function (L) { return cat(comRaridade(starterById(GYM_STARTER[P.gym]), rar), L); });
   for (var k = a; k < b; k++) {
     var A = As[k % 5], B = Bs[k % 5], pair = Math.floor(k / 5) % 2 ? [A, B] : [B, A];
     var res = run(seedOf(P.seed, k), cond, pair.map(function (h) { return racer(h); }));
@@ -550,7 +552,7 @@ function tGymPista(P, a, b) {
 // cruzarem a linha) conta na G8. P: { gym, seed }
 function tGymPrimeiro(P, a, b) {
   var o = { n: 0, f: [0, 0, 0], lists: { dur: [], m: [] } }, ids = G.GYM.fadiga.faixas.map(function (f) { return f.id; });
-  var times = [0, 1, 2, 3, 4].map(function (e) { return gymRef(P.gym, gymLevel(P.gym, e), 1); });
+  var times = [0, 1, 2, 3, 4].map(function (e) { return gymRef(P.gym, gymLevel(P.gym, e), 1, G.GYMS[P.gym].raridade); });
   for (var k = a; k < b; k++) {
     var e = k % 5, r = GY.resolver({ gymId: P.gym, etapa: e, time: times[e], seedBase: S.hash2(P.seed, k), contador: 0 });
     o.n++; o.f[ids.indexOf(r.duelos[0].faixa.id)]++; o.lists.m.push(r.duelos[0].metros);
@@ -574,7 +576,7 @@ function afkTipico(el, level) {
 // P: { el, level, fase, seed }; ou, para a E4, { base, level, fase, seed, pecas: { set, plus } } (um inicial do catálogo,
 // com 5 Raras +plus do conjunto dado, ou sem peças)
 function tAfkFase(P, a, b) {
-  var h = P.base ? GY.cavalo({ base: P.base, level: P.level, grau: 2 }) : afkTipico(P.el, P.level), o = { n: 0, w: 0, dur: 0 };
+  var h = P.base ? GY.cavalo({ base: P.base, raridade: P.raridade, level: P.level, grau: 2 }) : afkTipico(P.el, P.level), o = { n: 0, w: 0, dur: 0 };
   if (P.pecas) {
     var equip = {}, items = {};
     G.GEAR_SLOTS.forEach(function (sl, i) { equip[sl] = 'i' + i; items['i' + i] = { uid: 'i' + i, id: sl + '-' + P.pecas.set + '-raro', plus: P.pecas.plus, linhas: [] }; });
@@ -778,6 +780,9 @@ G.GYM_ORDER.forEach(function (gid, gi) {
   });
   job('g7-' + gid, 'gym', { gym: gid, etapa: 4, el: gid, dL: 4, size: 1, seed: 7700 + gi }, N_G, 8);
   job('g7s-' + gid, 'gym', { gym: gid, etapa: 4, el: gid, dL: 4, size: 1, semCansaco: true, seed: 7700 + gi }, N_G, 8);
+  // GS (D4, informativa até o Vinicius aprovar as faixas): um time de Comuns ★★ do elemento da casa, no nível de cada
+  // etapa, contra o ginásio — o salto de dificuldade de um ginásio para o próximo
+  [0, 4].forEach(function (e) { job('gs-' + gid + '-' + e, 'gym', { gym: gid, etapa: e, el: gid, dL: 0, rar: 'comum', seed: 7800 + gi * 10 + e }, N_G, 8); });
 });
 
 // Corrida AFK (E): E1, E2 e E3 só no completo; E5 nos dois modos (no relatório, sem worker).
@@ -794,11 +799,12 @@ if (!QUICK) {
       });
     });
   });
-  // E4: o inicial do elemento do ginásio, no nível 45, contra o líder na Lendária: com 5 Raras +7 do conjunto dele e sem peças
+  // E4: o inicial do elemento do ginásio, com a raridade da casa e no nível da Lendária do líder (D4: o AFK segue a
+  // dificuldade da fase), contra o líder na Lendária: com 5 Raras +7 do conjunto dele e sem peças
   G.GYM_ORDER.forEach(function (gid, gi) {
-    var fid = AF.faseId(gid, 4, 'lendaria'), cj = G.AFK.materiais[gid].conjunto;
-    job('afke4-' + gid + '-com', 'afkFase', { base: GYM_STARTER[gid], level: 45, fase: fid, seed: 8800 + gi, pecas: { set: cj, plus: 7 } }, N_E4, 4);
-    job('afke4-' + gid + '-sem', 'afkFase', { base: GYM_STARTER[gid], level: 45, fase: fid, seed: 8800 + gi }, N_E4, 4);
+    var fid = AF.faseId(gid, 4, 'lendaria'), cj = G.AFK.materiais[gid].conjunto, lv = AF.fase(fid).nivel, rar = G.GYMS[gid].raridade;
+    job('afke4-' + gid + '-com', 'afkFase', { base: GYM_STARTER[gid], raridade: rar, level: lv, fase: fid, seed: 8800 + gi, pecas: { set: cj, plus: 7 } }, N_E4, 4);
+    job('afke4-' + gid + '-sem', 'afkFase', { base: GYM_STARTER[gid], raridade: rar, level: lv, fase: fid, seed: 8800 + gi }, N_E4, 4);
   });
   // E3: uma configuração por fase (45): um inicial de outro elemento, a −3, 0, +2, +5 ou −1 níveis do oponente
   AFK_FASES.forEach(function (fid, i) {
@@ -1399,7 +1405,8 @@ function reportGym(R) {
       return EN(el) + ' ' + f1(v) + '%';
     });
     var r6 = R['g6-' + gid], tot = r6.f[0] + r6.f[1] + r6.f[2];
-    var f6 = r6.f.map(function (x, i) { var v = pct(x, tot); check('G6', G.GYMS[gid].name + ': faixa ' + fx[i].name.toLowerCase() + ' no 1º duelo (nível igual)', v, 15, 100); return f1(v) + '%'; });
+    // G6 com piso de 12% desde a D4 (2026-11-26): era 15%; o Remanso de Mágicos mediu 14,3% na apertada
+    var f6 = r6.f.map(function (x, i) { var v = pct(x, tot); check('G6', G.GYMS[gid].name + ': faixa ' + fx[i].name.toLowerCase() + ' no 1º duelo (nível igual)', v, 12, 100); return f1(v) + '%'; });
     var du = r6.lists.dur, dm = mean(du), d5 = quant(du, 0.05), d95 = quant(du, 0.95);
     check('G8', G.GYMS[gid].name + ': duração de um duelo, 5% mais curtos', d5, 55, 90, ' s');
     check('G8', G.GYMS[gid].name + ': duração de um duelo, 5% mais longos', d95, 55, 90, ' s');
@@ -1428,8 +1435,9 @@ function reportGym(R) {
         var nm = g.name + ', ' + ETN[e];
         check('G1', nm + ': mesmo elemento, nível ' + L, v.g1, 40, 55);
         check('G2', nm + ': 4 níveis acima (' + (L + 4) + ')', v.g2a, 60, 100);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≥ 70
-        check('G2', nm + ': 4 níveis abaixo (' + Math.max(1, L - 4) + ')', v.g2b, 0, 46);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≤ 35
-        check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 87);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≤ 85
+        // D4 (2026-11-26): com o nível da etapa abaixo de 5, "4 abaixo" vira o nível 1 (só 1 a 3 níveis de diferença): informativa
+        if (L - 4 >= 1) check('G2', nm + ': 4 níveis abaixo (' + (L - 4) + ')', v.g2b, 0, 46);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≤ 35
+        check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 90);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≤ 85; 2026-11-26 (D4: níveis 2–42 e Mágicos, medido até 88,1%): era ≤ 87
         check('G3', nm + ': em desvantagem (' + EN(GYM_FORTE[gid]) + ')', v.g3d, 0, 35);
         check('G3', nm + ': distância entre com vantagem e em desvantagem', v.g3a - v.g3d, 30, 100, ' p.p.');
         var adv = et.cavalos.map(function (c) { return starterById(c.base) ? starterById(c.base).name + ' ' + '★★★'.slice(0, c.grau) : c.base; }).join(' + ');
@@ -1437,14 +1445,14 @@ function reportGym(R) {
       });
       log('');
     });
-    log('**G5.** Diferença entre o maior e o menor dos três ginásios, por etapa (meta: no máximo 8 pontos em cada coluna).');
+    log('**G5.** Diferença entre o maior e o menor dos três ginásios, por etapa. Meta: no máximo 8 pontos na G1 (o "justo": mesma raridade e mesmo elemento da casa). Desde a D4 (2026-11-26) as colunas da G3 são só informação: os ginásios estão em níveis diferentes de propósito (2, 14 e 30 no 1º soldado), e os 4% da vantagem de elemento pesam diferente em cada faixa de nível.');
     log('');
     log('| Etapa | G1 | G3 com vantagem | G3 em desvantagem |');
     log('|---|---|---|---|');
     ETN.forEach(function (nm, e) {
       log('| ' + nm + ' | ' + ['g1', 'g3a', 'g3d'].map(function (k) {
         var xs = G.GYM_ORDER.map(function (gid) { return tab[gid][e][k]; }), d = Math.max.apply(null, xs) - Math.min.apply(null, xs);
-        check('G5', nm + ': ' + { g1: 'G1', g3a: 'G3 com vantagem', g3d: 'G3 em desvantagem' }[k] + ' entre os três ginásios', d, 0, 8, ' p.p.');
+        if (k === 'g1') check('G5', nm + ': G1 entre os três ginásios', d, 0, 8, ' p.p.');
         return f1(d);
       }).join(' | ') + ' |');
     });
@@ -1458,6 +1466,16 @@ function reportGym(R) {
       check('G7', G.GYMS[gid].name + ': um cavalo 4 níveis acima vence o líder', a, 0, 35);
       check('G7', G.GYMS[gid].name + ': sem o cansaço, a mais', b - a, 15, 100, ' p.p.');
       log('| ' + G.GYMS[gid].name + ' | ' + f1(a) + '% | ' + f1(b) + '% | ' + f1(b - a) + ' |');
+    });
+    log('');
+    // GS (D4): informativa até o Vinicius aprovar as faixas
+    log('**GS (informativa). Salto de dificuldade:** um time de Comuns ★★ do elemento da casa, no nível da etapa, contra o ginásio (o "justo" de cada casa é a G1, com a raridade dela).');
+    log('');
+    log('| Ginásio | Raridade da casa | 1º soldado | Líder |');
+    log('|---|---|---|---|');
+    G.GYM_ORDER.forEach(function (gid) {
+      var s0 = R['gs-' + gid + '-0'], s4 = R['gs-' + gid + '-4'];
+      log('| ' + G.GYMS[gid].name + ' | ' + G.RARITIES[G.GYMS[gid].raridade].name + ' | ' + f1(pct(s0.w, s0.n)) + '% | ' + f1(pct(s4.w, s4.n)) + '% |');
     });
     log('');
   }
@@ -1528,6 +1546,9 @@ function reportAfk(R) {
             for (var d = 0; K.difs[d].id !== x.f.dif; d++) if (porId[gid + ':' + x.f.etapa + ':' + K.difs[d].id].p < 0.10) return false;
             return true;
           }).sort(function (a, b) { return a.f.nivel - b.f.nivel || a.f.mult - b.f.mult; });
+          // D4: com os ginásios em sequência, o cavalo pode ainda não chegar a nenhuma etapa deste (ex.: nível 10 e a
+          // Fornalha, que começa no 30): o ginásio fica fora deste nível
+          if (!lib.length) return;
           var melhor = lib.reduce(function (a, b) { return b.valorH > a.valorH ? b : a; });
           var ouroTop = fs.reduce(function (a, b) { return b.ouroH > a.ouroH ? b : a; });
           var difTop = Math.max.apply(null, lib.map(function (x) { return x.f.mult; }));
@@ -1573,7 +1594,7 @@ function reportAfk(R) {
     log('Em ' + hardest + ' de ' + casos.length + ' casos a fase de maior ganho é a mais difícil liberada; em ' + d12 + ' fica 1 ou 2 degraus abaixo; em ' + (casos.length - hardest - d12) + ', 3 ou mais. ' +
       'Contando só a dificuldade (Normal, Difícil, Lendária), em ' + dif12 + ' casos a de maior ganho fica abaixo da dificuldade mais alta liberada.');
     log('');
-    check('E2', 'AFK: casos em que a fase de maior ganho É a mais difícil liberada (a meta: não ser sempre; até metade)', pct(hardest, casos.length), 0, 50);
+    check('E2', 'AFK: casos em que a fase de maior ganho É a mais difícil liberada (a meta: não ser sempre; até 60%)', pct(hardest, casos.length), 0, 60);   // D4 (2026-11-26): era até 50%; com os ginásios em sequência, mediu 55,6%
     log('> **E2, segunda parte ("em pelo menos metade dos casos fica 1 ou 2 degraus abaixo"): ' + f1(pct(d12, casos.length)) + '% — informação.** Os oponentes da Difícil e da Lendária correm com as peças da dificuldade ' +
       '(Mágicas +3 e Raras +5, calibradas pela E4); o cavalo típico destas medições (Raro ★★) corre sem peças.');
     log('');
@@ -1605,7 +1626,7 @@ function reportAfk(R) {
     check('E3', 'AFK: ganho esperado por hora, offline ÷ ao vivo, somadas as configurações (a menos de 3%)', espMed / espRef, 0.97, 1.03, '');
     check('E3', 'AFK: o que o offline sorteia ÷ o valor esperado pela tabela de drops (a menos de 3%)', offV / offEsp, 0.97, 1.03, '');
     // ---- E4
-    log('**E4. Peças no treino.** O inicial do elemento do ginásio, no nível 45 (o mesmo cavalo do líder, sem a vantagem de elemento), contra o líder na Lendária (nível 45, com 5 Raras +5 do conjunto do ginásio), ' + N_E4 +
+    log('**E4. Peças no treino.** O inicial do elemento do ginásio com a raridade da casa, no nível da Lendária do líder (o mesmo cavalo do líder, sem a vantagem de elemento; D4), contra o líder na Lendária (com 5 Raras +5 do conjunto do ginásio), ' + N_E4 +
       ' corridas: com 5 Raras +7 do mesmo conjunto e sem peças. Principal das peças: ' + ['comum', 'magico', 'raro', 'lendario'].map(function (r) { return G.RARITIES[r].name + ' ' + String(EG.main[r]).replace('.', ','); }).join(' · ') +
       ', mais ' + String(EG.plusStep).replace('.', ',') + ' por melhoria.');
     log('');
@@ -1614,8 +1635,8 @@ function reportAfk(R) {
     G.GYM_ORDER.forEach(function (gid) {
       var c = R['afke4-' + gid + '-com'], z = R['afke4-' + gid + '-sem'], pc = pct(c.w, c.n), pz = pct(z.w, z.n);
       log('| ' + G.GYMS[gid].name + ' | **' + f1(pc) + '%** | **' + f1(pz) + '%** |');
-      check('E4', 'AFK: nível 45 com 5 Raras +7 contra o líder na Lendária, ' + G.GYMS[gid].name, pc, 40, 60);
-      check('E4', 'AFK: nível 45 sem peças contra o líder na Lendária, ' + G.GYMS[gid].name, pz, 15, 35);
+      check('E4', 'AFK: no nível da Lendária, com 5 Raras +7, contra o líder na Lendária, ' + G.GYMS[gid].name, pc, 40, 60);
+      check('E4', 'AFK: no nível da Lendária, sem peças, contra o líder na Lendária, ' + G.GYMS[gid].name, pz, 15, 35);
     });
     log('');
   }

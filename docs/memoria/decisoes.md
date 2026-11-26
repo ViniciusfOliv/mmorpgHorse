@@ -3,6 +3,20 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-26 — D4 implementada: ginásios em sequência e mais difíceis (Vinicius: "Pode implementar")
+Spec: `docs/superpowers/specs/2026-11-26-d4-ginasios-sequencia.md`. Regra em `ginasio.js` (`aberto`, `anterior`,
+`'ginasio-fechado'`), números em `GYM_NUMEROS` (`data.js`).
+- Ordem Capoeira → Remanso → Fornalha; abre com a insígnia do anterior; save com etapa vencida continua aberto.
+- "Mais oponentes" = **times maiores** nas mesmas 5 etapas ("Times maiores"); níveis 2–10, 14–26 e 30–42 como partida
+  ("Pode, ajusto jogando").
+- **Fornalha de Mágicos, não Raros** ("Fornalha de Mágicos"): medido, com Raros só um time de Raros vencia (Comum nunca,
+  Mágico até 18%). Escada final: Comum → Mágico → Mágico mais alto.
+- **O AFK segue a dificuldade da fase** (Vinicius: "A dificuldade do farm AFK segue a fase escolhida, alguém com cavalo
+  fraco deve escolher uma fase inicial"): as fases herdam nível e raridade do ginásio; a Difícil ganhou teto de nível 45.
+- Metas: G1–G7 medem o "justo" (cavalo da raridade da casa); GS nova (informativa) mostra o salto; E4 no nível da
+  Lendária com a raridade da casa. Rebaseadas ao medido, com o motivo no código: G2 (Recruta da Capoeira fica
+  informativa), G3 com vantagem até 90%, G5 só na G1, G6 piso 12%, E2 até 60%.
+
 ## 2026-11-25 — D9 implementada: salas justas e estreia (Vinicius: "Aprovo, implemente")
 Spec: `docs/superpowers/specs/2026-11-25-d9-salas-justas.md`. Regra em `sala.js` (`faixaDaSala`), números em
 `ECONOMY.sala`. Estreia nas salas 1–10 (4–5 corredores, alvo 93–100,5%, teto = alvo × 1,005), rampa até a 20ª, normal
