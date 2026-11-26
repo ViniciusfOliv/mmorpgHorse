@@ -3,6 +3,12 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-26 — Treino AFK com o jogo fechado rende 70% (Vinicius: "Pode implementar")
+Spec: `docs/superpowers/specs/2026-11-26-afk-offline-70.md`; medição em `docs/auditoria/medicao-farm-vagas.md`.
+- Regra dele: o rendimento depende do cavalo (vitórias por hora), e o jogo aberto tem de render mais que o fechado.
+  Os dois rendiam igual; agora o offline conta **70% das corridas** (`AFK.ritmoOffline`): Ouro, XP, drops e vitórias.
+- Preços das vagas do estábulo mantidos (2.000 · 10.000 · 50.000) depois da medição.
+
 ## 2026-11-26 — D3 e D5 aplicadas (só texto; Vinicius: "+1,5 em cada status" e "Sim, assim")
 - **D3:** o clima é soma fixa: o dono ganha **+1,5 em cada status** de corrida (−1,5 o penalizado; com a skill de clima,
   +3,5 a +4,7). A sala ("Clima inicial Sol: +1,5 em cada status para Fogo"), o cartão do inicial ("Sol (+1,5)"), o GDD §4,

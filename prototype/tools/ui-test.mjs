@@ -1405,7 +1405,10 @@ try {
       await pg.waitForSelector('#t-afk-fora', { timeout: 5000 }).catch(() => problems.push(`${label}: sem o resumo depois de 2 h`))
       const s5 = await afkEst(pg), resumo = (await afkTxt(pg, '.afk-resumo'))[0] || ''
       const corr = s5.afk.vagas[0].contador - antesFora.afk.vagas[0].contador, dur = antesFora.afk.vagas[0].ultima.duracaoS
-      if (!(corr >= Math.floor(118 * 60 / dur) - 1 && corr <= Math.floor(120 * 60 / dur) + 1)) problems.push(`${label}: 2 h fora deram ${corr} corridas na vaga 1 (duração média ${dur} s)`)
+      const rit = G.AFK.ritmoOffline   // jogo fechado a 70% do ritmo (spec 2026-11-26-afk-offline-70)
+      if (!(corr >= Math.floor(118 * 60 / dur * rit) - 1 && corr <= Math.floor(120 * 60 / dur * rit) + 1)) problems.push(`${label}: 2 h fora deram ${corr} corridas na vaga 1 (duração média ${dur} s, ritmo ${rit})`)
+      const ritTxt = (await afkTxt(pg, '.afk-resumo .afk-ritmo'))[0] || ''
+      if (ritTxt !== 'Fora da tela, o treino corre em 70% do ritmo; com a tela do treino aberta, as corridas são de verdade e rendem tudo.') problems.push(`${label}: nota do ritmo "${ritTxt}"`)
       if (!/Em (1 h 5\d min|2 h), 2 vagas correram/.test(resumo) || !/No baú:/.test(resumo)) problems.push(`${label}: resumo "${resumo}"`)
       if (!(s5.afk.vitorias['grama:0:normal'] > 30)) problems.push(`${label}: vitórias depois de 2 h ${JSON.stringify(s5.afk.vitorias)}`)
       await checkOverflow(pg, label + ' resumo')
@@ -1510,8 +1513,8 @@ try {
     try {
       await pg3.waitForSelector('#t-afk-fora', { timeout: 5000 }).catch(() => problems.push(`${label}-abrir: o jogo não abriu no resumo do treino`))
       const b1 = await afkEst(pg3), r3 = (await afkTxt(pg3, '.afk-resumo'))[0] || ''
-      if (b1.tela !== 'afk' || b1.afk.vagas[0].contador !== 7 + Math.floor(G.AFK.offlineMin * 60 / 80)) problems.push(`${label}-abrir: 3 dias fora ${JSON.stringify({ tela: b1.tela, c: b1.afk.vagas[0].contador })} (esperado só o limite de 8 h)`)
-      if (!/Em 8 h, 1 vaga correu 360 corridas/.test(r3) || !/conta até 8 h/.test(r3)) problems.push(`${label}-abrir: resumo "${r3}"`)
+      if (b1.tela !== 'afk' || b1.afk.vagas[0].contador !== 7 + Math.floor(G.AFK.offlineMin * 60 / 80 * G.AFK.ritmoOffline + 1e-9)) problems.push(`${label}-abrir: 3 dias fora ${JSON.stringify({ tela: b1.tela, c: b1.afk.vagas[0].contador })} (esperado só o limite de 8 h)`)
+      if (!/Em 8 h, 1 vaga correu 252 corridas/.test(r3) || !/conta até 8 h/.test(r3)) problems.push(`${label}-abrir: resumo "${r3}"`)
       await pg3.goBack(); await pg3.waitForSelector('#t-expedicao', { timeout: 3000 }).catch(() => problems.push(`${label}-abrir: o voltar do aparelho não levou à Expedição`))
     } catch (e) {
       problems.push(`[${label}-abrir] ` + e.message)

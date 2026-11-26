@@ -2445,6 +2445,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // amostra: 2.400 (a spec partia de 400; com 400 só 25 de 30 configurações ficavam a menos de 3 p.p. da referência, e
     // a meta E3 pede 95%; com 1.600 a E3 passava no limite, 43 de 45; 2.400 duelos levam ~1,5 s num computador, em fatias)
     offlineMin: 480, offlineTetoMin: 720, amostra: 2400,
+    // ritmoOffline (2026-11-26, spec afk-offline-70): com o jogo fechado o treino conta só esta fração das corridas do tempo
+    // fora (tudo rende 70%: Ouro, XP, drops e vitórias); com a tela do treino aberta, as corridas são de verdade e rendem 100%
+    ritmoOffline: 0.7,
     // Ganho por corrida (§5.3): xp = round(xpBase × (1 + xpPorEtapa × etapa) × mult); ouro = ouro[etapa] × mult
     // (etapa 0–4: Soldado 1 ao líder). Na derrota: a fração do XP e do material comum (para baixo), sem raros nem Ouro.
     // ouro: a tabela da spec (2 · 3 · 4 · 5 · 8) × 0,15, calibrada pela meta E1 (o Ouro do AFK por hora abaixo de 25% do
@@ -6001,7 +6004,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
  *   a medição em n duelos sem quadros: o duelo i (0, 1, …) usa a seed hash2(hash2(hashTexto(chave), SAL_MEDIDA), i) —
  *   própria da configuração, não do save — contra o oponente i do rodízio. estado = { chave, feitos, vitorias,
  *   somaDuracao (em décimos de segundo, inteiro: a soma é a mesma em qualquer divisão em fatias) }; completo com feitos === GameData.AFK.amostra. medida(estado) -> { p, duracaoS } | null (incompleta).
- * OFFLINE: minutos = clamp(agoraMin − vaga.inicioMin, 0, limite); corridas = floor(minutos × 60 / duração média); a
+ * OFFLINE: minutos = clamp(agoraMin − vaga.inicioMin, 0, limite); corridas = floor(minutos × 60 / duração média ×
+ *   GameData.AFK.ritmoOffline) (0,7: o jogo fechado rende 70% do aberto em tudo, spec 2026-11-26-afk-offline-70); a
  *   corrida k usa a mesma seedCorrida que a corrida ao vivo de contador vaga.contador + k usaria; vence se
  *   mulberry32(hash2(seedCorrida, 0x0FF1))() < p; o prêmio é o premio() de sempre. Sem medida completa: 0 corridas.
  *   limiteOffline(aveiaMin, bestiarioMin) = min(offlineTetoMin, offlineMin + aveia + bestiário).
@@ -6270,7 +6274,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (!(typeof m.p === 'number' && m.p >= 0 && m.p <= 1) || !(typeof m.duracaoS === 'number' && isFinite(m.duracaoS) && m.duracaoS > 0)) return out;
     var limite = Math.min(K.offlineTetoMin, minutosOk(limiteMin));
     out.minutos = Math.max(0, Math.min(limite, agoraMin - v.inicioMin));
-    out.corridas = Math.floor(out.minutos * 60 / m.duracaoS + 1e-9);
+    out.corridas = Math.floor(out.minutos * 60 / m.duracaoS * K.ritmoOffline + 1e-9);
     for (var k = 0; k < out.corridas; k++) {
       var seed = seedCorrida(seedBase, idx == null ? 0 : idx, v.contador + k), venceu = offlineVenceu(seed, m.p), p = premio(v.faseId, venceu, seed, bonus);
       if (venceu) out.vitorias++;
@@ -20094,6 +20098,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return '<section class="caixa afk-resumo" aria-labelledby="t-afk-fora"><h2 class="titulo" id="t-afk-fora">Enquanto você estava fora</h2>' +
       '<p class="afk-resumo-txt">' + esc(txt) + '</p>' +
       (partes.length ? '<p class="afk-resumo-ganho">' + esc('No baú: ' + partes.join('; ') + '.') + '</p>' : '') +
+      (R.corridas ? '<p class="nota afk-ritmo">' + esc('Fora da tela, o treino corre em ' + Math.round(GD.AFK.ritmoOffline * 100) +
+        '% do ritmo; com a tela do treino aberta, as corridas são de verdade e rendem tudo.') + '</p>' : '') +
       (R.noLimite ? '<p class="nota">' + esc('O treino parado conta até ' + afkTempoTxt(afkLimite()) + '.') + '</p>' : '') +
       (R.semMedida ? '<p class="nota">' + esc((R.semMedida === 1 ? 'Uma vaga ainda não tinha' : R.semMedida + ' vagas ainda não tinham') +
         ' a chance medida e não rendeu fora da tela: a medição termina em poucos segundos com o jogo aberto.') + '</p>' : '') +

@@ -40,7 +40,8 @@
  *   a medição em n duelos sem quadros: o duelo i (0, 1, …) usa a seed hash2(hash2(hashTexto(chave), SAL_MEDIDA), i) —
  *   própria da configuração, não do save — contra o oponente i do rodízio. estado = { chave, feitos, vitorias,
  *   somaDuracao (em décimos de segundo, inteiro: a soma é a mesma em qualquer divisão em fatias) }; completo com feitos === GameData.AFK.amostra. medida(estado) -> { p, duracaoS } | null (incompleta).
- * OFFLINE: minutos = clamp(agoraMin − vaga.inicioMin, 0, limite); corridas = floor(minutos × 60 / duração média); a
+ * OFFLINE: minutos = clamp(agoraMin − vaga.inicioMin, 0, limite); corridas = floor(minutos × 60 / duração média ×
+ *   GameData.AFK.ritmoOffline) (0,7: o jogo fechado rende 70% do aberto em tudo, spec 2026-11-26-afk-offline-70); a
  *   corrida k usa a mesma seedCorrida que a corrida ao vivo de contador vaga.contador + k usaria; vence se
  *   mulberry32(hash2(seedCorrida, 0x0FF1))() < p; o prêmio é o premio() de sempre. Sem medida completa: 0 corridas.
  *   limiteOffline(aveiaMin, bestiarioMin) = min(offlineTetoMin, offlineMin + aveia + bestiário).
@@ -309,7 +310,7 @@
     if (!(typeof m.p === 'number' && m.p >= 0 && m.p <= 1) || !(typeof m.duracaoS === 'number' && isFinite(m.duracaoS) && m.duracaoS > 0)) return out;
     var limite = Math.min(K.offlineTetoMin, minutosOk(limiteMin));
     out.minutos = Math.max(0, Math.min(limite, agoraMin - v.inicioMin));
-    out.corridas = Math.floor(out.minutos * 60 / m.duracaoS + 1e-9);
+    out.corridas = Math.floor(out.minutos * 60 / m.duracaoS * K.ritmoOffline + 1e-9);
     for (var k = 0; k < out.corridas; k++) {
       var seed = seedCorrida(seedBase, idx == null ? 0 : idx, v.contador + k), venceu = offlineVenceu(seed, m.p), p = premio(v.faseId, venceu, seed, bonus);
       if (venceu) out.vitorias++;

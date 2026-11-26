@@ -18,6 +18,20 @@ function congela(x) { if (x && typeof x === 'object') { Object.keys(x).forEach(f
 function progCom(etapas) { var o = {}; G.GYM_ORDER.forEach(function (id) { o[id] = { etapa: etapas[id] || 0, revDia: null, revVitorias: 0 }; }); return o; }
 function cav(base, level, grau) { var h = GY.cavalo({ base: base, level: level, grau: grau || 2 }); h.uid = 'c-' + base + '-' + level; return h; }
 
+section('jogo fechado no ritmo de 70% (spec 2026-11-26-afk-offline-70)');
+test('ritmoOffline 0,7; com 1 o offline é o de antes; com 0,7 conta floor(… × 0,7) corridas, e são as primeiras de antes (mesmas seeds e prêmios)', function () {
+  assert.strictEqual(G.AFK.ritmoOffline, 0.7);
+  var v = { uid: 'x', faseId: 'fogo:2:normal', inicioMin: 0, contador: 7 }, med = { p: 0.6, duracaoS: 75 }, guarda = G.AFK.ritmoOffline, cheio;
+  try { G.AFK.ritmoOffline = 1; cheio = A.offline(v, 480, med, 4242, null, 480, 1); } finally { G.AFK.ritmoOffline = guarda; }
+  assert.strictEqual(cheio.corridas, 384);
+  var r = A.offline(v, 480, med, 4242, null, 480, 1);
+  assert.strictEqual(r.corridas, 268); assert.strictEqual(r.contador, 7 + 268);
+  var soma = { xp: 0, ouro: 0, vit: 0 };
+  for (var k = 0; k < 268; k++) { var seed = A.seedCorrida(4242, 1, 7 + k), ven = A.offlineVenceu(seed, 0.6), p = A.premio('fogo:2:normal', ven, seed, null); soma.xp += p.xp; soma.ouro += p.ouro; if (ven) soma.vit++; }
+  assert.deepStrictEqual([r.xp, r.ouro, r.vitorias], [soma.xp, soma.ouro, soma.vit]);
+  assert.ok(r.ouro < cheio.ouro && r.xp < cheio.xp);
+});
+
 section('D8: Sorte do cavalo no drop raro');
 test('sorteRaro: 0,15 × genética de Sorte / 31 (4 casas); sem cavalo, sem genética ou lixo vale 0', function () {
   assert.strictEqual(G.AFK.sorteRaro, 0.15);
@@ -406,8 +420,8 @@ function vagaDe(o) { return Object.assign({ uid: 'm1', faseId: 'fogo:2:normal', 
 var MED = { p: 0.5, duracaoS: 75 };
 test('offline: minutos ÷ duração média, para baixo; cada corrida um número da seed contra p; cada vitória rola os drops como ao vivo', function () {
   var v = vagaDe(), r = A.offline(v, 1000 + 120, MED, 777, BONUS0, 480, 2);
-  assert.strictEqual(r.minutos, 120); assert.strictEqual(r.corridas, Math.floor(120 * 60 / 75)); assert.strictEqual(r.contador, 40 + r.corridas);
-  assert.ok(r.vitorias > 30 && r.vitorias < 66, 'perto da metade de 96: ' + r.vitorias);
+  assert.strictEqual(r.minutos, 120); assert.strictEqual(r.corridas, Math.floor(120 * 60 / 75 * G.AFK.ritmoOffline + 1e-9)); assert.strictEqual(r.contador, 40 + r.corridas);
+  assert.ok(r.vitorias > 18 && r.vitorias < 50, 'perto da metade de 67 (96 no ritmo 0,7): ' + r.vitorias);
   // refaz corrida a corrida pela regra
   var xp = 0, ouro = 0, vit = 0, itens = {}, pedras = 0, pecas = [];
   for (var k = 0; k < r.corridas; k++) {
@@ -421,7 +435,7 @@ test('offline: minutos ÷ duração média, para baixo; cada corrida um número 
   assert.strictEqual(A.seedCorrida(777, 2, 40), A.correr(cav('mare', 12), v.faseId, 777, 40, BONUS0, { vaga: 2 }).cfg.seed);
   // p 0 nunca vence, p 1 sempre
   assert.strictEqual(A.offline(v, 1120, { p: 0, duracaoS: 75 }, 777, BONUS0, 480, 2).vitorias, 0);
-  assert.strictEqual(A.offline(v, 1120, { p: 1, duracaoS: 75 }, 777, BONUS0, 480, 2).vitorias, 96);
+  assert.strictEqual(A.offline(v, 1120, { p: 1, duracaoS: 75 }, 777, BONUS0, 480, 2).vitorias, 67);   // 96 corridas no ritmo 0,7
 });
 test('offline é determinístico e não muta a vaga', function () {
   var v = congela(vagaDe()), a = A.offline(v, 1300, MED, 5, { material: 0.2, xp: 0.1, raro: 0.3, trofeu: 0.5, ouro: 0.1 }, 480, 0);
@@ -439,7 +453,7 @@ test('agora antes do início dá 0 corridas, sem ganho negativo e sem erro (Foco
 });
 test('3 dias fora conta só o limite (Foco 1)', function () {
   var r = A.offline(vagaDe(), 1000 + 3 * 24 * 60, MED, 1, BONUS0, 480, 0);
-  assert.strictEqual(r.minutos, 480); assert.strictEqual(r.corridas, Math.floor(480 * 60 / 75));
+  assert.strictEqual(r.minutos, 480); assert.strictEqual(r.corridas, Math.floor(480 * 60 / 75 * G.AFK.ritmoOffline + 1e-9));
   assert.strictEqual(A.offline(vagaDe(), 1000 + 3 * 24 * 60, MED, 1, BONUS0, 99999, 0).minutos, G.AFK.offlineTetoMin, 'limite pedido acima do teto: vale o teto');
 });
 test('limite com Aveia e bestiário nunca passa de 720 min', function () {
@@ -459,7 +473,7 @@ test('offline de 8 h com p de 0,5 roda em menos de 200 ms no Node; o de 12 h com
   var t = process.hrtime.bigint();
   var r = A.offline(vagaDe(), 1000 + 480, MED, 31, BONUS0, 480, 0), r2 = A.offline(vagaDe({ faseId: 'agua:4:lendaria' }), 1000 + 720, { p: 0.5, duracaoS: 55 }, 31, BONUS0, 720, 4);
   var ms = Number(process.hrtime.bigint() - t) / 1e6;
-  assert.strictEqual(r.corridas, 384); assert.strictEqual(r2.corridas, 785);
+  assert.strictEqual(r.corridas, 268); assert.strictEqual(r2.corridas, 549);   // 384 e 785 corridas no ritmo 0,7 (offline-70)
   assert.ok(ms < 200, ms.toFixed(1) + ' ms');
 });
 test('offline rende, em média, o mesmo que ao vivo com o mesmo p (o ganho esperado é o mesmo nos dois modos)', function () {
@@ -790,7 +804,7 @@ test('offline com a configuração trocada: usa o menor entre a chance antiga e 
   assert.strictEqual(A.chanceOffline(null, h), null); assert.strictEqual(A.chanceOffline(vaga, null), null);
   // o offline com a chance 0 só conta derrotas
   var off = A.offline({ uid: h.uid, faseId: id, inicioMin: 0, contador: 0 }, 60, { p: 0, duracaoS: 75 }, 99, null, 480, 0);
-  assert.strictEqual(off.corridas, 48); assert.strictEqual(off.vitorias, 0);
+  assert.strictEqual(off.corridas, 33); assert.strictEqual(off.vitorias, 0);   // 48 no ritmo 0,7
 });
 test('relógio depois do acerto offline: anda só o tempo das corridas contadas; no limite, vem para agora', function () {
   // 3 min parados, duelo de 75 s: 2 corridas (2,5 min) e sobram 0,5 min para a próxima

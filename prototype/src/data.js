@@ -716,6 +716,9 @@
     // amostra: 2.400 (a spec partia de 400; com 400 só 25 de 30 configurações ficavam a menos de 3 p.p. da referência, e
     // a meta E3 pede 95%; com 1.600 a E3 passava no limite, 43 de 45; 2.400 duelos levam ~1,5 s num computador, em fatias)
     offlineMin: 480, offlineTetoMin: 720, amostra: 2400,
+    // ritmoOffline (2026-11-26, spec afk-offline-70): com o jogo fechado o treino conta só esta fração das corridas do tempo
+    // fora (tudo rende 70%: Ouro, XP, drops e vitórias); com a tela do treino aberta, as corridas são de verdade e rendem 100%
+    ritmoOffline: 0.7,
     // Ganho por corrida (§5.3): xp = round(xpBase × (1 + xpPorEtapa × etapa) × mult); ouro = ouro[etapa] × mult
     // (etapa 0–4: Soldado 1 ao líder). Na derrota: a fração do XP e do material comum (para baixo), sem raros nem Ouro.
     // ouro: a tabela da spec (2 · 3 · 4 · 5 · 8) × 0,15, calibrada pela meta E1 (o Ouro do AFK por hora abaixo de 25% do

@@ -368,7 +368,8 @@ Spec: `docs/superpowers/specs/2026-11-23-afk-drops-design.md`; regras em `protot
 - **Ao vivo e offline:** com a tela do treino aberta, cada vaga corre de verdade, no tempo do duelo (~75 s; o
   resultado sai da seed e é gravado antes de aparecer). Fora dela (outra tela, jogo fechado) o jogo usa a **chance
   medida**: 2.400 duelos simulados aos poucos para aquele cavalo naquela fase, guardados até o cavalo mudar; as
-  corridas do tempo fora (minutos ÷ duração média, até 8 h, 12 h com a Aveia e o bestiário) são decididas pela seed
+  corridas do tempo fora (minutos ÷ duração média × **0,7**: fora da tela o treino corre em 70% do ritmo e tudo rende
+  70%, decisão de 2026-11-26; até 8 h, 12 h com a Aveia e o bestiário) são decididas pela seed
   contra essa chance e rolam os mesmos drops. O ganho esperado é o mesmo nos dois modos (meta E3). O relógio é o do
   aparelho; relógio para trás não rende.
 - **Bestiário:** uma página por ginásio (oponentes com marcos de 10, 100 e 1.000 vitórias, materiais, peças do

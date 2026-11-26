@@ -4406,6 +4406,8 @@
     return '<section class="caixa afk-resumo" aria-labelledby="t-afk-fora"><h2 class="titulo" id="t-afk-fora">Enquanto você estava fora</h2>' +
       '<p class="afk-resumo-txt">' + esc(txt) + '</p>' +
       (partes.length ? '<p class="afk-resumo-ganho">' + esc('No baú: ' + partes.join('; ') + '.') + '</p>' : '') +
+      (R.corridas ? '<p class="nota afk-ritmo">' + esc('Fora da tela, o treino corre em ' + Math.round(GD.AFK.ritmoOffline * 100) +
+        '% do ritmo; com a tela do treino aberta, as corridas são de verdade e rendem tudo.') + '</p>' : '') +
       (R.noLimite ? '<p class="nota">' + esc('O treino parado conta até ' + afkTempoTxt(afkLimite()) + '.') + '</p>' : '') +
       (R.semMedida ? '<p class="nota">' + esc((R.semMedida === 1 ? 'Uma vaga ainda não tinha' : R.semMedida + ' vagas ainda não tinham') +
         ' a chance medida e não rendeu fora da tela: a medição termina em poucos segundos com o jogo aberto.') + '</p>' : '') +
