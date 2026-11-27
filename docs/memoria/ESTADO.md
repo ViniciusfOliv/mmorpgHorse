@@ -19,7 +19,8 @@ T8 e T9 (grupo C, só texto): GDD alinhado ao código (G2–G7), wiki sem a "vit
 T10 (grupo D): o evento `skill` traz o `skillId` e o balão o usa (o texto fica só para eventos antigos).
 T11 (grupo D): a dica do clima ruim aponta a troca de cavalo da preparação; o vento aparece como cenário no HUD.
 T12 (grupo D): `corrida-referencia.mjs --check` no `check.sh` (63 casos, Node e navegador iguais à referência). Grupo D fechado.
-**Próximo:** grupo E (T13, cavalos) ou T7 (função nova, pedir OK à parte); spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
+T13 (grupo E): a ficha mostra pai e mãe do estábulo com o nome atual e o `#n`. Grupo E fechado.
+**Próximo:** grupo F (T14 → T15 → T16, domínio para o servidor), T17 (medição no aparelho) ou T7 (função nova, pedir OK à parte); spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
 tickets em `docs/auditoria/plano-fase-1.md`. O ramo `claude/fluidez` foi integrado (D6, 2026-11-26); `claude/salas-economia` fica como referência.
 
 **Atualização geral de 2026-11-25 (pedido do Vinicius, para trabalhar numa pasta local):** a `main` recebeu a memória da

@@ -5719,7 +5719,7 @@
   // Ações no contêiner .montaria-acoes (o MOTIVO_ONDE põe o motivo do toque logo depois dele): Tornar ativa só nas outras
   // (trava com páreo aberto), Renomear (o campo na própria tela) e Liberar (com a confirmação; trava na ativa, no único
   // cavalo e com páreo aberto). Os handlers conferem tudo de novo. Dados: sexo (e Corcel), porte, marcas, cruzas
-  // restantes, chance de skill e, com m.parents, os pais pelo nome salvo, com "(fora do estábulo)" quando o uid é null ou
+  // restantes, chance de skill e, com m.parents, os pais (no estábulo: nome atual e #n, T13; fora: o nome salvo), com "(fora do estábulo)" quando o uid é null ou
   // não está mais em state.mounts (o critério é o uid: nomes podem repetir).
   function fichaLinha(rotulo, valorHtml) {
     return '<li><span class="ficha-rotulo">' + esc(rotulo) + ':</span> <span class="ficha-valor">' + valorHtml + '</span></li>';
@@ -5729,9 +5729,12 @@
     var i = txt.indexOf(': ');
     return fichaLinha(txt.slice(0, i), esc(txt.slice(i + 2)));
   }
+  // T13 (CAV-1): pai ou mãe no estábulo aparece com o nome ATUAL e o #n (como na lista do Estábulo), para a linhagem não
+  // ficar ambígua depois de renomear ou com nomes repetidos; fora do estábulo, o nome gravado no nascimento
   function paiHtml(p) {
-    var fora = p.uid == null || !mountByUid(p.uid);
-    return esc(p.name || 'sem nome') + (fora ? ' <span class="ficha-fora">(fora do estábulo)</span>' : '');
+    var vivo = p.uid == null ? null : mountByUid(p.uid);
+    if (vivo) return esc(vivo.name) + ' <small>#' + esc(uidNum(vivo.uid)) + '</small>';
+    return esc(p.name || 'sem nome') + ' <span class="ficha-fora">(fora do estábulo)</span>';
   }
   function montariaFichaHtml(m) {
     var M = ui.montaria, P = state.pending, uid = esc(m.uid), isActive = m.uid === state.activeId;

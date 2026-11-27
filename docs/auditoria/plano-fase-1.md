@@ -98,6 +98,8 @@ Cada ticket: objetivo · arquivos prováveis · critério de aceite · risco.
 
 - **T13 — Linhagem legível** (CAV-1). Ficha mostra o nome atual e o `#n` do pai/mãe que ainda está no estábulo.
   Arquivos: `game.js`, `ui-test.mjs`. Sem mudança no save.
+  **Feito em 2026-11-27:** pai/mãe no estábulo com o nome atual e o `#n`; fora, o nome gravado e "(fora do estábulo)"
+  (bloco `celular`, com o caso do pai renomeado).
 
 ### F. Domínio pronto para o servidor (depois de A)
 

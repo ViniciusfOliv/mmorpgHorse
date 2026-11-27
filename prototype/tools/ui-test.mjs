@@ -12116,7 +12116,7 @@ try {
         if (ren.campo || ren.aberto !== null || ren.nome !== 'Brasa') problems.push(`${label}: trocar de aba com o campo de renomear aberto ${JSON.stringify(ren)} (esperado o campo fechado e o nome igual)`)
         // m2: Tornar ativa disponível; pais com o pai fora do estábulo (uid null)
         const m2 = await confereCabeca(pf, 'ficha da m2', 'm2', true)
-        if (m2) await confereAbaFicha(pf, 'ficha da m2', m2, 'Pais: Maré e Trovão (fora do estábulo)')
+        if (m2) await confereAbaFicha(pf, 'ficha da m2', m2, 'Pais: Maré #3 e Trovão (fora do estábulo)')
         // a confirmação de liberar também some ao trocar de aba, e nada sai do estábulo
         await pf.locator('.montaria-ficha [data-acao="liberar"]').click()
         if ((await pf.locator('.montaria-ficha [data-acao="liberar-sim"]').count()) !== 1) problems.push(`${label}: "Liberar" da m2 não pediu a confirmação`)
@@ -12126,7 +12126,7 @@ try {
         if (lib.sim || lib.conf !== null || lib.n !== 3) problems.push(`${label}: trocar de aba com a confirmação de liberar aberta ${JSON.stringify(lib)} (esperado sem a confirmação e os 3 cavalos)`)
         // m3: a mãe com um uid que não está mais no estábulo
         const m3 = await confereCabeca(pf, 'ficha da m3', 'm3', true)
-        if (m3) await confereAbaFicha(pf, 'ficha da m3', m3, 'Pais: Iara (fora do estábulo) e Brasa')
+        if (m3) await confereAbaFicha(pf, 'ficha da m3', m3, 'Pais: Iara (fora do estábulo) e Brasa #1')
         // Tornar ativa pela aba Ficha: a m3 vira a ativa, o botão some, o foco vai para o título e a aba continua a Ficha
         await pf.locator('.montaria-ficha [data-acao="ativar"]').click()
         const at = await pf.evaluate(() => ({ ativa: window.__galope.state.activeId, aba: window.__galope.ui.montaria.aba, botao: document.querySelectorAll('#tela [data-acao="ativar"]').length,
@@ -12139,7 +12139,14 @@ try {
         const nomes = await pf.evaluate(() => window.__galope.state.mounts.map((x) => x.uid + ':' + x.name).join(','))
         if (!nomes.includes('m1:Brasa')) problems.push(`${label}: o teste do pai homônimo precisa da Brasa no estábulo (${nomes})`)
         const m2h = await confereCabeca(pf, 'ficha da m2 (pai homônimo)', 'm2', true)
-        if (m2h) await confereAbaFicha(pf, 'ficha da m2 (pai homônimo)', m2h, 'Pais: Brasa (fora do estábulo) e Brasa')
+        if (m2h) await confereAbaFicha(pf, 'ficha da m2 (pai homônimo)', m2h, 'Pais: Brasa (fora do estábulo) e Brasa #1')
+        // T13 (CAV-1): pai renomeado depois do nascimento: a ficha do filho mostra o nome atual e o #n, não o gravado
+        await montaSave(pf, (raw) => {
+          raw.mounts.find((x) => x.uid === 'm1').name = 'Fagulha'
+          raw.mounts.find((x) => x.uid === 'm2').parents = { f: { uid: 'm3', name: 'Maré' }, m: { uid: 'm1', name: 'Brasa' } }
+        })
+        const m2r = await confereCabeca(pf, 'ficha da m2 (pai renomeado)', 'm2', true)
+        if (m2r) await confereAbaFicha(pf, 'ficha da m2 (pai renomeado)', m2r, 'Pais: Maré #3 e Fagulha #1')
       } catch (e) {
         problems.push(`${label}-ficha: ${e.message}`)
       } finally {
