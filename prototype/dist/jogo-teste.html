@@ -17196,6 +17196,30 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   function guardaCorrompido(raw) {
     try { window.localStorage.setItem(CORROMPIDO_KEY, String(raw)); saveCorrompido = 'guardado'; } catch (e) { saveCorrompido = 'sem-copia'; }
   }
+  // T5 (PER-1): antes de gravar por cima um save migrado (versão antiga) ou um de que o sanitize tirou cavalo ou peça, o
+  // texto original vai para SAVE_KEY + ':pre-v<N>' (N: a versão do save lido; uma cópia por versão, a mais recente). O jogo
+  // nunca lê essa chave: ela fica para recuperar à mão. Devolve true se guardou.
+  function guardaCopiaPre(v) {
+    var n = Math.floor(Number(v));
+    n = isFinite(n) && n >= 1 ? Math.min(n, SAVE_VERSION) : 1;
+    try {
+      var raw = window.localStorage.getItem(SAVE_KEY);
+      if (raw == null) return false;
+      window.localStorage.setItem(SAVE_KEY + ':pre-v' + n, raw);
+      return true;
+    } catch (e) { return false; }
+  }
+  // O que o último sanitize() deixou de fora: cavalos e peças que não se leem (o aviso do start usa o do save do disco)
+  var descarteSanitize = { cavalos: 0, pecas: 0 };
+  function avisoDescarte(d, copiou) {
+    var partes = [], total = d.cavalos + d.pecas, femininas = !d.cavalos;
+    if (d.cavalos) partes.push(d.cavalos + (d.cavalos === 1 ? ' cavalo' : ' cavalos'));
+    if (d.pecas) partes.push(d.pecas + (d.pecas === 1 ? ' peça' : ' peças'));
+    var verbo = total === 1 ? (femininas ? 'não pôde ser lida e ficou de fora' : 'não pôde ser lido e ficou de fora') :
+      (femininas ? 'não puderam ser lidas e ficaram de fora' : 'não puderam ser lidos e ficaram de fora');
+    return partes.join(' e ') + ' do seu save ' + verbo + '. ' +
+      (copiou ? 'Uma cópia do save original foi guardada.' : 'Não foi possível guardar uma cópia do save original.');
+  }
   function loadSave() {
     var raw = null;
     try { raw = window.localStorage.getItem(SAVE_KEY); } catch (e) { return null; }
@@ -17587,6 +17611,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
 
   function sanitize(s) {
     if (!s || typeof s !== 'object') return null;
+    descarteSanitize = { cavalos: 0, pecas: 0 };
     var mounts, activeId, nextUid, stableSlots, breedCounter;
     // saves de antes da D1 ficam com as vagas que tinham: até 8 (o máximo antigo) e, sem o campo (v1/v2), as 3 de início de então
     var start = BR.stableSlotsStart, max = BR.stableSlotsLegado, inicioAntigo = 3;
@@ -17610,7 +17635,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var seen = {}, maxUid = 0;
       (Array.isArray(s.mounts) ? s.mounts : []).forEach(function (raw) {
         var m = sanitizeMount(raw, seedBase, v6, v7);
-        if (!m || seen[m.uid]) return;
+        if (!m || seen[m.uid]) { if (raw && typeof raw === 'object') descarteSanitize.cavalos += 1; return; }
         seen[m.uid] = true;
         mounts.push(m);
         if (raw.equip && typeof raw.equip === 'object') rawEquip[m.uid] = raw.equip;
@@ -17750,10 +17775,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (v4) {
       (Array.isArray(s.items) ? s.items : []).forEach(function (it) {
         if (!it || typeof it !== 'object') return;
-        if (typeof it.uid !== 'string' || !/^i\d{1,9}$/.test(it.uid) || hasOwn(byUid, it.uid)) return;
-        if (typeof it.id !== 'string' || !hasOwn(GD.GEAR, it.id)) return;
         var p = it.plus;
-        if (!(typeof p === 'number' && p === Math.floor(p) && p >= 0 && p <= GE.plusMax)) return;
+        if (typeof it.uid !== 'string' || !/^i\d{1,9}$/.test(it.uid) || hasOwn(byUid, it.uid) ||
+          typeof it.id !== 'string' || !hasOwn(GD.GEAR, it.id) ||
+          !(typeof p === 'number' && p === Math.floor(p) && p >= 0 && p <= GE.plusMax)) { descarteSanitize.pecas += 1; return; }
         var out = { uid: it.uid, id: it.id, plus: p, rerolls: inteiroOu(it.rerolls, 0, 0, REROLLS_MAX) };
         if (it.origem === 'afk' || it.origem === 'forja') out.origem = it.origem;   // veio do treino ou da forja: sem preço de venda
         out.linhas = GR.linhasDaPeca(it, base.seedBase);   // v10; peça de antes (ou com lixo): pela seed do save e pelo uid
@@ -17765,10 +17790,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       pedras = 0;
       var n = 0;
       (Array.isArray(s.inventory) ? s.inventory : []).forEach(function (oldId) {
-        if (typeof oldId !== 'string' || !hasOwn(OLD_ITEM_MAP, oldId)) return;
+        if (typeof oldId !== 'string') return;
+        if (!hasOwn(OLD_ITEM_MAP, oldId)) { descarteSanitize.pecas += 1; return; }
         var newId = OLD_ITEM_MAP[oldId];
         if (newId === null) { pedras += OLD_RAPADURA_PEDRAS; return; }
-        if (!hasOwn(GD.GEAR, newId)) return;
+        if (!hasOwn(GD.GEAR, newId)) { descarteSanitize.pecas += 1; return; }
         n += 1;
         var out = { uid: 'i' + n, id: newId, plus: 0, rerolls: 0 };
         out.linhas = GR.linhasDaPeca(out, base.seedBase);
@@ -25721,6 +25747,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       // sai do save na mesma gravação da migração (logo abaixo), então recarregar não o mostra de novo
       var gravaAviso = false;
       if (state && state.avisoV6) { ui.notice = AVISO_V6; state.avisoV6 = false; gravaAviso = true; }
+      // T5: cópia do save do disco antes de gravar por cima a migração ou o que o sanitize tirou; o descarte avisa uma vez (a
+      // gravação logo abaixo já tira o que não se leu, então recarregar não avisa de novo)
+      var migra = !!state && !!lido && typeof lido === 'object' && !(Number(lido.v) >= SAVE_VERSION);
+      var desc = state && !doHotOk && lido && typeof lido === 'object' && (descarteSanitize.cavalos || descarteSanitize.pecas) ? descarteSanitize : null;
+      if (migra || desc) {
+        var copiou = guardaCopiaPre(lido.v);
+        if (desc) { ui.notice = (ui.notice ? ui.notice + ' ' : '') + avisoDescarte(desc, copiou); gravaAviso = true; }
+      }
       // save de versão anterior migrado: grava já a versão nova (a migração acontece uma vez só; o Neutro
       // convertido, os pontos devolvidos e o Poder da sala recalculado ficam no disco)
       if (state && ((lido && typeof lido === 'object' && !(Number(lido.v) >= SAVE_VERSION)) || gravaAviso)) persist();

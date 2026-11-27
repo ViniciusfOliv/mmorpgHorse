@@ -13,7 +13,8 @@ D3 e D5 (só texto: clima "+1,5 em cada status"; insígnias só no PVE antes do 
 Farm medido (`docs/auditoria/medicao-farm-vagas.md`): preços das vagas mantidos; o treino fechado rende 70%.
 Texto de Gemas/VIP aplicado no `CLAUDE.md` §8 (o Ouro nunca é vendido; vantagens pagas só listadas, com teto).
 D7 fechada: T3 (Playwright local) e T4 (CI no GitHub Actions, `.github/workflows/check.yml`: `check.sh` e balanço completo em cada envio para a main e em cada PR).
-**Próximo:** spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
+T5 (save seguro): migração e descarte guardam uma cópia em `:pre-v<N>` e o descarte avisa uma vez (`docs/superpowers/specs/2026-11-27-t5-copia-save.md`).
+**Próximo:** T6 (aviso sem armazenamento); spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
 tickets em `docs/auditoria/plano-fase-1.md`. O ramo `claude/fluidez` foi integrado (D6, 2026-11-26); `claude/salas-economia` fica como referência.
 
 **Atualização geral de 2026-11-25 (pedido do Vinicius, para trabalhar numa pasta local):** a `main` recebeu a memória da

@@ -62,6 +62,7 @@ Cada ticket: objetivo · arquivos prováveis · critério de aceite · risco.
 - **T5 — Cópia antes de migrar e aviso de descarte** (PER-1). Guardar o save original em `galope-elemental:pre-v<N>`
   antes da migração e avisar quando o `sanitize` descartar cavalo ou peça. Arquivos: `game.js`, `ui-test.mjs`.
   Aceite: teste com save v9 e um item inválido mostra o aviso e guarda a cópia. Não muda o formato do save atual.
+  **Feito em 2026-11-27** (`docs/superpowers/specs/2026-11-27-t5-copia-save.md`, bloco `copia-save`).
 - **T6 — Aviso sem armazenamento** (PER-2). Faixa quando `STORAGE_OK` é falso. Arquivos: `game.js`, `game.css`, teste.
 - **T7 — Exportar/importar save** (PER-3). Texto no Perfil, passando pelo mesmo `sanitize` e pela checagem de versão.
   Útil para o teste fechado. Risco: importar é uma porta de edição do save; aceitável offline.

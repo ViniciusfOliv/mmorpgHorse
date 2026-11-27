@@ -41,7 +41,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'preparacao', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
+  'corrompido', 'copia-save', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-camera', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
@@ -1238,6 +1238,74 @@ try {
       problems.push('corrompido-sem-copia: ' + e.message)
     }
     await cp2.context().close()
+  }
+
+  // ---------------- T5 (PER-1): cópia :pre-v<N> antes de gravar por cima e aviso quando o saneamento tira algo ----------------
+  if (quer('copia-save')) {
+    const label = 'copia-save'
+    const preKeys = (pg) => pg.evaluate(() => Object.keys(localStorage).filter((k) => /:pre-v\d+$/.test(k)).sort())
+    const abreCom = (nome, texto, extra = '') => newPage(browser, { width: 390, height: 844 }, nome, {
+      init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(texto)}) } ${extra} } catch (e) {}` }
+    })
+    // 1) migração (save v4): o texto original vai para :pre-v4 e o save gravado é o da versão atual
+    const MIG_TXT = JSON.stringify(MIG_V4)
+    const mg = await abreCom(label + '-migra', MIG_TXT)
+    try {
+      await mg.waitForSelector('#t-estabulo')
+      const ls = await mg.evaluate(() => ({ pre: localStorage.getItem('galope-elemental:v1:pre-v4'), real: JSON.parse(localStorage.getItem('galope-elemental:v1')) }))
+      if (ls.pre !== MIG_TXT) problems.push(`${label}: a cópia :pre-v4 não é o save original (${String(ls.pre).slice(0, 60)})`)
+      if (ls.real.v !== SAVE_V) problems.push(`${label}: o save migrado não foi gravado (v ${ls.real.v})`)
+      if (JSON.stringify(await preKeys(mg)) !== JSON.stringify(['galope-elemental:v1:pre-v4'])) problems.push(`${label}: cópias ${JSON.stringify(await preKeys(mg))}`)
+      const aviso = (await mg.locator('#tela .aviso').allTextContents()).join(' ')
+      if (/ficou de fora|ficaram de fora/.test(aviso)) problems.push(`${label}: a migração sem descarte avisou "${aviso}"`)
+    } catch (e) { problems.push(`${label}-migra: ` + e.message) }
+    await mg.context().close()
+    // 2) um save da versão atual, normal: abrir e recarregar não cria cópia nenhuma
+    const nv = await newPage(browser, { width: 390, height: 844 }, label + '-normal')
+    let atual = null
+    try {
+      await nv.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await nv.waitForSelector('#t-estabulo')
+      await nv.reload({ waitUntil: 'domcontentloaded' })
+      await nv.waitForSelector('#t-estabulo')
+      if ((await preKeys(nv)).length) problems.push(`${label}: save normal criou cópia ${JSON.stringify(await preKeys(nv))}`)
+      atual = await nv.evaluate(() => JSON.parse(localStorage.getItem('galope-elemental:v1')))
+    } catch (e) { problems.push(`${label}-normal: ` + e.message) }
+    await nv.context().close()
+    if (atual) {
+      // 3) save da versão atual com um cavalo (elemento que não existe) e uma peça (id fora do catálogo) que não se leem
+      const ruim = JSON.parse(JSON.stringify(atual))
+      ruim.mounts.push(Object.assign(JSON.parse(JSON.stringify(ruim.mounts[0])), { uid: 'm77', element: 'Lixo' }))
+      ruim.items = (ruim.items || []).concat([{ uid: 'i77', id: 'peca-que-nao-existe', plus: 0, rerolls: 0 }])
+      const RUIM_TXT = JSON.stringify(ruim)
+      const dc = await abreCom(label + '-descarte', RUIM_TXT)
+      try {
+        await dc.waitForSelector('#t-estabulo')
+        const aviso = (await dc.locator('#tela .aviso').allTextContents()).join(' ')
+        if (!aviso.includes('1 cavalo e 1 peça do seu save não puderam ser lidos e ficaram de fora. Uma cópia do save original foi guardada.')) problems.push(`${label}: aviso do descarte "${aviso}"`)
+        const ls = await dc.evaluate((v) => ({ pre: localStorage.getItem('galope-elemental:v1:pre-v' + v), real: JSON.parse(localStorage.getItem('galope-elemental:v1')) }), SAVE_V)
+        if (ls.pre !== RUIM_TXT) problems.push(`${label}: a cópia :pre-v${SAVE_V} não é o save original`)
+        if (ls.real.mounts.some((m) => m.uid === 'm77') || (ls.real.items || []).some((it) => it.uid === 'i77')) problems.push(`${label}: o save gravado ainda tem o que não se leu`)
+        if (ls.real.mounts.length !== atual.mounts.length || ls.real.gold !== atual.gold) problems.push(`${label}: o resto do save mudou (${ls.real.mounts.length} cavalos, ${ls.real.gold} de Ouro)`)
+        await dc.reload({ waitUntil: 'domcontentloaded' })
+        await dc.waitForSelector('#t-estabulo')
+        const aviso2 = (await dc.locator('#tela .aviso').allTextContents()).join(' ')
+        if (/de fora/.test(aviso2)) problems.push(`${label}: recarregar avisou de novo "${aviso2}"`)
+        if ((await dc.evaluate((v) => localStorage.getItem('galope-elemental:v1:pre-v' + v), SAVE_V)) !== RUIM_TXT) problems.push(`${label}: a cópia sumiu depois de recarregar`)
+      } catch (e) { problems.push(`${label}-descarte: ` + e.message) }
+      await dc.context().close()
+      // 4) sem espaço para a cópia: o descarte segue e o aviso diz que a cópia não foi guardada
+      const so = Object.assign(JSON.parse(JSON.stringify(atual)), { items: (atual.items || []).concat([{ uid: 'i78', id: 'peca-que-nao-existe', plus: 0, rerolls: 0 }, { uid: 'i79', id: 'outra-que-nao-existe', plus: 0, rerolls: 0 }]) })
+      const sc = await abreCom(label + '-sem-copia', JSON.stringify(so),
+        `const orig = Storage.prototype.setItem; Storage.prototype.setItem = function (k) { if (/:pre-v\\d+$/.test(k)) throw new DOMException('cheio', 'QuotaExceededError'); return orig.apply(this, arguments) }`)
+      try {
+        await sc.waitForSelector('#t-estabulo')
+        const aviso = (await sc.locator('#tela .aviso').allTextContents()).join(' ')
+        if (!aviso.includes('2 peças do seu save não puderam ser lidas e ficaram de fora. Não foi possível guardar uma cópia do save original.')) problems.push(`${label}: sem espaço, o aviso diz "${aviso}"`)
+        if ((await preKeys(sc)).length) problems.push(`${label}: sem espaço, apareceu cópia ${JSON.stringify(await preKeys(sc))}`)
+      } catch (e) { problems.push(`${label}-sem-copia: ` + e.message) }
+      await sc.context().close()
+    }
   }
 
   // ---------------- área segura do topo: com inset, o cabeçalho e o conteúdo descem; sem inset, nada muda ----------------
