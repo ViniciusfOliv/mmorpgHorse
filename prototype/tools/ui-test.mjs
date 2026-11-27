@@ -55,6 +55,10 @@ if (process.argv.includes('--blocos')) { console.log(BLOCOS.join('\n')); process
 // UI_SO=reserva,gravacao,...: roda só os blocos com esses nomes (para desenvolver um teste sem esperar o resto); sem UI_SO
 // (a rodada completa), roda tudo
 const SO = (process.env.UI_SO || '').split(',').map((x) => x.trim()).filter(Boolean)
+// UI_REGUA_FATOR=2: multiplica as réguas de custo por quadro (mapa-múndi e cena de desafio, 1,2 ms). Só o CI do
+// GitHub usa (.github/workflows/check.yml): a máquina de lá é ~3× mais lenta e roda 4 blocos juntos. Aqui fica 1.
+const REGUA_FATOR = Math.max(1, Number(process.env.UI_REGUA_FATOR) || 1)
+const REGUA_QUADRO = 1.2 * REGUA_FATOR
 const SO_FORA = SO.filter((n) => !BLOCOS.includes(n))
 if (SO_FORA.length) throw new Error(`ui-test: UI_SO com bloco que não existe: ${SO_FORA.join(', ')} (a lista: node tools/ui-test.mjs --blocos)`)
 // prototype/dist/ servido por http://127.0.0.1:<porta livre> (node:http, sem dependências; fecha no fim): em
@@ -14808,7 +14812,7 @@ try {
       await sleep(1500)
       const msCena = Number(await pg.locator('#tela .gin-cena-tela').getAttribute('data-ms'))
       console.log(`  ${label}: desenho da cena de desafio ${msCena.toFixed(3)} ms por quadro`)
-      if (!(msCena < 1.2)) problems.push(`${label}: a cena de desafio custa ${msCena} ms por quadro (régua: 1,2 ms)`)
+      if (!(msCena < REGUA_QUADRO)) problems.push(`${label}: a cena de desafio custa ${msCena} ms por quadro (régua: ${REGUA_QUADRO} ms)`)
       await pg.screenshot({ path: join(SHOTS, 'final-26b-cena-desafio.png') })
       // o 1º duelo (Maré com vantagem contra a Brasa do Cabo; a chegada é colada) no meio da corrida, em x2
       await pg.locator('#tela [data-acao="ginasio-comecar"]').click()
@@ -14866,7 +14870,7 @@ try {
       await sleep(3000)
       const ms = Number(await pg.locator('canvas[data-mapa-mundo]').getAttribute('data-ms')), mc = Number(await pg.locator('canvas[data-mapa-mundo]').getAttribute('data-ms-copia'))
       console.log(`  ${label}: desenho do mapa-múndi ${ms.toFixed(3)} ms por quadro (+ ${mc.toFixed(3)} ms da cópia ampliada)`)
-      if (!(ms < 1.2)) problems.push(`${label}: o mapa-múndi custa ${ms} ms por quadro (régua: 1,2 ms sem placa de vídeo)`)
+      if (!(ms < REGUA_QUADRO)) problems.push(`${label}: o mapa-múndi custa ${ms} ms por quadro (régua: ${REGUA_QUADRO} ms sem placa de vídeo)`)
       // tocar num ginásio do mapa (o centro do objeto, em pixels de arte) abre a trilha dele
       const toca = async (x, y) => {
         const r = await pg.locator('canvas[data-mapa-mundo]').evaluate((c) => { const b = c.getBoundingClientRect(); return { l: b.left, t: b.top, w: b.width, h: b.height, W: Number(c.getAttribute('data-arte').split('x')[0]) } })

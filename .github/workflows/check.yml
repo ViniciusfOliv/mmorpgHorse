@@ -35,6 +35,9 @@ jobs:
           npx --prefix prototype/tools playwright install --with-deps chromium
       - name: Verificação completa (check.sh)
         run: ./scripts/check.sh
+        env:
+          # a máquina do GitHub é ~3× mais lenta: réguas de custo por quadro em dobro só aqui (ui-test.mjs)
+          UI_REGUA_FATOR: 2
       - name: dist e wiki commitados em dia com o src
         run: |
           if ! git diff --quiet -- prototype/dist docs/wiki.md || [ -n "$(git ls-files --others --exclude-standard -- prototype/dist docs/wiki.md)" ]; then
