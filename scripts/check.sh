@@ -55,6 +55,9 @@ node prototype/tools/wiki-test.mjs > "$SHOTS_DIR/wiki.txt" 2>&1 || { cat "$SHOTS
 tail -n 1 "$SHOTS_DIR/wiki.txt"
 # a sala montada pelo jogo no navegador igual à referência (sala-referencia.json; regravar só de propósito)
 node prototype/tools/sala-referencia.mjs --check
+# as corridas e os desafios de ginásio iguais no Node, no navegador e à referência (corrida-referencia.json, T12;
+# regravar só de propósito, quando o motor ou um número de regra muda)
+node prototype/tools/corrida-referencia.mjs --check
 
 step "7/8 Balanceamento rápido"
 node prototype/tools/balance.js --quick > "$SHOTS_DIR/balance.txt" || { cat "$SHOTS_DIR/balance.txt"; exit 1; }

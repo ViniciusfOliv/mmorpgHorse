@@ -41,6 +41,7 @@ lançamento: `docs/cronograma.md`.
 | Testes dos efeitos da corrida (dados, skills, clima, vento, curvas, ambiente) e do desenho do mapa dos ginásios | `node prototype/tools/fx-test.js` / `node prototype/tools/mapa-test.js` | 5 s / <1 s |
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Sala (pareamento, `sala.js`): testes em Node / as 200 salas do jogo no navegador contra `sala-referencia.json` | `node prototype/tools/sala-test.mjs` / `node prototype/tools/sala-referencia.mjs --check` | 2 s / 5 s |
+| Determinismo da corrida (T12): 48 corridas e os 15 desafios de ginásio no Node e no navegador contra `corrida-referencia.json` (sem `--check` regrava; só de propósito, quando o motor ou um número de regra muda) | `node prototype/tools/corrida-referencia.mjs --check` | ~10 s |
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~45 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~5 min |

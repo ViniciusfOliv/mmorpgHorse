@@ -20,7 +20,8 @@ empacotamento está em `docs/cronograma.md`; as decisões de design em aberto, e
 - O redesenho assíncrono da gaveta (moldes chegando, outra aba) apaga texto digitado e não confirmado — `prototype/src/game.js` (`renderDev`).
 
 ## Simulação e balanço
-- O hash de referência das 20 corridas não cobre `racerInfo`, `conditions`, `weatherFinal` e `duration` (o teste do objeto inteiro cobre) — `prototype/tools/sim-test.js`.
+- **Coberto em 2026-11-27 (T12):** o `corrida-referencia.mjs` confere o resultado inteiro (com `racerInfo`, `conditions`,
+  `weatherFinal` e `duration`) de 63 casos no Node e no navegador. Nota antiga: o hash de referência das 20 corridas não cobre `racerInfo`, `conditions`, `weatherFinal` e `duration` (o teste do objeto inteiro cobre) — `prototype/tools/sim-test.js`.
 - As metas M6, M9, P1, S1 e A1 só contam no `balance.js` completo; o `check.sh` usa o rápido — `prototype/tools/balance.js`.
 - **Corrigido (conferido em 2026-11-27, T9):** o Poder pontuava Sorte e Dado Viciado, que não rendem vitória. Hoje a Sorte pesa 0
   (`ratingW.sorte`) e o gatilho do Dado pesa 0 no Poder desde a D8 (`SKILL_TRIGGER_WEIGHT.dice`) — `prototype/src/sim.js`.

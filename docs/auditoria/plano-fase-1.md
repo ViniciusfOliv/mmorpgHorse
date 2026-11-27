@@ -90,6 +90,9 @@ Cada ticket: objetivo · arquivos prováveis · critério de aceite · risco.
   Poder da sala; o vento fica na cor apagada no HUD e "só cenário" na descrição da pista (bloco `dica-clima`).
 - **T12 — Hashes de referência do determinismo** (INF-6). Arquivo de resultados esperados conferido em Node e no
   navegador (ui-test). Sem mudança no motor.
+  **Feito em 2026-11-27:** `prototype/tools/corrida-referencia.mjs` + `corrida-referencia.json` (48 corridas e os 15
+  desafios de ginásio, resultado inteiro, Node e Chromium), no `check.sh` ao lado da sala; pega mudança no motor e
+  divergência entre Node e navegador.
 
 ### E. Cavalos
 
