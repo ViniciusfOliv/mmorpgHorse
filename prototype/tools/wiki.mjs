@@ -368,7 +368,7 @@ export function descreverAba(rotulo, F) {
 /** O Perfil (o botão do cabeçalho, fora da barra de abas): o que a tela mostra, na ordem do renderPerfil do game.js. */
 export function descreverPerfil() {
   const n = G.GYM_ORDER.length
-  return `as estatísticas (corridas, vitórias, pódios e prêmios), o Ouro e quantas montarias você tem; as insígnias dos ginásios ("Insígnias (N de ${n})", as ${n} na ordem ${lista(G.GYM_ORDER.map((id) => G.GYMS[id].insignia.name))}: a conquistada com o ícone, o nome e o bônus; a que falta apagada, com "Vença o líder do …"); o seu jóquei (seda e capacete); as animações; e "Recomeçar com outro inicial".`
+  return `as estatísticas (corridas, vitórias, pódios e prêmios), o Ouro e quantas montarias você tem; as insígnias dos ginásios ("Insígnias (N de ${n})", as ${n} na ordem ${lista(G.GYM_ORDER.map((id) => G.GYMS[id].insignia.name))}: a conquistada com o ícone, o nome e o bônus; a que falta apagada, com "Vença o líder do …"); o seu jóquei (seda e capacete); as animações; a cópia do progresso ("Mostrar código do progresso": o save em texto, para guardar fora do jogo; "Restaurar de um código": confere o código, mostra o que vai entrar e, confirmado, guarda o progresso atual numa cópia e o substitui — também na escolha do 1º cavalo, em "Tenho um código de progresso"); e "Recomeçar com outro inicial".`
 }
 
 // ---------------------------------------------------------------------------------------------------------

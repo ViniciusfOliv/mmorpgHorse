@@ -67,6 +67,8 @@ Cada ticket: objetivo · arquivos prováveis · critério de aceite · risco.
   **Feito em 2026-11-27** (`docs/superpowers/specs/2026-11-27-t6-aviso-armazenamento.md`, bloco `sem-armazenamento`).
 - **T7 — Exportar/importar save** (PER-3). Texto no Perfil, passando pelo mesmo `sanitize` e pela checagem de versão.
   Útil para o teste fechado. Risco: importar é uma porta de edição do save; aceitável offline.
+  **Feito em 2026-11-27** (`docs/superpowers/specs/2026-11-27-t7-exportar-importar.md`; `Save.codigo`/`Save.lerCodigo`, bloco
+  `progresso-codigo`). Decisão A: restaurar um código antigo "volta no tempo"; aceito offline, sai ou vira migração no online.
 
 ### C. Documentação
 

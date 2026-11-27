@@ -536,13 +536,17 @@
   }
   // O que o último sanitize() deixou de fora: cavalos e peças que não se leem (o aviso do start usa o do save do disco)
   var descarteSanitize = { cavalos: 0, pecas: 0 };
-  function avisoDescarte(d, copiou) {
+  // "1 cavalo e 2 peças do seu save não puderam ser lidos e ficaram de fora." (onde: 'do seu save', 'do código')
+  function descarteFrase(d, onde) {
     var partes = [], total = d.cavalos + d.pecas, femininas = !d.cavalos;
     if (d.cavalos) partes.push(d.cavalos + (d.cavalos === 1 ? ' cavalo' : ' cavalos'));
     if (d.pecas) partes.push(d.pecas + (d.pecas === 1 ? ' peça' : ' peças'));
     var verbo = total === 1 ? (femininas ? 'não pôde ser lida e ficou de fora' : 'não pôde ser lido e ficou de fora') :
       (femininas ? 'não puderam ser lidas e ficaram de fora' : 'não puderam ser lidos e ficaram de fora');
-    return partes.join(' e ') + ' do seu save ' + verbo + '. ' +
+    return partes.join(' e ') + ' ' + onde + ' ' + verbo + '.';
+  }
+  function avisoDescarte(d, copiou) {
+    return descarteFrase(d, 'do seu save') + ' ' +
       (copiou ? 'Uma cópia do save original foi guardada.' : 'Não foi possível guardar uma cópia do save original.');
   }
   function loadSave() {
@@ -1367,7 +1371,7 @@
     if (ui.afk && screen !== 'afk') { ui.afk.escolha = null; ui.afk.msg = null; ui.afk.coleta = null; ui.afk.confirmaPerda = false; }
     if (state && !saveBloqueado && screen !== 'corrida') afkConfere();   // cavalo que saiu do estábulo, fase que fechou: a vaga esvazia
     if (screen !== ui.screen) {
-      ui.confirmReset = false; ui.confirmLiberar = null; ui.diariaVer = false;
+      ui.confirmReset = false; ui.confirmLiberar = null; ui.diariaVer = false; ui.codigo = null;
       // os moldes recoloridos saem só ao entrar e ao sair da corrida (ela enche o cache com os quadros do galope, que os
       // menus não usam, e não aproveita os deles). Entre os menus ficam: os mesmos cavalos voltam (Estábulo ↔ ficha ↔
       // Expedição) e repintar cada um a cada troca custava a maior parte do tempo dela (fluidez, 2026-11-25). Os caches
@@ -2294,7 +2298,7 @@
         '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') +
           (GEAR_ON ? ' · ' + esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') : '') + '</span></div>' +
       '</div>' +
-      perfilInsigniasHtml() + joqueiHtml() + animacoesHtml() +
+      perfilInsigniasHtml() + joqueiHtml() + animacoesHtml() + progressoHtml() +
       '<section class="caixa" aria-labelledby="t-sobre"><h2 class="titulo" id="t-sobre">Sobre o jogo</h2>' +
         '<button type="button" class="btn" data-acao="perfil-creditos" data-id="creditos">Créditos</button></section>' +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
@@ -2352,6 +2356,128 @@
       '</div></section>';
   }
 
+  // Cópia do progresso (T7, spec 2026-11-27-t7-exportar-importar): o código do progresso em texto (Save.codigo), para
+  // guardar fora do jogo, e restaurar colando um código (Save.lerCodigo, a checagem de versão mais nova e o mesmo sanitize
+  // da abertura). No Perfil e na escolha do 1º cavalo (quem limpou o navegador ou trocou de aparelho cai nela).
+  // ui.codigo: null | { parte: 'ver' | 'colar', texto, erro, conf: { state, descarte } | null }; sai em toda troca de tela.
+  // Restaurar por cima de um progresso guarda o save de antes em SAVE_KEY + ':antes-importar' (uma cópia, a mais recente;
+  // o jogo nunca lê essa chave). Offline, restaurar um código antigo "volta no tempo": aceito até o online (decisão A da
+  // spec, 2026-11-27).
+  var CODIGO_ERROS = {
+    formato: 'Isto não é um código de progresso do Galope Elemental.',
+    soma: 'O código está incompleto ou com erro. Copie de novo, inteiro.',
+    novo: 'Este código é de uma versão mais nova do jogo. Atualize a página e tente de novo.',
+    ilegivel: 'Não foi possível ler este código.'
+  };
+  function progressoHtml() {
+    var C = ui.codigo, corpo;
+    if (C && C.parte === 'ver') {
+      corpo = '<label class="rotulo" for="codigo-ver">Código do progresso</label>' +
+        '<textarea id="codigo-ver" class="campo campo--codigo" rows="5" readonly spellcheck="false">' + esc(SV.codigo(state)) + '</textarea>' +
+        '<div class="confirma"><button type="button" class="btn btn--ouro" data-acao="codigo-copiar">Copiar</button>' +
+        '<button type="button" class="btn" data-acao="codigo-fechar">Fechar</button></div>' +
+        '<p class="nota" id="codigo-msg" role="status"></p>';
+    } else if (C && C.parte === 'colar') corpo = restauraHtml();
+    else {
+      corpo = '<div class="confirma"><button type="button" class="btn" data-acao="codigo-mostrar">Mostrar código do progresso</button>' +
+        '<button type="button" class="btn" data-acao="codigo-colar">Restaurar de um código</button></div>';
+    }
+    return '<section class="caixa codigo-progresso" aria-labelledby="t-progresso"><h2 class="titulo" id="t-progresso">Cópia do progresso</h2>' +
+      '<p class="nota">Guarde o código fora do jogo. Com ele, você restaura o progresso deste momento neste ou em outro aparelho.</p>' +
+      corpo + '</section>';
+  }
+  // colar e conferir; conferido, o resumo do que vai entrar e a confirmação
+  function restauraHtml() {
+    var C = ui.codigo, tem = !!state;
+    if (C.conf) {
+      var s = C.conf.state, at = s.mounts[0];
+      s.mounts.forEach(function (m) { if (m.uid === s.activeId) at = m; });
+      var ins = GD.GYM_ORDER.filter(function (id) { return s.ginasios[id].etapa === GD.GYMS[id].etapas.length; }).length;
+      var resumo = 'No código: ' + fmt(s.mounts.length) + (s.mounts.length === 1 ? ' montaria' : ' montarias') +
+        ' (ativa: ' + at.name + ', nível ' + at.level + ') · ' + fmt(s.gold) + ' de Ouro · ' +
+        fmt(s.races) + (s.races === 1 ? ' corrida' : ' corridas') + ', ' + fmt(s.wins) + (s.wins === 1 ? ' vitória' : ' vitórias') + ' · ' +
+        ins + (ins === 1 ? ' insígnia' : ' insígnias') + '.';
+      var d = C.conf.descarte, desc = d.cavalos || d.pecas ? descarteFrase(d, 'do código') : '';
+      return '<div class="codigo-resumo" role="group" aria-labelledby="codigo-pergunta">' +
+        '<p>' + esc(resumo) + '</p>' + (desc ? '<p class="aviso">' + esc(desc) + '</p>' : '') +
+        '<p id="codigo-pergunta"><b>' + esc(tem ? 'Substituir o progresso deste aparelho por este? O progresso atual será guardado numa cópia.' : 'Restaurar este progresso?') + '</b></p>' +
+        '<div class="confirma"><button type="button" class="btn ' + (tem ? 'btn--perigo' : 'btn--ouro') + '" data-acao="codigo-sim">' + (tem ? 'Sim, substituir' : 'Restaurar') + '</button>' +
+        '<button type="button" class="btn" data-acao="codigo-nao">Cancelar</button></div></div>';
+    }
+    return '<label class="rotulo" for="codigo-colar">Cole o código do progresso</label>' +
+      '<textarea id="codigo-colar" class="campo campo--codigo" rows="5" spellcheck="false" autocomplete="off"' +
+        (C.erro ? ' aria-invalid="true" aria-describedby="codigo-erro"' : '') + '>' + esc(C.texto || '') + '</textarea>' +
+      (C.erro ? '<p class="aviso" id="codigo-erro" role="alert">' + esc(C.erro) + '</p>' : '') +
+      '<div class="confirma"><button type="button" class="btn btn--ouro" data-acao="codigo-conferir">Conferir</button>' +
+      '<button type="button" class="btn" data-acao="codigo-fechar">Cancelar</button></div>';
+  }
+  function focaCodigo(id) {
+    var el = document.getElementById(id);
+    if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
+  }
+  // o texto colado -> o save conferido e saneado (ui.codigo.conf) ou o erro (ui.codigo.erro); nada é gravado
+  function codigoConfere() {
+    var C = ui.codigo, el = document.getElementById('codigo-colar');
+    if (!C) return;
+    C.texto = el ? el.value : C.texto;
+    C.erro = null; C.conf = null;
+    var r = SV.lerCodigo(C.texto);
+    if (r.erro) C.erro = CODIGO_ERROS[r.erro];
+    else if (saveMaisNovo(r.save)) C.erro = CODIGO_ERROS.novo;
+    else {
+      var s = sanitize(r.save);
+      if (!s) C.erro = CODIGO_ERROS.ilegivel;
+      else C.conf = { state: s, descarte: { cavalos: descarteSanitize.cavalos, pecas: descarteSanitize.pecas } };
+    }
+    rerenderKeepScroll();
+    if (C.erro) focaCodigo('codigo-colar'); else focusAction('codigo-sim');
+  }
+  // confirmado: guarda o save de antes, grava o do código com a revisão acima da do disco (outra aba adota este, e não
+  // grava o antigo por cima) e volta ao Estábulo
+  function codigoRestaura() {
+    var C = ui.codigo;
+    if (!C || !C.conf) return;
+    var novo = C.conf.state;
+    try {
+      var raw = window.localStorage.getItem(SAVE_KEY);
+      if (raw != null) window.localStorage.setItem(SAVE_KEY + ':antes-importar', raw);
+    } catch (e) { /* sem armazenamento: não há o que guardar */ }
+    var info = storedInfo();
+    if (info.novo) { bloqueiaSaveNovo(); return; }
+    novo.rev = Math.max(novo.rev, info.rev);
+    var aviso = 'Progresso restaurado.';
+    if (novo.avisoV6) { aviso += ' ' + AVISO_V6; novo.avisoV6 = false; }   // código de antes da v6: o mesmo aviso da abertura
+    saveCorrompido = false;
+    state = novo; ui.codigo = null; ui.lobby = null; ui.result = null; ui.montaria = null; ui.haras = null;
+    if (ui.afk) { ui.afk.vivo = {}; ui.afk.ult = {}; ui.afk.coleta = null; ui.afk.confirmaPerda = false; }
+    var ok = persist();
+    if (state !== novo) return;   // (não acontece: a revisão acima da do disco não deixa adotar outra aba)
+    ui.motionKeep = null; ui.joqueiKeep = null; guardaMotionKeep(null); guardaJoqueiKeep(null);   // as preferências vêm no código
+    if (devHooks) devHooks.escolha(false);   // modo DEV: como escolher um inicial, tira a marca do "Recomeçar"
+    ui.notice = ok ? aviso : aviso + ' ' + FALHA_SALVAR;
+    go('estabulo');
+  }
+  // Copiar: a área de transferência do aparelho; se o navegador não deixar (o artefato pode bloquear), o texto fica todo
+  // selecionado para copiar à mão
+  function codigoCopia() {
+    var el = document.getElementById('codigo-ver'), msg = document.getElementById('codigo-msg');
+    if (!el) return;
+    function diz(t) { if (msg) msg.textContent = t; }
+    function aMao() {
+      try { el.focus(); el.select(); } catch (e) { /* segue */ }
+      var foi = false;
+      try { foi = document.execCommand && document.execCommand('copy'); } catch (e2) { foi = false; }
+      diz(foi ? 'Código copiado.' : 'Copie o texto selecionado.');
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(el.value).then(function () { diz('Código copiado.'); }, aMao);
+        return;
+      }
+    } catch (e3) { /* segue */ }
+    aMao();
+  }
+
   // ===========================================================================
   // Tela 1 — Escolha do inicial (carrossel no celular)
   // ===========================================================================
@@ -2398,6 +2524,10 @@
         (saveCorrompido === 'guardado' ? 'uma cópia do arquivo antigo foi guardada.' : 'não foi possível guardar uma cópia do arquivo antigo.') + '</p>' : '') +
       '<p class="sub">Escolha seu primeiro cavalo. Ele corre sozinho nas corridas valendo Ouro: você decide ' +
         (GEAR_PVP ? 'o item' : 'onde vão os pontos') + ' e a aposta antes da largada.</p></header>' +
+      // T7: quem limpou o navegador ou trocou de aparelho cai aqui: restaurar de um código
+      (ui.codigo && ui.codigo.parte === 'colar'
+        ? '<section class="caixa codigo-progresso" aria-labelledby="t-restaurar"><h2 class="titulo" id="t-restaurar">Restaurar o progresso</h2>' + restauraHtml() + '</section>'
+        : '<p class="codigo-entrada"><button type="button" class="btn btn--texto" data-acao="codigo-colar">Tenho um código de progresso</button></p>') +
       '<div class="iniciais-nav" role="group" aria-label="Comparar os 3 iniciais">' + nav + '<span class="nota">Deslize para comparar</span></div>' +
       '<div class="iniciais">' + cards + '</div>' +
       '<p class="nota">Elementos não batem de frente: Fogo, Água e Grama ganham ou perdem conforme o clima de cada corrida, que pode virar no Dado da Sorte.</p>' +
@@ -8352,6 +8482,25 @@
       case 'haras-denovo':
         if (ui.haras) { ui.haras.result = null; ui.haras.partner = null; }
         rerenderKeepScroll(); break;
+      // T7: o código do progresso (ver progressoHtml)
+      case 'codigo-mostrar':
+        if (!state) break;
+        ui.codigo = { parte: 'ver' }; rerenderKeepScroll(); focaCodigo('codigo-ver'); break;
+      case 'codigo-colar':
+        ui.codigo = { parte: 'colar', texto: '', erro: null, conf: null }; rerenderKeepScroll(); focaCodigo('codigo-colar'); break;
+      case 'codigo-copiar':
+        codigoCopia(); break;
+      case 'codigo-conferir':
+        codigoConfere(); break;
+      case 'codigo-nao':
+        if (ui.codigo) { ui.codigo.conf = null; ui.codigo.erro = null; }
+        rerenderKeepScroll(); focaCodigo('codigo-colar'); break;
+      case 'codigo-sim':
+        codigoRestaura(); break;
+      case 'codigo-fechar': {
+        var deOnde = ui.codigo && ui.codigo.parte === 'ver' ? 'codigo-mostrar' : 'codigo-colar';
+        ui.codigo = null; rerenderKeepScroll(); focusAction(deOnde); break;
+      }
       case 'reset':
         ui.confirmReset = true; rerenderKeepScroll(); focusAction('reset-nao'); break;
       case 'reset-nao':

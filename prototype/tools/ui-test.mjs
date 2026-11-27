@@ -41,7 +41,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'preparacao', 'dica-clima', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'sem-armazenamento', 'copia-save', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
+  'corrompido', 'sem-armazenamento', 'copia-save', 'progresso-codigo', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-camera', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
@@ -1386,6 +1386,101 @@ try {
         if ((await preKeys(sc)).length) problems.push(`${label}: sem espaço, apareceu cópia ${JSON.stringify(await preKeys(sc))}`)
       } catch (e) { problems.push(`${label}-sem-copia: ` + e.message) }
       await sc.context().close()
+    }
+  }
+
+  // ---------------- T7: o código do progresso (Perfil e escolha do 1º cavalo) ----------------
+  // Exporta no Perfil; num navegador limpo, recusa as quatro formas de código ruim sem gravar nada e restaura pela escolha
+  // do 1º cavalo; por cima de um progresso, "Cancelar" não muda nada e "Sim, substituir" guarda a cópia :antes-importar e
+  // grava o do código; outra aba aberta adota o restaurado. A 360 px, sem rolagem horizontal.
+  if (quer('progresso-codigo')) {
+    const label = 'progresso-codigo'
+    const VP = { width: 360, height: 780 }
+    const semRolagemH = async (pg, onde) => {
+      const r = await pg.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
+      if (r[0] > r[1]) problems.push(`${label}: rolagem horizontal em ${onde} (${r[0]} > ${r[1]})`)
+    }
+    const disco = (pg) => pg.evaluate(() => localStorage.getItem('galope-elemental:v1'))
+    const semRev = (txt) => { const s = JSON.parse(txt); delete s.rev; return JSON.stringify(s) }
+    // 1) exportar no Perfil
+    const a = await newPage(browser, VP, label + '-exporta')
+    let codigo = null, salvoA = null
+    try {
+      await a.getByRole('button', { name: 'Escolher Maré' }).click()
+      await a.waitForSelector('#t-estabulo')
+      await a.locator('[data-acao="perfil"]').click()
+      await a.waitForSelector('#t-perfil')
+      await a.getByRole('button', { name: 'Mostrar código do progresso' }).click()
+      const campo = a.getByRole('textbox', { name: 'Código do progresso' })
+      codigo = await campo.inputValue()
+      if (!(await campo.evaluate((e) => e.readOnly && document.activeElement === e))) problems.push(`${label}: o campo do código não é só leitura ou não tem o foco`)
+      salvoA = await disco(a)
+      const lido = await a.evaluate((c) => window.Save.lerCodigo(c), codigo)
+      if (!lido.save || JSON.stringify(lido.save) !== salvoA) problems.push(`${label}: o código exportado não é o save gravado (${JSON.stringify(lido).slice(0, 80)})`)
+      await a.getByRole('button', { name: 'Copiar' }).click()
+      await a.waitForFunction(() => document.getElementById('codigo-msg').textContent !== '')
+      const msg = await a.locator('#codigo-msg').textContent()
+      if (!/^(Código copiado\.|Copie o texto selecionado\.)$/.test(msg)) problems.push(`${label}: depois do Copiar, "${msg}"`)
+      await semRolagemH(a, 'Perfil com o código')
+      if (await disco(a) !== salvoA) problems.push(`${label}: exportar mudou o save`)
+    } catch (e) { problems.push(`${label}-exporta: ` + e.message) }
+    await a.context().close()
+    if (codigo) {
+      // 2) navegador limpo: recusas e restaurar pela escolha do 1º cavalo
+      const b = await newPage(browser, VP, label + '-restaura')
+      try {
+        await b.getByRole('button', { name: 'Tenho um código de progresso' }).click()
+        const campo = b.getByRole('textbox', { name: 'Cole o código do progresso' })
+        const tenta = async (txt) => {
+          await campo.fill(txt)
+          await b.getByRole('button', { name: 'Conferir' }).click()
+          return (await b.getByRole('alert').textContent()) || ''
+        }
+        const mais = await b.evaluate((c) => { const s = window.Save.lerCodigo(c).save; s.v = 99; return window.Save.codigo(s) }, codigo)
+        const casos = [['lixo', 'olá', 'não é um código de progresso'], ['cortado', codigo.slice(0, -5), 'incompleto ou com erro'],
+          ['mais novo', mais, 'versão mais nova'], ['ilegível', await b.evaluate(() => window.Save.codigo([1, 2])), 'Não foi possível ler']]
+        for (const [nome, txt, espera] of casos) {
+          const erro = await tenta(txt)
+          if (!erro.includes(espera)) problems.push(`${label}: código ${nome} disse "${erro}"`)
+          if (await campo.getAttribute('aria-invalid') !== 'true') problems.push(`${label}: código ${nome} sem aria-invalid`)
+        }
+        if (await disco(b) !== null) problems.push(`${label}: os códigos ruins gravaram um save`)
+        await campo.fill(codigo.slice(0, 40) + '\n' + codigo.slice(40))   // quebra de linha no meio (mensageiro) não conta
+        await b.getByRole('button', { name: 'Conferir' }).click()
+        const resumo = await b.locator('.codigo-resumo').innerText()
+        if (!/1 montaria \(ativa: Maré, nível 1\)/.test(resumo) || !/Restaurar este progresso\?/.test(resumo)) problems.push(`${label}: resumo "${resumo}"`)
+        await b.getByRole('button', { name: 'Restaurar', exact: true }).click()
+        await b.waitForSelector('#t-estabulo')
+        const aviso = (await b.locator('#tela .aviso').allTextContents()).join(' ')
+        if (!aviso.includes('Progresso restaurado.')) problems.push(`${label}: aviso "${aviso}"`)
+        const salvoB = await disco(b)
+        if (!salvoB || semRev(salvoB) !== semRev(salvoA)) problems.push(`${label}: o save restaurado não é o exportado`)
+        if (await b.evaluate(() => localStorage.getItem('galope-elemental:v1:antes-importar')) !== null) problems.push(`${label}: sem progresso antes, apareceu cópia :antes-importar`)
+        // 3) por cima de um progresso, com outra aba aberta
+        const outra = await b.context().newPage()
+        await outra.goto(b.url(), { waitUntil: 'domcontentloaded' })
+        await outra.waitForSelector('#t-estabulo')
+        const codigo2 = await b.evaluate((c) => { const s = window.Save.lerCodigo(c).save; s.gold = 4321; s.rev = 0; return window.Save.codigo(s) }, codigo)
+        await b.locator('[data-acao="perfil"]').click()
+        await b.getByRole('button', { name: 'Restaurar de um código' }).click()
+        await b.getByRole('textbox', { name: 'Cole o código do progresso' }).fill(codigo2)
+        await b.getByRole('button', { name: 'Conferir' }).click()
+        const resumo2 = await b.locator('.codigo-resumo').innerText()
+        if (!/4\.321 de Ouro/.test(resumo2) || !/Substituir o progresso deste aparelho/.test(resumo2)) problems.push(`${label}: resumo por cima "${resumo2}"`)
+        await b.getByRole('button', { name: 'Cancelar' }).click()
+        if (await disco(b) !== salvoB) problems.push(`${label}: "Cancelar" mudou o save`)
+        await b.getByRole('button', { name: 'Conferir' }).click()
+        await b.getByRole('button', { name: 'Sim, substituir' }).click()
+        await b.waitForSelector('#t-estabulo')
+        const fim = JSON.parse(await disco(b))
+        if (fim.gold !== 4321) problems.push(`${label}: por cima, o Ouro gravado é ${fim.gold}`)
+        if (!(fim.rev > JSON.parse(salvoB).rev)) problems.push(`${label}: a revisão não subiu (${fim.rev})`)
+        if (await b.evaluate(() => localStorage.getItem('galope-elemental:v1:antes-importar')) !== salvoB) problems.push(`${label}: a cópia :antes-importar não é o progresso de antes`)
+        await outra.waitForFunction(() => window.__galope.state && window.__galope.state.gold === 4321, null, { timeout: 4000 })
+          .catch(() => problems.push(`${label}: a outra aba não adotou o progresso restaurado`))
+        await semRolagemH(b, 'Estábulo depois de restaurar')
+      } catch (e) { problems.push(`${label}-restaura: ` + e.message) }
+      await b.context().close()
     }
   }
 

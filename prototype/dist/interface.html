@@ -1273,6 +1273,12 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   background: var(--painel-2); color: var(--texto); font-family: var(--fonte-ui); font-size: var(--t-m);
 }
 .campo:focus-visible { outline: 2px solid var(--ouro); outline-offset: 2px; }
+/* T7: o código do progresso (Perfil e escolha do 1º cavalo): texto longo sem espaços, quebra em qualquer ponto */
+.codigo-progresso { display: flex; flex-direction: column; gap: 8px; }
+.campo--codigo { min-height: 7.5em; font-size: var(--t-s); line-height: 1.35; word-break: break-all; overflow-wrap: anywhere; resize: vertical; }
+.codigo-resumo { display: flex; flex-direction: column; gap: 8px; }
+.codigo-resumo p { margin: 0; }
+.codigo-entrada { margin: 0; text-align: center; }
 /* ---------- haras ---------- */
 .abas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .haras-sel { display: grid; grid-auto-flow: column; grid-auto-columns: 148px; gap: 12px; overflow-x: auto; overscroll-behavior-x: contain; padding: 4px 4px 10px; min-width: 0; position: relative; }

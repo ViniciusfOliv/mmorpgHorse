@@ -21,7 +21,7 @@ Nada foi corrigido.
 |---|---|---|---|---|---|
 | PER-1 | Migração grava por cima **sem cópia**; `sanitize` **descarta em silêncio** cavalo ou peça inválidos | `game.js:8800`; `game.js:1068–1071` (peça cujo id saiu de `GD.GEAR`) | Um erro de migração ou de catálogo apaga progresso sem volta | **Alta** | Cópia `:pre-v<N>` antes de migrar e aviso quando o saneamento descartar algo |
 | PER-2 | Sem armazenamento, o jogo roda em memória **sem avisar** | `game.js:541–558` (`persist()` devolve true) | Perde tudo ao fechar (navegação privada, bloqueio de cookies) | Média | Faixa de aviso |
-| PER-3 | Sem exportar/importar save | — | Limpar o navegador apaga tudo; o teste fechado fica frágil | Média | Exportar/importar em texto no Perfil |
+| PER-3 | Sem exportar/importar save | — | Limpar o navegador apaga tudo; o teste fechado fica frágil | Média | Exportar/importar em texto no Perfil. **Feito (T7, 2026-11-27).** Novo risco aceito offline (decisão A): restaurar um código antigo volta no tempo (recupera a entrada de uma corrida perdida); no online, a importação sai ou vira migração única |
 | PER-4 | O snapshot do `hot` vence o disco sem comparar `rev` | `game.js:8789–8790` | Raro: a primeira ação depois de recarregar pode ser descartada | Baixa | Comparar `rev` no `start` |
 | PER-5 | Relógio adiantado rende (diária, loja, revanche, um período do AFK por adiantamento) | `game.js:1245,1256,4040–4067`; aceito no GDD §8.2a | Aceito offline; **inaceitável** com Ouro compartilhado | Alta no online | Hora do servidor (Fase 5) |
 | PER-6 | Seed base no save local | `game.js:211,6039`; `cronograma.md:91–98` | Resultado previsível pelo console antes de pagar | Alta no online | Seed no servidor ou compromisso e revelação |

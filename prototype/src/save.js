@@ -584,6 +584,91 @@
     return out.length || tinhaTipo ? out : (st ? st.skills.slice() : []);
   }
 
+  // ---------------------------------------------------------------------------------------------------------
+  // O código do progresso (T7, spec 2026-11-27-t7-exportar-importar): o save em texto para guardar fora do jogo.
+  // CODIGO_PREFIXO + o save (JSON em UTF-8) em base64 + '.' + a soma de conferência (FNV-1a de 32 bits do base64, em 8
+  // dígitos hexadecimais). A soma só pega código cortado ou com erro de cópia: não protege contra edição (offline, quem
+  // quiser editar o save já consegue pelo navegador). Sem btoa nem Buffer: o mesmo código no navegador e no Node.
+  // ---------------------------------------------------------------------------------------------------------
+  var CODIGO_PREFIXO = 'GALOPE1.';
+  var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  function paraUtf8(str) {
+    var out = [];
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      if (c >= 0xd800 && c <= 0xdbff && i + 1 < str.length) {
+        var d = str.charCodeAt(i + 1);
+        if (d >= 0xdc00 && d <= 0xdfff) { c = 0x10000 + ((c - 0xd800) << 10) + (d - 0xdc00); i++; }
+      }
+      if (c < 0x80) out.push(c);
+      else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+      else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+      else out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    }
+    return out;
+  }
+  // bytes em UTF-8 -> texto; null se a sequência não é UTF-8 válido
+  function deUtf8(b) {
+    var s = '', i = 0;
+    while (i < b.length) {
+      var c = b[i], n = c < 0x80 ? 0 : c < 0xc0 ? -1 : c < 0xe0 ? 1 : c < 0xf0 ? 2 : c < 0xf8 ? 3 : -1;
+      if (n < 0 || i + n >= b.length) return null;
+      var cp = n === 0 ? c : n === 1 ? c & 31 : n === 2 ? c & 15 : c & 7;
+      for (var k = 1; k <= n; k++) { if ((b[i + k] & 0xc0) !== 0x80) return null; cp = (cp << 6) | (b[i + k] & 63); }
+      if (cp > 0x10ffff) return null;
+      if (cp >= 0x10000) { cp -= 0x10000; s += String.fromCharCode(0xd800 + (cp >> 10), 0xdc00 + (cp & 1023)); }
+      else s += String.fromCharCode(cp);
+      i += n + 1;
+    }
+    return s;
+  }
+  function paraBase64(b) {
+    var s = '';
+    for (var i = 0; i < b.length; i += 3) {
+      var x = (b[i] << 16) | ((b[i + 1] || 0) << 8) | (b[i + 2] || 0);
+      s += B64[(x >> 18) & 63] + B64[(x >> 12) & 63] + (i + 1 < b.length ? B64[(x >> 6) & 63] : '=') + (i + 2 < b.length ? B64[x & 63] : '=');
+    }
+    return s;
+  }
+  // base64 -> bytes; null se não é base64 bem formado
+  function deBase64(s) {
+    if (!s.length || s.length % 4) return null;
+    var out = [];
+    for (var i = 0; i < s.length; i += 4) {
+      var q = [0, 1, 2, 3].map(function (k) { return s[i + k] === '=' ? -2 : B64.indexOf(s[i + k]); });
+      if (q[0] < 0 || q[1] < 0 || q[2] === -1 || q[3] === -1 || (q[2] === -2 && q[3] !== -2) || ((q[2] === -2 || q[3] === -2) && i + 4 < s.length)) return null;
+      var x = (q[0] << 18) | (q[1] << 12) | (Math.max(q[2], 0) << 6) | Math.max(q[3], 0);
+      out.push((x >> 16) & 255);
+      if (q[2] >= 0) out.push((x >> 8) & 255);
+      if (q[3] >= 0) out.push(x & 255);
+    }
+    return out;
+  }
+  function somaCodigo(s) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return ('0000000' + h.toString(16)).slice(-8);
+  }
+  // o save -> o código do progresso
+  function codigo(state) {
+    var b = paraBase64(paraUtf8(JSON.stringify(state)));
+    return CODIGO_PREFIXO + b + '.' + somaCodigo(b);
+  }
+  // o texto colado -> { save } (o objeto lido, ainda SEM sanear nem conferir a versão: quem chama faz as duas coisas) ou
+  // { erro: 'formato' (não é um código do jogo) | 'soma' (cortado ou com erro de cópia) | 'ilegivel' (a soma bate, mas o
+  // conteúdo não é um JSON) }. Espaços e quebras de linha no meio (o mensageiro que quebra o texto) não contam.
+  function lerCodigo(txt) {
+    var t = String(txt == null ? '' : txt).replace(/\s+/g, '');
+    if (t.indexOf(CODIGO_PREFIXO) !== 0) return { erro: 'formato' };
+    var resto = t.slice(CODIGO_PREFIXO.length), p = resto.lastIndexOf('.');
+    if (p < 0) return { erro: 'soma' };
+    var b = resto.slice(0, p);
+    if (!/^[0-9a-f]{8}$/i.test(resto.slice(p + 1)) || somaCodigo(b) !== resto.slice(p + 1).toLowerCase()) return { erro: 'soma' };
+    var bytes = deBase64(b), json = bytes && deUtf8(bytes);
+    if (json == null) return { erro: 'ilegivel' };
+    try { return { save: JSON.parse(json) }; } catch (e) { return { erro: 'ilegivel' }; }
+  }
+
   function sanear(s, ctx) {
     var st = sanitize(s, ctx);
     return { state: st, descarte: descarte };
@@ -592,7 +677,7 @@
   var Save = {
     SAVE_VERSION: SAVE_VERSION, REDEAS_MAX: REDEAS_MAX, DEV_DIAS_MAX: DEV_DIAS_MAX, DEV_MIN_MAX: DEV_MIN_MAX, MOTIONS: MOTIONS,
     MOCHILA_IDS: MOCHILA_IDS, AFK_IDS: AFK_IDS, LOJA_ITENS: LOJA_ITENS, LOJA_LIMITADOS: LOJA_LIMITADOS,
-    sanear: sanear, novo: novo,
+    sanear: sanear, novo: novo, codigo: codigo, lerCodigo: lerCodigo, CODIGO_PREFIXO: CODIGO_PREFIXO,
     instanceFromTemplate: instanceFromTemplate, addItem: addItem, zeroAlloc: zeroAlloc, marcasDe: marcasDe,
     joqueiInicial: joqueiInicial, validJoquei: validJoquei, validSkills: validSkills, mochilaVazia: mochilaVazia,
     lojaItensVazia: lojaItensVazia

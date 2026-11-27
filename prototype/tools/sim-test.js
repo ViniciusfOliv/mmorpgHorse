@@ -3047,5 +3047,34 @@ test('treino nunca chama seloPodio: a única chamada fica na liquidação valend
   assert.ok(!require('../src/afk.js').premio('fogo:4:lendaria', true, 7, null).itens.selo, 'o AFK não dá Selo');
 });
 
+// T7: o código do progresso (save.js). Ida e volta igual (acentos, emoji, texto com aspas e barras), e as recusas: prefixo
+// errado, código cortado, um caractere trocado, soma que bate num conteúdo que não é JSON.
+test('T7: código do progresso — ida e volta igual e recusa de código ruim', function () {
+  var SV = require('../src/save.js');
+  var ctx = { dev: false, seedNova: function () { return 1234; }, hojeDia: function () { return 20419; }, agoraMin: function () { return 29404800; } };
+  var st = SV.novo('mare', ctx);
+  st.mounts[0].name = 'Ação 🐴 "Égua\\\\"';
+  [st, { a: 'çãéü€𝄞', b: [1, 2.5, null, true], c: '' }, {}, 'x', 0].forEach(function (o) {
+    var c = SV.codigo(o);
+    assert.ok(c.indexOf(SV.CODIGO_PREFIXO) === 0 && /^GALOPE1\.[A-Za-z0-9+/]+=*\.[0-9a-f]{8}$/.test(c), 'formato: ' + c.slice(0, 40));
+    assert.deepStrictEqual(SV.lerCodigo(c), { save: o });
+    assert.deepStrictEqual(SV.lerCodigo('  ' + c.slice(0, 20) + '\n' + c.slice(20).replace(/(.{30})/g, '$1 \r\n') + '\n'), { save: o }, 'quebras de linha no meio não contam');
+  });
+  var c = SV.codigo(st);
+  assert.deepStrictEqual(SV.lerCodigo(c.slice(0, -1)), { erro: 'soma' }, 'cortado no fim');
+  assert.deepStrictEqual(SV.lerCodigo(c.slice(0, 60)), { erro: 'soma' }, 'cortado no meio');
+  var meio = SV.CODIGO_PREFIXO.length + 20, troca = c[meio] === 'A' ? 'B' : 'A';
+  assert.deepStrictEqual(SV.lerCodigo(c.slice(0, meio) + troca + c.slice(meio + 1)), { erro: 'soma' }, 'um caractere trocado');
+  assert.deepStrictEqual(SV.lerCodigo(c.toLowerCase()), { erro: 'formato' });
+  ['', null, undefined, '{"v":10}', 'GALOPE2.' + c.slice(8), 'oi'].forEach(function (x) { assert.deepStrictEqual(SV.lerCodigo(x), { erro: 'formato' }, String(x)); });
+  ['GALOPE1.', 'GALOPE1.abc', 'GALOPE1.abc.12345678'].forEach(function (x) { assert.deepStrictEqual(SV.lerCodigo(x), { erro: 'soma' }, x); });
+  // a soma bate, mas o conteúdo não é base64, UTF-8 ou JSON
+  function comSoma(b) { var h = 0x811c9dc5; for (var i = 0; i < b.length; i++) { h ^= b.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return 'GALOPE1.' + b + '.' + ('0000000' + h.toString(16)).slice(-8); }
+  ['e30', 'e30=x===', '/w==', 'b2k=', 'eyJ2Ijox'].forEach(function (b) { assert.deepStrictEqual(SV.lerCodigo(comSoma(b)), { erro: 'ilegivel' }, b); });
+  assert.deepStrictEqual(SV.lerCodigo(comSoma('e30=')), { save: {} });
+  // o save lido volta pelo mesmo saneamento: igual ao saneado de antes
+  assert.deepStrictEqual(SV.sanear(SV.lerCodigo(c).save, ctx).state, SV.sanear(JSON.parse(JSON.stringify(st)), ctx).state);
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
