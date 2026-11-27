@@ -41,7 +41,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'preparacao', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'copia-save', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
+  'corrompido', 'sem-armazenamento', 'copia-save', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-camera', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
@@ -1238,6 +1238,51 @@ try {
       problems.push('corrompido-sem-copia: ' + e.message)
     }
     await cp2.context().close()
+  }
+
+  // ---------------- T6 (PER-2): sem armazenamento, o aviso fica à vista (casca e escolha do 1º cavalo), não na corrida ----------------
+  if (quer('sem-armazenamento')) {
+    const label = 'sem-armazenamento'
+    const TXT = 'Este navegador não está guardando o seu progresso'
+    const avisoDe = (pg) => pg.evaluate(() => [...document.querySelectorAll('#tela .aviso-armazenamento')].map((p) => {
+      const r = p.getBoundingClientRect()
+      return { txt: p.textContent, vis: r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight }
+    }))
+    const confere = async (pg, onde, quer) => {
+      const a = await avisoDe(pg)
+      if (quer && !(a.length === 1 && a[0].txt.startsWith(TXT) && a[0].vis)) problems.push(`${label}: ${onde} sem o aviso à vista (${JSON.stringify(a)})`)
+      if (!quer && a.length) problems.push(`${label}: ${onde} mostra o aviso (${JSON.stringify(a)})`)
+    }
+    // localStorage bloqueado (navegação anônima de alguns navegadores, dados do site bloqueados): o acesso lança
+    const sa = await newPage(browser, { width: 390, height: 844 }, label, {
+      init: { content: `Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('bloqueado', 'SecurityError') } })` }
+    })
+    try {
+      await sa.waitForSelector('.inicial')
+      await confere(sa, 'a escolha do 1º cavalo', true)
+      await sa.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await sa.waitForSelector('#t-estabulo')
+      await confere(sa, 'o Estábulo', true)
+      await checkOverflow(sa, label)
+      await sa.locator('[data-acao="perfil"]').click()
+      await sa.waitForSelector('#t-perfil')
+      await confere(sa, 'o Perfil', true)
+      await abrirSala(sa)
+      await sa.getByRole('button', { name: /^Largar/ }).click()
+      await sa.waitForSelector('#pista')
+      await confere(sa, 'a corrida', false)
+    } catch (e) { problems.push(`${label}: ` + e.message) }
+    await sa.context().close()
+    // com armazenamento: nada de aviso
+    const ok = await newPage(browser, { width: 390, height: 844 }, label + '-normal')
+    try {
+      await ok.waitForSelector('.inicial')
+      await confere(ok, 'com armazenamento, a escolha do 1º cavalo', false)
+      await ok.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await ok.waitForSelector('#t-estabulo')
+      await confere(ok, 'com armazenamento, o Estábulo', false)
+    } catch (e) { problems.push(`${label}-normal: ` + e.message) }
+    await ok.context().close()
   }
 
   // ---------------- T5 (PER-1): cópia :pre-v<N> antes de gravar por cima e aviso quando o saneamento tira algo ----------------

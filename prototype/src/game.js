@@ -566,6 +566,13 @@
   var STORAGE_OK = (function () {
     try { var ls = window.localStorage; if (!ls) return false; ls.getItem(SAVE_KEY); return true; } catch (e) { return false; }
   })();
+  // T6 (PER-2): sem armazenamento, o aviso fica à vista no topo das telas com casca e na escolha do 1º cavalo (não nas
+  // telas cheias: corrida, desafio, resultado), enquanto a página estiver aberta
+  var AVISO_SEM_ARMAZENAMENTO = 'Este navegador não está guardando o seu progresso (navegação anônima ou dados do site bloqueados). ' +
+    'Ao fechar a página, tudo se perde.';
+  function avisoArmazenamentoHtml() {
+    return STORAGE_OK ? '' : '<p class="aviso aviso--perda aviso-armazenamento" role="status">' + esc(AVISO_SEM_ARMAZENAMENTO) + '</p>';
+  }
   // Grava o state. Devolve true se gravou (ou se não há armazenamento: tudo segue em memória) e false se a
   // gravação falhou ou se outra aba tinha gravado depois (aí o state já é o adotado: quem chama compara).
   // Save guardado de versão mais nova (qualquer revisão): não grava por cima; o jogo passa à tela de bloqueio
@@ -2699,7 +2706,7 @@
       default: html = renderInicial();
     }
     var comCasca = kindOf(ui.screen) !== 'full';
-    if (comCasca) html = appTopoHtml() + '<main class="app-conteudo">' + html + '</main>' + appAbasHtml();
+    if (comCasca) html = appTopoHtml() + '<main class="app-conteudo">' + avisoArmazenamentoHtml() + html + '</main>' + appAbasHtml();
     if (appEl) appEl.classList.toggle('app-com-abas', comCasca);
     document.documentElement.classList.toggle('app-com-abas', comCasca);   // scroll-padding do foco (CSS)
     document.documentElement.classList.toggle('dev-ativo', DEV_MODE);   // faixa no topo e botão DEV (seção "Modo DEV")
@@ -2901,6 +2908,7 @@
     }).join('');
     return '<section class="tela tela--larga" aria-labelledby="t-inicial">' +
       '<header class="tela-cabeca"><h1 class="logo" id="t-inicial" tabindex="-1" data-foco>' + logoHtml('Galope Elemental') + '</h1>' +
+      avisoArmazenamentoHtml() +
       (saveCorrompido ? '<p class="aviso" role="status">Não foi possível ler o seu progresso salvo (o arquivo está corrompido). O jogo recomeçou; ' +
         (saveCorrompido === 'guardado' ? 'uma cópia do arquivo antigo foi guardada.' : 'não foi possível guardar uma cópia do arquivo antigo.') + '</p>' : '') +
       '<p class="sub">Escolha seu primeiro cavalo. Ele corre sozinho nas corridas valendo Ouro: você decide ' +

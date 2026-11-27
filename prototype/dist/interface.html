@@ -1255,6 +1255,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 /* a frase do motivo que já estava na tela (3c §9.1): o toque não a repete, a destaca por 2 s (game.js, MOTIVO_ALVO_MS) com um
    contorno --ouro de 2 px fora do contorno --sombra. Parado: sem transição nem animação, também sem movimento reduzido */
 .motivo-alvo { outline: 2px solid var(--ouro); outline-offset: 2px; }
+/* T6: aviso sem armazenamento, acima da tela (nas telas com casca fica fora da .tela: mesma largura e o gap dela abaixo) */
+.app-conteudo > .aviso-armazenamento { max-width: 520px; margin: 0 auto 16px; }
 .aviso--perda {
   box-shadow:
     0 0 0 2px var(--sombra),
