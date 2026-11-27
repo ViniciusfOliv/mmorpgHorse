@@ -50,6 +50,21 @@ test('timeline ordenada por t0 e sem mexer na simulação', function () {
   assert.strictEqual(JSON.stringify(C1.sim.events), antes, 'eventos intactos');
   assert.ok(tl.length && tl[0].rolls !== C1.sim.events.filter(function (e) { return e.type === 'dado'; })[0].rolls, 'cópia das rolagens');
 });
+test('T10: o balão da skill sai do skillId do evento, não do texto (o texto antigo, sem id, ainda serve)', function () {
+  var sims = C1.sim.events.filter(function (e) { return e.type === 'skill' && !e.typeSkill; });
+  assert.ok(sims.length >= 1, 'a corrida de teste tem skill de vaga');
+  sims.forEach(function (e) { assert.ok(G.SKILLS[e.skillId], 'evento sem skillId válido: ' + JSON.stringify(e)); });
+  var base = FX.timeline(C1.sim, C1.racers).filter(function (it) { return it.kind === 'skill' && !it.typeSkill; });
+  assert.deepStrictEqual(base.map(function (it) { return it.skillId; }), sims.map(function (e) { return e.skillId; }));
+  // texto trocado (outra frase de narração): o id ainda acha a skill
+  var mudo = cl(C1.sim); mudo.events.forEach(function (e) { if (e.type === 'skill') e.text = 'texto qualquer'; });
+  var tl1 = FX.timeline(mudo, C1.racers).filter(function (it) { return it.kind === 'skill' && !it.typeSkill; });
+  assert.strictEqual(JSON.stringify(tl1), JSON.stringify(base));
+  // evento antigo, sem o id: a busca pelo texto acha a mesma skill
+  var velho = cl(C1.sim); velho.events.forEach(function (e) { delete e.skillId; });
+  var tl2 = FX.timeline(velho, C1.racers).filter(function (it) { return it.kind === 'skill' && !it.typeSkill; });
+  assert.strictEqual(JSON.stringify(tl2), JSON.stringify(base));
+});
 test('a mesma seed dá a mesma linha do tempo', function () {
   var C2 = corrida(4242);
   assert.strictEqual(JSON.stringify(FX.timeline(C2.sim, C2.racers)), JSON.stringify(FX.timeline(C1.sim, C1.racers)));

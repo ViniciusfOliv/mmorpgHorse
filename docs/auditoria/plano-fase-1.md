@@ -83,6 +83,8 @@ Cada ticket: objetivo · arquivos prováveis · critério de aceite · risco.
 - **T10 — `skillId` no evento de skill** (COR-5). `sim.js` passa a mandar o id; `fx.js` usa o id em vez do texto.
   Aceite: mesmos `finishOrder`/`finishTimes` nas 25 configurações do §9 do `balance.js`; fx-test verde. Conferir se
   o `tuningHash` muda.
+  **Feito em 2026-11-27:** ordem, tempos e eventos iguais em 600 corridas (só o `skillId` a mais); `tuningHash` e
+  `RaceSim.VERSION` iguais; os 20 hashes do `sim-test` regerados (sem o id, dão os antigos).
 - **T11 — Dicas e HUD coerentes com o que o jogador pode fazer** (COR-1 texto, COR-6; depende de D2).
 - **T12 — Hashes de referência do determinismo** (INF-6). Arquivo de resultados esperados conferido em Node e no
   navegador (ui-test). Sem mudança no motor.

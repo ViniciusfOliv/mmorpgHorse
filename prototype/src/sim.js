@@ -113,7 +113,7 @@
  *   weather:<clima> (checado a cada tick com o clima vigente). Chaves de effect: accelMult,
  *   speedMult, drainMult (por distanceM ou durationS), curveBonus, hillBonus, hillDrainMult
  *   (até o fim do bloco), staminaRestore, garraBoostBonus, extraDice,
- *   weatherBonus. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill' (com `rank`).
+ *   weatherBonus. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill' (com `skillId` e `rank`; o texto é só narração: quem precisa da skill lê o id).
  *   RANK (por cavalo, horse.skillRanks = { id: 1..5 }; rankOf: ausente ou inválido = 1): o efeito de cada skill é
  *   skillEffect(id, rank, entry.skillScale), com o fator s(r) = 1 + 0,15·(r − 1) (rankScale) só na parte de bônus:
  *   multiplicador que ajuda 1 + (m − 1)·s; de gasto 1 − (1 − m)·s (piso 0,05); bônus somado, recuperação e reforço
@@ -137,7 +137,7 @@
  *     Raízes Firmes (Grama, D/3–2D/3): Força e Manobra × (1 + 0,15·P);
  *     Maré Alta (Água, 2D/3–D): Estamina (teto do ritmo) e Garra × (1 + 0,33·P).
  *   Vira um efeito com fromPos/untilPos em buildRacer. Na entrada do terço sai um evento
- *   { t, racer, type: 'skill', text, typeSkill: true }. Elemento desconhecido: sem skill de tipo.
+ *   { t, racer, type: 'skill', skillId, text, typeSkill: true }. Elemento desconhecido: sem skill de tipo.
  *   entry.noTypeSkill: true desliga (comparações do balance.js).
  *
  * DADO DA SORTE: quando o líder cruza 1/3 e 2/3 de D (T.diceAt), todos rolam (inclusive quem
@@ -1107,7 +1107,7 @@
           hillDrainMult: e.hillDrainMult || 1
         });
       }
-      events.push({ t: r2(t), racer: r.index, type: 'skill', text: r.label + ' ativou ' + sk.name + '!', rank: r.skillRanks[id] || 1 });
+      events.push({ t: r2(t), racer: r.index, type: 'skill', skillId: id, text: r.label + ' ativou ' + sk.name + '!', rank: r.skillRanks[id] || 1 });
     }
 
     // Ativa todas as skills do corredor com o gatilho dado (na ordem da lista). `val` é a medida do gatilho, comparada
@@ -1182,7 +1182,7 @@
         if (tsk && !tsk.entered && pos >= tsk.from) {
           tsk.entered = true;
           if (tsk.restore && !r.exhausted) r.stamina = Math.min(1, r.stamina + tsk.restore);
-          events.push({ t: r2(tPrev), racer: r.index, type: 'skill', text: r.label + ' ativou ' + tsk.name + '!', typeSkill: true });
+          events.push({ t: r2(tPrev), racer: r.index, type: 'skill', skillId: tsk.id, text: r.label + ' ativou ' + tsk.name + '!', typeSkill: true });
         }
         // no terço da skill de tipo (statMul), os valores dos dois status do tipo vêm de r.Z
         var Z = (tsk && tsk.mul && pos >= tsk.from && pos < tsk.to) ? r.Z : r;

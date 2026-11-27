@@ -429,7 +429,11 @@
 
   // a skill do evento: o texto é '<rótulo> ativou <Nome>!'; casa só esse trecho (o rótulo pode ter o nome
   // de outra skill, como um cavalo chamado "Sprint"). Em empate de trechos, a de nome mais longo.
-  function acharSkill(horse, texto, catalogo) {
+  // T10 (COR-5): o evento traz o skillId desde o RaceSim de 2026-11-27; a busca pelo texto "ativou <nome>!" fica só para
+  // eventos antigos, sem o id
+  function acharSkill(horse, ev, catalogo) {
+    if (ev && ev.skillId && catalogo && catalogo[ev.skillId]) return catalogo[ev.skillId];
+    var texto = ev && ev.text;
     var melhor = null, ids = (horse && horse.skills) || [];
     for (var k = 0; k < ids.length; k++) {
       var s = catalogo && catalogo[ids[k]];
@@ -521,7 +525,7 @@
         });
       } else if (ev.type === 'skill') {
         var r = racers && racers[ev.racer], horse = r && r.horse;
-        var sk = acharSkill(horse, ev.text, catalogo);
+        var sk = acharSkill(horse, ev, catalogo);
         var dur = Math.max(BALAO.efeitoMin * e, Math.min(BALAO.efeitoMax * e, duracaoSkill(sim, ev, sk)));
         var trig = sk && sk.trigger && String(sk.trigger).indexOf('weather:') === 0 ? String(sk.trigger).slice(8) : '';
         out.push({

@@ -721,7 +721,7 @@ test('v3: skill de tipo sempre ativa no terço, sem consumir RNG', function () {
       assert.deepStrictEqual(ri, { id: tz.id, name: tz.name, from: tz.zone[0] * D, to: tz.zone[1] * D });
       var evs = com.events.filter(function (e) { return e.typeSkill && e.racer === i; });
       assert.strictEqual(evs.length, 1, 'seed ' + s + ' corredor ' + i + ': 1 evento de tipo');
-      assert.deepStrictEqual(Object.keys(evs[0]).sort(), ['racer', 't', 'text', 'type', 'typeSkill']);
+      assert.deepStrictEqual(Object.keys(evs[0]).sort(), ['racer', 'skillId', 't', 'text', 'type', 'typeSkill']);
       assert.strictEqual(evs[0].type, 'skill'); assert.ok(evs[0].text.indexOf(tz.name) >= 0, evs[0].text);
       // o evento sai no primeiro tick com o cavalo dentro do terço
       var f = Math.round(evs[0].t * 10);
@@ -1485,13 +1485,14 @@ function refRace(seed, dev) {
 function refHash(res) {
   return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
 }
-var REF_HASHES = ['c7bd6ec725da9baff215edf02069668324a1a6c8', '23d02cf83f681a0d22b6217366262f98d8b7eada', 'f2137c6b3b8f4bf06c6a27721143aa38e429ca2b',
-  'e7e7f917fbf2e7a67406eace2731d80f5fc61ec3', '97ad7443d3cd8465853456bf136318ca198881fb', '080fa83bf03cfbe7bb2aa72c8415865506214985',
-  '15466d6dd1d8e755d918f9a1d10daa8cd7162bfa', '62b409f8d2e249ffcd2770b1e53f7d39f1ede336', '91c2a4d5cada464cfcb04cfed8000a32ea2d091e',
-  '8470f28a998603c542ad34208997e9dba2714661', '8b05ee00141e9b971999c0b86049997cdc812288', '2aa51f18630ab92e3653983e3ebdccaf0ecab42d',
-  '6ac9744a199e5cfd5bd54df9cd998ab791fa685d', 'a91629dd18f87e649ad17a4ecc07d99bc4f94cbe', '0c60b25797c99b64ab629eb731578ed8dd7f8252',
-  'bebc16b01d1c21dda95b89b074fa4a5ee8380d74', 'ce56cbc0157175952e640e09ad53dd1e7ab08c6c', '7fa375c80622dabd0edb293bc8c73430fc2b48f2',
-  'bb54a73db517efae350dc34e50af2d9853179573', '781866ea36a643e90280671ba57fad3143b8d351'];
+// T10 (2026-11-27): o evento skill ganhou o skillId; sem ele, os hashes são os de antes (ordem, tempos e eventos iguais)
+var REF_HASHES = ['605652809168d38ce8ee1a3950ccf13dec708c9e', '9eb20259b9de722f77584fbd72caa4fcbe471683', '0de27045f5e220c421a60fa0d54b0d5860852816',
+  '70462532a936a9714630aef451944b1fae2f3f9e', 'bc22d39c5c3bb99482345c08927f474ef3866126', '451d72dd94aae38fcc68ae4a15266f27e5fcdbf9',
+  '84db150fd5125d0f408e73d3e00b7672c99d17c9', '75deb26b1570b730b8f36c0335648349041c6007', '1006d285d277a02909f5c380f8abd4b21d2e060e',
+  'e8bd0810d8e8db9ca87039f21749276c3ef48e2b', 'b995d6a9733fa8064a36207886d11b6e34fb659d', '136b9bb7b6f18edf444a457e89884720998722c0',
+  'aa044c1695dca81de1883aeefaebc5c9329ed41c', '9f35817e15e75f8bf3becf6af3699c1eda2fc43b', '93c3549d963fa0ea404d61d7dbd977df864c94d5',
+  '89fa27cfd445b7bf337ed15a758cd6c9880597fe', 'd6a93c99f4c8552ebeee03037708591ae8894617', '18f6141894b18b2a2dd87422e055e95c6a1b6d02',
+  '19614a06e05562bd80f7f0d90cd443ee263458e7', '674dc9ac2b64f06f61f8d60b1c05e6130f56d2ad'];
 test('sem config.dev o resultado é o de antes', function () {
   assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao', 'w-garoa']);
   var diff = [];
