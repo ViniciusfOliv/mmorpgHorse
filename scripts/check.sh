@@ -58,6 +58,8 @@ node prototype/tools/sala-referencia.mjs --check
 # as corridas e os desafios de ginásio iguais no Node, no navegador e à referência (corrida-referencia.json, T12;
 # regravar só de propósito, quando o motor ou um número de regra muda)
 node prototype/tools/corrida-referencia.mjs --check
+# a liquidação do fim da corrida (conta.js, T14) igual à referência gravada antes, no jogo e no Node (conta-referencia.json)
+node prototype/tools/conta-referencia.mjs --check
 
 step "7/8 Balanceamento rápido"
 node prototype/tools/balance.js --quick > "$SHOTS_DIR/balance.txt" || { cat "$SHOTS_DIR/balance.txt"; exit 1; }

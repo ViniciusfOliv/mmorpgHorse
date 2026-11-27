@@ -480,6 +480,8 @@
       return [0.6, 0.25, 0.15];
     },
     startingGold: 500,
+    // Ouro do treino (sala sem entrada) por lugar, 1º a 8º (saiu do game.js no T14; a conta é do conta.js)
+    trainingGold: [30, 22, 16, 12, 10, 10, 10, 10],
     minRacers: 4,
     maxRacers: 8,
     // Faixa dos rivais da sala pelo número da sala (D9, spec 2026-11-25-d9-salas-justas; regra em sala.js faixaDaSala):

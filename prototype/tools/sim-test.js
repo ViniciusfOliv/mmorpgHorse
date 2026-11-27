@@ -3033,9 +3033,10 @@ test('seloPodio: 2º lugar nunca; 1º ~10% em 20.000 seeds (±1); determinístic
   assert.strictEqual(IT.seloPodio(NaN, 1), 0);
   assert.strictEqual(G.ITEMS.selo.podio, 0.10); assert.strictEqual(G.ITEMS.selo.price, null);
 });
-test('treino nunca chama seloPodio: no game.js a única chamada fica na liquidação valendo, junto do Pergaminho de técnica', function () {
+test('treino nunca chama seloPodio: a única chamada fica na liquidação valendo (conta.js, desde o T14), junto do Pergaminho de técnica', function () {
   var fs = require('fs'), path = require('path');
-  var jogo = fs.readFileSync(path.join(__dirname, '../src/game.js'), 'utf8');
+  assert.ok(fs.readFileSync(path.join(__dirname, '../src/game.js'), 'utf8').indexOf('seloPodio(') < 0, 'o game.js não sorteia Selo (a liquidação é do conta.js)');
+  var jogo = fs.readFileSync(path.join(__dirname, '../src/conta.js'), 'utf8');
   var usos = jogo.split('seloPodio(').length - 1;
   assert.strictEqual(usos, 1, 'uma chamada só (' + usos + ')');
   var i = jogo.indexOf('seloPodio('), trecho = jogo.slice(Math.max(0, i - 400), i + 200);

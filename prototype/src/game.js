@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja, MP = window.Mapa, SL = window.Sala;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, CT = window.Conta, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja, MP = window.Mapa, SL = window.Sala;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
   if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !AF || !telaEl) {
@@ -86,7 +86,7 @@
   //   Pedra Negra do pódio não cai (o pódio dá o Pergaminho de técnica; a Pedra vem da loja, do treino e da forja).
   var GEAR_ON = true, GEAR_PVP = false;
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
-  var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
+  var TRAINING_GOLD = E.trainingGold;   // o Ouro do treino por lugar (data.js desde o T14)
   var MIN_ENTRY = Math.min.apply(null, E.entryTiers);
   // os selvagens de exemplo: o jogo só mostra o bloco recolhido "em breve" (ajustes 1); a lista fica para o wiki (wiki.mjs)
   var WILD_SHOWCASE = ['w-faisca', 'w-mandacaru', 'w-ventania', 'w-fogareu', 'w-iara', 'w-boitata'];
@@ -1226,33 +1226,21 @@
   function bonusConta() { return GN.bonus(state.ginasios); }
   // Todo XP somado a um cavalo passa por aqui uma vez (corrida valendo, treino e, na Tarefa 5, os duelos): o XP mais o
   // bônus da insígnia de Água, arredondado.
-  function xpComBonus(xp) { return xp + Math.round(xp * bonusConta().xp); }
+  function xpComBonus(xp) { return CT.comBonusXp(xp, bonusConta()); }
   // A chance de aprender uma skill nova a cada nível, com o bônus da insígnia de Grama: o applyXp sorteia com este bônus
   // (RaceSim.learnSkill soma learnChance + bônus) e a aba Skills mostra chanceSkillNivel (a mesma conta)
   function bonusSkillNivel() { return bonusConta().skill; }
   function chanceSkillNivel() { return RS.TUNING.learnChance + bonusSkillNivel(); }
   // O prêmio de Ouro da corrida valendo mais o bônus da insígnia de Fogo, arredondado para baixo (o 1e-9 só segura o
   // erro do ponto flutuante: 0,03 × 100 não pode dar 2,999…).
-  function ouroComBonus(premio) { return premio + Math.floor(premio * bonusConta().ouro + 1e-9); }
+  function ouroComBonus(premio) { return CT.comBonusOuro(premio, bonusConta()); }
 
   // XP ganho -> níveis (até o máximo) e, a cada nível, chance de aprender uma skill
   // (sorteio determinístico pela seed do save, pelo seedTag (nº do páreo) e pelo nível alcançado). A chance soma o
   // bônus da insígnia de Grama (o XP chega aqui já com o bônus de Água: xpComBonus).
+  // (a conta é do conta.js desde o T14: Conta.aplicarXp, com a seed do save e o bônus de Grama daqui)
   function applyXp(mount, xpGain, seedTag) {
-    var levels = 0, learned = [];
-    mount.xp += xpGain;
-    while (mount.level < MAX_LEVEL && mount.xp >= E.xpToLevel(mount.level)) {
-      mount.xp -= E.xpToLevel(mount.level);
-      mount.level += 1;
-      levels += 1;
-    }
-    if (mount.level >= MAX_LEVEL) mount.xp = Math.min(mount.xp, E.xpToLevel(mount.level));
-    for (var k = 1; k <= levels; k++) {
-      var lrng = RS.mulberry32(RS.hash2(state.seedBase, seedTag * 100 + (mount.level - levels + k)));
-      var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng, bonusSkillNivel());
-      if (sid) { mount.skills.push(sid); mount.skillRanks = IT.sanearRanks(mount.skills, mount.skillRanks); learned.push(sid); }   // a aprendida entra no rank 1
-    }
-    return { levels: levels, learned: learned };
+    return CT.aplicarXp(mount, xpGain, { seedBase: state.seedBase, seedTag: seedTag, bonusSkill: bonusSkillNivel() });
   }
 
   // ===========================================================================
@@ -6570,73 +6558,17 @@
   // ===========================================================================
   // Liquidação (no "Largar!"): debita, simula com a seed da sala e paga
   // ===========================================================================
+  // T14: a conta do fim da corrida está no conta.js (Conta.liquidar); aqui fica o que é da tela: a simulação vai para
+  // L.sim e as condições, com os trechos de subida e curva para desenhar (withRanges). Quem chama grava (gravaGasto) e, se
+  // gravou, limpa ui.devNext (os valores armados no painel DEV valem só para esta corrida)
   function settle(L) {
-    refreshPlayerEntry(L);
-    var cfg = {
-      seed: L.seed,
-      conditions: L.cond,
-      racers: L.racers.map(function (r) {
-        return { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };   // sem peças: o equipamento só vale no treino AFK
-      })
-    };
-    L.sim = RS.simulate(cfg);
+    var out = CT.liquidar(state, L, { bonus: bonusConta(), agoraMin: agoraMin(), gearPvp: GEAR_PVP, playerGear: GEAR_PVP ? playerGear() : null });
+    L.sim = out.sim;
     L.cond = withRanges(L.sim.conditions);
-    var order = L.sim.finishOrder;
-    var place = order.indexOf(L.playerIdx) + 1;
-    var hBefore = playerHorse();
-    var before = { level: hBefore.level, xp: hBefore.xp, gold: state.gold, stats: RS.computeStats(hBefore), free: RS.freePoints(hBefore) };
-    var pay = null, prize;
-    if (L.training) {
-      prize = TRAINING_GOLD[place - 1] || 10;
-    } else {
-      pay = RS.payouts(L.fee, L.n, order);
-      var mine = pay.prizes.filter(function (p) { return p.racer === L.playerIdx; })[0];
-      prize = ouroComBonus(mine ? mine.amount : 0);   // o pago (e o mostrado no resultado), com a insígnia de Fogo
-    }
-    var xpBase = E.xpPerPlace[place - 1] || E.xpPerPlace[E.xpPerPlace.length - 1];
-    var xpGain = L.training ? Math.round(xpBase / 2) : xpBase;
-    xpGain = xpComBonus(xpGain);   // com a insígnia de Água (o treino também: todo XP somado passa por aqui)
-
-    state.gold = state.gold - L.fee + prize;
-    // Pedra Negra do pódio: só em corrida valendo, pela seed da sala, na mesma gravação do Ouro. Com o equipamento
-    // suspenso (GEAR_ON) não cai: o podiumStone (RNG própria, da seed da sala) nem é chamado; o resto não muda
-    var stone = L.training || !GEAR_PVP ? 0 : GR.podiumStone(L.seed, place, L.fee);
-    state.pedras += stone;
-    // Pergaminho de técnica do pódio: só em corrida valendo (o treino nem chama o sorteio), pela seed da sala (RNG
-    // própria: não desloca nada), na mesma gravação do Ouro. Com a mochila no teto, não entra (pergCheia avisa).
-    var perg = L.training ? 0 : IT.pergaminhoPodio(L.seed, place), pergCheia = false;
-    if (perg && itemQtd('pergaminho') + perg > GD.BAG_MAX) { perg = 0; pergCheia = true; }
-    state.mochila.pergaminho = itemQtd('pergaminho') + perg;
-    // Selo do campeão: só o 1º lugar de corrida valendo, pela seed da sala (sal próprio), na mesma gravação do Ouro
-    var selo = L.training ? 0 : IT.seloPodio(L.seed, place), seloCheio = false;
-    if (selo && itemQtd('selo') + selo > GD.ITEMS.selo.cap) { selo = 0; seloCheio = true; }
-    state.mochila.selo = itemQtd('selo') + selo;
-    var gained = applyXp(activeMount(), xpGain, state.raceCounter);
-    var levels = gained.levels, learned = gained.learned;
-    state.races += 1;
-    if (place === 1) state.wins += 1;
-    if (place <= 3) state.podiums += 1;
-    if (!L.training) state.goldWon += prize;
-    state.pending = null;
-    // a sala fechou: a vaga do cavalo ativo no treino AFK volta a contar daqui (o tempo com a sala aberta não conta)
-    state.afk.vagas.forEach(function (v) { if (v.uid === state.activeId) v.inicioMin = Math.max(v.inicioMin, agoraMin()); });
-    // quem chama grava (gravaGasto) e, se gravou, limpa ui.devNext (os valores armados no painel DEV valem
-    // só para esta corrida)
-
-    var hAfter = playerHorse();
-    return {
-      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone, pergaminho: perg, pergCheia: pergCheia, selo: selo, seloCheio: seloCheio,
-      xpGain: xpGain, levels: levels, learned: learned,
-      before: before,
-      after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter),
-        free: RS.freePoints(hAfter), allCap: todosNoTeto(hAfter) }
-    };
+    return out.res;
   }
   // os status que recebem pontos no teto (base + pontos ≥ TUNING.statMax)? A Sorte não recebe (TUNING.noBuy).
-  function todosNoTeto(h) {
-    var cap = RS.TUNING.statMax, a = RS.validAlloc(h, h.alloc), nb = RS.TUNING.noBuy || [];
-    return STAT_KEYS.every(function (k) { return nb.indexOf(k) >= 0 || RS.naturalStat(h, k) + a[k] >= cap - 1e-9; });
-  }
+  function todosNoTeto(h) { return CT.todosNoTeto(h); }
 
   // ===========================================================================
   // Tela 4 — Corrida (HUD desenhado dentro do canvas, tela inteira sem rolagem)
@@ -9175,6 +9107,17 @@
       get state() { return state; }, get ui() { return ui; }, get race() { return raceView; },
       // monta a sala de um pending ({ counter, training, fee, pr }) sem gravar nada (medição do pareamento no ui-test)
       buildLobby: function (P) { return buildLobby(P); },
+      // T14: liquida uma sala de um pending num save dado (cópia), sem gravar nada nem mexer no jogo aberto: devolve o
+      // texto do save depois, do resumo do resultado e da sala (com a simulação), e a entrada (save e sala antes)
+      liquidaTeste: function (s, P) {
+        var s0 = state;
+        state = JSON.parse(JSON.stringify(s));
+        try {
+          var L = buildLobby(P), entrada = JSON.stringify({ state: state, L: L, agoraMin: agoraMin() });
+          var res = settle(L);
+          return { entrada: entrada, saida: JSON.stringify({ state: state, res: res, L: L }) };
+        } finally { state = s0; }
+      },
       hojeDia: function () { return hojeDia(); },
       agoraMin: function () { return agoraMin(); },
       afkTick: function () { afkTick(); },

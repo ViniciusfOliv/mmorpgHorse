@@ -51,7 +51,7 @@ const numDe = (rel, re, oQue) => Number(extrair(rel, re, oQue)[1])
 const listaJs = (txt) => JSON.parse(txt.replace(/'/g, '"'))
 
 function lerFonte() {
-  const game = 'src/game.js', sala = 'src/sala.js', sim = 'src/sim.js', breed = 'src/breed.js', fx = 'src/fx.js'
+  const game = 'src/game.js', conta = 'src/conta.js', sala = 'src/sala.js', sim = 'src/sim.js', breed = 'src/breed.js', fx = 'src/fx.js'
   const abas = extrair(game, /var ABAS = \[(.*)\];/, 'a lista ABAS')[1]
   // equipamento suspenso (bloco 1b): com GEAR_ON = false a Loja só vende itens (as peças e as Pedras ficam escondidas)
   // GEAR_ON liga as telas do equipamento (que só vale no treino AFK); GEAR_PVP, as peças na corrida valendo (desligado)
@@ -59,8 +59,8 @@ function lerFonte() {
   const gearOn = gearConst[1] === 'true', gearPvp = gearConst[2] === 'true'
   const ventos = extrair(fx, /a < ([\d.]+) \? 'calmo' : a < ([\d.]+) \? 'brisa' : 'ventania'/, 'a distribuição do vento (RaceFx.wind)')
   return {
-    treinoOuro: listaJs(extrair(game, /var TRAINING_GOLD = (\[[^\]]*\]);/, 'TRAINING_GOLD')[1]),
-    treinoXpDiv: numDe(game, /xpGain = L\.training \? Math\.round\(xpBase \/ (\d+)\)/, 'a divisão do XP do treino'),
+    treinoOuro: G.ECONOMY.trainingGold.slice(),   // T14: a tabela saiu do game.js para o data.js
+    treinoXpDiv: numDe(conta, /xpGain = L\.training \? Math\.round\(xpBase \/ (\d+)\)/, 'a divisão do XP do treino'),
     vitrine: listaJs(extrair(game, /var WILD_SHOWCASE = (\[[^\]]*\]);/, 'WILD_SHOWCASE')[1]),
     abas: [...abas.matchAll(/rotulo: '([^']+)'/g)].map((m) => m[1]),
     gearOn,

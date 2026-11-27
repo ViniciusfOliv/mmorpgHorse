@@ -388,14 +388,10 @@ function tLobby(P, a, b) {
 }
 // Carreira do cavalo inicial com o pareamento DO JOGO (Sala.montar, com a estreia da D9), trazida da medição da nuvem
 // (salas-medida.js, ramo claude/salas-economia): Comum ★★ nível 1, "Distribuir sugerido" antes de cada sala, entrada
-// 50, 500 de Ouro no começo; sem Ouro para a entrada, a sala vira treino (TRAINING_GOLD do game.js, metade do XP);
+// 50, 500 de Ouro no começo; sem Ouro para a entrada, a sala vira treino (ECONOMY.trainingGold, metade do XP);
 // recompensa diária a cada 30 salas; XP e skills aprendidas como o applyXp. Uma carreira por k (inicial = k % 3).
 // Devolve somas por sala (1..P.salas): win, pod, treino (sem entrada), ouro (no fim da sala), n.
-var TREINO_OURO = (function () {
-  var m = require('fs').readFileSync(require('path').join(__dirname, '../src/game.js'), 'utf8').match(/var TRAINING_GOLD = (\[[^\]]*\]);/);
-  if (!m) throw new Error('balance: TRAINING_GOLD não encontrado no game.js');
-  return JSON.parse(m[1]);
-})();
+var TREINO_OURO = G.ECONOMY.trainingGold.slice();   // T14: a tabela saiu do game.js para o data.js
 function tCarreira(P, a, b) {
   var NSa = P.salas, E = G.ECONOMY, fee = 50, SALAS_DIA = 30;
   var o = { win: [], pod: [], treino: [], ouro: [], n: [] };

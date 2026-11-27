@@ -107,6 +107,9 @@ Extrair da interface, **sem mudar comportamento**, para um módulo puro (ex.: `p
 ticket, cada um com teste de equivalência (o mesmo save e a mesma ação dão o mesmo save resultante, antes e depois):
 
 - **T14 — Liquidação do PVP e do treino** (`settle`, `applyXp`, `TRAINING_GOLD` → `data.js`).
+  **Feito em 2026-11-27:** `prototype/src/conta.js` (`Conta.liquidar`, `Conta.aplicarXp`); `ECONOMY.trainingGold`; o
+  `settle` e o `applyXp` do `game.js` viraram invólucros. Equivalência: 400 liquidações gravadas antes (`conta-referencia`).
+- **T15:** feito antes (o `sala.js`, 2026-11-25).
 - **T15 — Abertura da sala e pareamento** (`openLobby`, `buildLobby`, `poderBot`).
 - **T16 — Saneamento e migração do save** (`sanitize`).
 
