@@ -55,7 +55,7 @@ Cada ticket: objetivo · arquivos prováveis · critério de aceite · risco.
   Aceite: 237/237 aqui e no contêiner. Risco: baixo; nenhuma chamada paga (os testes já bloqueiam a rede).
 - **T3 — Playwright local** (depende de D7). Aceite: `check.sh` completo passa nesta máquina, com as 8 etapas.
 - **T4 — CI** (opcional, depois de T1–T3). GitHub Actions em Linux rodando `check.sh` e, num job à parte, o
-  `balance.js` completo. Aceite: execução verde num PR.
+  `balance.js` completo. Aceite: execução verde num PR. **Feito em 2026-11-26** (`.github/workflows/check.yml`, push na main e PR; o verde só se confirma no GitHub).
 
 ### B. Save seguro
 

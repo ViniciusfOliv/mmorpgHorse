@@ -53,6 +53,9 @@ Mudou número de regra (status, skill, pista, peça, Poder, ginásio)? Rode tamb
 M6, M9, P1, S1 e A1 só contam nele (no `--quick`, que o `check.sh` usa, são só informação), e as dos ginásios G1, G2,
 G3, G5 e G7 só rodam nele.
 
+CI: `.github/workflows/check.yml` roda o `check.sh` e o `balance.js` completo em cada envio para a `main` e em cada PR
+(Linux); também falha se `prototype/dist/` ou `docs/wiki.md` não estiverem commitados em dia.
+
 Abrir o jogo localmente: `prototype/dist/preview.html` no navegador. O `prototype/dist/jogo.html` é o
 build de produção: sai sem modo DEV e sem gancho de teste (o build falha se sobrar algum).
 Modo DEV: `preview.html?dev=1` ou o build de teste `prototype/dist/jogo-dev.html` (liga sozinho, sem query) — save

@@ -12,7 +12,8 @@ A D1 (vagas): o estábulo começa com 2 e compra até 5 (2.000 · 10.000 · 50.0
 D3 e D5 (só texto: clima "+1,5 em cada status"; insígnias só no PVE antes do online) aplicadas.
 Farm medido (`docs/auditoria/medicao-farm-vagas.md`): preços das vagas mantidos; o treino fechado rende 70%.
 Texto de Gemas/VIP aplicado no `CLAUDE.md` §8 (o Ouro nunca é vendido; vantagens pagas só listadas, com teto).
-**Próximo:** D6/D7; spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
+D7 fechada: T3 (Playwright local) e T4 (CI no GitHub Actions, `.github/workflows/check.yml`: `check.sh` e balanço completo em cada envio para a main e em cada PR).
+**Próximo:** spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
 tickets em `docs/auditoria/plano-fase-1.md`. O ramo `claude/fluidez` foi integrado (D6, 2026-11-26); `claude/salas-economia` fica como referência.
 
 **Atualização geral de 2026-11-25 (pedido do Vinicius, para trabalhar numa pasta local):** a `main` recebeu a memória da
