@@ -86,6 +86,8 @@ Cada ticket: objetivo · arquivos prováveis · critério de aceite · risco.
   **Feito em 2026-11-27:** ordem, tempos e eventos iguais em 600 corridas (só o `skillId` a mais); `tuningHash` e
   `RaceSim.VERSION` iguais; os 20 hashes do `sim-test` regerados (sem o id, dão os antigos).
 - **T11 — Dicas e HUD coerentes com o que o jogador pode fazer** (COR-1 texto, COR-6; depende de D2).
+  **Feito em 2026-11-27:** a dica do clima ruim oferece a troca da preparação quando há cavalo não penalizado que cabe no
+  Poder da sala; o vento fica na cor apagada no HUD e "só cenário" na descrição da pista (bloco `dica-clima`).
 - **T12 — Hashes de referência do determinismo** (INF-6). Arquivo de resultados esperados conferido em Node e no
   navegador (ui-test). Sem mudança no motor.
 

@@ -40,7 +40,7 @@ const G_ELS = Object.keys(G.ELEMENTS)
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
-const BLOCOS = ['reserva', 'gravacao2', 'treino', 'preparacao', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
+const BLOCOS = ['reserva', 'gravacao2', 'treino', 'preparacao', 'dica-clima', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
   'corrompido', 'sem-armazenamento', 'copia-save', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto', 'ambiente',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-camera', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
@@ -650,6 +650,42 @@ try {
       problems.push(label + ': ' + e.message)
     }
     await pg.context().close()
+  }
+
+  // ---------------- T11 (COR-1, COR-6): a dica do clima ruim aponta a troca possível; o vento é "só cenário" ----------------
+  if (quer('dica-clima')) {
+    const label = 'dica-clima'
+    // chuva penaliza o Fogo; o gêmeo de Grama não é penalizado e tem o mesmo Poder; o "Forte" passa do da sala
+    const caso = async (nome, gemeos, querTroca) => {
+      const pg = await newPage(browser, { width: 390, height: 844 }, label + '-' + nome, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        // o perfil DEV abre no Estábulo: o cavalo ativo vira de Fogo (penalizado na chuva); os gêmeos são cópias dele
+        await pg.evaluate((gs) => {
+          const s = window.__galope.state, b = s.mounts.find((m) => m.uid === s.activeId)
+          b.element = 'fogo'
+          gs.forEach((g, i) => { const m = JSON.parse(JSON.stringify(b)); Object.assign(m, g, { uid: 'gem' + i }); s.mounts.push(m) })
+          s.stableSlots = Math.max(s.stableSlots, s.mounts.length)
+        }, gemeos)
+        await devArmar(pg, { clima: 'chuva', seed: 4242 })
+        await abrirSala(pg)
+        const pr = await pg.evaluate(() => window.__galope.state.pending.pr)
+        const dica = (await pg.locator('.dicas li').allTextContents()).find((t) => t.startsWith('Clima ruim para o seu elemento')) || ''
+        const comTroca = 'Clima ruim para o seu elemento: só o Dado da Sorte pode virá-lo durante a corrida, ou troque abaixo para um cavalo seu de outro elemento (Poder até ' + pr + ').'
+        const semTroca = 'Clima ruim para o seu elemento: só o Dado da Sorte pode virá-lo durante a corrida.'
+        if (dica !== (querTroca ? comTroca : semTroca)) problems.push(`${label}-${nome}: dica "${dica}"`)
+        if (querTroca) {
+          await pg.getByRole('button', { name: /^Largar/ }).click()
+          await pg.waitForSelector('#pista')
+          const aria = await pg.locator('#pista').getAttribute('aria-label')
+          if (!/ · Vento \(só cenário\): /.test(aria || '')) problems.push(`${label}: o vento na descrição da pista "${aria}"`)
+        }
+      } catch (e) { problems.push(`${label}-${nome}: ` + e.message) }
+      await pg.context().close()
+    }
+    await caso('troca', [{ name: 'Gêmeo', element: 'grama' }, { name: 'Forte', element: 'agua', level: 10 }], true)
+    // só cavalos penalizados (Fogo) ou acima do Poder da sala: a dica não oferece troca
+    await caso('sem-troca', [{ name: 'Gêmeo', element: 'fogo' }, { name: 'Forte', element: 'grama', level: 10 }], false)
   }
 
   // ---------------- aviso sobrevive ao redesenho passivo (moldes carregando, largura mudando) ----------------

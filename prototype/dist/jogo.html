@@ -22150,7 +22150,13 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // equipamento não entra na corrida), e só o Dado da Sorte pode virar o clima
     var h = playerHorse();
     if (RS.weatherMult(h.element, L.cond.weather, false) < 1) {
-      tips.push('Clima ruim para o seu elemento: só o Dado da Sorte pode virá-lo durante a corrida.');
+      // T11 (COR-1): com a preparação (D2), a dica aponta a troca quando há um cavalo que o clima não penaliza e que cabe
+      // no Poder da sala (o mesmo prepMotivo dos botões "Trocar de cavalo")
+      var P = state.pending, troca = !!P && state.mounts.some(function (m) {
+        return m.uid !== state.activeId && !prepMotivo(m) && RS.weatherMult(m.element, L.cond.weather, false) >= 1;
+      });
+      tips.push('Clima ruim para o seu elemento: só o Dado da Sorte pode virá-lo durante a corrida' +
+        (troca ? ', ou troque abaixo para um cavalo seu de outro elemento (Poder até ' + P.pr + ').' : '.'));
     }
     return tips;
   }
@@ -22367,7 +22373,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     }).filter(Boolean).join(' · ') || 'reta pura';
     // o trecho do clima fica num span próprio: pushFeed troca o texto quando o Dado vira o clima
     var climaTxt = 'Clima: ' + GD.WEATHERS[L.cond.weather].name;
-    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + climaTxt + ' · Vento: ' + ventoFala(ventoDaSala(L)) + ' · ' + tracado;
+    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + climaTxt + ' · Vento (só cenário): ' + ventoFala(ventoDaSala(L)) + ' · ' + tracado;
     return '<section class="tela tela--larga tela--corrida" aria-labelledby="t-corrida">' +
       '<header class="corrida-topo"><div class="corrida-titulo">' +
         '<h1 class="corrida-nome" id="t-corrida" tabindex="-1" data-foco>' + esc(cab.titulo) + '</h1>' +
@@ -22881,8 +22887,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var vbw = Math.max(tw('VENTO', 'g7'), tw(vNome, 'g7')) + 8, vx = dir0 - 4 - vbw;
       if (!lay.compact && vx > livre) {
         caixaPainel(vx, y, vbw, h, C.painel);
+        // T11 (COR-6): o vento é só cenário: o valor na cor apagada (texto2), abaixo do CLIMA, que conta na corrida
         text('VENTO', vx + 4, y + 3, C.texto2, 'g7');
-        text(vNome, vx + 4, y + 12, C.texto, 'g7');
+        text(vNome, vx + 4, y + 12, C.texto2, 'g7');
         FX._stats.ventoHud = 'texto';
       } else {
         var reserva = lay.compact ? Math.max(tw('\u25b2SUBIDA', 'g7'), tw('CURVA', 'g7')) + 8 + 4 : 0;

@@ -17,7 +17,8 @@ T5 (save seguro): migração e descarte guardam uma cópia em `:pre-v<N>` e o de
 T6 (save seguro): sem armazenamento, um aviso de perda fica à vista nas telas com casca e na escolha do 1º cavalo (`docs/superpowers/specs/2026-11-27-t6-aviso-armazenamento.md`).
 T8 e T9 (grupo C, só texto): GDD alinhado ao código (G2–G7), wiki sem a "vitrine" e memória/comentários em dia.
 T10 (grupo D): o evento `skill` traz o `skillId` e o balão o usa (o texto fica só para eventos antigos).
-**Próximo:** T11 (dicas e HUD) e T12 (referência de determinismo em Node e navegador); T7 (função nova, pedir OK à parte); spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
+T11 (grupo D): a dica do clima ruim aponta a troca de cavalo da preparação; o vento aparece como cenário no HUD.
+**Próximo:** T12 (referência de determinismo em Node e navegador); T7 (função nova, pedir OK à parte); spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
 tickets em `docs/auditoria/plano-fase-1.md`. O ramo `claude/fluidez` foi integrado (D6, 2026-11-26); `claude/salas-economia` fica como referência.
 
 **Atualização geral de 2026-11-25 (pedido do Vinicius, para trabalhar numa pasta local):** a `main` recebeu a memória da
