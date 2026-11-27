@@ -6,18 +6,18 @@ Status: **rascunho em construção**. Seções 1–7 escritas e aprovadas (statu
 
 ## 1. Visão
 
-Jogo em pixel art (web + Play Store) de corrida de cavalos com progressão estilo RPG e elementos estilo "monstros de tipo" (Fogo/Água/Grama). Foco em **PVP**: corridas entre jogadores apostando moeda virtual.
+Jogo em pixel art (web + Google Play + Steam) de corrida de cavalos com progressão estilo RPG e elementos estilo "monstros de tipo" (Fogo/Água/Grama). Foco em **PVP**: corridas entre jogadores apostando moeda virtual.
 
 ## 2. Pilares decididos
 
 | Tema | Decisão |
 |---|---|
-| Jogabilidade da corrida | **Automática.** Estratégia acontece antes: escolher a montaria e o equipamento para o mapa e o clima da corrida. Servidor simula com *seed*; cliente só anima. |
+| Jogabilidade da corrida | **Automática.** Estratégia acontece antes: escolher a montaria, os pontos e a aposta; na sala, a preparação de 12 s ainda deixa trocar de cavalo até o Poder dela (8.1, D2). O equipamento só vale no PVE (treino AFK). Servidor simula com *seed*; cliente só anima. |
 | "MMO" | **Hub social**: cidade/estábulo compartilhado (chat, ranking, haras/guildas, mercado). Resto por menus. |
 | Obter cavalos | **Cruzamento + Expedições PVE** (núcleo) + **pacotes de montaria** comprados só com moeda ganha jogando (nunca com Gemas: caixa de recompensa paga é vedada no Brasil para menores). |
 | Monetização | **Duas moedas**: 🪙 Ouro (só ganho jogando, é apostável) / 💎 Gemas (compradas; cosméticos, VIP e vagas). **O Ouro nunca é vendido**, por dinheiro nem por Gemas; vantagens pagas só as listadas na spec da loja, com teto e teste (D1, 2026-11-26). Antes da loja real, avaliação jurídica sobre a classificação (o VIP dá +2% de Ouro no AFK). |
-| PVP | Corridas de **4–8 jogadores**, entrada igual, pote dividido 1º/2º/3º (menos taxa da casa). Bots completam vagas, com Poder de 93,5% a 104,5% do jogador; nas 10 primeiras salas do save (estreia) são 4–5 corredores mais leves (93% a 100,5%), em rampa até a 20ª (D9, 2026-11-25; números no wiki). **Espectadores apostam** (fase 2; em reavaliação pelo risco de classificação 18+, ver `docs/cronograma.md`). |
-| Matchmaking | **Ligas por Rating de Poder do cavalo** + **MMR do jogador** dentro da liga. Modo opcional **Copa Nivelada** (status normalizados). |
+| PVP | Corridas de **4–8 jogadores**, entrada igual, pote (menos a taxa da casa de 10%) dividido conforme o campo: 4–5 corredores pagam 1º/2º (70/30), 6–7 pagam 1º/2º/3º (50/30/20) e 8 pagam 60/25/15. Bots completam vagas, com Poder de 93,5% a 104,5% do jogador; nas 10 primeiras salas do save (estreia) são 4–5 corredores mais leves (93% a 100,5%), em rampa até a 20ª (D9, 2026-11-25; números no wiki). **Espectadores apostam** (fase 2; em reavaliação pelo risco de classificação 18+, ver `docs/cronograma.md`). |
+| Matchmaking | **Ligas por Rating de Poder do cavalo** + **MMR do jogador** dentro da liga (online; no protótipo a liga é só um rótulo e os rivais vêm pelo Poder do cavalo). Modo opcional **Copa Nivelada** (status normalizados). |
 
 ## 3. Status (1–150)
 
@@ -133,7 +133,7 @@ cada faixa de distância). No nível 25 caem na Prata (Poder 782–791).
 
 `prototype/` contém o protótipo web (sprites, simulação e fluxo de aposta). Em 2026-11-10 ficou decidido que ele vira a base do jogo: a mesma base web empacotada para Android, com os módulos de regra indo para o servidor.
 
-**Fluxo de telas.** O jogo tem uma barra de 5 abas (Estábulo, Correr, Expedição, Haras e Loja; na Loja, a parte de peças está escondida com o equipamento), embaixo no celular e à esquerda no desktop (≥ 900 px), e um cabeçalho com o saldo (Ouro) e o botão Perfil (estatísticas, insígnias dos ginásios e "Recomeçar"). O Estábulo tem no topo o cartão da recompensa diária (8.2a) e, embaixo, uma lista de linhas (retrato pequeno com o nível e os pontos a distribuir, nome, raridade e estrelas, tipo e Poder; a ativa leva a plaquinha "Ativa" e a ordem nunca muda); tocar numa linha abre a ficha da Montaria, com o cavalo em retrato grande e três abas: Status, Skills e Ficha (a de Equipamento está escondida). A aba Ficha guarda "Tornar ativa", renomear, liberar, porte, marcas, cruzas restantes e pais. A aba Status põe cada status numa linha, com +1/+5/+10, e prende a barra do Confirmar (com o Poder do rascunho) embaixo da tela. Botão indisponível mostra o motivo no toque. Largada, corrida e resultado são telas cheias, sem barra. A corrida PVP continua automática. A aba Expedição tem os três ginásios (8.6) e, embaixo, a vitrine dos cavalos selvagens (a captura ainda não existe).
+**Fluxo de telas.** O jogo tem uma barra de 5 abas (Estábulo, Correr, Expedição, Haras e Loja; a Loja vende também peças e Pedras Negras, com o selo "só AFK"), embaixo no celular e à esquerda no desktop (≥ 900 px), e um cabeçalho com o saldo (Ouro) e o botão Perfil (estatísticas, insígnias dos ginásios e "Recomeçar"). O Estábulo tem no topo o cartão da recompensa diária (8.2a) e, embaixo, uma lista de linhas (retrato pequeno com o nível e os pontos a distribuir, nome, raridade e estrelas, tipo e Poder; a ativa leva a plaquinha "Ativa" e a ordem nunca muda); tocar numa linha abre a ficha da Montaria, com o cavalo em retrato grande e quatro abas: Status, Skills, Peças (o equipamento, com o selo "só AFK") e Ficha. A aba Ficha guarda "Tornar ativa", renomear, liberar, porte, marcas, cruzas restantes e pais. A aba Status põe cada status numa linha, com +1/+5/+10, e prende a barra do Confirmar (com o Poder do rascunho) embaixo da tela. Botão indisponível mostra o motivo no toque. Largada, corrida e resultado são telas cheias, sem barra. A corrida PVP continua automática. A aba Expedição tem os três ginásios (8.6) e, embaixo, o bloco recolhido "Cavalos selvagens", com o selo "em breve" (a captura ainda não existe).
 
 **Arte do protótipo.** Os cavalos usam moldes gerados no PixelLab (retrato, parado e galope de 9 quadros por estilo de crina), recoloridos na hora com a paleta de cada montaria; ícones também do PixelLab, logotipo e capa do Canva; pista, clima e interface por código. Na corrida, o Dado da Sorte, as skills, a Garra e o cansaço aparecem no próprio cavalo, e o clima e o vento (só visual) aparecem na pista. Detalhes: `docs/superpowers/specs/2026-11-08-visuais-design.md` e `docs/superpowers/specs/2026-11-09-corrida-viva-design.md`.
 

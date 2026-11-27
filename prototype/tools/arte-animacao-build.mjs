@@ -2,7 +2,8 @@
 // ambiente (entrega 1 da frente de animação, 2026-11-23): o molde prototype/arte/animacao.html com o motor
 // prototype/arte/animacao.js e, em data: URI, as imagens que ele anima (camadas do Litoral, arena da Fornalha, cenas da
 // Expedição e do Haras), os moldes dos cavalos (retrato e parado, com as âncoras) e a Nunito da interface.
-// Não lê nem escreve nada em prototype/src/ ou prototype/dist/; não gasta crédito.
+// De prototype/src/ só lê o motor ambiente.js (desde a etapa 1, junto do animacao.js); não escreve em prototype/src/ nem em
+// prototype/dist/; não gasta crédito.
 // Uso: node prototype/tools/arte-animacao-build.mjs
 import fs from 'node:fs';
 import path from 'node:path';

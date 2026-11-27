@@ -353,7 +353,7 @@ export function descreverAba(rotulo, F) {
         `**Resumo:** cada duelo com "Você venceu" ou "Você perdeu", os metros e o fôlego de quem seguiu; a entrada, o prêmio e os itens; o XP de cada cavalo (os níveis e as skills que aprendeu, ou "não correu"); a insígnia e a etapa liberada. Perdendo, "Tentar de novo" volta ao preparo com o mesmo time; sempre há "Voltar à trilha". ` +
         `**Revanche:** depois da insígnia, a etapa do líder vira a revanche, uma vez por dia: "Revanche hoje", com a entrada de ${num(G.GYM.revanche.entrada)} de Ouro e o prêmio de hoje do rodízio; tentada a de hoje, a etapa diz "Feita hoje" e "Revanche de hoje feita. Volte amanhã.", e a revanche perdida não tem "Tentar de novo". ` +
         `**Treino AFK:** na trilha, cada oponente já vencido tem "Treinar (AFK)", que abre a escolha do treino (oponente, dificuldade, vaga e cavalo). O cartão "Treino AFK" da aba abre as vagas (o cavalo, o oponente, a chance de vitória medida, a corrida em curso e a última; Assistir, Trocar e Tirar; "Abrir vaga" com o preço) e o baú ("Coletar tudo"); o cartão "Bestiário" abre as páginas dos ginásios (ver Corrida AFK). ` +
-        `Embaixo, a vitrine de ${F.vitrine.length} cavalos selvagens (a captura ainda não existe no protótipo).`
+        `Embaixo, o bloco recolhido "Cavalos selvagens", com o selo "em breve": a captura ainda não existe no protótipo (${F.vitrine.length} selvagens já estão separados para a vitrine dela).`
     }
     case 'Haras': return 'cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.'
     case 'Loja': {
@@ -1274,7 +1274,6 @@ function infoMontaria(h, F) {
   else {
     onde.push('bot nas corridas')
     if (aluguel != null) onde.push(`aluguel no Haras (${num(aluguel)} de Ouro)`)
-    if (F.vitrine.indexOf(h.id) >= 0) onde.push('vitrine da Expedição')
   }
   return { st, st1, poder, liga, aluguel, onde, inicial, cruzas: h.breedLeftMax || G.BREED_LEFT[h.sex] }
 }

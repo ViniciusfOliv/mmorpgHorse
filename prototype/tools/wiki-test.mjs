@@ -346,7 +346,7 @@ confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que 
   const exp = (a.md.match(/^- \*\*Expedição:\*\* (.*)$/m) || [])[1] || ''
   for (const id of G.GYM_ORDER) confere(exp.includes(G.GYMS[id].name), `a aba Expedição no wiki sem o ${G.GYMS[id].name}: ${exp}`)
   confere(exp.includes(`${G.GYMS[G.GYM_ORDER[0]].etapas.length} etapas`) && /trilha/.test(exp) && /de baixo para cima/.test(exp), `a aba Expedição no wiki sem a trilha de ${G.GYMS[G.GYM_ORDER[0]].etapas.length} etapas: ${exp}`)
-  confere(/Ponto fraco/.test(exp) && /revanche/.test(exp) && /vitrine de 6 cavalos selvagens/.test(exp), `a aba Expedição no wiki sem o ponto fraco, a revanche ou a vitrine: ${exp}`)
+  confere(/Ponto fraco/.test(exp) && /revanche/.test(exp) && /"Cavalos selvagens", com o selo "em breve"/.test(exp), `a aba Expedição no wiki sem o ponto fraco, a revanche ou a vitrine: ${exp}`)
   confere(!/Expedições e captura ainda não existem/.test(exp), 'a aba Expedição no wiki ainda é só a vitrine')
   // Tarefa 8: o desafio inteiro na aba (preparo, time, pagamento, duelos na tela de corrida, cartão, resumo e revanche), sem
   // a frase velha "chega nas próximas partes"; o Perfil com as insígnias; a gaveta DEV com o grupo Ginásios

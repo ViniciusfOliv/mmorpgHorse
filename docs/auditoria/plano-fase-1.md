@@ -72,8 +72,11 @@ Cada ticket: objetivo · arquivos prováveis · critério de aceite · risco.
 
 - **T8 — Alinhar o GDD ao código** (G3, G5–G8 e, depois das decisões, G1/G2). Só texto. Arquivos: `docs/GDD.md`,
   `tools/wiki.mjs` (texto da vitrine).
+  **Feito em 2026-11-27:** G2–G7 no GDD e o texto da vitrine no wiki; G1 e G8 já estavam em dia (D3 e a troca de fontes).
 - **T9 — Memória em dia** (DOC-2; DOC-3 se D6 = sim). Arquivos: `docs/memoria/*`, `docs/exemplos.md`, comentários
   citados.
+  **Feito em 2026-11-27:** `bugs.md` (Poder sem Sorte nem Dado), `galope.md` (cadência 14), `exemplos.md` (metas e P2 do
+  balanço completo de hoje), comentários do `TUNING` (`sim.js`) e do `arte-animacao-build.mjs`; DOC-3 já feito na D6.
 
 ### D. Corrida (sem mudar resultado)
 

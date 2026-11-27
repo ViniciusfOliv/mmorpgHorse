@@ -6,7 +6,7 @@ suspenso). Spec e tabelas: `docs/superpowers/specs/2026-11-12-crescimento-livre-
 dados estão em `docs/wiki.md`, gerado do código. Para refazer as medições:
 
 ```bash
-node prototype/tools/balance.js            # relatório completo com as 300 metas (~5 min)
+node prototype/tools/balance.js            # relatório completo com todas as metas (372 em 2026-11-27; ~5–11 min)
 node prototype/tools/balance.js --exemplo  # uma corrida narrada
 ```
 
@@ -31,7 +31,7 @@ Nível 25: os três caem na Prata (Poder 782–791; nível 1: 626–633, Bronze)
 | M7 pior caso de status (Mítico ★★★ 50, tudo num status) | 146 | < 150 |
 | M8 líder em 1/3 vence / chegada com < 1 m | 38,1% / 5,6% | ≤ 55% / ≥ 5% |
 | M9 tipos em campo misto (justo: 16,7%) | 16,3% a 17,2% | 15,3–18,0% |
-| P1 resíduo do Poder / P2 favorito vence | 1,1 p.p. / 52,1% | ≤ 5 p.p. / 35–55% |
+| P1 resíduo do Poder / P2 favorito vence | 1,7 p.p. (maior) / 38,4% (2026-11-27, com as salas da D9) | ≤ 5 p.p. / 35–55% |
 | A1 ganho de +10 num Raro nível 20 | 9,6 a 11,0 p.p.; maior ÷ menor 1,15 | ≥ 3 p.p.; ≤ 1,3 |
 | S1 ganho de uma skill | 4,0 (Chama Final) a 12,7 p.p. (Drift) | 3–13 p.p. |
 | Dado: Mítico g31 contra sete Comuns g0 | 20,8% | 17–25% |
@@ -85,9 +85,9 @@ dá o ponto de início e a força média, e a seed dá a força de cada corrida 
 | Dado Viciado (isento) | 1,3 | 0,2 | 1,5 | — |
 
 Com a Garra sem falhar e força fixa, o favorito do Poder vencia 69,2% e um degrau de raridade 97–99%: a corrida ficava
-previsível. Com a força variável, o favorito vence **51,1%** (meta 35–55%), quem lidera em 1/3 vence 37,8% e 6,0% das
+previsível. Com a força variável, o favorito vencia **51,1%** em 2026-11-19 (meta 35–55%; 38,4% em 2026-11-27, com as salas da D9), quem lidera em 1/3 vence 37,8% e 6,0% das
 corridas acabam com menos de 1 m. +10 num status vale de 9,8 (Garra) a 11,8 p.p. (Manobra). As 344 metas do
-`balance.js` completo passam, com as faixas rebaseadas listadas no `decisoes.md` de 2026-11-19.
+`balance.js` completo de então passavam, com as faixas rebaseadas listadas no `decisoes.md` de 2026-11-19.
 
 | +10 pontos em | Manobra | Velocidade | Aceleração | Estamina | Força | Garra | Sorte |
 |---|---|---|---|---|---|---|---|

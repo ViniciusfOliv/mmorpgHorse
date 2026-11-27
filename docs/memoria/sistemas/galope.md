@@ -30,7 +30,7 @@ Montagem: `../galope-teste-ferramentas/monta.mjs` embute **cópias sem alteraç�
   com `frame` = a fase contínua do jogo (`quadroGalope`: índice = floor((frame mod 6) × 9 / 6)).
 - Desenhado com `scale: 1` (molde em S = 1) num canvas em resolução de arte e ampliado por vizinho mais próximo
   (≈ 4 px CSS por px de arte). Pixel a pixel é o mesmo desenho do jogo em S inteiro. A sombra também é a do jogo.
-- Cadência: a fórmula do `game.js`: fase += dt × 13 × (v / 17) × (x2 ? 1,3 : 1) × max(0,35, slowK).
+- Cadência: a fórmula do `game.js`: fase += dt × 14 × (v / 17) (`GALOPE_QPS`, cadência "meio") × (x2 ? 1,3 : 1) × max(0,35, slowK).
 - O chão rola como na corrida: v × ts × px/m × (x2 ? 2 : 1) × slowK, com ts ≈ 3,3 (1000 m) e ~3 px de arte por
   metro (aproximação: o jogo usa ppmArt = 2 no celular em unidades do sprite por código).
 - Fora do teste: faíscas/brilho de raridade, rastro do Mítico, aura de skill, poeira (não mexem com as pernas).
