@@ -21,7 +21,8 @@ T11 (grupo D): a dica do clima ruim aponta a troca de cavalo da preparação; o 
 T12 (grupo D): `corrida-referencia.mjs --check` no `check.sh` (63 casos, Node e navegador iguais à referência). Grupo D fechado.
 T13 (grupo E): a ficha mostra pai e mãe do estábulo com o nome atual e o `#n`. Grupo E fechado.
 T14 (grupo F): a liquidação do fim da corrida e o XP saíram do `game.js` para o `conta.js`, sem mudar nada (400 liquidações iguais à referência gravada antes, no jogo e no Node).
-**Próximo:** para fechar a Fase 1, T16 (saneamento do save → módulo; o T15 já está feito), T7 (exportar/importar: spec e OK à parte) e T17 (medição no celular do Vinicius); spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
+T16 (grupo F): o saneamento e a migração do save (e o save novo) saíram do `game.js` para o `save.js`, sem mudar nada (1.424 saves iguais à referência gravada antes, no jogo e no Node; dois testes de mutação acusados). Grupo F fechado.
+**Próximo:** para fechar a Fase 1, T7 (exportar/importar: spec e OK à parte) e T17 (medição no celular do Vinicius); spec da loja (Gemas, VIP, vagas pagas) quando chegar o bloco 6;
 tickets em `docs/auditoria/plano-fase-1.md`. O ramo `claude/fluidez` foi integrado (D6, 2026-11-26); `claude/salas-economia` fica como referência.
 
 **Atualização geral de 2026-11-25 (pedido do Vinicius, para trabalhar numa pasta local):** a `main` recebeu a memória da

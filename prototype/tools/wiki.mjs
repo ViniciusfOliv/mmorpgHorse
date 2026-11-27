@@ -51,7 +51,7 @@ const numDe = (rel, re, oQue) => Number(extrair(rel, re, oQue)[1])
 const listaJs = (txt) => JSON.parse(txt.replace(/'/g, '"'))
 
 function lerFonte() {
-  const game = 'src/game.js', conta = 'src/conta.js', sala = 'src/sala.js', sim = 'src/sim.js', breed = 'src/breed.js', fx = 'src/fx.js'
+  const game = 'src/game.js', conta = 'src/conta.js', save = 'src/save.js', sala = 'src/sala.js', sim = 'src/sim.js', breed = 'src/breed.js', fx = 'src/fx.js'
   const abas = extrair(game, /var ABAS = \[(.*)\];/, 'a lista ABAS')[1]
   // equipamento suspenso (bloco 1b): com GEAR_ON = false a Loja só vende itens (as peças e as Pedras ficam escondidas)
   // GEAR_ON liga as telas do equipamento (que só vale no treino AFK); GEAR_PVP, as peças na corrida valendo (desligado)
@@ -86,8 +86,8 @@ function lerFonte() {
     moldePista: extrair(sim, /var c1 = corte\(([\d.]+)\), c2 = corte\(([\d.]+)\), c3 = corte\(([\d.]+)\), c4 = corte\(([\d.]+)\);/, 'o molde fixo da pista').slice(1, 5).map(Number),
     statMin: numDe(sim, /clamp\(Math\.round\(naturalStat\(horse, k\) \+ alloc\[k\]\), (\d+), T\.statMax\)/, 'o piso do status (computeStats)'),
     rankPiso: numDe(sim, /out\[k\] = Math\.max\(([\d.]+), 1 - \(1 - v\) \* f\)/, 'o piso do multiplicador de gasto no rank (skillEffect)'),
-    redeasMax: numDe(game, /var REDEAS_MAX = (\d+);/, 'REDEAS_MAX'),
-    devDiasMax: numDe(game, /var DEV_DIAS_MAX = (\d+);/, 'DEV_DIAS_MAX'),
+    redeasMax: numDe(save, /var REDEAS_MAX = (\d+);/, 'REDEAS_MAX'),
+    devDiasMax: numDe(save, /var DEV_DIAS_MAX = (\d+);/, 'DEV_DIAS_MAX'),
     // os rótulos do botão de compra da loja de itens, por motivo (LOJA_ROTULO), na ordem em que o Itens.podeComprar confere
     lojaRotulo: Object.fromEntries([...extrair(game, /var LOJA_ROTULO = \{([^}]*)\};/, 'LOJA_ROTULO')[1].matchAll(/'?([\w-]+)'?: '([^']+)'/g)].map((m) => [m[1], m[2]]))
   }

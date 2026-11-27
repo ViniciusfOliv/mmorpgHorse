@@ -60,6 +60,8 @@ node prototype/tools/sala-referencia.mjs --check
 node prototype/tools/corrida-referencia.mjs --check
 # a liquidação do fim da corrida (conta.js, T14) igual à referência gravada antes, no jogo e no Node (conta-referencia.json)
 node prototype/tools/conta-referencia.mjs --check
+# o saneamento e a migração do save (save.js, T16) iguais à referência gravada antes, no jogo e no Node (save-referencia.json)
+node prototype/tools/save-referencia.mjs --check
 
 step "7/8 Balanceamento rápido"
 node prototype/tools/balance.js --quick > "$SHOTS_DIR/balance.txt" || { cat "$SHOTS_DIR/balance.txt"; exit 1; }

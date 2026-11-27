@@ -32,7 +32,7 @@ const ROOT = dirname(fileURLToPath(import.meta.url))
 // Texto sempre em LF: uma cópia em CRLF (zip baixado no Windows, git sem o .gitattributes) gera os mesmos bytes.
 const read = async (p) => (await readFile(join(ROOT, p), 'utf8')).replace(/\r\n/g, '\n')
 
-const SCRIPTS = ['src/data.js', 'src/sim.js', 'src/breed.js', 'src/marcas.js', 'src/gear.js', 'src/itens.js', 'src/ginasio.js', 'src/afk.js', 'src/forja.js', 'src/sala.js', 'src/conta.js', 'src/luz.js', 'src/sprites.js', 'src/ambiente.js', 'src/mapa.js', 'src/fx.js', 'src/dev.js', 'src/game.js']
+const SCRIPTS = ['src/data.js', 'src/sim.js', 'src/breed.js', 'src/marcas.js', 'src/gear.js', 'src/itens.js', 'src/ginasio.js', 'src/afk.js', 'src/forja.js', 'src/sala.js', 'src/conta.js', 'src/save.js', 'src/luz.js', 'src/sprites.js', 'src/ambiente.js', 'src/mapa.js', 'src/fx.js', 'src/dev.js', 'src/game.js']
 const SO_DEV = ['src/dev.js']   // fora do jogo de produção
 
 // Blocos marcados (/*@dev:inicio*/ … /*@dev:fim*/, /*@teste:inicio*/ … /*@teste:fim*/): confere o balanço (sem

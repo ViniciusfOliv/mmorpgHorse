@@ -112,6 +112,9 @@ ticket, cada um com teste de equivalência (o mesmo save e a mesma ação dão o
 - **T15:** feito antes (o `sala.js`, 2026-11-25).
 - **T15 — Abertura da sala e pareamento** (`openLobby`, `buildLobby`, `poderBot`).
 - **T16 — Saneamento e migração do save** (`sanitize`).
+  **Feito em 2026-11-27:** `prototype/src/save.js` (`Save.sanear`, `Save.novo`; o relógio, a seed nova e o modo DEV chegam
+  pelo `ctx`); o `sanitize` e o `newState` do `game.js` viraram invólucros. Equivalência: 1.424 saves gravados antes
+  (`save-referencia`: v1 a v10, lixo e campos estragados, no jogo normal e no DEV).
 
 Risco: médio (mexe no coração do `game.js`); por isso vem depois de A e com o ui-test completo verde.
 

@@ -11,7 +11,7 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
   (compradas; cosméticos, VIP e vagas). Pacote de montaria só com moeda ganha jogando.
 - **Tecnologia:** base web (HTML/CSS/JS puro, sem dependências), em `prototype/`. Decidido em
   2026-11-10: o protótipo **vira o jogo**, empacotado para Android, e os módulos de regra (`sim.js`,
-  `data.js`, `breed.js`, `gear.js`, `itens.js`, `ginasio.js`, `afk.js`, `forja.js`, `sala.js`, `conta.js`) vão para o servidor. Empacotador e servidor ainda a definir.
+  `data.js`, `breed.js`, `gear.js`, `itens.js`, `ginasio.js`, `afk.js`, `forja.js`, `sala.js`, `conta.js`, `save.js`) vão para o servidor. Empacotador e servidor ainda a definir.
 - **Fonte da verdade:** `docs/GDD.md`. Números reais do protótipo: `docs/wiki.md` e
   `prototype/dist/wiki.html` (gerados do código pelo build; não editar). Medições de balanceamento:
   `docs/exemplos.md`. Fórmulas da simulação: comentário no topo de `prototype/src/sim.js`.
@@ -43,6 +43,7 @@ lançamento: `docs/cronograma.md`.
 | Sala (pareamento, `sala.js`): testes em Node / as 200 salas do jogo no navegador contra `sala-referencia.json` | `node prototype/tools/sala-test.mjs` / `node prototype/tools/sala-referencia.mjs --check` | 2 s / 5 s |
 | Determinismo da corrida (T12): 48 corridas e os 15 desafios de ginásio no Node e no navegador contra `corrida-referencia.json` (sem `--check` regrava; só de propósito, quando o motor ou um número de regra muda) | `node prototype/tools/corrida-referencia.mjs --check` | ~10 s |
 | Liquidação do fim da corrida (T14, `conta.js`): 400 liquidações no jogo e no Node contra `conta-referencia.json` (gravada com o jogo de antes; regravar só de propósito) | `node prototype/tools/conta-referencia.mjs --check` | ~15 s |
+| Saneamento e migração do save (T16, `save.js`): 1.424 saves (v1 a v10, lixo e campos estragados, jogo normal e DEV) no jogo e no Node contra `save-referencia.json` (gravada com o jogo de antes; regravar só de propósito) | `node prototype/tools/save-referencia.mjs --check` | ~10 s |
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~45 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~5 min |
